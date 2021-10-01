@@ -268,6 +268,17 @@ dashboardBody(
      '
       )
     ),
+tags$script("$(document).on('shiny:connected', function(event) {
+var myWidth = $(window).width();
+Shiny.onInputChange('shiny_width',myWidth)
+
+});"),
+
+tags$script("$(document).on('shiny:connected', function(event) {
+var myHeight = $(window).height();
+Shiny.onInputChange('shiny_height',myHeight)
+
+});"),
 
     fluidPage(
       useShinyjs(),
@@ -3423,7 +3434,7 @@ output$tools_bar<-renderUI({
   cutsom.reactive <- reactive({
 
     m <- getmodel_hc()
-    somC <- cutsom(m, picK(), method.hc = input$method.hc0, palette=input$hcmodel_palette)
+    somC <- cutsom(m, picK(), method.hc = input$method.hc0, palette=input$hcdata_palette)
     somC
   })
 
@@ -3466,25 +3477,33 @@ output$tools_bar<-renderUI({
 
   pclus_factors <- reactive({
     if (length(input$pclus_factors)>0) {
-      attr(getdata_hc(),"factors")[, input$pclus_factors]
+      as.factor(attr(getdata_hc(),"factors")[, input$pclus_factors])
     } else{NULL}
   })
 
 
   output$pclus <- renderUI({
 
-    list(uiOutput("pclus_control"),
-         renderPlot({
-           pclus(
-             somC=cutsom.reactive(),
-             cex = as.numeric(input$pclus_symbol_size),
-             factor.pal = as.character(input$pclus_facpalette),
-             labels.ind = pclus_factors(),
-             pch=as.numeric(input$pclus_symbol),
-             points=bmu_clus_points(),
-             bg_palette=input$pclus_bgpalette
-           )
-         }))
+    list(column(12,uiOutput("pclus_control")),
+         column(12,
+                renderPlot({
+                  if(length(input$pclus_symbol)>0)
+                  {pclus(
+                    somC=cutsom.reactive(),
+                    cex = as.numeric(input$pclus_symbol_size),
+                    factor.pal = as.character(input$pclus_facpalette),
+                    labels.ind = pclus_factors(),
+                    pch=as.numeric(input$pclus_symbol),
+                    points=bmu_clus_points(),
+                    bg_palette=input$hcmodel_palette,
+                    ncol=input$ncol_pclus,
+                    insetx=input$insertx_pclus,
+                    insety=input$inserty_pclus,
+                    alpha.legend=input$bgleg_pclus
+                  )}else{
+                    pclus(cutsom.reactive(),  bg_palette=input$hcmodel_palette)
+                  }
+                })))
   })
 
 
@@ -4053,88 +4072,196 @@ output$tools_bar<-renderUI({
     }
   })
 
+
   output$pcorr_tools<-renderUI({
-    column(12,
-           splitLayout(
-             bsButton("tools_editpcorr", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=T, value=F),
-             bsButton("tools_editpcorr", icon("fas fa-comment-dots"),style  = "button_active", type="toggle",disabled=T, value=F)
+    column(12,align="right",
+           fluidRow(
+             popify(bsButton("tools_editpcorr", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
+                    options=list(container="body"))
            )
-           )
+    )
   })
+  output$pclus_tools<-renderUI({
+    column(12,align="right",
+           fluidRow(
+             popify(bsButton("tools_editpclus", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
+                    options=list(container="body"))
+           )
+    )
+  })
+
+output$pop_pcorr<-renderUI({
+  column(12,style="border-top: 3px solid SeaGreen;border-bottom: 3px solid SeaGreen;background: white; margin-top: 0px; margin-right: 40px; margin-bottom: 20px",
+         column(12,
+                splitLayout(
+                  column(12,
+                    p(strong("Background", style="color: #0D47A1;")),
+                    tipify(pickerInput(inputId = "pcor_bgpalette",
+                                label = NULL,
+                                choices = df$val,
+                                choicesOpt = list(content = df$img),
+                                selected=colors_solid$val[12],
+                                options=list(container="body"))
+                           ,"Color of grid units",options=list(container="body"))
+                  ),
+                  radioButtons(
+                    "dot_label", "Display:", choices = c("symbols", "factors")),
+                  tipify(numericInput("pcor_symbol_size",strong("size"),value = 1,min = 0.1,max = 3,step = .1),"symbol size",options=list(container="body")),
+                  tipify(numericInput("cexvar",strong("var size"),value = 1,min = 0.1,max = 3,step = .1),"variable text size (only for the variable factor map)",options=list(container="body")),
+
+                  conditionalPanel("input.dot_label == 'symbols'",{
+                    column(12,
+                      p(strong("Shape", style="color: #0D47A1;")),
+                      tipify(pickerInput(inputId = "pcor_symbol",
+                                  label = NULL,
+                                  choices = df_symbol$val,
+                                  choicesOpt = list(content = df_symbol$img),
+                                  options=list(container="body"))
+                             ,"symbol shape",options=list(container="body"))
+                    )
+                  }),
+                  column(12,
+                    p(strong( "symb color", style="color: #0D47A1;")),
+                    tipify(pickerInput(inputId = "pcor_facpalette",
+                                label =NULL,
+                                choices = df$val,
+                                choicesOpt = list(content = df$img),
+                                selected=colors_solid$val[2],
+                                options=list(container="body")),
+                           "Symbol colors. Choose a gradient to use a factor as classification",options=list(container="body")
+                           )
+                  )
+                ),
+                column(12,
+                       splitLayout(cellWidths = c("40%",'60%'),
+                         uiOutput("pcor_fac_control"),
+
+
+                         uiOutput('pcorr_legcontrol')
+                       ))
+
+                )
+         )
+
+})
+
+output$pop_pclus<-renderUI({
+  column(12,style="border-top: 3px solid SeaGreen;border-bottom: 3px solid SeaGreen;background: white; margin-top: 0px; margin-right: 40px; margin-bottom: 20px",
+         column(12,
+                splitLayout(
+                  radioButtons(
+                    "dot_label_clus", "Display:", choices = c("symbols", "factors")),
+                  tipify(numericInput("pclus_symbol_size",strong("size"),value = 1,min = 0.1,max = 3,step = .1),"symbol size",options=list(container="body")),
+                  conditionalPanel("input.dot_label_clus == 'symbols'",{
+                    column(12,
+                           p(strong("Shape", style="color: #0D47A1;")),
+                           tipify(pickerInput(inputId = "pclus_symbol",
+                                              label = NULL,
+                                              choices = df_symbol$val,
+                                              choicesOpt = list(content = df_symbol$img),
+                                              options=list(container="body"))
+                                  ,"symbol shape",options=list(container="body"))
+                    )
+                  }),
+                  column(12,
+                         p(strong( "symb color", style="color: #0D47A1;")),
+                         tipify(pickerInput(inputId = "pclus_facpalette",
+                                            label =NULL,
+                                            choices = df$val,
+                                            choicesOpt = list(content = df$img),
+                                            selected=colors_solid$val[2],
+                                            options=list(container="body")),
+                                "Symbol colors. Choose a gradient to use a factor as classification",options=list(container="body")
+                         )
+                  )
+                ),
+                column(12,
+                       splitLayout(cellWidths = c("40%",'60%'),
+                                   uiOutput("pclus_fac_control"),
+
+
+                                   uiOutput('pclus_legcontrol')
+                       ))
+
+         )
+  )
+
+})
+
+output$pcorr_legcontrol<-renderUI({
+  req(as.character(input$pcor_facpalette)%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
+  {legend
+    splitLayout(
+      tipify(numericInput("insertx_pcorr","leg x",value=0,step=0.05),"legend position relative to the x location",options=list(container="body")),
+      tipify(numericInput("inserty_pcorr","leg y",value=0.4,step=0.05),"legend position relative to the y location",options=list(container="body")),
+      tipify(numericInput("ncol_pcorr","ncol leg",value=1,step=1),"the number of columns in which to set the legend items",options=list(container="body")),
+      tipify(numericInput("bgleg_pcorr","bg leg",value=0.85,step=0.05, max=1),"Legend background transparency",options=list(container="body"))
+
+    )
+  }
+})
+
+output$pclus_legcontrol<-renderUI({
+  req(as.character(input$pclus_facpalette)%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
+  {legend
+    splitLayout(
+      tipify(numericInput("insertx_pclus","leg x",value=0,step=0.05),"legend position relative to the x location",options=list(container="body")),
+      tipify(numericInput("inserty_pclus","leg y",value=0.4,step=0.05),"legend position relative to the y location",options=list(container="body")),
+      tipify(numericInput("ncol_pclus","ncol leg",value=1,step=1),"the number of columns in which to set the legend items",options=list(container="body")),
+      tipify(numericInput("bgleg_pclus","bg leg",value=0.85,step=0.05, max=1),"Legend background transparency",options=list(container="body"))
+
+    )
+  }
+})
 
   output$pcorr_control <- renderUI({
     column(12,
-      splitLayout(
-        p(
-          strong("Background", style="color: #0D47A1;"),
-          pickerInput(inputId = "pcor_bgpalette",
-                      label = NULL,
-                      choices = df$val,
-                      choicesOpt = list(content = df$img),
-                      selected=colors_solid$val[12],
-                      options=list(container="body"))
-        ),
-        radioButtons(
-          "dot_label", "Display:", choices = c("symbols", "factors")),
+      fluidRow(
+        splitLayout(cellWidths = c("40%","60%"),
+          column(12,style="margin: 20px 20px 20px 20px",
+                 checkboxInput("varfacmap_action", strong("show variable factor map",actionLink("varfacmap", tipify(
+                   icon("fas fa-question-circle"), "Click for more details"
+                 ))),value =T)
 
-        conditionalPanel("input.dot_label == 'symbols'",{
-          p(
-            strong("Shape", style="color: #0D47A1;"),
-            pickerInput(inputId = "pcor_symbol",
-                        label = NULL,
-                        choices = df_symbol$val,
-                        choicesOpt = list(content = df_symbol$img),
-                        options=list(container="body"))
-          )
-        }),
-       p(
-         strong( "color (obs.)", style="color: #0D47A1;"),
-         pickerInput(inputId = "pcor_facpalette",
-                     label =NULL,
-                     choices = df$val,
-                     choicesOpt = list(content = df$img),
-                     selected=colors_solid$val[2],
-                     options=list(container="body"))
-       ),
 
-        uiOutput("pcor_fac_control"),
-        numericInput("pcor_symbol_size","size",value = 1,min = 0.1,max = 3,step = .1)
 
-      ),
-      column(12,align="right",
-             column(6,align="left",
-                    bsCollapsePanel(tipify(h5(em("legend control*")),"Control position and number of columns of the legend. Once the legend is set, click on variable factor map to update the plot.", options=list(container="body")),     style = "background: white;",splitLayout(style="margin-top:-20px",
-                                                                                                                                                                                                                                                                                     p(numericInput("insetx_bmu","leg x",value=0,step=0.1)),
-                                                                                                                                                                                                                                                                                     p( numericInput("insety_bmu","leg y",value=0,step=0.1)),
-                                                                                                                                                                                                                                                                                     p(numericInput("leg_ncol_bmu","ncol leg",value=1,step=1))
-                    )
-                    ))
-      ),
-      fluidRow(column(11,
-                      column(1, checkboxInput("varfacmap_action", "")),
-                      p(
-                        strong("show variable factor map"),
-                        actionLink("varfacmap", tipify(
-                          icon("fas fa-question-circle"), "Click for more details"
-                        )),
-                        style = "margin-top: 10px; margin-left: -10px"
-                      )
-      )),
-      conditionalPanel("input.varfacmap_action % 2", {
-        column(12,
-               column(6,
-                      selectInput("var_corr_codes","show",
-                                  choices = c("most important correlations", "clockwise-correlations")
-                      )
-               ),
-               column (2, style="margin-left: -10px",
-                       numericInput("npic", 'number', value = 10, min = 2
-                       )),
-               column(2,style="margin-left: -10px",
-                      numericInput("cexvar","var size",value = 1,min = 0.1,max = 3,step = .1))
+
+          ),
+          conditionalPanel("input.varfacmap_action % 2", {
+            column(12,style="margin-top: 30px",
+                   splitLayout(cellWidths = c("60%","20%","20%"),
+                     selectInput("var_corr_codes","show",
+                                 choices = c("most important correlations", "clockwise-correlations"), selectize = F
+                     ),
+                     numericInput("npic", 'number', value = 10, min = 2),
+                     column(12,style="margin-top: 22px",
+                       popify(downloadButton("down_pcorr_results", NULL,style  = "button_active"),NULL,"download variable factor results",
+                              options=list(container="body")
+
+                       )
+                     )
+
+                   )
+            )
+          })
         )
-      }),
-      column(12, plotOutput('pCorrCodes'))
+
+      ),
+      uiOutput("pcorr_tools"),
+      fluidRow(
+        conditionalPanel("input.tools_editpcorr % 2",{
+          uiOutput("pop_pcorr")
+        })
+
+      ),
+      column(12,
+             p(strong(h4("Best matching units"))),
+             plotOutput('pCorrCodes'))
+
+
+
+
+
     )
 
 
@@ -4144,55 +4271,39 @@ output$tools_bar<-renderUI({
 
   output$pclus_control <- renderUI({
     column(12,
-           br(),
-           column(2,
-                  pickerInput(inputId = "pclus_bgpalette",
-                              label = "Background",
-                              choices = colors_gradient$val,
-                              choicesOpt = list(content = colors_gradient$img),
-                              selected=colors_gradient$val[12])),
-           column(2,style="margin-left: -10px",
-                  radioButtons(
-                    "dot_label_clus", "Display:", choices = c("symbols", "factors"))
+           uiOutput("pclus_tools"),
+           fluidRow(
+             conditionalPanel("input.tools_editpclus % 2",{
+               uiOutput("pop_pclus")
+             })
+
            ),
-           conditionalPanel("input.dot_label_clus == 'symbols'",{
-             column(2,style="margin-left: -10px",
-                    pickerInput(inputId = "pclus_symbol",
-                                label = "Shape",
-                                choices = df_symbol$val,
-                                choicesOpt = list(content = df_symbol$img))
-             )
-           }),
-           column(2,style="margin-left: -10px",
-                  pickerInput(inputId = "pclus_facpalette",
-                              label = "color (obs.)",
-                              choices = df$val,
-                              choicesOpt = list(content = df$img),
-                              selected=colors_solid$val[2])),
-           uiOutput("pclus_fac_control"),
-           column(2,style="margin-left: -10px",
-                  numericInput("pclus_symbol_size","size",value = 1,min = 0.1,max = 3,step = .1))
+           column(12,
+                  p(strong(h4("Best matching units"))),
+                  column(12,uiOutput('pclusCodes')))
+
+
+
+
+
     )
 
+
   })
-
-
-
-
   output$pcor_fac_control<-renderUI({
     if(input$dot_label == 'factors'|input$pcor_facpalette %in% c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
       selectInput("pcor_factors","Factor",
                   choices = c(colnames(attr(getdata_som(),"factors"))),
                   selectize = F)
-
   })
+
+
+
   output$pclus_fac_control<-renderUI({
     if(input$dot_label_clus == 'factors'|input$pclus_facpalette %in% c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
-
-      column(2,style="margin-left: -10px",
-             selectInput("pclus_factors","Factor",
-                         choices = c(colnames(attr(getdata_hc(),"factors"))),
-                         selectize = F))
+      selectInput("pclus_factors","Factor",
+                  choices = c(colnames(attr(getdata_hc(),"factors"))),
+                  selectize = F)
 
   })
   BMUs <- reactive({
@@ -4200,41 +4311,35 @@ output$tools_bar<-renderUI({
       npic=as.numeric(input$npic)} else{
         npic = 0
       }
-    p <-codes_corr_plot(
-      m=getsom(),
-      npic = npic,
-      indicate = var_corr_codes.reactive(),
-      pch = as.numeric(input$pcor_symbol),
-      labels.ind = pcor_factors(),
-      cex =as.numeric(input$pcor_symbol_size),
-      bg_palette = as.character(input$pcor_bgpalette),
-      factor.pal=as.character(input$pcor_facpalette),
-      points=bmu_points()
-    )
-    p
-  })
-
-
-  bmuplot<-reactive({
-    if(length(input$pcor_factors)>0) {
-
-      layout(matrix(c(2,1), nrow=1), widths = c(0.8,0.2))
-      plot.new()
-      par( mar=c(0,0,0,0), xpd=T)
-      fac<- pcor_factors()
-      legend("top",pch=as.numeric(input$pcor_symbol),legend=levels(fac), col=getcolhabs(input$pcor_facpalette, nlevels(fac)),bty="n", ncol=input$leg_ncol_bmu, inset=c(input$insetx_bmu,input$insety_bmu ))
-
-
+    if(length(input$pcor_symbol)>0){
+      p <-codes_corr_plot(
+        m=getsom(),
+        npic = npic,
+        indicate = var_corr_codes.reactive(),
+        pch = as.numeric(input$pcor_symbol),
+        labels.ind = pcor_factors(),
+        cex =as.numeric(input$pcor_symbol_size),
+        bg_palette = as.character(input$pcor_bgpalette),
+        factor.pal=as.character(input$pcor_facpalette),
+        points=bmu_points(),
+        cex.var=input$cexvar,
+        ncol=input$ncol_pcorr,
+        insetx=input$insertx_pcorr,
+        insety=input$inserty_pcorr,
+        alpha.legend=input$bgleg_pcorr
+      )
+    } else{
+      p<-codes_corr_plot(getsom(), npic)
     }
+    p
 
-    BMUs()
 
 
   })
 
 
   output$pCorrCodes <- renderPlot({
-    bmuplot()
+    BMUs()
   })
   output$pchanges <- renderPlot({
     pchanges(getsom())
@@ -5483,21 +5588,36 @@ output$tools_bar<-renderUI({
             height = 2000)
 
 
+
         if (input$varfacmap_action %% 2) {
-          npic=as.numeric(input$npic) } else {
-            npic=0
+          npic=as.numeric(input$npic)} else{
+            npic = 0
           }
-        codes_corr_plot(
-          m=getsom(),
-          npic = npic,
-          indicate = var_corr_codes.reactive(),
-          pch = as.numeric(input$pcor_symbol),
-          labels.ind = pcor_factors(),
-          cex =as.numeric(input$pcor_symbol_size),
-          bg_palette = as.character(input$pcor_bgpalette),
-          factor.pal=as.character(input$pcor_facpalette),
-          points=bmu_points()
-        )
+        if(length(input$pcor_symbol)>0){
+          p <-codes_corr_plot(
+            m=getsom(),
+            npic = npic,
+            indicate = var_corr_codes.reactive(),
+            pch = as.numeric(input$pcor_symbol),
+            labels.ind = pcor_factors(),
+            cex =as.numeric(input$pcor_symbol_size),
+            bg_palette = as.character(input$pcor_bgpalette),
+            factor.pal=as.character(input$pcor_facpalette),
+            points=bmu_points(),
+            cex.var=input$cexvar,
+            ncol=input$ncol_pcorr,
+            insetx=input$insertx_pcorr,
+            insety=input$inserty_pcorr,
+            alpha.legend=input$bgleg_pcorr
+          )
+        } else{
+          p<-codes_corr_plot(getsom(), npic)
+        }
+        p
+
+
+
+
         dev.off()
       }
     )
@@ -6278,13 +6398,8 @@ output$tools_bar<-renderUI({
                        "input.usesuggK=='suggested'",
                        uiOutput("suggsKdata")
                      )
-              ),
-              column(12,
-                     p(strong("Palette", style="color: #0D47A1")),
-                     pickerInput(inputId = "hcdata_palette",
-                                 label = NULL,
-                                 choices = df_hc$val,
-                                 choicesOpt = list(content = df_hc$img)))
+              )
+
             )
 
           }),
@@ -6306,12 +6421,20 @@ output$tools_bar<-renderUI({
                        pickerInput(inputId = "hcmodel_palette",
                                    label = NULL,
                                    choices = df_hc$val,
-                                   choicesOpt = list(content = df_hc$img)))
+                                   choicesOpt = list(content = df_hc$img),
+                                   options=list(container="body")
+                                   ))
               )
 
             }
           )
-        ),cellWidths = c("40%","60%")
+        ),cellWidths = c("40%","60%"),
+        column(12,
+               p(strong("Palette", style="color: #0D47A1")),
+               pickerInput(inputId = "hcdata_palette",
+                           label = NULL,
+                           choices = df_hc$val,
+                           choicesOpt = list(content = df_hc$img)))
 
       )
 

@@ -1,6 +1,5 @@
 
-
-codes_corr_plot<-function(m,npic=5, indicate=c("var","cor"), col.arrow="gray80",cex.var=1, cex=1, pch=NULL, labels.ind=NULL,bg_palette="viridis", factor.pal="viridis", points=T){
+codes_corr_plot<-function(m,npic=10, indicate=c("var","cor"), col.arrow="gray80",cex.var=1, cex=1, pch=16, labels.ind=NULL,bg_palette="matlab.like2", factor.pal="gray", points=T,ncol=1,insetx=0,insety=0,alpha.legend=0.85){
   bmuvalues<-as.matrix(kohonen::unit.distances(m$grid,m$grid$toroidal))[,1]
   bmuvalues<-bmuvalues+seq(0.001,0.002,length.out=length(bmuvalues))
   maxdepth<-max(bmuvalues)
@@ -24,8 +23,9 @@ if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1
   shape="straight"
   indicate=match.arg(indicate,c("var","cor"))
 
+
   if(npic==0){
-    par(mar=c(7,6,2,1))
+    par(mar=c(7,6,2,0))
     set.seed(1)
     if(isFALSE(points)){
       plot(m,"mapping",shape=shape, border="white", main="",keepMargins =T, bgcol=colcodes,codeRendering=F, labels=labels.ind, cex=cex, pch=pch, col=col)}else{
@@ -56,6 +56,7 @@ if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1
       Ysp2<-names(D)[order(D, decreasing = T)][1:npic]
       indicadores<- unlist(lapply(data.frame(t(matrix(c(Xsp1,Xsp2,Ysp1,Ysp2),ncol=4))),cbind))
       indicadores= na.omit(indicadores[1:npic])
+
       result<-scores[indicadores,]
       colnames(result)<-c("cor.x", "cor.y")
 
@@ -63,9 +64,10 @@ if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1
     if(indicate=="var") { indicadores<-na.omit(names(sort(sigma2,decreasing=T))[1:npic])
     result<-data.frame(sigma2[indicadores])
     colnames(result)<-"Variance"
+
     }
     bp=data.frame(na.omit(as.matrix(t(CORMAP))))
-    par(mar=c(7,6,2,1))
+    par(mar=c(7,6,2,0))
     {
       set.seed(1)
       if(isFALSE(points)){ plot(m,"mapping",shape=shape, border="white", main="",keepMargins =T, bgcol=colcodes,codeRendering=F, labels=labels.ind, cex=cex, pch=pch, col=col)}else{
@@ -79,15 +81,20 @@ if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1
     bp[,1]<-  rescale(bp[,1], c(min(m$grid$pts[,1]), max(m$grid$pts[,1])))
     bp[,2]<-  rescale(bp[,2], c(min(m$grid$pts[,2]), max(m$grid$pts[,2])))
     boxtext(x =(bp[indicadores,1]), y = (bp[indicadores,2]), labels = colnames(CORMAP[,indicadores]), col.bg = adjustcolor("white", 0.5),  cex=cex.var, border.bg = col.arrow)
+    if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat")) {
+      legend("topr",pch=pch,legend=levels(labels.ind), col=getcolhabs(factor.pal, nlevels(labels.ind)),border=NA, ncol=ncol, inset=c(insetx,insety),cex=cex, bg=adjustcolor('white',alpha.legend))
+
+    }
     plotresult<-recordPlot()
     attr(plotresult,"indicadores")<-indicadores
+    attr(plotresult,"result")<-result
     #plotind(m,indicadores)
     on.exit(par(opar),add=TRUE,after=FALSE)
     return(plotresult)
 
   }
 }
-pclus<-function(somC, pch=NULL, labels.ind=NULL,bg_palette="matlab.like2", factor.pal="viridis", cex=1, points=T){
+pclus<-function(somC,  cex=1, pch=16, labels.ind=NULL,bg_palette="matlab.like2", factor.pal="gray", points=T,ncol=1,insetx=0,insety=0,alpha.legend=0.85){
   shape="straight"
   opar<-par(no.readonly=TRUE)
   m=somC$som.model
@@ -102,10 +109,14 @@ pclus<-function(somC, pch=NULL, labels.ind=NULL,bg_palette="matlab.like2", facto
 
   set.seed(1)
   if(isFALSE(points)){
-    plot(m, type="mapping", main = "", bgcol = col_vector[som_cluster_adj], pchs = pch,border="white",keepMargins =T,codeRendering=F,shape=shape,labels=labels.ind, cex=cex, col=col)
+    plot(m, type="mapping", main = NULL, bgcol = col_vector[som_cluster_adj], pchs = pch,border="white",keepMargins =T,codeRendering=F,shape=shape,labels=labels.ind, cex=cex, col=col)
     add.cluster.boundaries(m, som_cluster_adj)}else{
-      plot(m, type="mapping", main = "", bgcol = col_vector[som_cluster_adj], pchs = pch,border="white",keepMargins =T,codeRendering=F,shape=shape,labels=NULL, cex=cex, col=col)
+      plot(m, type="mapping", main = NULL, bgcol = col_vector[som_cluster_adj], pchs = pch,border="white",keepMargins =T,codeRendering=F,shape=shape,labels=NULL, cex=cex, col=col)
       add.cluster.boundaries(m, som_cluster_adj)}
+  if(factor.pal%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat")) {
+    legend("topr",pch=pch,legend=levels(labels.ind), col=getcolhabs(factor.pal, nlevels(labels.ind)),border=NA, ncol=ncol, inset=c(insetx,insety),cex=cex, bg=adjustcolor('white',alpha.legend))
+
+  }
   codes.plot<- recordPlot()
   on.exit(par(opar),add=TRUE,after=FALSE)
   return(codes.plot)
@@ -169,7 +180,7 @@ pchanges<-function(m)
 
   errossom<-round(unlist(m$errorsom),3)
 
-  plot(m,"changes", col="red", keepMargins = TUE)
+  plot(m,"changes", col="red", keepMargins = TRUE)
   for( j in 1:ncol(m$changes)) {lines(m$changes[,j], col= rainbow(ncol(m$changes))[j])}
   legend("bottoml", legend=c(paste("Quantization:",errossom[1]),paste("Topographic:",errossom[3]),paste("Explain_var:",errossom[2])), bty='n',cex=.7)
   pchanges <- recordPlot()
@@ -185,7 +196,7 @@ pcodes<-function(somC,...)
   m<-somC$som.model
   shape="straight"
   colhabs=somC$colhabs
-  plot(somC$som.model, type="mapping", bgcol = somC$colhabs[somC$som.hc], pchs = 16,border="white",shape=shape,keepMargins =F, labels=sample.names,...)
+  plot(somC$som.model, type="mapping", bgcol = somC$colhabs[somC$som.hc], pchs = 16,border="white",shape=shape,keepMargins =T, labels=sample.names,...)
   add.cluster.boundaries(m, somC$som.hc)
   pcodes<-recordPlot()
   on.exit(par(opar),add=TRUE,after=FALSE)

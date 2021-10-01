@@ -1416,12 +1416,6 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
 
-  observeEvent(input$train_or_load=="See Results",{
-    updateTabsetPanel(session, "som_tab", "som_tab2")
-    updateTabsetPanel(session, "som_tab", "train_tab2")
-  })
-
-
 
 
 
@@ -5395,6 +5389,7 @@ output$tools_bar<-renderUI({
                    {
                      validate(paste(m[[1]], "Please decrease your alpha (learning rate)"))
                    }
+                   attr(m,'mode')<-input$mode
 
                    m
 
@@ -5824,7 +5819,7 @@ output$tools_bar<-renderUI({
     summ <- m$grid[-1]
     summ$neighbourhood.fct <- as.character(summ$neighbourhood.fct)
     summ <- do.call(rbind, summ)
-    mode <- input$mode
+    mode <- attr(m,"mode")
     alpha = paste0(m$alpha, collapse = "; ")
     radius = paste0(round(m$radius, 3), collapse = "; ")
     user.weights = m$user.weights

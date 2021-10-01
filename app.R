@@ -391,7 +391,10 @@ server <- function(input, output, session) {
         strong("1. Training"), value = "som_tab1",
         uiOutput("training_panel")
 
-      )
+      ),
+      tabPanel(value = "som_tab2",
+               strong("2. Results"),
+               uiOutput("results_panel"))
 
 
     )
@@ -1272,69 +1275,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
   output$menutitle<-renderUI({gettitle()})
   insertab1<-reactiveValues(df=T)
-  observe({
-    {
-      if(isTRUE(bagmodel$df))
-        if(isFALSE(insertab2$df)){
-          insertab2$df<-isolate(T)
-          insertTab(
-            inputId = "som_tab",
-            tabPanel(value = "som_tab2",
-                     strong("2. Results"),
-                     uiOutput("results_panel")),
-            target = "som_tab1", position="after"
-          )}
 
-    }
-  })
-  observeEvent(input$train_or_load,{
-    if(input$train_or_load == "See Results"){
-      if(isFALSE(insertab2$df)){
-        insertTab(
-          inputId = "som_tab",
-          tabPanel(value = "som_tab2",
-                   strong("2. Results"),
-                   uiOutput("results_panel")),
-          target = "som_tab1", position="after"
-        )}
-      insertab2$df<-T
-      if(isTRUE(insertab1$df)){
-        insertab1$df<-F
-        removeTab("som_tab","som_tab1")
-      }
-      if(isTRUE(insertab3$df)){
-        insertab3$df<-F
-        removeTab("som_tab","som_tab3")
-        removeTab("som_tab","som_tab4")
-      }
-
-
-    }
-  })
-
-  observeEvent(input$train_or_load,{
-    req(isFALSE(insertab1$df))
-    if(input$train_or_load == "Train data"){
-      insertTab(
-        inputId = "som_tab",
-        tabPanel(
-          strong("1. Training"), value = "som_tab1",
-
-          uiOutput("training_panel")
-
-        ),
-        target = "som_tab2", position="before"
-      )
-      insertab1$df<-T
-    }
-  })
-  observeEvent(input$train_or_load,{
-    req(isTRUE(insertab2$df))
-    if(input$train_or_load == "Train data"){
-      removeTab("som_tab","som_tab2")
-      insertab2$df<-isolate(F)
-    }
-  })
 
 
   fingerprint_model <-
@@ -4118,40 +4059,63 @@ output$tools_bar<-renderUI({
     }
   })
 
+  output$pcorr_tools<-renderUI({
+    column(12,
+           splitLayout(
+             bsButton("tools_editpcorr", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=T, value=F),
+             bsButton("tools_editpcorr", icon("fas fa-comment-dots"),style  = "button_active", type="toggle",disabled=T, value=F)
+           )
+           )
+  })
 
   output$pcorr_control <- renderUI({
-    fluidRow(
-      column(2,
-             pickerInput(inputId = "pcor_bgpalette",
-                         label = "Background",
-                         choices = df$val,
-                         choicesOpt = list(content = df$img),
-                         selected=colors_solid$val[12])
-      ),
-      column(2,style="margin-left: -10px",
-             radioButtons(
-               "dot_label", "Display:", choices = c("symbols", "factors"))
-      ),
+    column(12,
+      splitLayout(
+        p(
+          strong("Background", style="color: #0D47A1;"),
+          pickerInput(inputId = "pcor_bgpalette",
+                      label = NULL,
+                      choices = df$val,
+                      choicesOpt = list(content = df$img),
+                      selected=colors_solid$val[12],
+                      options=list(container="body"))
+        ),
+        radioButtons(
+          "dot_label", "Display:", choices = c("symbols", "factors")),
 
-      conditionalPanel("input.dot_label == 'symbols'",{
-        column(2,style="margin-left: -10px",
-               pickerInput(inputId = "pcor_symbol",
-                           label = "Shape",
-                           choices = df_symbol$val,
-                           choicesOpt = list(content = df_symbol$img))
-        )
-      }),
-      column(2,style="margin-left: -10px",
-             pickerInput(inputId = "pcor_facpalette",
-                         label = "color (obs.)",
-                         choices = df$val,
-                         choicesOpt = list(content = df$img),
-                         selected=colors_solid$val[2])),
-      uiOutput("pcor_fac_control"),
-      column(2,style="margin-left: -10px",
-             numericInput("pcor_symbol_size","size",value = 1,min = 0.1,max = 3,step = .1))
+        conditionalPanel("input.dot_label == 'symbols'",{
+          p(
+            strong("Shape", style="color: #0D47A1;"),
+            pickerInput(inputId = "pcor_symbol",
+                        label = NULL,
+                        choices = df_symbol$val,
+                        choicesOpt = list(content = df_symbol$img),
+                        options=list(container="body"))
+          )
+        }),
+       p(
+         strong( "color (obs.)", style="color: #0D47A1;"),
+         pickerInput(inputId = "pcor_facpalette",
+                     label =NULL,
+                     choices = df$val,
+                     choicesOpt = list(content = df$img),
+                     selected=colors_solid$val[2],
+                     options=list(container="body"))
+       ),
 
-      ,
+        uiOutput("pcor_fac_control"),
+        numericInput("pcor_symbol_size","size",value = 1,min = 0.1,max = 3,step = .1)
+
+      ),
+      column(12,align="right",
+             column(6,align="left",
+                    bsCollapsePanel(tipify(h5(em("legend control*")),"Control position and number of columns of the legend. Once the legend is set, click on variable factor map to update the plot.", options=list(container="body")),     style = "background: white;",splitLayout(style="margin-top:-20px",
+                                                                                                                                                                                                                                                                                     p(numericInput("insetx_bmu","leg x",value=0,step=0.1)),
+                                                                                                                                                                                                                                                                                     p( numericInput("insety_bmu","leg y",value=0,step=0.1)),
+                                                                                                                                                                                                                                                                                     p(numericInput("leg_ncol_bmu","ncol leg",value=1,step=1))
+                    )
+                    ))
+      ),
       fluidRow(column(11,
                       column(1, checkboxInput("varfacmap_action", "")),
                       p(
@@ -4223,12 +4187,9 @@ output$tools_bar<-renderUI({
 
   output$pcor_fac_control<-renderUI({
     if(input$dot_label == 'factors'|input$pcor_facpalette %in% c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
-
-
-      column(3,style="margin-left: -10px",
-             selectInput("pcor_factors","Factor",
-                         choices = c(colnames(attr(getdata_som(),"factors"))),
-                         selectize = F))
+      selectInput("pcor_factors","Factor",
+                  choices = c(colnames(attr(getdata_som(),"factors"))),
+                  selectize = F)
 
   })
   output$pclus_fac_control<-renderUI({
@@ -4260,8 +4221,26 @@ output$tools_bar<-renderUI({
   })
 
 
-  output$pCorrCodes <- renderPlot({
+  bmuplot<-reactive({
+    if(length(input$pcor_factors)>0) {
+
+      layout(matrix(c(2,1), nrow=1), widths = c(0.8,0.2))
+      plot.new()
+      par( mar=c(0,0,0,0), xpd=T)
+      fac<- pcor_factors()
+      legend("top",pch=as.numeric(input$pcor_symbol),legend=levels(fac), col=getcolhabs(input$pcor_facpalette, nlevels(fac)),bty="n", ncol=input$leg_ncol_bmu, inset=c(input$insetx_bmu,input$insety_bmu ))
+
+
+    }
+
     BMUs()
+
+
+  })
+
+
+  output$pCorrCodes <- renderPlot({
+    bmuplot()
   })
   output$pchanges <- renderPlot({
     pchanges(getsom())

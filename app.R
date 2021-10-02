@@ -1,7 +1,7 @@
 
 
 library("colorspace")
-
+library("writexl")
 library(wesanderson)
 library(e1071)
 library(DBI)

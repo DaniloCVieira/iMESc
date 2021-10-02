@@ -266,7 +266,7 @@ boxtext <- function(x, y, labels = NA, col.text = NULL, col.bg = NA,
 }
 
 
-train.summary <- function(m){
+train.summary_fun<- function(m){
   {
 
     traindata <- data.frame(m$data[[1]])
@@ -276,7 +276,7 @@ train.summary <- function(m){
     summ <- m$grid[-1]
     summ$neighbourhood.fct <- as.character(summ$neighbourhood.fct)
     summ <- do.call(rbind, summ)
-    mode <- input$mode
+    mode <-attr(m,"mode")
     alpha = paste0(m$alpha, collapse = "; ")
     radius = paste0(round(m$radius, 3), collapse = "; ")
     user.weights = m$user.weights

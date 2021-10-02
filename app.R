@@ -1,3 +1,5 @@
+
+
 library("colorspace")
 
 library(wesanderson)
@@ -90,6 +92,9 @@ tags$head(tags$style(
   HTML("
 pre { white-space: pre-wrap; word-break: keep-all; }
 @import url('https://fonts.googleapis.com/css2?family=Alata&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bevan&display=swap');
+
+
 #Select1{border: 1px solid #dd4b39;}
 
 
@@ -1148,7 +1153,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
 
-  output$data_list<-renderUI({datalist_render(getdatalist()[[1]])})
+  output$data_list<-renderUI({datalist_render(getdatalist()[[1]],F)})
 
   output$upload_input<-renderUI({
     column(12,style="background: white",
@@ -1160,7 +1165,6 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
   output$upload_input2<-renderUI({
     fluidRow(
-
       fluidRow(
         splitLayout(
           absolutePanel(
@@ -2572,6 +2576,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
     column(12,style=background,
            conditionalPanel("input.stats0=='stats_classmat'",{uiOutput("pop_classmat")}),
+           conditionalPanel("input.stats0=='stats_attributes'",{uiOutput("stats_attributes")}),
            conditionalPanel("input.stats0=='stats_datalist'",{uiOutput("stats_datalist")}),
            conditionalPanel("input.stats0=='stats_sum_data'",{uiOutput("stats_data")}),
            conditionalPanel("input.stats0=='stats_sum_variables'",{uiOutput("stats_var")}),
@@ -2710,12 +2715,449 @@ output$textbreak<-renderText("This action creates a single binary column per fac
              column(12, plotOutput("boxplot_out")))
   })
 
+  output$stats_attributes<-renderUI({
+    data<-getdata_upload()
+    factors<-attr(data,"factors")
+    coords<-attr(data,"coords")
+    base_shape<-attr(data,"base_shape")
+    layer_shape<-attr(data,"layer_shape")
+    fluidRow(
+      column(12,
+             h5(strong("Datalist:"),em(input$data_upload,style="color: gray40")),
+             if(is.null(attr(getdata_upload(),"som"))){
+               radioGroupButtons("view_datalist",NULL,
+                                 choiceNames =list(
+                                   popify(icon("fas fa-archive"),NULL,"Data-Attribute",options=list(container="body")),
+                                   popify(icon("fas fa-boxes"),NULL,"Factor-Attribute",options=list(container="body")),
+                                   popify(icon("fas fa-map-marker-alt"),NULL,"Coords-Attribute",options=list(container="body")),
+                                   popify(div("B",icon("fas fa-map")),NULL,"base_shape-Attribute",options=list(container="body")),
+                                   popify(div("L",icon("far fa-map")),NULL,"layer_shape-Attribute",options=list(container="body"))
+                                 ),
+                                 choiceValues =list(
+                                   "data","factors","coords","base_shape","layer_shape"
+
+                                 )
+               )
+             } else{
+
+               radioGroupButtons("view_datalist",NULL,
+                                 choiceNames =list(
+                                   popify(icon("fas fa-archive"),NULL,"Data-Attribute",options=list(container="body")),
+                                   popify(icon("fas fa-boxes"),NULL,"Factor-Attribute",options=list(container="body")),
+                                   popify(icon("fas fa-map-marker-alt"),NULL,"Coords-Attribute",options=list(container="body")),
+                                   popify(div("B",icon("fas fa-map")),NULL,"base_shape-Attribute",options=list(container="body")),
+                                   popify(div("L",icon("far fa-map")),NULL,"layer_shape-Attribute",options=list(container="body")),
+                                   popify(icon("fas fa-braille"),NULL,"Som-Attribute",options=list(container="body"))
+                                 ),
+                                 choiceValues =list(
+                                   "data","factors","coords","base_shape","layer_shape","som"
+
+                                 )
+               )
+
+             }
+      ),
+
+
+      column(12,uiOutput("view_out"))
+    )
+  })
+
   output$stats_datalist<-renderUI({
-    list(datalist_render(getdata_upload())
+    list(
+      datalist_render(getdata_upload(),bagdata$df)
          # ,column(12, "getdata_upload",renderPrint(lapply(attributes(getdata_upload()), head))),
          #column(12, 'saved_data',renderPrint(lapply(attributes(saved_data$df[[input$data_upload]]), head)))
     )
   })
+
+
+  output$view_out<-renderUI(column(12,
+
+    conditionalPanel("input.view_datalist=='data'",{
+      uiOutput("viewdata")
+    }),
+    conditionalPanel("input.view_datalist=='factors'",{
+      uiOutput("viewfactors")
+    }),
+    conditionalPanel("input.view_datalist=='coords'",{
+      uiOutput("viewcoords")
+    }),
+    conditionalPanel("input.view_datalist=='base_shape'",{
+      uiOutput("viewbase")
+    }),
+    conditionalPanel("input.view_datalist=='layer_shape'",{
+      uiOutput("viewlayer")
+    }),
+    conditionalPanel("input.view_datalist=='som'",{
+      uiOutput("viewsom")
+    })
+
+  ))
+
+  output$viewdata<-renderUI({fluidRow(
+
+    h5(strong("Data-Attribute"),tipify(actionButton("downcenter_data",icon("fas fa-download")),"Download table", options=list(container="body"))),
+    DT::renderDataTable(getdata_upload())
+
+  )})
+  output$viewfactors<-renderUI({fluidRow(
+
+    h5(strong("Factor-Attribute"),tipify(actionButton("downcenter_factors",icon("fas fa-download")),"Download table", options=list(container="body"))),
+    DT::renderDataTable(attr(getdata_upload(),"factors"))
+
+  )})
+  output$viewcoords<-renderUI({
+    if(is.null(attr(getdata_upload(),"coords"))) {fluidRow(
+
+      column(12,
+             p(strong("No coords found in Datalist:",style="color: red"),em(input$data_upload))),
+      uiOutput("add_coords_intru"),
+      column(12,style="margin-top: 20px",
+             splitLayout(
+               cellWidths = c("30%","20%"),
+               column(12,
+                      fileInput(inputId = "add_coords_file",label = NULL)),
+               column(12,
+                      uiOutput("add_coords_button"))
+
+             ))
+
+    )} else{
+      fluidRow(
+        h5(strong("Coords-Attribute"),tipify(actionButton("downcenter_coords",icon("fas fa-download")),"Download table", options=list(container="body"))),
+        DT::renderDataTable(attr(getdata_upload(),"coords"))
+
+      )
+    }
+
+  })
+
+  {
+
+    output$add_coords_button<-renderUI({
+      req(length(input$add_coords_file$datapath)>0)
+      actionButton("add_coords",icon=icon("fas fa-arrow-right"),
+                   strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
+                          "Add", style="color: SeaGreen"))
+    })
+
+    output$add_coords_intru<-renderUI({
+      column(12,
+             column(12,style="margin-top: 20px",
+                    strong("1. Use the button below to upload one.")),
+             if(length(input$add_coords_file$datapath)>0){
+              fluidRow(
+                column(12,style="margin-top: 20px",
+                       strong("2. Click ",strong("Add", style="color: SeaGreen")," to insert it to the Datalist:", em(input$data_upload, style="color: SeaGreen"))),
+                column(12,
+                       uiOutput("error_coords"))
+
+
+              )
+             }
+
+
+
+
+      )
+    })
+
+  }
+  {
+    output$add_base_button<-renderUI({
+      req(length(input$add_base_file$datapath)>0)
+      actionButton("add_base",icon=icon("fas fa-arrow-right"),
+                   strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
+                          "Add", style="color: SeaGreen"))
+    })
+
+    output$add_base_intru<-renderUI({
+      column(12,
+             column(12,style="margin-top: 20px",
+                    strong("1. Use the button below to upload one.")),
+             if(length(input$add_base_file$datapath)>0){
+               column(12,style="margin-top: 20px",
+                      strong("2. Click ",strong("Add", style="color: SeaGreen")," to insert it to the Datalist:", em(input$data_upload, style="color: SeaGreen")))
+             }
+      )
+    })
+  }
+
+  {
+    output$add_layer_button<-renderUI({
+      req(length(input$add_layer_file$datapath)>0)
+      actionButton("add_layer",icon=icon("fas fa-arrow-right"),
+                   strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
+                          "Add", style="color: SeaGreen"))
+    })
+
+    output$add_layer_intru<-renderUI({
+      column(12,
+             column(12,style="margin-top: 20px",
+                    strong("1. Use the button below to upload one.")),
+             if(length(input$add_layer_file$datapath)>0){
+               column(12,style="margin-top: 20px",
+                      strong("2. Click ",strong("Add", style="color: SeaGreen")," to insert it to the Datalist:", em(input$data_upload, style="color: SeaGreen")))
+             }
+
+      )
+    })
+  }
+  output$viewbase<-renderUI({
+    column(12,
+      h5(strong("Base-Attribute")),
+      if(is.null(attr(getdata_upload(),"base_shape"))) {fluidRow(
+
+        column(12,
+               p(strong("No base_shape found in Datalist:",style="color: red"),em(input$data_upload))),
+        uiOutput("add_base_intru"),
+        column(12,style="margin-top: 20px",
+               splitLayout(
+                 cellWidths = c("30%","20%"),
+                 column(12,
+                        fileInput(inputId = "add_base_file",label = NULL)),
+                 column(12,
+                        uiOutput("add_base_button"))
+
+               ))
+
+      )} else {
+        renderPlot({
+          base_shape<-attr(getdata_upload(),"base_shape")
+          ggplot(st_as_sf(base_shape)) + geom_sf()+
+            theme(panel.background = element_rect(fill = "white"),
+                  panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+
+        })
+      }
+
+    )
+  })
+
+  output$viewlayer<-renderUI({
+    if(is.null(attr(getdata_upload(),"layer_shape"))) {fluidRow(
+
+      column(12,
+             p(strong("No layer_shape found in Datalist:",style="color: red"),em(input$data_upload))),
+      uiOutput("add_layer_intru"),
+      column(12,style="margin-top: 20px",
+             splitLayout(
+               cellWidths = c("30%","20%"),
+               column(12,
+                      fileInput(inputId = "add_layer_file",label = NULL)),
+               column(12,
+                      uiOutput("add_layer_button"))
+
+             ))
+
+    )} else    {
+      fluidRow(
+        h5(strong("Layer-Attribute")),
+        renderPlot({
+          layer_shape<-attr(getdata_upload(),"layer_shape")
+          ggplot(st_as_sf(layer_shape)) + geom_sf()+
+            theme(panel.background = element_rect(fill = "white"),
+                  panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+
+        })
+      )
+      }
+
+  })
+  output$viewsom<-renderUI({
+
+    fluidRow(
+      h4("Som-Attribute",tipify(actionButton("downcenter_som",icon("fas fa-download")),"Download table", options=list(container="body"))),
+      renderTable(combsom(), rownames = T)
+
+    )
+  })
+  observeEvent(input$add_base,{
+    attr(saved_data$df[[input$data_upload]],"base_shape")<-
+      get(gsub(" ", "", capture.output(
+        load(input$add_base_file$datapath, verbose = T)
+      )[2]))
+    updateRadioGroupButtons(
+      session,"view_datalist", selected="base_shape"
+    )
+
+  })
+
+  observeEvent(input$add_layer,{
+    attr(saved_data$df[[input$data_upload]],"layer_shape")<-
+      get(gsub(" ", "", capture.output(
+        load(input$add_layer_file$datapath, verbose = T)
+      )[2]))
+    updateRadioGroupButtons(
+      session,"view_datalist", selected="layer_shape"
+    )
+
+  })
+
+  observeEvent(input$add_coords_file,{
+    output$error_coords<-renderUI("Upload compleated")
+  })
+
+  observeEvent(input$add_coords,{
+
+    coords<-data.frame(fread(input$add_coords_file$datapath))
+    rownames(coords) <- coords[, 1]
+    coords[, 1] <- NULL
+    if(ncol(coords)!=2){ output$error_coords<-
+      renderUI({
+        column(12, strong(
+          "Invalid Entries. The first column must contain the name of the observations. The second and third columns must contain the logitude and latitude respectively", style="color: red"))
+      })}
+
+    if(any(rownames(coords)%in%rownames(saved_data$df[[input$data_upload]]))==F) {
+      output$error_coords<-
+        renderUI({
+          column(12, strong(
+            "None of the IDs of the uploaded coordinates are compatible with the ids of the selected datalist. Please upload coodinates with valid IDs", style="color: red"))
+        })
+    }
+
+     req(any(rownames(coords)%in%rownames(saved_data$df[[input$data_upload]])))
+
+    attr(saved_data$df[[input$data_upload]],"coords")<-na.omit(
+      coords[rownames(saved_data$df[[input$data_upload]]),]
+    )
+    updateRadioGroupButtons(
+      session,"view_datalist", selected="coords"
+    )
+
+  })
+
+
+  getdown_tile<-reactive({
+    switch(downcenter_hand$df,
+           "data"="Data-Attribute",
+           "factors"="Factors-Attribute",
+           "coords"="Coords-Attribute",
+           "som"="Som-Attribute")
+  })
+
+  downcenter<-reactive({
+
+
+    modalDialog(
+      if(isFALSE(bagdata$df)){"the selected datalist has unsaved changes.Please save them before continuing."} else{
+        column(12,
+               h5(strong(getdown_tile())),
+               splitLayout(cellWidths = c("30%","70%"),
+                 column(12,
+                        radioButtons("down_type",strong("format",tipify(icon("fas fa-question-circle"),"file extension", options=list(container="body"))),c(".xlsx",".csv"))),
+
+                 conditionalPanel("input.down_type=='.csv'",{
+                   splitLayout(
+                     column(12,
+                            radioButtons("down_sep",strong("sep",tipify(icon("fas fa-question-circle"),"the field separator string. Values within each row of x are separated by this string.", options=list(container="body"))),
+                                         choiceValues =list(",",";"),
+                                         choiceNames =list(
+                                           "comma",
+                                           "semicolon"
+                                         )
+                            )),
+                     column(12,
+
+                            conditionalPanel("input.down_sep==';'",{
+                         radioButtons("down_dec",strong("dec",tipify(icon("fas fa-question-circle"), "the string to use for decimal points in columns", options=list(container="body"))),
+                                      choiceValues =list(".",","),
+                                      choiceNames=list(
+                                        "dot","comma"))
+                       }),
+                       conditionalPanel("input.down_sep==','",{
+                         column(12,
+                                radioButtons("down_dec",strong("dec",tipify(icon("fas fa-question-circle"), "the string to use for decimal points in columns", options=list(container="body"))),
+                                             choiceValues =list("."),
+                                             choiceNames=list("dot")
+                                ))
+                       })
+                     )
+
+                   )
+                 })
+               ),
+               column(12,
+                      downloadButton("download_action",NULL,icon=icon("fas fa-download"),style="width: 50%"))
+
+        )
+      }
+     ,
+
+      title=h4(strong("Download")),
+      size="m",
+      easyClose = T
+
+    )
+  })
+  downcenter_hand<-reactiveValues(df=0)
+
+  observeEvent(input$downcenter_data,{
+    downcenter_hand$df<-"data"
+    showModal(downcenter())
+
+  })
+  observeEvent(input$downcenter_factors,{
+
+    downcenter_hand$df<-"factors"
+    showModal(downcenter())
+  })
+  observeEvent(input$downcenter_coords,{
+
+    downcenter_hand$df<-"coords"
+    showModal(downcenter())
+  })
+  observeEvent(input$downcenter_som,{
+
+    downcenter_hand$df<-"som"
+    showModal(downcenter())
+  })
+
+  getdown<-reactive({
+    switch(downcenter_hand$df,
+           "data"=saved_data$df[[input$data_upload]],
+           "factors"=attr(saved_data$df[[input$data_upload]],"factors"),
+           "coords"=attr(saved_data$df[[input$data_upload]],"coords"),
+           "som"=combsom_down())
+  })
+
+
+  output$download_action <- {
+    downloadHandler(
+      filename = function() {
+        paste0(input$downcenter_hand,"_", Sys.Date(), input$down_type)
+      }, content = function(file) {
+        if(input$down_type==".csv"){
+          write.table(x=data.frame(getdown()),file,append=T,quote=F,row.names=T,col.names=NA, input$down_sep,
+                      dec=input$down_dec)
+        }
+        if(input$down_type==".xlsx"){
+          library('readxl')
+          write_xlsx(cbind(id=rownames(getdown()),getdown()), file)
+        }
+
+
+        })
+
+    }
+
+
+
+
+  combsom<-reactive({
+    combsom<-do.call("cbind",lapply(attr(getdata_upload(),"som"),train.summary_fun))
+    colnames(combsom)<-names(attr(getdata_upload(),"som"))
+    combsom
+  })
+
+  combsom_down<-reactive({
+    combsom_down<-do.call("cbind",lapply(attr(saved_data$df[[input$data_upload]],"som"),train.summary_fun))
+    colnames(combsom_down)<-names(attr(saved_data$df[[input$data_upload]],"som"))
+    combsom_down
+  })
+
 
 
   cur_stats<-reactiveValues(df=0)
@@ -2726,12 +3168,12 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     {
       radioGroupButtons("stats0",NULL,choiceNames =list(
         strong("WARGNING:", icon("fas fa-exclamation-triangle"),style  = "button_active", type="toggle"),
-        "Datalist structure","Data summary","Variable summary","Factor summary","Descriptive statistics","Histogram","Boxplot","PCA","MDS"),
-        choiceValues = c("stats_classmat","stats_datalist","stats_sum_data","stats_sum_variables","stats_sum_factors","stats_desc","stats_hist","stats_box","stats_pca","stats_mds"),direction ="vertical", selected=cur, status="button_active")
+        "Datalist structure",  popify(div("Attributes"),NULL,"Use this menu to Explore and Download results!", options=list(container="body"), placement ="right"),"Data summary","Variable summary","Factor summary","Descriptive statistics","Histogram","Boxplot",popify(div("PCA"),NULL,"Principal Component analysis", options=list(container="body"), placement ="right"),  popify(div("MDS"),NULL,"Nonmetric Multidimensional Scaling", options=list(container="body"), placement ="right")),
+        choiceValues = c("stats_classmat","stats_datalist","stats_attributes","stats_sum_data","stats_sum_variables","stats_sum_factors","stats_desc","stats_hist","stats_box","stats_pca","stats_mds"),direction ="vertical", selected=cur, status="button_active")
     } else {
       radioGroupButtons("stats0",NULL,choiceNames =list(
-        "Datalist structure","Data summary","Variable summary","Factor summary","Descriptive statistics","Histogram","Boxplot","PCA","MDS"),
-        choiceValues = c("stats_datalist","stats_sum_data","stats_sum_variables","stats_sum_factors","stats_desc","stats_hist","stats_box","stats_pca","stats_mds"),direction ="vertical", selected=cur, status="button_active")
+        "Datalist structure",  popify(div("Attributes"),NULL,"Use this menu to Explore and Download results!", options=list(container="body"), placement ="right"),"Data summary","Variable summary","Factor summary","Descriptive statistics","Histogram","Boxplot",popify(div("PCA"),NULL,"Principal Component analysis", options=list(container="body"), placement ="right"),  popify(div("MDS"),NULL,"Nonmetric Multidimensional Scaling", options=list(container="body"), placement ="right")),
+        choiceValues = c("stats_datalist","stats_attributes","stats_sum_data","stats_sum_variables","stats_sum_factors","stats_desc","stats_hist","stats_box","stats_pca","stats_mds"),direction ="vertical", selected=cur, status="button_active")
     }
 
 
@@ -2874,7 +3316,7 @@ output$tools_bar<-renderUI({
            #width = "680px", draggable = TRUE,height ='65px',style="border: 2px solid SeaGreen;background: white;",top=0,left=-300,
            splitLayout(style="margin-left: 0px;margin-right: 10px; margin-bottom: -20px",
              cellWidths = paste0(c(20,30,25,25),"%"),
-             checkboxInput("na.omit", strong("NA.omit"), value = T),
+             checkboxInput("na.omit", strong("NA.omit"), value = F),
              uiOutput("remove_sp"),
              fluidRow(style="margin-left: 20px;",
                p(p(style="margin-bottom: -2px;",
@@ -2938,6 +3380,7 @@ output$tools_bar<-renderUI({
   })
   datarawbag<-reactiveValues(df=0)
   dataraw <- reactive({
+    req(input$up_or_ex)
     if (input$up_or_ex == 'use example data') {
       data <-
         data.frame(fread("meta/nema_araca.csv", stringsAsFactors = T))
@@ -2953,8 +3396,6 @@ output$tools_bar<-renderUI({
       data[, 1] <- NULL
 
     }
-
-
 
     bagdataraw$df<-data
     data
@@ -2977,7 +3418,20 @@ output$tools_bar<-renderUI({
     attr(data, "datalist") <- gsub(".csv","",input$filedata$name)
 
     }
-    attr(data, "transf") <-  attr(data, "transf")
+    newattribs<-isolate(
+      data.frame(
+        Subobs=0,
+        Subvars=0,
+        Transformation = if(is.null(input$transf)){"None"}else{input$transf},
+        Removed = if(is.null(input$rares)){"None"}else{input$rares},
+        Scale = if(is.null(input$scale)){"None"}else{input$scale},
+        Center = if(is.null(input$center)){"FALSE"}else{input$center},
+        NA.omit = if(is.null(input$na.omit)){"FALSE"}else{input$na.omit}
+      )
+    )
+
+    attr(data, "transf")<-attr(data, "transf")
+    #attr(data, "transf")<-newattribs
     attr(data, "factors") <- labels()[rownames(data),]
     attr(data,"coords") <- coords()[rownames(data),]
     attr(data,"base_shape") <- base_shape()
@@ -3157,23 +3611,29 @@ output$tools_bar<-renderUI({
 
     }
     data<-data_migrate(saved_data$df[[input$data_upload]],data,input$data_upload)
+
     newattribs<-isolate(
-      c(
-        Transformation = input$transf,
-        Removed = input$rares,
-        Scale = input$scale,
-        Center = input$center,
-        NA.omit = input$na.omit
+      data.frame(
+        Subobs=0,
+        Subvars=0,
+        Transformation = if(is.null(input$transf)){"None"}else{input$transf},
+        Removed = if(is.null(input$rares)){"None"}else{input$rares},
+        Scale = if(is.null(input$scale)){"None"}else{input$scale},
+        Center = if(is.null(input$center)){"FALSE"}else{input$center},
+        NA.omit = if(is.null(input$na.omit)){"FALSE"}else{input$na.omit}
       )
     )
 
-    if(!is.null(attr(data, "transf")))
-    {
-      attr(data, "transf") <-rbind(attr(data, "transf"),newattribs)
-    } else{
-      attr(data, "transf")<-newattribs
-    }
+    attr_data<-rbind(attr(data, "transf"),newattribs)
+    rownames(attr_data)<-paste0("change", 1:nrow(attr_data))
+    rownames(attr_data)[nrow(attr_data)]<-"current"
 
+
+    attr(data, "transf") <-attr_data
+
+
+
+    #if(nrow(attr(data, "transf"))==2){attr(data, "transf")<-attr(data, "transf")[-1,]}
     attr(data,"factors")<-attr(data,"factors")[rownames(data),]
 
 

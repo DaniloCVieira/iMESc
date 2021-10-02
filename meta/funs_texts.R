@@ -3,7 +3,7 @@
 #"Ubutu:  sudo apt install libgdal-dev"
 #"Ubutu:  sudo apt install libudunits2-dev"
 
-datalist_render<-function(datalist=NULL)
+datalist_render<-function(datalist=NULL,bagdata=F)
 {
   data=datalist
   factors=attr(data,"factors")
@@ -30,7 +30,7 @@ datalist_render<-function(datalist=NULL)
                            if(length(data.factors>0)){
                              em("nvar-factors:", ncol(data.factors))
                            },
-                           if(length(transf>0)) {renderPrint(transf)}
+                           if(isFALSE(bagdata)) {renderPrint(transf)}
 
                     ),
                     cellWidths = c("16%",'84%')

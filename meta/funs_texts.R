@@ -311,9 +311,10 @@ textauthors<-function(...)
 
     h5(strong("Contributors")),
     column(12,
-           p("Juliane Castro"),
-           p("Daiane Faller"),
            p("Fabiana S. Paula"),
+           p("Daiane Faller"),
+           p("Juliane Castro"),
+           p("Julio Cezar F. Moreira"),
            p("Dr. Gustavo Fonseca"))
   )
 

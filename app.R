@@ -847,7 +847,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
     data=getdata_upload()
 
-    if(datahand$df=="Create a datalist with the significant variables of the random forest"){
+    if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       temp<-getdata_rf02()[,rf_sigs$df$variable]
       temp<-data_migrate(getdata_rf02(),temp,"newdata_rf")
       if(input$datahand=="create"){
@@ -990,7 +990,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
           if(datahand$df=="Create data list from aggregation results"){textInput("agg_newname", NULL,paste("Datalist_agg", length(saved_data$df)+1))}else
             if(datahand$df=="Save diversity results"){
         textInput("div_newname", NULL,paste("Div_results", length(saved_data$df)+1))}else
-          if(datahand$df=="Create a datalist with the significant variables of the random forest"){
+          if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
           textInput("rf_newname", NULL,paste("Rf_sigs", length(saved_data$df)+1))}
 
 
@@ -1014,7 +1014,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       selectInput("agg_over", NULL,choices=c(names(saved_data$df)),selectize = F)
     } else if(datahand$df=="Save diversity results"){
       selectInput("div_over", NULL,choices=c(names(saved_data$df)),selectize = F)
-    } else if(datahand$df=="Create a datalist with the significant variables of the random forest"){
+    } else if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       selectInput("rf_over", NULL,choices=c(names(saved_data$df)),selectize = F)
     }
 
@@ -1325,7 +1325,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
             column(12,renderTable(
                aggreg(), bordered = T,rownames =T
              )))
-    } else if(datahand$df=="Create a datalist with the significant variables of the random forest")
+    } else if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer")
     {
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
@@ -1933,16 +1933,18 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   rf_depth <- reactive({
     fluidRow(br(),
              column(12,
-               splitLayout(cellWidths = c("60%",'20%',"20%"),
-                           column(12,actionButton("go_rfplot", "Get Distribution of minimal depth")),
+
+               splitLayout(cellWidths = c('20%',"20%"),
+
                            column(12,
                                   conditionalPanel("input.go_rfplot % 2",{
                                     fluidRow(
+                                      popify(bsButton("fine_rfdepth",icon("fas fa-sliders-h"),style  = "button_active", type ="toggle"),NULL,"Fine tuning",options=list(container="body")),
 
                                       popify(bsButton("tools_saverf", icon("fas fa-file-signature"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
-                                             "Create a datalist with the significant variables of the random forest.",options=list(container="body")
-                                      ),
-                                      popify(bsButton("fine_rfdepth",icon("fas fa-sliders-h"),style  = "button_active", type ="toggle"),NULL,"Fine tuning",options=list(container="body"))
+                                             "Create a datalist with the variables selected in the Random Forest Explainer.",options=list(container="body")
+                                      )
+
                                     )
                                   }))
                )
@@ -1968,7 +1970,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   observeEvent(input$tools_saverf,{
-    datahand$df<-"Create a datalist with the significant variables of the random forest"
+    datahand$df<-"Create a datalist with the variables selected in the Random Forest Explainer"
     datahand2$df<-NULL
     datahand3$df<-NULL
     showModal(
@@ -2047,9 +2049,8 @@ output$textbreak<-renderText("This action creates a single binary column per fac
           )
         )
       ),
-      column(12, align = "center", actionButton("gorf", strong(
-        "Run Random Forest"
-      ))),
+      column(12, align = "center", popify(actionButton("trainRF", h4(icon("fas fa-tree"),
+                                                                  icon("fas fa-tree", style = "margin-left: -10px;"),icon("fas fa-tree", style = "margin-left: -10px;"),"train RF",icon("fas fa-arrow-circle-right")), style = "background:  #05668D; color: white"),NULL,"Click to run")),
 
     )
   })
@@ -2163,17 +2164,26 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                tabsetPanel(
                  tabPanel(strong("2.1 Summary"), verbatimTextOutput("rfsummary")),
                  tabPanel(strong("2.2 Training error "), tableOutput("rf_table")),
-                 tabPanel(
-                   strong("2.3 Depth distribution"),
-                   uiOutput("rf_depth"),
-                   plotOutput("prf")
-                 ),
-                 tabPanel(
-                   strong("2.4 Multi-way importance"),
-                   uiOutput("rf_multi")
-                 ),
+                 tabPanel(strong("2.3 RandomForest Explainer"),
+                          column(12,
+                            column(12,style="margin-top: 20px; margin-bottom: 20px; ",
+                                   strong("Minimal depth distribution: ",popify(actionButton("go_rfplot", h5(icon("fab fa-wpexplorer fa-flip-horizontal"),icon("fas fa-arrow-circle-right")),style  = "button_active"),NULL,"Click to Calculate the minimal depth distribution of a random forest",options=list(container="body")))),
+                            tabsetPanel(
+                              tabPanel(
+                                strong("Depth distribution"),
+                                uiOutput("rf_depth"),
+                                column(12,
+                                       plotOutput("prf"))
+                              ),
+                              tabPanel(
+                                strong("Multi-way importance"),
+                                uiOutput("rf_multi")
+                              )
+                            )
+                          )),
                  tabPanel(strong("2.5 Confusion Matrix"),
                           uiOutput("CMres"))
+
                )
              )
 
@@ -2191,8 +2201,9 @@ output$textbreak<-renderText("This action creates a single binary column per fac
              selectInput('multi_y_measure',strong('y_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown on the Y axis", options =list(container="body"))),choices=c("times_a_root","gini_decrease"), selected="times_a_root",selectize=F),
              ##selectInput('multi_size_measure ',strong('size_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown as size of points (optional)", options =list(container="body"))),choices=c("","p_value"), selected="times_a_root",selectize=F),
              #numericInput('multi_min_no_of_trees ',strong('min_no_of_trees', tipify(icon("fas fa-question-circle"),"The minimal number of trees in which a variable has to be used for splitting to be used for plotting", options =list(container="body"))),value=0,step=1),
-             uiOutput("multi_no_labels"),
-             column(12,numericInput("sigmrf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05))
+             column(12,numericInput("sigmrf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05)),
+             uiOutput("multi_no_labels")
+
            ),
            column(12,checkboxInput("rf_sigmulti", "show only significant variables", T)),
            column(12,plotOutput("rf_multi_out"))
@@ -2386,6 +2397,15 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
 
+
+
+  observeEvent(input$trainRF, {
+
+    updateTabsetPanel(session, "rf_tab", "som_tab2")
+
+
+
+  })
 
 
   observeEvent(input$trainSOM, {
@@ -4399,7 +4419,7 @@ output$tools_bar<-renderUI({
 
 
 
-  observeEvent(input$gorf,
+  observeEvent(input$trainRF,
                {
                  runRF()
                })

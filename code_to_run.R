@@ -2,10 +2,9 @@
 source("iMESc.R")
 iMESc()
 re
-getcolhabs()
+ge
 
-lapply(
-  split(data,labels[,2:3]), function(x) apply(x,2,mean))
+rf<-wrapRF(data.frame(data[,-1]),labels[2])
 
 ?plot.kohonen
 kohonen:::plot.kohmapping

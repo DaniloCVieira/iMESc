@@ -161,10 +161,14 @@ multipimp<-function(rf)
   multi_imps = measure_importance(forest)
   indicadores<-as.character(multi_imps[order(multi_imps$mean_min_depth),][,"variable"])
   min_depth_frame <- min_depth_distribution(forest)
-  return(list(min_depth_frame,multi_imps))
+  res_multi<-list(min_depth_frame,multi_imps)
+  return(res_multi)
 }
 
-prf<-function(res_multi, sigs=T, sig.value=0.05,size_plot)
+prf<-function(res_multi, sigs=T, sig.value=0.05,size_plot=10,
+              min_no_of_trees = 0,
+              mean_sample = "top_trees",
+              mean_scale = FALSE)
 {
   multi_imps=res_multi[[2]]
   multi_imps$col<-"gray"
@@ -189,7 +193,10 @@ prf<-function(res_multi, sigs=T, sig.value=0.05,size_plot)
 
   min_depth_frame_sigs$minimal_depth
 
-  MDD.plot<-plot_min_depth_distribution(min_depth_frame_sigs, k=pick)
+  MDD.plot<-plot_min_depth_distribution(min_depth_frame_sigs, k=pick,
+                                        min_no_of_trees = min_no_of_trees,
+                                        mean_sample = mean_sample,
+                                        mean_scale = mean_scale)
   MDD.plot<-MDD.plot+theme_set(theme_grey(base_size = size_plot))
 
 
@@ -198,6 +205,43 @@ prf<-function(res_multi, sigs=T, sig.value=0.05,size_plot)
   par(mfrow=c(1,2))
   return(MDD.plot)
   }
+
+
+prf_multi<-function(res_multi, sigs=T, sig.value=0.05,x_measure = "mean_min_depth",
+                    y_measure = "times_a_root",
+                    size_measure = NULL,
+                    min_no_of_trees = 0,
+                    no_of_labels = 10)
+{
+  multi_imps=res_multi[[2]]
+  multi_imps$col<-"gray"
+  min_depth_frame=res_multi[[1]]
+
+
+  multi_imps<-multi_imps[order(multi_imps$mean_min_depth),]
+  multi_imps[which(multi_imps$p_value<sig.value),"col"]<-"red"
+
+
+  BoldImportance<-multi_imps[which(multi_imps$p_value<sig.value),]
+
+
+  sig_vars<-which(min_depth_frame$variable%in%BoldImportance$variable)
+
+  if(isTRUE(sigs)){min_depth_frame_sigs<-min_depth_frame[sig_vars,]
+  } else{    min_depth_frame_sigs<-min_depth_frame
+  }
+
+  if(isTRUE(sigs)){pick<-nrow(BoldImportance)} else{pick=sigs}
+  MDD.plot<-plot_multi_way_importance(multi_imps, no_of_labels = nrow(BoldImportance),
+                                      x_measure = x_measure,
+                                      y_measure = y_measure,
+                                      size_measure = size_measure,
+                                      min_no_of_trees = min_no_of_trees)
+  attr(MDD.plot,"sigs")<-BoldImportance
+  par(mfrow=c(1,2))
+  return(MDD.plot)
+}
+
 
 
 
@@ -213,7 +257,7 @@ ptree<-function(rfs,
                 mtry = 0,
                 savesplitstats = TRUE,
                 maxdepth = 0,
-                remove_weights = FALSE) {
+                remove_weights = FALSE, palette="matlab.like2") {
 
 
   data=rfs[-1]
@@ -223,7 +267,8 @@ ptree<-function(rfs,
   {
     nlevels<-nlevels(prev)
 
-    colors=colorRamps::matlab.like2(as.vector(nlevels))
+
+    colors=getcolhabs(palette,nlevels)
 
   } else {colors<-"gray"}
 

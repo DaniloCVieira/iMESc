@@ -30,7 +30,7 @@ datalist_render<-function(datalist=NULL,bagdata=F)
                            if(length(data.factors>0)){
                              em("nvar-factors:", ncol(data.factors))
                            },
-                           if(isFALSE(bagdata)) {renderPrint(transf)}
+                           if(!is.null(transf)) {renderPrint(transf)}
 
                     ),
                     cellWidths = c("16%",'84%')
@@ -92,7 +92,7 @@ data_migrate<-function(data,newdata, newname){
     attr(newdata, "data.factor")=attr(data,"data.factor")
     attr(newdata, "datalist")=newname
     attr(newdata, "filename")=attr(data, "filename")
-    attr(newdata, "factors")=attr(data, "factors")[rownames(data),]
+    attr(newdata, "factors")=attr(data, "factors")[rownames(data), , drop=FALSE]
     attr(newdata, "coords")= attr(data,"coords")
     attr(newdata, "base_shape")= attr(data,"base_shape")
     attr(newdata, "layer_shape")=attr(data,"layer_shape")

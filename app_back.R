@@ -1,4 +1,14 @@
 
+
+
+need<-c('shinydashboard','shinydashboardPlus','shinyjs','shiny',"e1071",'readxl','vegan',"party",'caret','viridisLite','aweSOM','sp','raster','rasterVis','Rcpp','rgdal','gstat','ggspatial','ggplot2','sf','class','shinyWidgets', 'randomForestExplainer','data.table',"ggpubr", "shinyBS","terra","purrr","NbClust", "colorRamps","DBI","shinyBS","wesanderson","colorspace","gplots","dendextend","kohonen","shinypanels","writexl","DT","gbRd")
+
+installed<-rownames(installed.packages())
+if(any(!need%in%installed)){
+  instals<-need[!need%in%rownames(installed.packages())]
+  for(i in 1:length(instals)){
+    install.packages(instals[i])
+  }}
 library("colorspace")
 library("writexl")
 library(wesanderson)
@@ -198,6 +208,24 @@ sidebarMenu(
         style = "margin-left: -8px; color: white; font-size: 15px; margin-top: 0px;margin-bottom: 0px;"
       ),
       tabName = "menu_div"
+    ),
+    menuItem(
+      div(
+        icon("fas fa-download"),
+        HTML('&nbsp;'),
+        "Download ",p("center", style = "margin-left: 30px"),
+        style = "margin-left: -8px; color: white; font-size: 15px; margin-top: 0px;margin-bottom: 0px;"
+      ),
+      tabName = "menu_down"
+    ),
+    menuItem(
+      div(
+        icon("fas fa-database"),
+        HTML('&nbsp;'),
+        "Data bank",
+        style = "margin-left: -8px; color: white; font-size: 15px; margin-top: 0px;margin-bottom: 0px;"
+      ),
+      tabName = "menu_data"
     )
   )
 )),
@@ -351,9 +379,13 @@ Shiny.onInputChange('shiny_height',myHeight)
                 ),
                 tabItem(tabName = "menu_div",
                         column(12,
-                               uiOutput("divtabs")))
-
-
+                               uiOutput("divtabs"))),
+                tabItem(tabName = "menu_down",
+                        column(12,
+                               uiOutput("down_center"))),
+                tabItem(tabName = "menu_data",
+                        column(12,
+                               uiOutput("menu_data")))
               )
             )
           )
@@ -402,6 +434,15 @@ server <- function(input, output, session) {
     )
   })
 
+
+  output$menu_data<-renderUI({
+    req(length(saved_data$df)>0)
+    fluidPage(
+      h4(strong("Data bank")),
+      selectInput("data_bank", "Dataset", choices=names(saved_data$df), selectize = F),
+      uiOutput("tags_data")
+    )
+  })
 
   output$tags_data<-renderUI({
     data=saved_data$df[[input$getdata_down]]
@@ -606,6 +647,90 @@ observe(bagsom$df<-som.reactive())
 
     res
 
+
+
+  })
+
+  output$down_center<-renderUI({
+    column(12,
+           column(4,
+                  fluidRow(
+                    p(tipify(strong("Data", style="color: #0D47A1"),
+                             "select the target data")),
+                    selectInput("getdata_down",NULL, choices=c(names(saved_data$df)))
+                  )),
+           column(4,radioButtons("down_choices", "Options:",choices=c("data", 'factors'),
+                                 inline=T)),
+
+           column(4,
+                  p(strong("write:", style="color: #0D47A1")),
+                  fluidRow(
+                    tipify(column(4,p(strong("sep"))),
+                           "the field separator string. Values within each row of x are separated by this string.","left"),
+                    column(8,
+                           radioButtons("down_data_sep", NULL,
+                                        choiceNames =list(strong(";"),strong(",")),
+                                        choiceValues =c(";",","), inline=T))),
+                  fluidRow(style="margin-top: 5px",
+                           tipify(column(4,p(strong("dec"))),
+                                  "the string to use for decimal points in columns","left"),
+                           column(8,
+                                  radioButtons("down_data_dec", NULL,
+                                               choiceNames =list(strong("."),strong(",")),
+                                               choiceValues =c(".",","), inline=T)))),
+
+           fluidRow(
+             column(12,
+                    column(2,"selected:"),
+                    column(10, verbatimTextOutput("down_selected"))
+             ),
+             column(12,
+                    column(10,strong("Output:",style="color: SeaGreen")),
+                    column(2,downloadButton("down_data",strong("download")))
+             ),
+             column(12,style = 'overflow-x: scroll;height:250px;overflow-y: scroll;',               verbatimTextOutput("down_center_out"))
+           )
+    )
+  })
+  output$down_selected<-renderPrint({
+    data=saved_data$df[[input$getdata_down]]
+    if(input$down_choices=="data"){
+      filename<-names(saved_data$df)[which(names(saved_data$df)==input$getdata_down)]
+      res<-data.frame(c(filename,attr(data, "fingerprint_data"
+      )))
+      colnames(res)<-NULL
+      res
+
+
+    } else {
+      factors<-attr(data,"factors")
+      res<-data.frame(
+        c(
+          names(saved_data$df)[which(names(saved_data$df)==input$getdata_down)],
+          nrow(factors),
+          ncol(factors)
+        )
+      )
+      rownames(res)<-c("Factors from:", "n.obs","n.facs")
+      colnames(res)<-NULL
+      res
+    }
+
+  })
+  get_down<-reactive({
+    data=saved_data$df[[input$getdata_down]]
+    if(input$down_choices=="data"){
+      data
+    } else { attr(data,"factors")}
+  })
+  output$down_center_out<-renderPrint({
+    data=saved_data$df[[input$getdata_down]]
+    if(input$down_choices=="data"){
+      list(
+        attr(data, "fingerprint_data"),
+        data)} else {
+          attr(data,"factors")
+        }
 
 
   })
@@ -1930,38 +2055,33 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
 
-  rf_depth <- reactive({
+  showrfvars <- reactive({
     fluidRow(br(),
-             column(12,
-               splitLayout(cellWidths = c("60%",'20%',"20%"),
-                           column(12,actionButton("go_rfplot", "Get Distribution of minimal depth")),
-                           column(12,
-                                  conditionalPanel("input.go_rfplot % 2",{
-                                    fluidRow(
+             column(
+               12,
+               column(6,
+                      splitLayout(cellWidths = c("80%",'20%'),
+                        column(12,actionButton("go_rfplot", "Get Distribution of minimal depth")),
+                        conditionalPanel("input.go_rfplot % 2",{
+                          column(12,
 
-                                      popify(bsButton("tools_saverf", icon("fas fa-file-signature"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
-                                             "Create a datalist with the significant variables of the random forest.",options=list(container="body")
-                                      ),
-                                      popify(bsButton("fine_rfdepth",icon("fas fa-sliders-h"),style  = "button_active", type ="toggle"),NULL,"Fine tuning",options=list(container="body"))
-                                    )
-                                  }))
-               )
-
-
-             ),
-             column(12,
-                    conditionalPanel("input.fine_rfdepth % 2",{
-                      splitLayout(
-                        column(12,uiOutput("npicrf")),
-                        column(12,numericInput('depth_min_no_of_trees',strong('min_n_trees', tipify(icon("fas fa-question-circle"),"The minimal number of trees in which a variable has to be used for splitting to be used for plotting", options =list(container="body") )),value=0,step=1)),
-                        column(12,selectInput('depth_mean_sample',strong('mean_sample', tipify(icon("fas fa-question-circle"),"The sample of trees on which mean minimal depth is calculated", options =list(container="body"))),choices=c( "top_trees","all_trees","relevant_trees"), selected= "top_trees",selectize=F))                               ,
-                        column(12,numericInput("sigprf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05)),
-                        column(12,numericInput("labrfsize","plot size", value=10))
-
-
-                      )
-                    }),
-                    column(12,checkboxInput("rf_depth", "show only significant variables", T))
+                                 popify(bsButton("tools_saverf", icon("fas fa-file-signature"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
+                                        "Create a datalist with the significant variables of the random forest.",options=list(container="body")
+                                 )
+                          )
+                        })
+                      )),
+              column(12,
+                     splitLayout(cellWidths = c('60%','20%','20%'),
+                                 conditionalPanel("input.go_rfplot % 2", {
+                                   splitLayout(cellWidths = c('70%','30%'),
+                                               column(12,checkboxInput("showrfvars", "show only significant variables", T)),
+                                               column(12,numericInput("sigprf", "sig level", 0.05))
+                                   )
+                                 }),
+                                 column(12,uiOutput("npicrf")),
+                                 column(12,numericInput("labrfsize","plot size", value=10))
+                     ))
              )
            )
   })
@@ -1977,24 +2097,24 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
   output$npicrf <- renderUI({
-    if (input$rf_depth == F)
-      numericInput("n_var_rf",
-                   strong('n.vars', tipify(icon("fas fa-question-circle"),"The maximal number of variables with lowest mean minimal depth to be used for plotting", options =list(container="body"))),
+    if (input$showrfvars == F)
+      tipify(numericInput("n_var_rf",
+                   'n.vars',
                    value = 10,
-                   step = 1)
+                   step = 1),"Number of variables to display", options=list(container="body"))
 
   })
 
   sigrf <- reactive({
-    if (input$rf_depth == TRUE) {
+    if (input$showrfvars == TRUE) {
       TRUE
     } else {
       input$n_var_rf
     }
   })
 
-  output$rf_depth <- renderUI({
-    rf_depth()
+  output$showrfvars <- renderUI({
+    showrfvars()
   })
   output$controlrf <- renderUI({
     fluidRow(
@@ -2165,14 +2285,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                  tabPanel(strong("2.2 Training error "), tableOutput("rf_table")),
                  tabPanel(
                    strong("2.3 Depth distribution"),
-                   uiOutput("rf_depth"),
+                   uiOutput("showrfvars"),
                    plotOutput("prf")
                  ),
-                 tabPanel(
-                   strong("2.4 Multi-way importance"),
-                   uiOutput("rf_multi")
-                 ),
-                 tabPanel(strong("2.5 Confusion Matrix"),
+                 tabPanel(strong("2.4 Confusion Matrix"),
                           uiOutput("CMres"))
                )
              )
@@ -2184,44 +2300,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
 
-  output$rf_multi<-renderUI({
-    column(12,
-           splitLayout(
-             selectInput('multi_x_measure',strong('x_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown on the X axis", options =list(container="body"))),choices=c("mean_min_depth","accuracy_decrease"), selected="mean_min_depth",selectize=F),
-             selectInput('multi_y_measure',strong('y_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown on the Y axis", options =list(container="body"))),choices=c("times_a_root","gini_decrease"), selected="times_a_root",selectize=F),
-             ##selectInput('multi_size_measure ',strong('size_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown as size of points (optional)", options =list(container="body"))),choices=c("","p_value"), selected="times_a_root",selectize=F),
-             #numericInput('multi_min_no_of_trees ',strong('min_no_of_trees', tipify(icon("fas fa-question-circle"),"The minimal number of trees in which a variable has to be used for splitting to be used for plotting", options =list(container="body"))),value=0,step=1),
-             uiOutput("multi_no_labels"),
-             column(12,numericInput("sigmrf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05))
-           ),
-           column(12,checkboxInput("rf_sigmulti", "show only significant variables", T)),
-           column(12,plotOutput("rf_multi_out"))
 
-           )
-  })
-
-  output$rf_multi_out<-renderPlot({
-    prf_multi(
-      mindeaphrf(), sigs = sigrfmulti(),
-      input$sigmrf,
-      x_measure = input$multi_x_measure,
-      y_measure = input$multi_y_measure
-   )
-
-  })
-  sigrfmulti <- reactive({
-    if (input$rf_sigmulti == TRUE) {
-      TRUE
-    } else {
-      input$multi_no_of_labels
-    }
-  })
-
-  output$multi_no_labels<- renderUI({
-    req(isFALSE(input$rf_sigmulti))
-
-    numericInput('multi_no_of_labels ',strong('no_of_labels', tipify(icon("fas fa-question-circle"),"The approximate number of best variables (according to all measures plotted) to be labeled (more will be labeled in case of ties)", options =list(container="body"))),value=10,step=1)
-  })
   {
 
 
@@ -4451,16 +4530,7 @@ output$tools_bar<-renderUI({
   })
 
   prf.reactive <- reactive({
-    mean_scale<-if(isFALSE(input$mean_scale)){F}else{T}
-    if(length(input$depth_min_no_of_trees)>0)
-    {res<-prf(mindeaphrf(), sigs = sigrf(),
-             input$sigprf,
-             size_plot=input$labrfsize,
-             min_no_of_trees = input$depth_min_no_of_trees,
-             mean_sample = input$depth_mean_sample
-    )} else{
-      res<-prf(mindeaphrf(), sigs = sigrf())
-         }
+    res<-prf(mindeaphrf(), sigs = sigrf(), input$sigprf,size_plot=input$labrfsize)
     rf_sigs$df<-attr(res,"sigs")
     res
   })

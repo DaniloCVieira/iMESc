@@ -1,4 +1,4 @@
-
+iMESc()
 library("colorspace")
 library("writexl")
 library(wesanderson)
@@ -649,7 +649,7 @@ observe(bagsom$df<-som.reactive())
 
   gettitle<-reactive({
     column(12,style="color: #05668D",
-           if(input$tabs=="menu_intro"){h4(strong("Introduction"))} else if(input$tabs=="menu_upload"){h4(strong("Data Input"))} else if(input$tabs=="menu_som"){
+           if(input$tabs=="menu_intro"){h4(strong("Introduction"))} else if(input$tabs=="menu_upload"){h4(strong("Data Bank"))} else if(input$tabs=="menu_som"){
                  h4(strong("Self-Organizing Maps"), actionLink(
                    'introhelp', icon("fas fa-info-circle")
                  ))} else if(input$tabs=="menu_hc"){h4(
@@ -846,11 +846,30 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   observeEvent( input$data_confirm,{
 
     data=getdata_upload()
+    if(datahand$df=="Create a datalist from the selected observations")
+    {
+      facs<-attr(data,"factors")
+      coords<-attr(data,"coords")
+      data<-data[input$x1_factors_rows_selected,]
+      if(!is.null(coords)){coords<-coords[input$x1_factors_rows_selected,]}
+      facs<-facs[input$x1_factors_rows_selected,]
+      attr(data,"factors")<-facs
+      attr(data,"coords")<-coords
+      if(input$datahand=="create") {
+        saved_data$df[[input$selobs_newname]]<-data
+        cur_data$df<-input$selobs_newname
+      } else{
+        saved_data$df[[input$selobs_over]]<-data
+        cur_data$df<-input$selobs_over
+      }
+
+
+    }
 
     if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       temp<-getdata_rf02()[,rf_sigs$df$variable]
       temp<-data_migrate(getdata_rf02(),temp,"newdata_rf")
-      if(input$datahand=="create"){
+      if(input$datahand=="create") {
         saved_data$df[[input$rf_newname]]<-temp
         cur_data$df<-input$rf_newname
       } else{
@@ -945,7 +964,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
         attr(saved_data$df[[input$data_som]],"factors")[names(bmu),input$model_over]<-bmu
 
       }
-      updateRadioButtons(session,"train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list("Train data","Saved results"), selected="Saved results")
+      updateRadioButtons(session,"train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list(
+        popify(span("Train data"),NULL,("Train the Data-Attribute from the selected Datalist"), options=list(container="body")),
+        popify(span("Saved results"),NULL,"See results already saved in the selected Datalist", options=list(container="body"))
+      ), selected="Saved results")
       updateTabsetPanel(session, "som_tab", "som_tab2")
       updateTabsetPanel(session, "som_tab", "train_tab2")
 
@@ -991,7 +1013,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
             if(datahand$df=="Save diversity results"){
         textInput("div_newname", NULL,paste("Div_results", length(saved_data$df)+1))}else
           if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
-          textInput("rf_newname", NULL,paste("Rf_sigs", length(saved_data$df)+1))}
+          textInput("rf_newname", NULL,paste("Rf_sigs", length(saved_data$df)+1))} else if(datahand$df=="Create a datalist from the selected observations"){
+            bag<-nrow(attr(getdata_upload(), "transf") )
+            if(!length(bag)>0){bag<-1}
+            textInput("selobs_newname", NULL,paste("Datalist_",gsub(".csv","",attr(getdata_upload(), "filename")) ,bag))
+          }
 
 
 
@@ -1016,6 +1042,8 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       selectInput("div_over", NULL,choices=c(names(saved_data$df)),selectize = F)
     } else if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       selectInput("rf_over", NULL,choices=c(names(saved_data$df)),selectize = F)
+    }else if(datahand$df=="Create a datalist from the selected observations"){
+      selectInput("selobs_over", NULL,choices=c(names(saved_data$df)),selectize = F)
     }
 
   })
@@ -1218,7 +1246,9 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   output$som_control<-renderUI({
     req(length(saved_data$df)>0)
     column(12,splitLayout(
-      radioButtons("train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list("Train data","Saved results")),
+      radioButtons("train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list(
+        popify(span("Train data"),NULL,("Train the Data-Attribute from the selected Datalist"), options=list(container="body")),
+        popify(span("Saved results"),NULL,"See results already saved in the selected Datalist", options=list(container="body"))       )),
       uiOutput("data_som"),
       uiOutput("som_models"),
       cellWidths = c('20%',"40%","40%")
@@ -1228,7 +1258,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
   observeEvent(input$som_tab,{
     if(input$som_tab=='som_tab1'&input$train_or_load=="Saved results")
-    updateRadioButtons(session,"train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list("Train data","Saved results"), selected="Train data")
+    updateRadioButtons(session,"train_or_load",NULL,choiceValues =list("Train data","Saved results"),choiceNames =list(         popify(span("Train data"),NULL,("Train the Data-Attribute from the selected Datalist"), options=list(container="body")),         popify(span("Saved results"),NULL,"See results already saved in the selected Datalist", options=list(container="body"))       ), selected="Train data")
   })
 
 
@@ -2274,6 +2304,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                   tabPanel(value= 'train_tab1',
                            "3.1. Parameters",
                            column(12, style = "background: white;",
+                                  uiOutput("error_som"),
                                   tableOutput("train.summary"))
                   ),
                   tabPanel(
@@ -2319,7 +2350,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                       style = "background: white;",
                       br(),
                       column(12, strong(
-                        "Property", actionLink("Property", icon("fas fa-question-circle"))
+                        "Property",tipify(icon("fas fa-question-circle"),"Show areas for high values (red) and low values (blue) for the selected variable")
                       )),
                       column(12, uiOutput("var_pproperty")),
                       column(12, plotOutput("pproperty")),
@@ -2793,7 +2824,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     )
   })
 
-  output$viewdata<-renderUI({fluidRow(
+  output$viewdata<-renderUI({fluidRow(style="overflow-x: scroll;",
 
     h5(strong("Data-Attribute"),tipify(actionButton("downcenter_data",icon("fas fa-download")),"Download table", options=list(container="body"))),
 
@@ -2801,12 +2832,79 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     DT::renderDataTable(getdata_upload())
 
   )})
-  output$viewfactors<-renderUI({fluidRow(
+  output$viewfactors<-renderUI({fluidRow(style="overflow-x: scroll;",
 
     h5(strong("Factor-Attribute"),tipify(actionButton("downcenter_factors",icon("fas fa-download")),"Download table", options=list(container="body"))),
-    DT::renderDataTable(attr(getdata_upload(),"factors"))
+    column(12,style="margin-left: -20px",
+           splitLayout(cellWidths = c(
+             '5%',"95%"
+           ),
+             div(
+               div(popify(bsButton("selobs_all", icon("fas fa-check-square"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
+                        "Select all",options=list(container="body")
+               )),
+               div(popify(bsButton("selobs_none", icon("fas fa-minus-square"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
+                        "unselect all",options=list(container="body")
+               )),
+               div(popify(bsButton("selobs", icon("fas fa-file-signature"),style  = "button_active", type="action",value=FALSE, block=F),NULL,
+                        "Create a datalist with the selected observations",options=list(container="body")
+               ))
+             ),
+             DT::dataTableOutput('x1_factors')
+           )),
+    uiOutput("selobs_fac")
+
 
   )})
+
+  output$selobs_fac<-renderUI({
+    fluidRow(
+
+
+      column(12,style="overflow-x: scroll;",
+             renderPrint({
+               s = input$x1_factors_rows_selected
+               if (length(s)) {
+                 cat('Selected observations:\n\n')
+                 cat(rownames(getdata_upload())[s], sep = ', ')
+               }
+             })
+      )
+
+
+
+    )
+  })
+
+  observeEvent(input$selobs,{
+    if(input$selobs %% 2) {
+      datahand$df<-"Create a datalist from the selected observations"
+      datahand2$df<-NULL
+      datahand3$df<-NULL
+      showModal(
+        datahand_modal()
+      )
+    }
+  })
+  selall<-reactiveValues(df=NULL)
+
+
+  observeEvent(input$selobs_all,{
+    req(length(saved_data$df)>0)
+    selall$df<-1:nrow(getdata_upload())
+  })
+  observeEvent(input$selobs_none,{
+    req(length(saved_data$df)>0)
+    selall$df<-NULL
+  })
+
+  output$x1_factors = DT::renderDataTable( {
+
+    attr(getdata_upload(),"factors")
+  }, server = FALSE ,filter = "top",
+  selection = list(mode = 'multiple', selected = c(selall$df)),
+  options=list(pageLength = 10, info = FALSE,lengthMenu = list(c(10,20, -1), c("15", "20","All")) ))
+
   output$viewcoords<-renderUI({
     if(is.null(attr(getdata_upload(),"coords"))) {fluidRow(
 
@@ -3241,7 +3339,7 @@ output$tools_bar<-renderUI({
       popify(bsButton("tools_transform", icon("fas fa-hammer"),style  = "button_active", type="toggle"),NULL,
              "Transform data",options=list(container="body")
       ),
-      popify(bsButton("tools_edit", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=T, value=F),NULL,
+      popify(bsButton("tools_edit", icon("fas fa-quidditch"),style  = "button_active", type="toggle",disabled=T, value=F),NULL,
              "Edit plot",options=list(container="body")
       ),
       popify(bsButton("tools_save", icon("fas fa-save"),style  = "button_active", type="action",value=FALSE),"Save changes",
@@ -3466,10 +3564,10 @@ output$tools_bar<-renderUI({
     filterdata()
   })
   output$pop_selecvar <- renderUI({
-    absolutePanel(draggable = T,top=35,right=100,
+    absolutePanel(draggable = F,top=35,right=100,
                   style = 'overflow-x: scroll;height:250px;overflow-y: scroll; border-top: 3px solid SeaGreen;border-bottom: 3px solid SeaGreen;background: white; margin-right: 40px; margin-bottom:-5px',
                   column(12,
-                         h5(strong("Variable selection:")),
+                         h5(strong("Select variables",tiphelp("click to include/exclude the variables"))),
                          checkboxInput("check_fac",'Select/Unselect all',T),
                          hr(),
                          checkboxGroupInput(
@@ -3501,12 +3599,12 @@ output$tools_bar<-renderUI({
   })
 
   output$pop_selecobs <- renderUI({
-    absolutePanel(draggable = T,top=35,right=100,
+    absolutePanel(draggable = F,top=35,right=100,
                   style = 'border-top: 3px solid SeaGreen;border-bottom: 3px solid SeaGreen;background: white; margin-right: 40px; margin-bottom:-5px; width: 330px',
-                  column(12,h5(strong("Restrict observations to a factor level"))),
+                  column(12,h5(strong("Select observations",tipify(a(icon("fas fa-question-circle")),"Restrict observations to a factor level", options = list(container="body"))))),
                   column(12,
                          splitLayout(
-                           selectInput("filter_data", "Filter",c("none", colnames(attr(saved_data$df[[input$data_upload]],"factors"))), selectize = F),
+                           selectInput("filter_data", span("Filter",tipify(a(icon("fas fa-question-circle")),"The factor to be used as filter", options = list(container="body"))),c("none", colnames(attr(saved_data$df[[input$data_upload]],"factors"))), selectize = F),
                            conditionalPanel("input.filter_data != 'none'",{
                              uiOutput("cutlevel_obs")
                            })
@@ -3520,7 +3618,7 @@ output$tools_bar<-renderUI({
 
   output$cutlevel_obs<-renderUI({
     column(12,
-           selectInput("cutlevel_obs", "cutoff", levels(attr(saved_data$df[[input$data_upload]],"factors")[, input$filter_data]), selectize = F)
+           selectInput("cutlevel_obs", span("cutoff",tipify(icon("fas fa-question-circle"),"The factor level to restric the observations")), levels(attr(saved_data$df[[input$data_upload]],"factors")[, input$filter_data]), selectize = F)
     )
   })
 
@@ -4537,7 +4635,7 @@ output$tools_bar<-renderUI({
   output$pcorr_tools<-renderUI({
     column(12,align="right",
            fluidRow(
-             popify(bsButton("tools_editpcorr", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
+             popify(bsButton("tools_editpcorr", icon("fas fa-quidditch"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
                     options=list(container="body"))
            )
     )
@@ -4545,7 +4643,7 @@ output$tools_bar<-renderUI({
   output$pclus_tools<-renderUI({
     column(12,align="right",
            fluidRow(
-             popify(bsButton("tools_editpclus", icon("fas fa-image"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
+             popify(bsButton("tools_editpclus", icon("fas fa-quidditch"),style  = "button_active", type="toggle",disabled=F, value=F),NULL,"Graphical options",
                     options=list(container="body"))
            )
     )
@@ -5485,25 +5583,7 @@ output$pclus_legcontrol<-renderUI({
 
   }
   #Propertymodal
-  {
-    Propertymodal <- function() {
-      modalDialog(
-        textProperty(),
-        title =  h4(strong("Property plot")),
-        footer = modalButton("close"),
-        size = "m",
-        easyClose = TRUE
-      )
-    }
 
-    observeEvent(input$Property, {
-      showModal(Propertymodal())
-    })
-
-
-
-
-  }
   #scalehelpmodal
   {
     scalehelpmodal <- function() {
@@ -6391,6 +6471,21 @@ output$pclus_legcontrol<-renderUI({
     )
   }
 
+
+  output$error_som<-renderUI({
+    m<-getsom()
+    errors<-errors_som(m)
+    column(12,
+      strong("Quality Measures:"),
+      p(em("Quantization error:"),errors[1],pophelp("Average squared distance between the data points and the map prototypes to which they are mapped. Lower is better.")),
+      p(em("Percentage of explained variance:"),errors[2],pophelp("Similar to other clustering methods, the share of total variance that is explained by the clustering (equal to 1 minus the ratio of quantization error to total variance). Higher is better.")),
+      p(em("Topographic  error:"),errors[3],pophelp("Measures how well the topographic structure of the data is preserved on the map. It is computed as the share of observations for which the best-matching node is not a neighbor of the second-best matching node on the map. Lower is better: 0 indicates excellent topographic representation (all best and second-best matching nodes are neighbors), 1 is the maximum error (best and second-best nodes are never neighbors).")),
+      p(em("Kaski-Lagus error"),errors[4],pophelp("Combines aspects of the quantization and topographic error. It is the sum of the mean distance between points and their best-matching prototypes, and of the mean geodesic distance (pairwise prototype distances following the SOM grid) between the points and their second-best matching prototype.")),
+      p(em("Neuron utilization"),errors[5], pophelp("The percentage of neurons that are not BMU of any observation"))
+
+    )
+  })
+
   train.summary <- reactive({
     m <- getsom()
     traindata <- data.frame(m$data[[1]])
@@ -6407,10 +6502,9 @@ output$pclus_legcontrol<-renderUI({
     maxNA.fraction = m$maxNA.fraction
     dist.fcts = m$dist.fcts
 
-
     Parameters <-
       rbind(
-        errors_som(m),
+
         n.obs,
         n.variables,
         summ,
@@ -6421,7 +6515,7 @@ output$pclus_legcontrol<-renderUI({
         dist.fcts,
         mode
       )
-
+colnames(Parameters)<-"Training Parameters"
 
 
     data.frame(Parameters)

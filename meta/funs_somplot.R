@@ -182,7 +182,7 @@ pchanges<-function(m)
 
   plot(m,"changes", col="red", keepMargins = TRUE)
   for( j in 1:ncol(m$changes)) {lines(m$changes[,j], col= rainbow(ncol(m$changes))[j])}
-  legend("bottoml", legend=c(paste("Quantization:",errossom[1]),paste("Topographic:",errossom[3]),paste("Explain_var:",errossom[2])), bty='n',cex=.7)
+  #legend("bottoml", legend=c(paste("Quantization:",errossom[1]),paste("Topographic:",errossom[3]),paste("Explain_var:",errossom[2])), bty='n',cex=.7)
   pchanges <- recordPlot()
   on.exit(par(opar),add=TRUE,after=FALSE)
   return(pchanges)

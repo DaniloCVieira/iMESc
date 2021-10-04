@@ -3,6 +3,13 @@
 #"Ubutu:  sudo apt install libgdal-dev"
 #"Ubutu:  sudo apt install libudunits2-dev"
 
+tiphelp<-function(text){
+  tipify(a(icon("fas fa-question-circle")),text, options = list(container="body"))
+}
+pophelp<-function(text){
+  popify(a(icon("fas fa-question-circle")),NULL,text, options = list(container="body"))
+}
+
 datalist_render<-function(datalist=NULL,bagdata=F)
 {
   data=datalist
@@ -418,7 +425,7 @@ textlab<-function(...)
 
 textinput<-function(...){
   paste(
-    "Create Datalists and upload your data and their attributes. All analyses available at ",em('menv')," will require a Datalist created by the user, either uploaded or using example data."
+    "Create Datalists and upload your data and their attributes. All analyses available at ",span('iMESc',style="font-family: 'Alata', sans-serif;")," will require a Datalist created by the user, either uploaded or using example data."
 
 
   )
@@ -740,7 +747,7 @@ textrf<-function(...){
                       code("train"),"and",code("trainControl"),
                       "functions from the 'caret' package"),
 
-                    p(icon("fas fa-exclamation-circle"),"Please visit their respective help pages (",actionLink("rfh","train"),"and",actionLink("rfh2","trainControl"),") for more details about the parameters available in iMESc")
+                    p(icon("fas fa-exclamation-circle"),"Please visit their respective help pages (",actionLink("rfh","train"),"and",actionLink("rfh2","trainControl"),") for more details about the parameters available in",span('iMESc',style="font-family: 'Alata', sans-serif;"))
     ),
     column(12,
            htmlOutput("rfhelp")

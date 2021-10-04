@@ -6,8 +6,8 @@
 tiphelp<-function(text){
   tipify(a(icon("fas fa-question-circle")),text, options = list(container="body"))
 }
-pophelp<-function(text){
-  popify(a(icon("fas fa-question-circle")),NULL,text, options = list(container="body"))
+pophelp<-function(title,text){
+  popify(a(icon("fas fa-question-circle")),title,text, options = list(container="body"),trigger="click", placement = "right")
 }
 
 datalist_render<-function(datalist=NULL,bagdata=F)

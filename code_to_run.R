@@ -1,14 +1,9 @@
 
-source("iMESc.R")
-iMESc()
-re
-ge
+source("app.R")
+shinyApp(ui, server)
+getwd()
 
-rf<-wrapRF(data.frame(data[,-1]),labels[2])
-
-?plot.kohonen
-kohonen:::plot.kohmapping
-
-
-runGitHub('iMESc','DaniloCVieira', ref="main")
-shiny::runGitHub('menvi','DaniloCVieira', ref="main")
+remove.packages("NbClust")
+#library("shiny")
+#runGitHub('iMESc','DaniloCVieira', ref="main")
+#shiny::runGitHub('menvi','DaniloCVieira', ref="main")

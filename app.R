@@ -2305,8 +2305,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                   tabPanel(value= 'train_tab1',
                            "3.1. Parameters",
                            column(12, style = "background: white;",
-                                  uiOutput("error_som"),
-                                  tableOutput("train.summary"))
+                                  splitLayout(
+                                    tableOutput("train.summary"),
+                                    uiOutput("error_som")
+
+                                  ))
                   ),
                   tabPanel(
                     "3.2. Changes",
@@ -6478,11 +6481,11 @@ output$pclus_legcontrol<-renderUI({
     errors<-errors_som(m)
     column(12,
       strong("Quality Measures:"),
-      p(em("Quantization error:"),errors[1],pophelp("Average squared distance between the data points and the map prototypes to which they are mapped. Lower is better.")),
-      p(em("Percentage of explained variance:"),errors[2],pophelp("Similar to other clustering methods, the share of total variance that is explained by the clustering (equal to 1 minus the ratio of quantization error to total variance). Higher is better.")),
-      p(em("Topographic  error:"),errors[3],pophelp("Measures how well the topographic structure of the data is preserved on the map. It is computed as the share of observations for which the best-matching node is not a neighbor of the second-best matching node on the map. Lower is better: 0 indicates excellent topographic representation (all best and second-best matching nodes are neighbors), 1 is the maximum error (best and second-best nodes are never neighbors).")),
-      p(em("Kaski-Lagus error"),errors[4],pophelp("Combines aspects of the quantization and topographic error. It is the sum of the mean distance between points and their best-matching prototypes, and of the mean geodesic distance (pairwise prototype distances following the SOM grid) between the points and their second-best matching prototype.")),
-      p(em("Neuron utilization"),errors[5], pophelp("The percentage of neurons that are not BMU of any observation"))
+      p(em("err.quant:"),pophelp("Quantization error","Average squared distance between the data points and the map prototypes to which they are mapped. Lower is better.")),
+      p(em("err.varratio:"),pophelp("Percentage of explained variance","Similar to other clustering methods, the share of total variance that is explained by the clustering (equal to 1 minus the ratio of quantization error to total variance). Higher is better.")),
+      p(em("err.topo:"),pophelp("Topographic error","Measures how well the topographic structure of the data is preserved on the map. It is computed as the share of observations for which the best-matching node is not a neighbor of the second-best matching node on the map. Lower is better: 0 indicates excellent topographic representation (all best and second-best matching nodes are neighbors), 1 is the maximum error (best and second-best nodes are never neighbors).")),
+      p(em("err.kaski"),pophelp("Kaski-Lagus error","Combines aspects of the quantization and topographic error. It is the sum of the mean distance between points and their best-matching prototypes, and of the mean geodesic distance (pairwise prototype distances following the SOM grid) between the points and their second-best matching prototype.")),
+      p(em("neu.uti"), pophelp("Neuron Utilization","The percentage of neurons that are not BMU of any observation"))
 
     )
   })
@@ -6505,6 +6508,7 @@ output$pclus_legcontrol<-renderUI({
 
     Parameters <-
       rbind(
+        errors_som(m),
 
         n.obs,
         n.variables,

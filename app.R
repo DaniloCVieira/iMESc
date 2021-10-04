@@ -215,6 +215,10 @@ dashboardBody(
    color: white
           }
 
+
+  #shp{height: 100px;font-size: 20px}
+
+
 .btn:focus{
   background-color: SeaGreen;
    color: white
@@ -448,7 +452,7 @@ server <- function(input, output, session) {
   loaded <- reactiveValues(df=FALSE)
 
   bagdataraw<-reactiveValues(df=0)
-
+  bagshp<-reactiveValues(df=F)
   insertab2<-reactiveValues(df=F)
   insertab3<-reactiveValues(df=F)
   saved_dataset_value <- reactiveValues(df = 0)
@@ -1745,27 +1749,31 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
   output$choices_map <- renderUI({
     req(length(saved_data$df)>0)
-    fluidRow(style="background: white;",
+    column(12,style="background: white;",
              br(),
-             column(3,uiOutput("data_map")),
-             column(
-               4,
-               radioButtons(
-                 "choices_map",
-                 "Target:",
-                 choices = choices_maps(),
-                 inline = T
+             column(12,
+               splitLayout(cellWidths = c('30%',"30%","30%",'10%'),
+                 p(uiOutput("data_map")),
+                 p(radioButtons(
+                   "choices_map",
+                   "Target:",
+                   choices = choices_maps(),
+                   inline = T
+                 )),
+                 p(
+                   conditionalPanel("input.choices_map=='variable'", {
+                     uiOutput("map_vars"
+                     )
+                   }),
+                   conditionalPanel("input.choices_map=='factor'", {
+                     uiOutput("factors_map")
+                   })
+                 ),
+                 p(actionButton("shp_create",strong(popify(div("shp",icon("fas fa-map")),NULL,"Click to  acreate base_shape/layer_shape'", options=list(container="body")),"Add", style="button_active")))
                )
-             ),
-             conditionalPanel("input.choices_map=='variable'", {
-               column(3,    uiOutput("map_vars")
-               )
-             }),
 
+             )
 
-             conditionalPanel("input.choices_map=='factor'", {
-               column(3, uiOutput("factors_map"))
-             })
     )
   })
 
@@ -2198,7 +2206,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                  tabPanel(strong("2.3 RandomForest Explainer"),
                           column(12,
                             column(12,style="margin-top: 20px; margin-bottom: 20px; ",
-                                   strong("Minimal depth distribution: ",popify(actionButton("go_rfplot", h5(icon("fab fa-wpexplorer fa-flip-horizontal"),icon("fas fa-arrow-circle-right")),style  = "button_active"),NULL,"Click to Calculate the minimal depth distribution of a random forest",options=list(container="body")))),
+                                   strong("Minimal depth distribution: ",popify(actionButton("go_rfplot", h5(icon("fab fa-wpexplorer fa-flip-horizontal"),icon("fas fa-arrow-circle-right")),style  = "button_active"),NULL,"Click to Calculate the minimal depth distribution of a random forest",options=list(container="body")),
+                                          conditionalPanel("input.go_rfplot % 2",{
+                                            popify(actionButton("downcenter_rfdepth",icon("fas fa-download")),NULL,"Download Minimal Depth distribution results", options=list(container="body"))
+                                          }))),
                             tabsetPanel(
                               tabPanel(
                                 strong("Depth distribution"),
@@ -2223,7 +2234,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   })
+  observeEvent(input$downcenter_rfdepth,{
+    downcenter_hand$df<-"rfdepth"
+    showModal(downcenter())
 
+  })
 
   output$rf_multi<-renderUI({
     column(12,
@@ -2523,9 +2538,12 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       get(gsub(" ","",capture.output(load("meta/base_shape_araca",verbose=T))[2]))
     } else {
       if(length(input$base_shape$datapath)>0){
-        get(gsub(" ", "", capture.output(
+        t<-try({get(gsub(" ", "", capture.output(
           load(input$base_shape$datapath, verbose = T)
-        )[2]))
+        )[2]))})
+        if("try-error" %in% class(t)) {t<-readRDS(input$base_shape$datapath) }
+        t
+
       }else{NULL}
 
     }
@@ -2533,10 +2551,13 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   layer_shape <- reactive({
 
     if (input$up_or_ex == 'use example data'){get(gsub(" ","",capture.output(load("meta/layer_shape_araca",verbose=T))[2]))} else {
-      if(length(input$base_shape$datapath)>0){
-        get(gsub(" ", "", capture.output(
+      if(length(input$layer_shape$datapath)>0){
+        t<-try({get(gsub(" ", "", capture.output(
           load(input$layer_shape$datapath, verbose = T)
-        )[2]))
+        )[2]))})
+        if("try-error" %in% class(t)) {t<-readRDS(input$layer_shape$datapath) }
+        t
+
       }else{NULL}
 
     }})
@@ -2941,7 +2962,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       req(length(input$add_coords_file$datapath)>0)
       actionButton("add_coords",icon=icon("fas fa-arrow-right"),
                    strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
-                          "Add", style="color: SeaGreen"))
+                          "Add", style="button_active"))
     })
 
     output$add_coords_intru<-renderUI({
@@ -2971,7 +2992,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       req(length(input$add_base_file$datapath)>0)
       actionButton("add_base",icon=icon("fas fa-arrow-right"),
                    strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
-                          "Add", style="color: SeaGreen"))
+                          "Add", style="button_active"))
     })
 
     output$add_base_intru<-renderUI({
@@ -2991,7 +3012,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       req(length(input$add_layer_file$datapath)>0)
       actionButton("add_layer",icon=icon("fas fa-arrow-right"),
                    strong(tipify(icon("fas fa-warehouse"),"Click to save to the Datalist", options=list(container="body")),
-                          "Add", style="color: SeaGreen"))
+                          "Add", style="button_active"))
     })
 
     output$add_layer_intru<-renderUI({
@@ -3006,8 +3027,107 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       )
     })
   }
+
+
+  uploadShpfile<-eventReactive(input$shp, {
+    user_shp <- Read_Shapefile(input$shp)
+    bagshp$df<-T
+    user_shp
+   })
+  testeshp <- reactive({
+    userdir<-getwd()
+    shpfile=input$shp$datapath[grep(".shp",input$shp$datapath)]
+    shpdir<-gsub('.shp',"",shpfile)
+    setwd(shpdir)
+    res<-st_read(shpfile)
+    setwd(userdir)
+    res
+  })
+
+observeEvent(input$shp_add_base,{
+  attr(saved_data$df[[input$data_upload]],"base_shape")<-filtershp()
+
+})
+observeEvent(input$shp_add_layer,{
+
+  attr(saved_data$df[[input$data_upload]],"layer_shape")<-filtershp()
+})
+output$save_feature <- {
+  downloadHandler(
+    filename = function() {
+      paste0("feature_shape","_", Sys.Date())
+    }, content = function(file) {
+      saveRDS(filtershp(),file)
+    })
+
+}
+
+
+observeEvent(input$shp_create,{
+ showModal(
+   modalDialog(
+     column(12,
+            fileInput(inputId = "shp", label = strong("Import shapefiles",tiphelp("please upload all files at once")), multiple = TRUE, accept = c('.shp', '.dbf','.sbn', '.sbx', '.shx', '.prj')),
+            uiOutput("shp_feature1"),
+            splitLayout(
+              cellWidths = c("10%","90%"),
+              column(12,
+                     p(bsButton("shp_add_base",strong(popify(div("B",icon("fas fa-map")),NULL,paste0(span("Click to add shapefiles into the Datalist as a Base-Shape-Attribute")), options=list(container="body")),"Add", style='button_active'))),
+                     p(bsButton("shp_add_layer",strong(popify(div("L",icon("fas fa-map")),NULL,paste0(span("Click to add shapefiles into the Datalist as a Layer-Shape-Attribute")), options=list(container="body")),"Add", style='button_active'))
+                     ),
+                     p(tipify(downloadButton("save_feature",label =NULL),"save feature as r file", options=list(container="body")),
+                     )),
+              renderPlot({
+                ggplot(st_as_sf(filtershp())) + geom_sf()+
+                  theme(panel.background = element_rect(fill = "white"),
+                        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+
+
+              })
+
+            )
+     ),
+     title="Create a base_shape/layer_shape",
+     easyClose = T,
+     size = "l"
+   )
+ )
+
+})
+
+output$shp_feature1<-renderUI({
+
+  req(isTRUE(bagshp$df))
+  atributos_shp<-attributes(uploadShpfile())$names
+  splitLayout(
+    selectInput('shp_feature1',"feature 1",choices=c("None",atributos_shp), selectize = F),
+    uiOutput("shp_feature2")
+  )
+})
+
+filtershp<-reactive({
+  bacias<-    uploadShpfile()
+  req(isTRUE(bagshp$df))
+  if(input$shp_feature1!="None"&input$shp_feature2!="None")
+  {
+    bacias<-uploadShpfile()
+    bacias<-bacias[bacias[[input$shp_feature1]]==input$shp_feature2,]
+
+  }
+  bacias
+})
+
+output$shp_feature2<-renderUI({
+  req(isTRUE(bagshp$df))
+  lev_attrs<-unique(uploadShpfile()[[input$shp_feature1]])
+  selectInput('shp_feature2',"feature 2",choices=c("None",lev_attrs), selectize = F)
+})
+
+
   output$viewbase<-renderUI({
     column(12,
+
+           #renderPlot(uploadShpfile()),
       h5(strong("Base-Attribute")),
       if(is.null(attr(getdata_upload(),"base_shape"))) {fluidRow(
 
@@ -3076,10 +3196,13 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     )
   })
   observeEvent(input$add_base,{
-    attr(saved_data$df[[input$data_upload]],"base_shape")<-
-      get(gsub(" ", "", capture.output(
+
+      t<-try({get(gsub(" ", "", capture.output(
         load(input$add_base_file$datapath, verbose = T)
-      )[2]))
+      )[2]))})
+    if("try-error" %in% class(t)) {t<-readRDS(input$add_base_file$datapath) }
+
+      attr(saved_data$df[[input$data_upload]],"base_shape")<-t
     updateRadioGroupButtons(
       session,"view_datalist", selected="base_shape"
     )
@@ -3087,14 +3210,17 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
   observeEvent(input$add_layer,{
-    attr(saved_data$df[[input$data_upload]],"layer_shape")<-
-      get(gsub(" ", "", capture.output(
+
+      t<-try({get(gsub(" ", "", capture.output(
         load(input$add_layer_file$datapath, verbose = T)
-      )[2]))
+      )[2]))})
+    if("try-error" %in% class(t)) {t<-readRDS(input$add_layer_file$datapath) }
+      attr(saved_data$df[[input$data_upload]],"layer_shape")<-t
+
     updateRadioGroupButtons(
       session,"view_datalist", selected="layer_shape"
     )
-
+    t
   })
 
   observeEvent(input$add_coords_file,{
@@ -3222,7 +3348,8 @@ output$textbreak<-renderText("This action creates a single binary column per fac
            "data"=saved_data$df[[input$data_upload]],
            "factors"=attr(saved_data$df[[input$data_upload]],"factors"),
            "coords"=attr(saved_data$df[[input$data_upload]],"coords"),
-           "som"=combsom_down())
+           "som"=combsom_down(),
+           "rfdepth"=data.frame(mindeaphrf()[[2]]))
   })
 
 
@@ -3409,7 +3536,7 @@ output$tools_bar<-renderUI({
 
   observeEvent(input$stats0,{
     if(input$stats0=="stats_pca"|input$stats0=="stats_mds"|input$stats0=="stats_box"){
-      shinyBS::updateButton(session,"tools_edit",NULL,icon=icon("fas fa-edit"),style  = "button_active", value=F,disabled=ative_editpca())} else{
+      shinyBS::updateButton(session,"tools_edit",NULL,icon=icon("fas fa-quidditch"),style  = "button_active", value=F,disabled=ative_editpca())} else{
       }
   })
 
@@ -5019,7 +5146,7 @@ output$pclus_legcontrol<-renderUI({
     })
     output$fac_palette_mds<-renderUI({
       req(input$colpalette%in%c("matlab.like2",'viridis', 'plasma',"Rushmore1","FantasticFox1","Blues","heat"))
-      fluidRow(
+      column(12,
         popify(selectInput("symbol_factor",
                            NULL,
                            choices = c(colnames(attr(getdata_upload(),"factors"))),

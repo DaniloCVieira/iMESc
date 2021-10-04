@@ -1,5 +1,4 @@
 
-
 to_spatial<-function(coords,  crs.info){
   suppressWarnings({
     colnames(coords)[1:2]<-c("Long","Lat")
@@ -10,19 +9,31 @@ to_spatial<-function(coords,  crs.info){
 }
 
 
-
-map_discrete_variable<-function(data,get,coords,base_shape,layer_shape,main="",size=.14,cex.main=15,cex.axes=13,cex.lab=15,cex.sub=14,cex.leg=11,cex.pt=7,subtitle="",leg="", factors=NULL,showcoords=F, cex.coords=NULL, col.coords="firebrick",col.palette='viridis',col.fac="firebrick",symbol=15, scalesize_size=T,scalesize_color=T, points=NULL, cex.fac=4, as_factor=F,bmu=F, colored_by_factor=NULL,showguides=F){
+map_discrete_variable<-function(data,get,coords,base_shape=NULL,layer_shape=NULL,main="",size=.14,cex.main=15,cex.axes=13,cex.lab=15,cex.sub=14,cex.leg=11,cex.pt=7,subtitle="",leg="", factors=NULL,showcoords=F, cex.coords=NULL, col.coords="firebrick",col.palette='viridis',col.fac="firebrick",symbol=15, scalesize_size=T,scalesize_color=T, points=T, cex.fac=4, as_factor=F,bmu=F, colored_by_factor=NULL,showguides=F){
   suppressWarnings({
+    if(!is.null(base_shape)){
 
-    if(class(base_shape)[1]!='sf') {base_shape=st_as_sf(base_shape)}
+    if(class(base_shape)[1]!='sf') {base_shape=st_as_sf(base_shape)}}else{
+      base_shape<-st_as_sf(x =  coords,
+                           coords = c(colnames( coords))
+      )
+      base_shape<-st_set_crs(base_shape,"+proj=longlat +datum=WGS84 +no_defs")
+
+    }
     if(class(layer_shape)[1]!='sf' & !is.null(layer_shape) ) {layer_shape=st_as_sf(layer_shape)}
-    if(is.null(layer_shape)){ layer_shape= st_cast(base_shape, "MULTILINESTRING")}
+    if(is.null(layer_shape)){ layer_shape= st_cast(base_shape, "LINESTRING")}
 
 
     BS_ggplot<-st_as_sf(layer_shape)
 
 
-    if(isTRUE(as_factor)){
+
+
+
+
+
+
+if(isTRUE(as_factor)){
       scalesize_size=F
       scalesize_color=T
       if(isTRUE(bmu)){
@@ -183,16 +194,23 @@ map_discrete_variable<-function(data,get,coords,base_shape,layer_shape,main="",s
   })
 }
 
-
-
-
-map_interp_variables<-function(data,get,coords,base_shape,layer_shape,main="",size=.14,cex.main=15,cex.axes=13,cex.lab=15,cex.sub=14,cex.leg=11,subtitle="",leg="",res=20000, k=4,idp=4,factors=NULL,showcoords=F, cex.coords=3,col.palette="viridis" ,col.coords="firebrick",cex.fac=3,col.fac='viridis', as_factor=F, bmu=F,showguides=NULL){
+map_interp_variables<-function(data,get,coords,base_shape=NULL,layer_shape=NULL,main="",size=.14,cex.main=15,cex.axes=13,cex.lab=15,cex.sub=14,cex.leg=11,subtitle="",leg="",res=20000, k=4,idp=4,factors=NULL,showcoords=F, cex.coords=3,col.palette="viridis" ,col.coords="firebrick",cex.fac=3,col.fac='viridis', as_factor=F, bmu=F,showguides=NULL){
   suppressWarnings({
+    base_shape_int=F
+    if(!is.null(base_shape)){
 
     crs.info=as.character(raster::crs(base_shape))
-    if(class(base_shape)[1]!='sf') {base_shape=st_as_sf(base_shape)}
+    if(class(base_shape)[1]!='sf') {base_shape=st_as_sf(base_shape)}}else{
+      base_shape<-st_as_sf(x =  coords,
+                           coords = c(colnames( coords))
+      )
+      base_shape<-st_set_crs(base_shape,"+proj=longlat +datum=WGS84 +no_defs")
+      crs.info="+proj=longlat +datum=WGS84 +no_defs "
+      base_shape<-st_as_sf(base_shape)
+      base_shape_int=T
+    }
     if(class(layer_shape)[1]!='sf' & !is.null(layer_shape) ) {layer_shape=st_as_sf(layer_shape)}
-    if(is.null(layer_shape)){ layer_shape= st_cast(base_shape, "MULTILINESTRING")}
+    if(is.null(layer_shape)){ layer_shape= st_cast(base_shape, "LINESTRING")}
     if(isTRUE(as_factor)){
 
       if(isTRUE(bmu)){
@@ -273,10 +291,14 @@ map_interp_variables<-function(data,get,coords,base_shape,layer_shape,main="",si
       data_spat<-to_spatial(data.frame(coords[rownames(data),],prev=as.numeric(prev)), crs.info=crs.info)
       df_idw = idw(prev~1, data_spat, newgrid,idp=idp)
       df_idwraster <- raster::raster(df_idw)
-      df_raster<-  raster::mask(df_idwraster, base_shape)
+      if(isFALSE(base_shape_int)){
+      df_raster<-  raster::mask(df_idwraster, base_shape)}else{
+        df_raster<- df_idwraster
+      }
       my_rst<-  raster::ratify(df_raster)
       rasterpoints <-data.frame( rasterToPoints(my_rst, spatial = TRUE))
     }
+
 
 
     bbox<-t(cbind(xlimits,ylimits))

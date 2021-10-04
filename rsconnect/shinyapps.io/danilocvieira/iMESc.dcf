@@ -5,9 +5,8 @@ account: danilocvieira
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4772838
-bundleId: 5100168
+bundleId: 5103937
 url: https://danilocvieira.shinyapps.io/iMESc/
-when: 1633294464.56415
+when: 1633383020.68517
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .RData|app_back.R

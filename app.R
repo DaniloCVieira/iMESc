@@ -1,5 +1,4 @@
-source("iMESc.R")
-iMESc()
+
 library("colorspace")
 library("writexl")
 library(wesanderson)
@@ -3045,12 +3044,12 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
 observeEvent(input$shp_add_base,{
-  attr(saved_data$df[[input$data_upload]],"base_shape")<-filtershp()
+  attr(saved_data$df[[input$data_map]],"base_shape")<-filtershp()
 
 })
 observeEvent(input$shp_add_layer,{
 
-  attr(saved_data$df[[input$data_upload]],"layer_shape")<-filtershp()
+  attr(saved_data$df[[input$data_map]],"layer_shape")<-filtershp()
 })
 output$save_feature <- {
   downloadHandler(

@@ -50,7 +50,7 @@ Mac and Linux Users may require some additional commands before installing or ru
 
 For other issues please contact the author.
 
-#### If you are a Linux User: style=color: SeaGreen
+#### If you are a Linux User:
 
 **1.** Open a new terminal;
 

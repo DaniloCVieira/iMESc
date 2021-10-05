@@ -1,12 +1,9 @@
 #iMESc
 
 ##Running offline 
-### Follow the steps bellow to get started with ",span('iMESc',style="font-family: 'Alata', sans-serif;
+### Follow the steps bellow to get started with " **iMESc**
 
-
-
-The last version of **iMESc** is also available in [https://github.com/DaniloCVieira/iMESc] 
-Follow the steps bellow to get started with iMESc
+Follow the steps bellow to get started with **iMESc**
 **1.** Install R[https://cran.r-project.org/] and RStudio  [https://www.rstudio.com/products/rstudio/download/] if you haven't done so already;
 **2.** If you are a Mac or Linux user please follow the commands in the section Shell commands before proceeding;
 **3.** Initate a new script;

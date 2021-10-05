@@ -309,8 +309,8 @@ Shiny.onInputChange('shiny_height',myHeight)
                                      br(),
                                      img(
                                        src = Esquema,
-                                       height = '390',
-                                       width = '720'
+                                       height = '755.227',
+                                       width = '680.174'
                                      )
                                    )
                           ),

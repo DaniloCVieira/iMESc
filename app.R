@@ -1,8 +1,9 @@
+list.of.packages <- c('shinydashboard','shinydashboardPlus','shinyjs','shiny',"e1071",'readxl','vegan',"party",'caret','viridisLite','aweSOM','sp','raster','rasterVis','Rcpp','rgdal','gstat','ggspatial','ggplot2','sf','class','shinyWidgets', 'randomForestExplainer','data.table',"ggpubr", "shinyBS","terra","purrr","NbClust", "colorRamps","DBI","shinyBS","wesanderson","colorspace","gplots","dendextend","kohonen","shinypanels","writexl","DT","gbRd")
 
 
 if(!length(grep("connect/apps",getwd()))>0){
   #list of packages required
-  list.of.packages <- c('shinydashboard','shinydashboardPlus','shinyjs','shiny',"e1071",'readxl','vegan',"party",'caret','viridisLite','aweSOM','sp','raster','rasterVis','Rcpp','rgdal','gstat','ggspatial','ggplot2','sf','class','shinyWidgets', 'randomForestExplainer','data.table',"ggpubr", "shinyBS","terra","purrr","NbClust", "colorRamps","DBI","shinyBS","wesanderson","colorspace","gplots","dendextend","kohonen","shinypanels","writexl","DT","gbRd")
+
 
   #checking missing packages from list
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -325,9 +326,18 @@ Shiny.onInputChange('shiny_height',myHeight)
                                    p(strong("Version: 1.1.0")), p("06/10/2021"),
                               p("developed by Danilo C Vieira in  R, version 4.0.5; RStudio, version 1.4, and Shiny package, version 1.6.0."),
 
-
-
                             )
+                          ),
+                          tabPanel(
+                            strong("Refereces"),value="intro5",
+                            column(12,
+                                   column(12, br(), textrefs()))
+
+                          ),
+                          tabPanel(
+                            strong("Packages"),value="intro5",
+                            column(12,
+                                   verbatimTextOutput({"package_refs"}))
                           )
                         )
                 ),
@@ -392,6 +402,21 @@ Shiny.onInputChange('shiny_height',myHeight)
 
 server <- function(input, output, session) {
 
+output$package_refs<-renderPrint({
+
+  packlist<-list()
+  for(i in 1:length(list.of.packages))
+  {
+    pack<-list.of.packages[i]
+    a<-citation(pack)
+    b<-gsub("\n\nA..*","",format(a)[2])
+    c<-gsub(".*\n\n","",b)
+    d<-gsub("\n","",c)
+    packlist[i]<-d
+  }
+  packlist
+
+})
 
   output$som_panels<-renderUI({
     req(length(saved_data$df)>0)
@@ -3436,7 +3461,7 @@ output$shp_feature2<-renderUI({
   output$download_action <- {
     downloadHandler(
       filename = function() {
-        paste0(input$downcenter_hand,"_", Sys.Date(), input$down_type)
+        paste0(downcenter_hand$df,"_", Sys.Date(), input$down_type)
       }, content = function(file) {
         if(input$down_type==".csv"){
           write.table(x=data.frame(getdown()),file,append=T,quote=F,row.names=T,col.names=NA, input$down_sep,
@@ -8020,18 +8045,6 @@ colnames(Parameters)<-"Training Parameters"
   })
 
 
-  getdown_tile<-reactive({
-    switch(downcenter_hand$df,
-           "data"="Data-Attribute",
-           "factors"="Factors-Attribute",
-           "coords"="Coords-Attribute",
-           "som"="Som-Attribute",
-           "rfdepth"="Random-Forest Minimal depth distribution",
-           "pcorr"="Variable Factor Results"
-
-
-           )
-  })
 
 
   outputOptions(output, "plot_data_WSS", suspendWhenHidden = FALSE)

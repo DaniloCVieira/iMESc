@@ -113,7 +113,13 @@ data_migrate<-function(data,newdata, newname){
 }
 
 
-
+textrfs<-function(...){
+  column(12,
+         p("Liu, Yonggang, Robert H. Weisberg, and Christopher NK Mooers.  (2006). Performance evaluation of the self‐organizing map for feature extraction.",em("Journal of Geophysical Research"),": Oceans 111.C5."),
+         p("Liu, Yonggang, Robert H. Weisberg, and Christopher NK Mooers. 'Self-organizing maps'",em(" Information Sciences. Berlin: Springer"),"30 (2001)"),
+         p("Clark, S., Sisson, S. A., & Sharma, A. (2020). Tools for enhancing the application of self-organizing maps in water resources research and engineering. Advances in Water Resources, 143(July), 103676. https://doi.org/10.1016/j.advwatres.2020.103676")
+         )
+}
 
 textoffline<-function(...)({
   column(12,
@@ -298,13 +304,18 @@ textintro<-function(...)
       )
 
 }
-textref<-function(...)
+textrefs<-function(...)
 {
   div(
     h4(strong("References")),
-    br(),
-    br(),
-    p("List of references")
+    p('Kohonen, T. (2001). Self-Organizing Maps (Vol. 30). ',em("Springer Berlin Heidelberg"),a(" https://doi.org/10.1007/978-3-642-56927-2", href=" https://doi.org/10.1007/978-3-642-56927-2")),
+    p('Liu, Y., Weisberg, R. H., & Mooers, C. N. K. (2006). Performance evaluation of the self-organizing map for feature extraction.', em('Journal of Geophysical Research'), '111(C5), C05018. ',a("https://doi.org/10.1029/2005JC003117",href="https://doi.org/10.1029/2005JC003117")),
+    p('Chon, T.-S. (2011). Self-Organizing Maps applied to ecological sciences.', em('Ecological Informatics'), '6(1), 50–61.' ,a("https://doi.org/10.1016/j.ecoinf.2010.11.002",ref="https://doi.org/10.1016/j.ecoinf.2010.11.002")),
+   p(' Lucas, T. C. D. (2020). A translucent box: interpretable machine learning in ecology. ',em('Ecological Monographs'),' 90(4). ',a("https://doi.org/10.1002/ecm.1422",href="https://doi.org/10.1002/ecm.1422")),
+    p('De’ath, G., & Fabricius., K. E. (2000). Classification and regression trees: a powerful yet simple technique for ecological data analysis. ',em('Ecology'),' 81(11), 3178-3192.' ,a("https://doi.org/https://doi.org/10.1890/0012-9658(2000)081[3178:CARTAP]2.0.CO;2",href="https://doi.org/https://doi.org/10.1890/0012-9658(2000)081[3178:CARTAP]2.0.CO;2")),
+    p('Cutler, D. R., Edwards Jr, T. C., Beard, K. H., Cutler, A., Hess, K. T., Gibson, J., & Lawler, J. J. (2007). Random forests for classification in ecology. ',em('Ecology'),' 88(11), 2783-2792.' ,a("https://doi.org/https://doi.org/10.1890/07-0539.1Ci",href="https://doi.org/https://doi.org/10.1890/07-0539.1Ci")),
+    p('Giraudel, J. L., & Lek, S. (2001). A comparison of self-organizing map algorithm and some conventional statistical methods for ecological community ordination.', em('Ecological Modelling'),' 146(1–3), 329–339.' ,a("https://doi.org/10.1016/S0304-3800(01)00324-6",href="https://doi.org/10.1016/S0304-3800(01)00324-6")),
+   p(' Clark, S., Sisson, S. A., & Sharma, A. (2020). Tools for enhancing the application of self-organizing maps in water resources research and engineering.', em('Advances in Water Resources'), '143(July), 103676. ',a("https://doi.org/10.1016/j.advwatres.2020.103676",href="https://doi.org/10.1016/j.advwatres.2020.103676"))
   )
 }
 textProperty<-function(...){

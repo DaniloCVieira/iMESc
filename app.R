@@ -101,7 +101,7 @@ pre { white-space: pre-wrap; word-break: keep-all; }
           content: none;}
 
 
-  .shiny-split-layout>div {overflow: hidden;}
+  .shiny-split-layout>div {overflow: visible;}
       h3{font-weight: bold;}
       label{ color: #0D47A1; font-size: 12 px;}
       .box { margin-left: -5px; margin-right: -10px;  margin-bottom: 10px; margin-top: -3px; }
@@ -664,7 +664,7 @@ observe(bagsom$df<-som.reactive())
                        strong("Random Forest"),
                        actionLink('rfhelp', icon("fas fa-info-circle"))
                      )
-                   } else if(input$tabs=="menu_maps"){h4(strong("Spatial tools"))} else if(input$tabs=="menu_box"){h4(strong("Box plots"))} else if(input$tabs=="menu_div"){ h4( strong("Biological diversity indices"), actionLink('divhelp', icon("fas fa-info-circle")))} else if(input$tabs=="menu_down"){h4(strong("Download Center"))} else if(input$tabs=="menu_data"){h4(strong("Data bank"))} else if(input$tabs=="menu_dt"){h4(strong("Decision Tree"),actionLink(
+                   } else if(input$tabs=="menu_maps"){h4(strong("Spatial tools"))} else if(input$tabs=="menu_box"){h4(strong("Box plots"))} else if(input$tabs=="menu_div"){ h4( strong("Biological diversity indices"))} else if(input$tabs=="menu_down"){h4(strong("Download Center"))} else if(input$tabs=="menu_data"){h4(strong("Data bank"))} else if(input$tabs=="menu_dt"){h4(strong("Decision Tree"),actionLink(
                      "ctreehelp", tipify(icon("fas fa-question-circle"), "Click for more details")
                    ))}
     )
@@ -1618,14 +1618,15 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   output$divtabs <- renderUI({
     req(length(saved_data$df)>0)
     column(12,
-           h5(strong("Diversity indexes")),
-           column(12,
-                  br(),
-                  uiOutput("divcontrol")),
-           column(12,
-                  column(12,strong("Results", style = "color: SeaGreen;")),
-                  verbatimTextOutput("div_results")
+           splitLayout(cellWidths = c("30%","70%"),cellArgs = list(style='white-space: normal;'),
+             uiOutput("divcontrol"),
+             column(12,style="overflow-x: scroll",
+                    column(12,strong("Results", style = "color: SeaGreen;")),
+                    renderPrint(divI()))
+
+
            )
+
 
     )
   })
@@ -1646,23 +1647,109 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                     dec=input$down_data_dec)})}
 
 
+  output$pop_div<-renderUI({
 
-  output$div_results<-renderPrint({
-    divI()
+    checkboxGroupInput("divInds",
+                       NULL,
+                       choiceValues =list("N","S","margalef","D","H","J'","Dom_rel","Skewness"),
+                       selected=c("N","S","margalef","D","H","J'","Dom_rel","Skewness"),
+                       inline = F,
+
+                       choiceNames =list(
+                         span("N", actionLink('Nhelp',icon("fas fa-question-circle")), conditionalPanel("input.Nhelp % 2",{uiOutput("Nhelp")})),
+                         span("S",actionLink('Shelp',icon("fas fa-question-circle")), conditionalPanel("input.Shelp % 2",{uiOutput("Shelp")})),
+                         span("margalef",actionLink('mhelp',icon("fas fa-question-circle")), conditionalPanel("input.mhelp % 2",{uiOutput("mhelp")})),
+                         span("D",actionLink('Dhelp',icon("fas fa-question-circle")), conditionalPanel("input.Dhelp % 2",{uiOutput("Dhelp")})),
+                         span("H",actionLink('Hhelp',icon("fas fa-question-circle")), conditionalPanel("input.Hhelp % 2",{uiOutput("Hhelp")})),
+                         span("J",actionLink('Jhelp',icon("fas fa-question-circle")), conditionalPanel("input.Jhelp % 2",{uiOutput("Jhelp")})),
+                         span("Dom_rel",actionLink('Domhelp',icon("fas fa-question-circle")), conditionalPanel("input.Domhelp % 2",{uiOutput("Domhelp")})),
+                         span("Skewness",actionLink('Skhelp',icon("fas fa-question-circle")),conditionalPanel("input.Skhelp % 2",{uiOutput("Skhelp")})))
+    )
+
   })
+
   output$divcontrol <- renderUI({
-    column(12,
-           splitLayout(
-             column(12,uiOutput("data_div")),
-             column(12,
-                    checkboxGroupInput("divInds", "Diversity indexes:", choices=c("N","S","margalef","D","H","J","Dom","Skewness"), inline = T, selected=c("N","S","margalef","D","H","J","Dom","Skewness"))),
-             column(12,
-                    popify(bsButton("tools_savediv", icon("fas fa-save"),style  = "button_active", type="action",value=FALSE),NULL,
-                           "Save diversity results",options=list(container="body")
-                    ))
-           ))
+    fluidRow(
+      p(
+        uiOutput("data_div"),
+        column(12,
+               fluidRow(bsButton("DIVI","Diversity indexes",icon=icon("fas fa-caret-down"), type ="toggle", style="button_active"),popify(bsButton("tools_savediv", icon("fas fa-save"),style  = "button_active", type="action",value=FALSE),NULL,
+                                                                                                                                          "Save diversity results",options=list(container="body")
+               )
+
+
+               ),
+               conditionalPanel("input.DIVI % 2",{uiOutput("pop_div")}))
+      ),
+
+
+
+    )
 
   })
+
+  output$Nhelp<-renderUI({
+    column(12,style="background: white",
+      strong("Number of individuals"),
+      p("Total number of individuals")
+    )
+  })
+  output$Shelp<-renderUI({
+    column(12,style="background: white",
+      strong("Species richness"),
+      p("the total number of species in each observation")
+    )
+  })
+
+  output$mhelp<-renderUI({
+    column(12,style="background: white",
+      strong("Margalef diversity"),
+      p("The total number of species weighted by the logarithm of the total number of individuals", withMathJax(helpText("$$ margalef = \\frac{(S-1)}{lnN}$$")))
+    )
+  })
+
+
+
+  output$Dhelp<-renderUI({
+    column(12,style="background: white",
+      strong("Simpson diversity"),
+      p("the probability that two individuals drawn at random from an infinite community would belong to the same species",withMathJax(helpText("$$ D = \\sum p^2$$")))
+    )
+  })
+
+  output$Hhelp<-renderUI({
+    column(12,style="background: white",
+           strong("Shannon diversity"),
+           p("This index  considers both species richness and evenness. The uncertainty is measured by the Shannon Function 'H'. This term is the measure corresponding to the entropy concept defined by:",withMathJax(helpText("$$ H = \\sum_{n=1}^n (p_i*\\ln p_i)$$")))
+    )
+  })
+  output$Jhelp<-renderUI({
+    column(12,style="background: white",
+           strong("Shannon evenness J'"),
+           p("Evenness is a measure of how different the abundances of the species in a community are from each other. The Shannon evennes is defined by:",
+             withMathJax(helpText("$$ J' = \\frac{H}{\\ln(S)}$$")))
+    )
+  })
+  output$Domhelp<-renderUI({
+    column(12,style="background: white",
+           strong("Relative Dominance'"),
+           p("A simple measure of dominance where",em(HTML(paste0("N",tags$sub("i")))),", the abundance of the most abundant species is divided by N:",
+             withMathJax(helpText("$$ Dom_{rel} = \\frac{N_1}{N} $$")))
+    )
+  })
+
+  output$Skhelp<-renderUI({
+    column(12,style="background: white",
+           strong("LogSkew'"),
+           p("Skew is the third moment of a probability distribution, measuring asymmetry. Right skew (positive numbers) indicates more probability on the right (abundant) side. Left skew (negative numbers) indicates more probability on the left side. All species abundance distributions are strongly right skewed on an arithmetic scale, so the more interesting measure is skew on the log scale:",
+             withMathJax(
+               helpText("$$ LogSkew = \\frac{\\sum {\\frac{(log(n_i)-\\mu)^3}{S}}}{
+                       [\\sum {\\frac{(log(n_i)-\\mu)^2}{S}}]^\\frac{3}{2} \\frac{S}{(S-2)} \\sqrt{[\\frac{(S-1)}{S}]}
+               } $$")
+             )),p("where ",em(HTML(paste0(HTML("&mu;"),tags$sub("i"))),paste0("is the mean of log("),em(HTML(paste0("n",tags$sub("i")))),")"))
+    )
+  })
+
 
   observeEvent(input$tools_savediv,{
     datahand$df<-"Save diversity results"
@@ -1680,7 +1767,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
   output$data_div<-renderUI({
     if(cur_data$df==0){cur=names(saved_data$df)[1]} else {cur=cur_data$df}
-    selectInput("data_div", "select the data", choices = names(saved_data$df), selected=cur, selectize = F)
+    selectInput("data_div", "Datalist:", choices = names(saved_data$df), selected=cur, selectize = F)
   })
 
 
@@ -1695,11 +1782,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     if("margalef"%in%choices){res$margalef=(specnumber(abund)-1)/log(rowSums(abund))}
     if("D"%in%choices){res$D<-vegan::diversity(abund, index="simpson")}
     if("H"%in%choices){res$H<-vegan::diversity(abund)}
-    if("J"%in%choices){
+    if("J'"%in%choices){
       H<-vegan::diversity(abund)
       S<-vegan::specnumber(abund)
       res$J <- H/log(S)}
-    if("Dom"%in%choices){res$Dom<-apply(decostand(abund, "total"),1,sort,T)[1,]}
+    if("Dom_rel"%in%choices){res$Dom_rel<-apply(decostand(abund, "total"),1,sort,T)[1,]}
     if("Skewness"%in%choices){res$Skewness=apply(abund,1,skewness)}
     res<-data.frame(do.call(cbind,res))
 
@@ -5216,12 +5303,9 @@ output$pclus_legcontrol<-renderUI({
     factors<-data[,unlist(lapply(data,is.factor))]
     numerics<-data[,unlist(lapply(data,is.numeric))]
     fluidRow(
-      column(9,
-             if(length(factors)>0){plotOutput("summ_fac", height = ncol(factors)*15, width = 400)},
-             if(length(numerics)>0){plotOutput("summ_num", height = ncol(numerics)*15, width = 550
+      column(12,plotOutput("summ_num", height = ncol(numerics)*15, width = 550
 
-             )}
-      )
+      ))
     )
 
 

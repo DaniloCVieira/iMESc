@@ -3,11 +3,15 @@
 #"Ubutu:  sudo apt install libgdal-dev"
 #"Ubutu:  sudo apt install libudunits2-dev"
 
+
+
+
+
 tiphelp<-function(text){
   tipify(a(icon("fas fa-question-circle")),text, options = list(container="body"))
 }
 pophelp<-function(title,text){
-  popify(a(icon("fas fa-question-circle")),title,text, options = list(container="body"),trigger="click", placement = "right")
+  popify(a(icon("fas fa-question-circle")),title,text, options = list(container="body"), placement = "right", trigger="hover")
 }
 
 datalist_render<-function(datalist=NULL,bagdata=F)
@@ -146,6 +150,7 @@ textoffline<-function(...)({
               p(code("xcode-select -p"), "it will open a prompt"),
               p(strong("3.")," Install the Command Line Tools from the prompt;"),
               p(strong("4.")," Try run'", code("runGitHub('iMESc','DaniloCVieira', ref='main')"),"again"),
+              p(strong("5."),"Click in 'Open in Browser' on the top left corner of the window for better visualization"),
               em('For other issues, please contact the author.')
               ),
 
@@ -436,7 +441,7 @@ textlab<-function(...)
 
 textinput<-function(...){
   paste(
-    "Create Datalists and upload your data and their attributes. All analyses available at ",span('iMESc',style="font-family: 'Alata', sans-serif;")," will require a Datalist created by the user, either uploaded or using example data."
+    "Create Datalists and upload your data and their attributes. All analyses available at ",strong('iMESc',style="font-family: 'Alata', sans-serif;")," will require a Datalist created by the user, either uploaded or using example data."
 
 
   )
@@ -1404,19 +1409,19 @@ textbphelp<-function(...){
 
 
 
-divI<-function(abund,choices=c("N","S","margalef","D","H","J","Dom","Skewness")){
+divI<-function(abund,choices=c("N","S","margalef","D","H","J'","Dom_rel","Skewness")){
   res=list()
   if("N"%in%choices){res$N<-rowSums(abund)}
   if("S"%in%choices){res$S<-vegan::specnumber(abund)}
   if("margalef"%in%choices){res$margalef=(specnumber(abund)-1)/log(rowSums(abund))}
   if("D"%in%choices){res$D<-vegan::diversity(abund, index="simpson")}
   if("H"%in%choices){res$H<-vegan::diversity(abund)}
-  if("J"%in%choices){
+  if("J'"%in%choices){
     H<-vegan::diversity(abund)
     S<-vegan::specnumber(abund)
     res$J <- H/log(S)}
-  if("Dom"%in%choices){res$Dom<-apply(decostand(abund, "total"),1,sort,T)[1,]}
-  if("Skewness"%in%choices){res$Skewness=apply(abund,1,skewness)}
+  if("Dom_rel"%in%choices){res$Dom_rel<-apply(decostand(abund, "total"),1,sort,T)[1,]}
+  if("Skewness"%in%choices){res$Skewness=apply(decostand(abund,"log"),1,skewness)}
   return(data.frame(do.call(cbind,res)))
 }
 

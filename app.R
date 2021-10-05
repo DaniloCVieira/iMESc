@@ -1632,9 +1632,6 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
 
-
-
-
   output$down_data <- {
     downloadHandler(
       filename = function() {
@@ -3344,13 +3341,6 @@ output$shp_feature2<-renderUI({
   })
 
 
-  getdown_tile<-reactive({
-    switch(downcenter_hand$df,
-           "data"="Data-Attribute",
-           "factors"="Factors-Attribute",
-           "coords"="Coords-Attribute",
-           "som"="Som-Attribute")
-  })
 
   downcenter<-reactive({
 
@@ -3400,7 +3390,7 @@ output$shp_feature2<-renderUI({
       }
      ,
 
-      title=h4(strong("Download")),
+      title=h4(icon("fas fa-download"),strong("Download")),
       size="m",
       easyClose = T
 
@@ -3427,15 +3417,6 @@ output$shp_feature2<-renderUI({
 
     downcenter_hand$df<-"som"
     showModal(downcenter())
-  })
-
-  getdown<-reactive({
-    switch(downcenter_hand$df,
-           "data"=saved_data$df[[input$data_upload]],
-           "factors"=attr(saved_data$df[[input$data_upload]],"factors"),
-           "coords"=attr(saved_data$df[[input$data_upload]],"coords"),
-           "som"=combsom_down(),
-           "rfdepth"=data.frame(mindeaphrf()[[2]]))
   })
 
 
@@ -5011,7 +4992,7 @@ output$pclus_legcontrol<-renderUI({
                      ),
                      numericInput("npic", 'number', value = 10, min = 2),
                      column(12,style="margin-top: 22px",
-                       popify(downloadButton("down_pcorr_results", NULL,style  = "button_active"),NULL,"download variable factor results",
+                       popify(bsButton("down_pcorr_results", icon("fas fa-download"),style  = "button_active"),NULL,"download variable factor results",
                               options=list(container="body")
 
                        )
@@ -5042,6 +5023,13 @@ output$pclus_legcontrol<-renderUI({
 
 
   })
+
+  observeEvent(input$down_pcorr_results,{
+    downcenter_hand$df<-"pcorr"
+    showModal(downcenter())
+
+  })
+
 
 
 
@@ -5082,6 +5070,7 @@ output$pclus_legcontrol<-renderUI({
                   selectize = F)
 
   })
+
   BMUs <- reactive({
     if (input$varfacmap_action %% 2) {
       npic=as.numeric(input$npic)} else{
@@ -5105,8 +5094,9 @@ output$pclus_legcontrol<-renderUI({
         alpha.legend=input$bgleg_pcorr
       )
     } else{
-      p<-codes_corr_plot(getsom(), npic)
+      p<-codes_corr_plot(getsom(), npic,indicate = var_corr_codes.reactive(),)
     }
+
     p
 
 
@@ -5115,7 +5105,9 @@ output$pclus_legcontrol<-renderUI({
 
 
   output$pCorrCodes <- renderPlot({
-    BMUs()
+    p<-BMUs()
+    pcoor_results$df<-data.frame(attr(p,"result"))
+    p
   })
   output$pchanges <- renderPlot({
     pchanges(getsom())
@@ -6270,8 +6262,9 @@ output$pclus_legcontrol<-renderUI({
     } else{NULL}
   })
   var_corr_codes.reactive <- reactive({
-    switch(input$var_corr_codes, "most important correlations" = "var")
-    switch(input$var_corr_codes, "clockwise-correlations" = "cor")
+    if(input$var_corr_codes=="most important correlations"){res="var"}
+    if(input$var_corr_codes=="clockwise-correlations"){res="cor"}
+ res
   })
 
 
@@ -6366,7 +6359,7 @@ output$pclus_legcontrol<-renderUI({
             alpha.legend=input$bgleg_pcorr
           )
         } else{
-          p<-codes_corr_plot(getsom(), npic)
+          p<-codes_corr_plot(getsom(), npic,indicate = var_corr_codes.reactive(),)
         }
         p
 
@@ -7471,7 +7464,7 @@ colnames(Parameters)<-"Training Parameters"
                     br(),
                     fluidRow(style="margin-left:5px;",
                              tabsetPanel(id="hc_tab",
-                                         tabPanel(strong("1. Dendogram"),value="hc_tab1",
+                                         tabPanel(strong("1. Dendrogram"),value="hc_tab1",
                                                   uiOutput("Dendogram")),
 
                                          tabPanel(
@@ -7996,6 +7989,35 @@ colnames(Parameters)<-"Training Parameters"
 
 
     )
+  })
+
+
+  pcoor_results<-reactiveValues(df=0)
+
+
+  getdown<-reactive({
+    switch(downcenter_hand$df,
+           "data"=saved_data$df[[input$data_upload]],
+           "factors"=attr(saved_data$df[[input$data_upload]],"factors"),
+           "coords"=attr(saved_data$df[[input$data_upload]],"coords"),
+           "som"=combsom_down(),
+           "rfdepth"=data.frame(mindeaphrf()[[2]]),
+           "pcorr"=pcoor_results$df
+    )
+  })
+
+
+  getdown_tile<-reactive({
+    switch(downcenter_hand$df,
+           "data"="Data-Attribute",
+           "factors"="Factors-Attribute",
+           "coords"="Coords-Attribute",
+           "som"="Som-Attribute",
+           "rfdepth"="Random-Forest Minimal depth distribution",
+           "pcorr"="Variable Factor Results"
+
+
+           )
   })
 
 

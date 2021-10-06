@@ -1,4 +1,4 @@
-list.of.packages <- c('shinydashboard','shinydashboardPlus','shinyjs','shiny',"e1071",'readxl','vegan',"party",'caret','viridisLite','aweSOM','sp','raster','rasterVis','Rcpp','rgdal','gstat','ggspatial','ggplot2','sf','class','shinyWidgets', 'randomForestExplainer','data.table',"ggpubr", "shinyBS","terra","purrr","NbClust", "colorRamps","DBI","shinyBS","wesanderson","colorspace","gplots","dendextend","kohonen","shinypanels","writexl","DT","gbRd")
+list.of.packages <- c('shinydashboard','shinydashboardPlus','shinyjs','shiny',"e1071",'readxl','vegan',"party",'caret','viridisLite','aweSOM','sp','raster','Rcpp','rgdal','gstat','ggspatial','ggplot2','sf','class','shinyWidgets', 'randomForestExplainer','data.table',"ggpubr", "shinyBS","terra","purrr","NbClust", "colorRamps","DBI","shinyBS","wesanderson","colorspace","gplots","dendextend","kohonen","shinypanels","writexl","DT","gbRd")
 
 
 if(!length(grep("connect/apps",getwd()))>0){
@@ -29,7 +29,6 @@ library(viridisLite)
 library(aweSOM)
 library(sp)
 library(raster)
-library(rasterVis)
 library(rgdal)
 library(gstat)
 library(ggspatial)
@@ -3386,7 +3385,7 @@ output$shp_feature2<-renderUI({
     modalDialog(
       if(isFALSE(bagdata$df)){"the selected datalist has unsaved changes.Please save them before continuing."} else{
         column(12,
-               h5(strong(getdown_tile())),
+               h5(strong(downcenter_hand$df)),
                splitLayout(cellWidths = c("30%","70%"),
                  column(12,
                         radioButtons("down_type",strong("format",tipify(icon("fas fa-question-circle"),"file extension", options=list(container="body"))),c(".xlsx",".csv"))),

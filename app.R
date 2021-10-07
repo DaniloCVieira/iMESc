@@ -75,7 +75,7 @@ convertMenuItem <- function(mi, tabName) {
 
 b64 <- base64enc::dataURI(file = "meta/logo.png", mime = "image/png")
 
-Esquema <- base64enc::dataURI(file = "meta/Esquema.png", mime = "image/png")
+#Esquema <- base64enc::dataURI(file = "meta/Esquema.png", mime = "image/png")
 dbHeader <- dashboardHeader(
   title = span(img(
     src = b64,
@@ -305,12 +305,8 @@ Shiny.onInputChange('shiny_height',myHeight)
                           tabPanel(strong("Workflow"),value="intro3",
                                    column(
                                      12,
-                                     br(),
-                                     img(
-                                       src = Esquema,
-                                       height = '755.227',
-                                       width = '680.174'
-                                     )
+                                     br()
+
                                    )
                           ),
                           tabPanel(
@@ -1370,7 +1366,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       colnames(bmu)<-paste0('bmu_',input$model_newname)
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
-             renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(bmu),],bmu))
+             renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(bmu),,drop=F],bmu))
       )
 
     } else if(datahand$df=="Save changes")
@@ -1388,7 +1384,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
-             renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(temp),],temp)))
+             renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(temp),,drop=F],temp)))
     }    else if(datahand$df=="Create data list from aggregation results")
     {
       column(12,
@@ -1889,13 +1885,16 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                      uiOutput("factors_map")
                    })
                  ),
-                 p(actionButton("shp_create",strong(popify(div("shp",icon("fas fa-map")),NULL,"Click to  acreate base_shape/layer_shape'", options=list(container="body")),"Add", style="button_active")))
+                 p(uiOutput("shp_create"))
                )
 
              )
 
     )
   })
+output$shp_create<-renderUI({
+  actionButton("shp_create",strong(popify(div("shp",icon("fas fa-map")),NULL,"Click to  acreate base_shape/layer_shape'", options=list(container="body")),"Add", style="button_active"))
+})
 
   output$factors_map<-renderUI({
     selectInput("map_hc",
@@ -3737,8 +3736,8 @@ output$tools_bar<-renderUI({
   getdatalist<-reactive({
     data=dataraw()
     if (any(names(datastr(data)$type.vars) == "factor")){#ok
-      data.numerics <-data[, which(unlist(lapply(data, function(x)is.numeric(x))))]
-      data.factors<-data[, which(unlist(lapply(data, function(x)is.factor(x))))]
+      data.numerics <-data[, which(unlist(lapply(data, function(x)is.numeric(x)))),drop=F]
+      data.factors<-data[, which(unlist(lapply(data, function(x)is.factor(x)))),drop=F]
       rownames(data.numerics)<-rownames(data)
       data<-data.numerics
       attr(data,"data.factors")<-data.factors}
@@ -5306,7 +5305,7 @@ output$pclus_legcontrol<-renderUI({
 
 
   output$factorsplot<-renderPlot({
-    pfac(attr(getdata_upload(),"factors")[rownames(getdata_upload()),])
+    pfac(attr(getdata_upload(),"factors")[rownames(getdata_upload()),,drop=F])
   })
 
 
@@ -5710,7 +5709,8 @@ output$pclus_legcontrol<-renderUI({
   }
   #somgridmodal
   {
-    somgridmodal <- function() {
+    somgridmodal <-reactive({
+
       modalDialog(
         textsomgrid(),
         title = h4(strong("somgrid")),
@@ -5718,7 +5718,8 @@ output$pclus_legcontrol<-renderUI({
         size = "m",
         easyClose = TRUE
       )
-    }
+
+    })
 
     observeEvent(input$somgridhelp, {
       showModal(somgridmodal())
@@ -6232,7 +6233,7 @@ output$pclus_legcontrol<-renderUI({
 
 
   output$strlabels <- renderPrint({
-    str(attr(getdata_upload(),"factors")[rownames(getdata_upload()),])
+    str(attr(getdata_upload(),"factors")[rownames(getdata_upload()),,drop=F])
   })
 
 

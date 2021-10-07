@@ -443,7 +443,7 @@ pproperty<-function(m, main, pic)
 }
 
 
-pbox<-function(res, palette="viridis", coefic=1.5, lab_out=NULL ,cex.lab=1, lwd=1, main=paste0(colnames(res)[2],"~",colnames(res)[1]), ylim=range(res[,2]), insetx=0, insety=0, show_outs=T)
+pbox<-function(res, palette="viridis", coefic=1.5, lab_out=NULL ,cex.lab=1, lwd=1, main=paste0(colnames(res)[2],"~",colnames(res)[1]), ylim=range(na.omit(res[,2])), insetx=0, insety=0, show_outs=T)
 {
   if(!is.null(lab_out)){show_outs=F}
   res<-data.frame(res)

@@ -2001,7 +2001,7 @@ output$shp_create<-renderUI({
   })
 
   output$editbox<-renderUI({
-    res<-na.omit(getdata_upload())
+    res<-na.omit(getbox())
     column(12,style="border-top: 3px solid SeaGreen;border-bottom: 3px solid SeaGreen;background: white; margin-right: 100px; margin-top: -30px;margin-bottom: 20px;",
            column(12,
                   column(12,splitLayout(
@@ -2019,8 +2019,8 @@ output$shp_create<-renderUI({
                          splitLayout(
                            numericInput("box_cexlab","plot size",value=1.2,step=0.1),
                            numericInput("box_lwd","line width",value=1.2,step=0.1),
-                           numericInput("ymin_box","y min",value=floor(min(res[,2])),step=0.1),
-                           numericInput("ymax_box","y max",value=ceiling(max(res[,2])),step=0.5),
+                           numericInput("ymin_box","y min",value=floor(min(na.omit(res[,2]))),step=0.1),
+                           numericInput("ymax_box","y max",value=ceiling(max(na.omit(res[,2]))),step=0.5),
                            numericInput("insety","leg y",value=0,step=0.1),
                            numericInput("insetx","leg x",value=0,step=0.1)
                          ))

@@ -469,7 +469,7 @@ output$package_refs<-renderPrint({
   datalist1_book <- reactiveValues(df=F)
   datalist2_book <- reactiveValues(df=F)
   datalist3_book <- reactiveValues(df=F)
-  phc_book <- reactiveValues(df=F)
+
   saved_data <- reactiveValues()
   saved_kdataWSS <- reactiveValues()
   saved_kdataaccRF <- reactiveValues()
@@ -477,6 +477,8 @@ output$package_refs<-renderPrint({
   saved_kmodelWSS <- reactiveValues()
   saved_kcustom <- reactiveValues()
   cur_data<-reactiveValues(df=0)
+  rfd_res<-reactiveValues(df=0)
+  rfm_res<-reactiveValues(df=0)
 
 
   saved_kmodelvotes <- reactiveValues()
@@ -490,7 +492,8 @@ output$package_refs<-renderPrint({
   saved_dataset_value <- reactiveValues(df = 0)
   observe(saved_dataset_value$df<-isolate(length(saved_data$df)+1))
   saved_dataset_names <- reactiveValues(df = 0)
-
+  hand_plot<-reactiveValues(df=0)
+  map_res<-reactiveValues(df=0)
   saved_divset_value <- reactiveValues(df = 0)
   observe(saved_divset_value$df<-isolate(length(saved_data$df)+1))
   saved_divset_names <- reactiveValues(df = 0)
@@ -526,7 +529,7 @@ output$package_refs<-renderPrint({
     datalist1_book=0,
     datalist2_book=0,
     datalist3_book=0,
-    phc_book=0,
+
     saved_data=0,
     saved_kdataWSS=0,
     saved_kdataaccRF=0,
@@ -822,18 +825,18 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   })
 
 
-  datahand<-reactiveValues(df=0)
-  datahand2<-reactiveValues(df=NULL)
-  datahand3<-reactiveValues(df=NULL)
-  datahand_modal<-reactive({
+  hand_save<-reactiveValues(df=0)
+  hand_save2<-reactiveValues(df=NULL)
+  hand_save3<-reactiveValues(df=NULL)
+  hand_save_modal<-reactive({
 
     modalDialog(
                 column(12,
                        fluidRow(
-                         column(12,p(strong("action:"),em("*",datahand$df,style="color: SeaGreen")), p(datahand2$df,style="color: gray")),
+                         column(12,p(strong("action:"),em("*",hand_save$df,style="color: SeaGreen")), p(hand_save2$df,style="color: gray")),
                          column(12,style='margin-top: 10px; margin-left: 10px',
                                 splitLayout(cellWidths = c("30%","70%"),
-                                            radioButtons("datahand",NULL,
+                                            radioButtons("hand_save",NULL,
                                                          choiceNames= list(div(style="height: 50px","create"),
                                                                            div(style="height: 50px","overwrite")),
                                                          choiceValues=list('create',"over")),
@@ -842,7 +845,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
                                                    div(style="height: 50px",
                                                        uiOutput("data_over")))
                                 )),
-                         column(12,datahand3$df)
+                         column(12,hand_save3$df)
                        )
                 ),
                 title=strong('Databank storage',icon("fas fa-warehouse")),
@@ -863,19 +866,19 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   observeEvent(input$insert_classMat,{
-    datahand$df<-"Include binary columns in the Data-Attribute"
+    hand_save$df<-"Include binary columns in the Data-Attribute"
     showModal(
-      datahand_modal()
+      hand_save_modal()
     )})
 
 
 
   observeEvent(input$tools_save,{
-    datahand$df<-"Save changes"
-    datahand2$df<-NULL
-    datahand3$df<-NULL
+    hand_save$df<-"Save changes"
+    hand_save2$df<-NULL
+    hand_save3$df<-NULL
     showModal(
-      datahand_modal()
+      hand_save_modal()
     )})
 
 
@@ -883,7 +886,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   observeEvent( input$data_confirm,{
 
     data=getdata_upload()
-    if(datahand$df=="Create a datalist from the selected observations")
+    if(hand_save$df=="Create a datalist from the selected observations")
     {
       facs<-attr(data,"factors")
       coords<-attr(data,"coords")
@@ -892,7 +895,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       facs<-facs[input$x1_factors_rows_selected,]
       attr(data,"factors")<-facs
       attr(data,"coords")<-coords
-      if(input$datahand=="create") {
+      if(input$hand_save=="create") {
         saved_data$df[[input$selobs_newname]]<-data
         cur_data$df<-input$selobs_newname
       } else{
@@ -903,10 +906,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
     }
 
-    if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
+    if(hand_save$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       temp<-getdata_rf02()[,rf_sigs$df$variable]
       temp<-data_migrate(getdata_rf02(),temp,"newdata_rf")
-      if(input$datahand=="create") {
+      if(input$hand_save=="create") {
         saved_data$df[[input$rf_newname]]<-temp
         cur_data$df<-input$rf_newname
       } else{
@@ -915,11 +918,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       }
     }
 
-    if(datahand$df=="Save diversity results"){
+    if(hand_save$df=="Save diversity results"){
       divInds<-divI()
       data<-getdata_div()
       temp<-data_migrate(data,divInds,input$div_newname)
-      if(input$datahand=="create"){
+      if(input$hand_save=="create"){
         saved_data$df[[input$div_newname]]<-temp
         cur_data$df<-input$div_newname
       } else{
@@ -928,10 +931,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       }
     }
 
-    if(datahand$df=="Create data list from aggregation results")
+    if(hand_save$df=="Create data list from aggregation results")
     {
       temp<-aggreg()
-      if(input$datahand=="create"){
+      if(input$hand_save=="create"){
         saved_data$df[[input$agg_newname]]<-temp
         cur_data$df<-input$agg_newname
       } else{
@@ -941,24 +944,24 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     }
 
 
-    if(datahand$df=="Include binary columns in the Data-Attribute"){
+    if(hand_save$df=="Include binary columns in the Data-Attribute"){
       temp<-cbind(data,getclassmat(attr(data,"data.factors")))
 
     }
 
-    if(datahand$df=="Save changes"){
+    if(hand_save$df=="Save changes"){
       temp<-getdata_upload()}
-    if(datahand$df=="Save newsom in"){
+    if(hand_save$df=="Save newsom in"){
       temp<-getsom()
       bmu<-temp$unit.classif
       names(bmu)<-rownames(temp$data[[1]])
     }
 
-    if(datahand$df=="Save Clusters"){
+    if(hand_save$df=="Save Clusters"){
       baghc0$df<-baghc0$df+1
       hc <- phc()
       temp <- hc$somC
-      if(input$datahand=="create"){
+      if(input$hand_save=="create"){
         attr(saved_data$df[[input$data_hc]],"factors")[names(temp),input$hc_newname]<-temp
       } else{
         attr(saved_data$df[[input$data_hc]],"factors")[input$hc_over]<-temp
@@ -968,11 +971,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
 
-    if(datahand$df=="Save changes"|datahand$df=="Include binary columns in the Data-Attribute"){
+    if(hand_save$df=="Save changes"|hand_save$df=="Include binary columns in the Data-Attribute"){
       temp<-data_migrate(data,temp,input$data_newname)
 
 
-      if(input$datahand=="create"){
+      if(input$hand_save=="create"){
         saved_data$df[[input$data_newname]]<-temp
         cur_data$df<-input$data_newname
       } else{
@@ -981,10 +984,10 @@ output$textbreak<-renderText("This action creates a single binary column per fac
       }
     }
 
-    if(datahand$df=="Save newsom in"){
+    if(hand_save$df=="Save newsom in"){
 
       bagmodel$df<-FALSE
-      if(input$datahand=="create"){
+      if(input$hand_save=="create"){
 
 
         temp<-list(temp)
@@ -1018,15 +1021,15 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     shinyjs::reset('selecvar')
     #shinyBS::updateButton(session,"tools_selvar",style  = "button_active", value=F)
     shinyBS::updateButton(session,"tools_transform",style  = "button_active", value=F)
-    showModal(datahand_out())
+    showModal(hand_save_out())
   }
 
   )
 
 
-  datahand_out<-reactive(
+  hand_save_out<-reactive(
     modalDialog(
-      if(datahand$df=="Include binary columns in the Data-Attribute"){
+      if(hand_save$df=="Include binary columns in the Data-Attribute"){
         classmat_out()
       } else{
         h4("Success")
@@ -1039,18 +1042,18 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   output$data_create<-renderUI({
-    req(input$datahand=="create")
-    if(datahand$df=="Save newsom in"){textInput("model_newname", NULL,paste("Som", length(attr(getdata_som(),"som"))+1))} else
-      if(datahand$df=="Save changes"|datahand$df=="Include binary columns in the Data-Attribute"){
+    req(input$hand_save=="create")
+    if(hand_save$df=="Save newsom in"){textInput("model_newname", NULL,paste("Som", length(attr(getdata_som(),"som"))+1))} else
+      if(hand_save$df=="Save changes"|hand_save$df=="Include binary columns in the Data-Attribute"){
         bag<-nrow(attr(getdata_upload(), "transf") )
         if(!length(bag)>0){bag<-1}
       textInput("data_newname", NULL,paste("Datalist_",gsub(".csv","",attr(getdata_upload(), "filename")) ,bag))} else
-        if(datahand$df=="Save Clusters"){textInput("hc_newname", NULL,paste("hc", baghc0$df+1))}else
-          if(datahand$df=="Create data list from aggregation results"){textInput("agg_newname", NULL,paste("Datalist_agg", length(saved_data$df)+1))}else
-            if(datahand$df=="Save diversity results"){
+        if(hand_save$df=="Save Clusters"){textInput("hc_newname", NULL,paste("hc", baghc0$df+1))}else
+          if(hand_save$df=="Create data list from aggregation results"){textInput("agg_newname", NULL,paste("Datalist_agg", length(saved_data$df)+1))}else
+            if(hand_save$df=="Save diversity results"){
         textInput("div_newname", NULL,paste("Div_results", length(saved_data$df)+1))}else
-          if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
-          textInput("rf_newname", NULL,paste("Rf_sigs", length(saved_data$df)+1))} else if(datahand$df=="Create a datalist from the selected observations"){
+          if(hand_save$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
+          textInput("rf_newname", NULL,paste("Rf_sigs", length(saved_data$df)+1))} else if(hand_save$df=="Create a datalist from the selected observations"){
             bag<-nrow(attr(getdata_upload(), "transf") )
             if(!length(bag)>0){bag<-1}
             textInput("selobs_newname", NULL,paste("Datalist_",gsub(".csv","",attr(getdata_upload(), "filename")) ,bag))
@@ -1064,22 +1067,22 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   output$data_over<-renderUI({
-    req(input$datahand=="over")
-    if(datahand$df=="Save newsom in"){
+    req(input$hand_save=="over")
+    if(hand_save$df=="Save newsom in"){
       if(length(attr(getdata_som(),"som"))>0){
         selectInput("model_over", NULL,choices=c(names(attr(getdata_som(),"som"))),selectize = F)
       }else{
         column(12,verbatimTextOutput("nosommodel"))
       }
-    }else if(datahand$df=="Save changes"|datahand$df=="Include binary columns in the Data-Attribute") { selectInput("data_over", NULL,choices=c(names(saved_data$df)),selectize = F)} else if(datahand$df=="Save Clusters"){
+    }else if(hand_save$df=="Save changes"|hand_save$df=="Include binary columns in the Data-Attribute") { selectInput("data_over", NULL,choices=c(names(saved_data$df)),selectize = F)} else if(hand_save$df=="Save Clusters"){
       selectInput("hc_over", NULL,choices=c(colnames(attr(getdata_hc(),"factors"))),selectize = F)
-    }else if(datahand$df=="Create data list from aggregation results"){
+    }else if(hand_save$df=="Create data list from aggregation results"){
       selectInput("agg_over", NULL,choices=c(names(saved_data$df)),selectize = F)
-    } else if(datahand$df=="Save diversity results"){
+    } else if(hand_save$df=="Save diversity results"){
       selectInput("div_over", NULL,choices=c(names(saved_data$df)),selectize = F)
-    } else if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
+    } else if(hand_save$df=="Create a datalist with the variables selected in the Random Forest Explainer"){
       selectInput("rf_over", NULL,choices=c(names(saved_data$df)),selectize = F)
-    }else if(datahand$df=="Create a datalist from the selected observations"){
+    }else if(hand_save$df=="Create a datalist from the selected observations"){
       selectInput("selobs_over", NULL,choices=c(names(saved_data$df)),selectize = F)
     }
 
@@ -1346,13 +1349,13 @@ output$textbreak<-renderText("This action creates a single binary column per fac
   observeEvent(input$tools_savesom,{
     if(input$tools_savesom %% 2){
 
-      datahand$df<-"Save newsom in"
-      datahand2$df<-column(12,fluidRow(em(input$data_som, style="color:gray"),strong("::"), em("Som-Attribute", style="color:gray"),strong("::")
+      hand_save$df<-"Save newsom in"
+      hand_save2$df<-column(12,fluidRow(em(input$data_som, style="color:gray"),strong("::"), em("Som-Attribute", style="color:gray"),strong("::")
       ))
-      datahand3$df<-em("Both 'create' and 'overwrite' options add the resulting BMU to the 'Factor-Attribute' of the corresponding Datalist."
+      hand_save3$df<-em("Both 'create' and 'overwrite' options add the resulting BMU to the 'Factor-Attribute' of the corresponding Datalist."
 )
       showModal(
-        datahand_modal()
+        hand_save_modal()
       )
     }
   })
@@ -1360,7 +1363,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   output$preview<-renderUI({
-    if(datahand$df=="Save newsom in"){
+    if(hand_save$df=="Save newsom in"){
       bmu<-data.frame(getsom()$unit.classif)
       rownames(bmu)<-rownames(getdata_som())
       colnames(bmu)<-paste0('bmu_',input$model_newname)
@@ -1369,30 +1372,30 @@ output$textbreak<-renderText("This action creates a single binary column per fac
              renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(bmu),,drop=F],bmu))
       )
 
-    } else if(datahand$df=="Save changes")
+    } else if(hand_save$df=="Save changes")
     {
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
              column(12,renderTable(
                getdata_upload(), bordered = T,rownames =T
              )))
-    } else if(datahand$df=="Save Clusters")
+    } else if(hand_save$df=="Save Clusters")
     {
       hc <- phc()
       temp <- data.frame(hc$somC)
-      colnames(temp)<-if(input$datahand=="create"){input$hc_newname}else{input$hc_over}
+      colnames(temp)<-if(input$hand_save=="create"){input$hc_newname}else{input$hc_over}
 
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
              renderPrint(cbind(attr(getdata_upload(),"factors")[rownames(temp),,drop=F],temp)))
-    }    else if(datahand$df=="Create data list from aggregation results")
+    }    else if(hand_save$df=="Create data list from aggregation results")
     {
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
             column(12,renderTable(
                aggreg(), bordered = T,rownames =T
              )))
-    } else if(datahand$df=="Create a datalist with the variables selected in the Random Forest Explainer")
+    } else if(hand_save$df=="Create a datalist with the variables selected in the Random Forest Explainer")
     {
       column(12,
              style="overflow-x: scroll;height:300px;overflow-y: scroll",
@@ -1445,7 +1448,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
         myBookmarks$datalist1_book=isolate(datalist1_book$df)
         myBookmarks$datalist2_book=isolate(datalist2_book$df)
         myBookmarks$datalist3_book=isolate(datalist3_book$df)
-        myBookmarks$phc_book=isolate(phc_book$df)
+
         myBookmarks$saved_data=isolate(saved_data$df)
         myBookmarks$saved_kdataWSS=isolate(saved_kdataWSS$df)
         myBookmarks$saved_kdataaccRF=isolate(saved_kdataaccRF$df)
@@ -1571,7 +1574,7 @@ output$textbreak<-renderText("This action creates a single binary column per fac
     datalist1_book$df<-F
     datalist2_book$df<-isolate(myBookmarks$datalist2_book)
     datalist3_book$df<-isolate(myBookmarks$datalist3_book)
-    phc_book$df<-isolate(myBookmarks$phc_book)
+
     saved_data$df<-isolate(myBookmarks$saved_data)
     saved_kdataWSS$df<-isolate(myBookmarks$saved_kdataWSS)
     saved_kdataaccRF$df<-isolate(myBookmarks$saved_kdataaccRF)
@@ -1782,11 +1785,11 @@ output$textbreak<-renderText("This action creates a single binary column per fac
 
 
   observeEvent(input$tools_savediv,{
-    datahand$df<-"Save diversity results"
-    datahand2$df<-NULL
-    datahand3$df<-NULL
+    hand_save$df<-"Save diversity results"
+    hand_save2$df<-NULL
+    hand_save3$df<-NULL
     showModal(
-      datahand_modal()
+      hand_save_modal()
     )
   })
 
@@ -2060,7 +2063,13 @@ output$shp_create<-renderUI({
     boxp
   })
 
-  output$boxplot_out <- renderPlot({plotbox()})
+  output$boxplot_out <- renderUI({
+    fluidRow(
+      column(12,actionButton('downp_box',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+      column(12,renderPlot(plotbox()))
+    )
+  })
+
 
 
 
@@ -2089,6 +2098,7 @@ output$shp_create<-renderUI({
 
 
   rf_depth <- reactive({
+    validate(need(input$go_rfplot  %% 2,"Please click in the 'Minimal Depth Distribution' button"))
     fluidRow(br(),
              column(12,
 
@@ -2111,13 +2121,16 @@ output$shp_create<-renderUI({
              ),
              column(12,
                     conditionalPanel("input.fine_rfdepth % 2",{
-                      splitLayout(
-                        column(12,uiOutput("npicrf")),
-                        column(12,numericInput('depth_min_no_of_trees',strong('min_n_trees', tipify(icon("fas fa-question-circle"),"The minimal number of trees in which a variable has to be used for splitting to be used for plotting", options =list(container="body") )),value=0,step=1)),
-                        column(12,selectInput('depth_mean_sample',strong('mean_sample', tipify(icon("fas fa-question-circle"),"The sample of trees on which mean minimal depth is calculated", options =list(container="body"))),choices=c( "top_trees","all_trees","relevant_trees"), selected= "top_trees",selectize=F))                               ,
-                        column(12,numericInput("sigprf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05)),
-                        column(12,numericInput("labrfsize","plot size", value=10))
+                      fluidRow(
+                        splitLayout(
+                          column(12,uiOutput("npicrf")),
+                          column(12,numericInput('depth_min_no_of_trees',strong('min_n_trees', tipify(icon("fas fa-question-circle"),"The minimal number of trees in which a variable has to be used for splitting to be used for plotting", options =list(container="body") )),value=0,step=1)),
+                          column(12,selectInput('depth_mean_sample',strong('mean_sample', tipify(icon("fas fa-question-circle"),"The sample of trees on which mean minimal depth is calculated", options =list(container="body"))),choices=c( "top_trees","all_trees","relevant_trees"), selected= "top_trees",selectize=F))                               ,
+                          column(12,numericInput("sigprf", strong('sig', tipify(icon("fas fa-question-circle"),"Significance level", options =list(container="body") )), 0.05)),
+                          column(12,numericInput("labrfsize","plot size", value=10))
 
+
+                        )
 
                       )
                     }),
@@ -2128,11 +2141,11 @@ output$shp_create<-renderUI({
 
 
   observeEvent(input$tools_saverf,{
-    datahand$df<-"Create a datalist with the variables selected in the Random Forest Explainer"
-    datahand2$df<-NULL
-    datahand3$df<-NULL
+    hand_save$df<-"Create a datalist with the variables selected in the Random Forest Explainer"
+    hand_save2$df<-NULL
+    hand_save3$df<-NULL
     showModal(
-      datahand_modal()
+      hand_save_modal()
     )
   })
 
@@ -2325,16 +2338,17 @@ output$shp_create<-renderUI({
                  tabPanel(strong("2.3 RandomForest Explainer"),
                           column(12,
                             column(12,style="margin-top: 20px; margin-bottom: 20px; ",
-                                   strong("Minimal depth distribution: ",popify(actionButton("go_rfplot", h5(icon("fab fa-wpexplorer fa-flip-horizontal"),icon("fas fa-arrow-circle-right")),style  = "button_active"),NULL,"Click to Calculate the minimal depth distribution of a random forest",options=list(container="body")),
+                                   strong("Minimal depth distribution: ",popify(actionButton("go_rfplot", h5(icon("fab fa-wpexplorer fa-flip-horizontal"),icon("fas fa-arrow-circle-right")),style  = "button_active"),NULL,"Click to Calculate the minimal depth distribution of the random forest",options=list(container="body")),
                                           conditionalPanel("input.go_rfplot % 2",{
                                             popify(actionButton("downcenter_rfdepth",icon("fas fa-download")),NULL,"Download Minimal Depth distribution results", options=list(container="body"))
                                           }))),
                             tabsetPanel(
                               tabPanel(
-                                strong("Depth distribution"),
+                                strong("Minimal Depth distribution"),
                                 uiOutput("rf_depth"),
                                 column(12,
-                                       plotOutput("prf"))
+                                       column(12,actionButton('downp_prf',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                                       column(12,plotOutput("prf")))
                               ),
                               tabPanel(
                                 strong("Multi-way importance"),
@@ -2354,12 +2368,13 @@ output$shp_create<-renderUI({
 
   })
   observeEvent(input$downcenter_rfdepth,{
-    downcenter_hand$df<-"rfdepth"
+    hand_down$df<-"rfdepth"
     showModal(downcenter())
 
   })
 
   output$rf_multi<-renderUI({
+    validate(need(input$go_rfplot  %% 2,"Please click in the 'Minimal Depth Distribution' button"))
     column(12,
            splitLayout(
              selectInput('multi_x_measure',strong('x_measure', tipify(icon("fas fa-question-circle"),"The measure of importance to be shown on the X axis", options =list(container="body"))),choices=c("mean_min_depth","accuracy_decrease"), selected="mean_min_depth",selectize=F),
@@ -2371,19 +2386,22 @@ output$shp_create<-renderUI({
 
            ),
            column(12,checkboxInput("rf_sigmulti", "show only significant variables", T)),
-           column(12,plotOutput("rf_multi_out"))
+           column(12,
+                  column(12,actionButton('downp_mrf',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                  column(12,plotOutput("rf_multi_out")))
 
            )
   })
 
   output$rf_multi_out<-renderPlot({
-    prf_multi(
+    p<-prf_multi(
       mindeaphrf(), sigs = sigrfmulti(),
       input$sigmrf,
       x_measure = input$multi_x_measure,
       y_measure = input$multi_y_measure
    )
-
+    rfm_res$df<-p
+    p
   })
   sigrfmulti <- reactive({
     if (input$rf_sigmulti == TRUE) {
@@ -2451,8 +2469,8 @@ output$shp_create<-renderUI({
                     column(
                       12,
                       style = "background: white;",
-                      plotOutput('pchanges'),
-                      downloadButton('down_changes', 'Download')
+                      column(12,actionButton('downp_pchanges',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                      column(12,plotOutput('pchanges')),
                     )
                   ),
                   tabPanel(
@@ -2460,8 +2478,9 @@ output$shp_create<-renderUI({
                     column(
                       12,
                       style = "background: white;",
-                      plotOutput('pcounts'),
-                      downloadButton('down_pcounts', 'Download',)
+                      column(12,actionButton('downp_pcounts',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                     column(12, plotOutput('pcounts'))
+
                     )
                   ),
                   tabPanel(
@@ -2469,17 +2488,16 @@ output$shp_create<-renderUI({
                     column(
                       12,
                       style = "background: white;",
-                      plotOutput('pUmatrix'),
-                      downloadButton('down_pUmatrix', 'Download')
+                      column(12,actionButton('downp_pmatrix',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                     column(12, plotOutput('pUmatrix'))
                     )
                   ),
                   tabPanel(
                     "3.5. BMUs", value = "train_tab5",
 
-                    column(12, style = "background: white;", uiOutput("pcorr_control")),
-
-
-                    column(12, downloadButton('down_BMUs', 'Download'))
+                    column(12, style = "background: white;",
+                           column(12,actionButton('downp_bmu',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                          column(12,  uiOutput("pcorr_control")))
                   ),
                   tabPanel(
                     "3.6. Property", value = "train_tab6",
@@ -2491,8 +2509,10 @@ output$shp_create<-renderUI({
                         "Property",tipify(icon("fas fa-question-circle"),"Show areas for high values (red) and low values (blue) for the selected variable")
                       )),
                       column(12, uiOutput("var_pproperty")),
-                      column(12, plotOutput("pproperty")),
-                      column(12, downloadButton('down_pproperty', 'Download'))
+                      column(12,
+                             column(12,actionButton('downp_pproperty',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                             column(12,plotOutput("pproperty"))),
+
                     )
                   )
 
@@ -2733,7 +2753,7 @@ output$shp_create<-renderUI({
            conditionalPanel("input.stats0=='stats_sum_variables'",{uiOutput("stats_var")}),
            conditionalPanel("input.stats0=='stats_sum_factors'",{uiOutput("stats_fac")}),
            conditionalPanel("input.stats0=='stats_desc'",{uiOutput("stats_pdesc")}),
-           conditionalPanel("input.stats0=='stats_hist'",{plotOutput("stats_phist")}),
+           conditionalPanel("input.stats0=='stats_hist'",{uiOutput("stats_phist")}),
            conditionalPanel("input.stats0=='stats_box'",{uiOutput("stats_pbox")}),
            conditionalPanel("input.stats0=='stats_pca'",{uiOutput("stats_ppca")}),
            conditionalPanel("input.stats0=='stats_mds'",{uiOutput("stats_pmds")}),
@@ -2778,11 +2798,11 @@ output$shp_create<-renderUI({
 
 
   observeEvent(input$tools_saveagg,{
-    datahand$df<-"Create data list from aggregation results"
-    datahand2$df<-if(!is.null(attr(aggreg(),"coords"))){p("The select Datalist contains a Coords-Attribute. Mean coordinates will be retrieved from the choosen factor group.")} else {NULL}
-    datahand3$df<-NULL
+    hand_save$df<-"Create data list from aggregation results"
+    hand_save2$df<-if(!is.null(attr(aggreg(),"coords"))){p("The select Datalist contains a Coords-Attribute. Mean coordinates will be retrieved from the choosen factor group.")} else {NULL}
+    hand_save3$df<-NULL
     showModal(
-      datahand_modal()
+      hand_save_modal()
     )
   })
 
@@ -2864,7 +2884,7 @@ output$shp_create<-renderUI({
     fluidRow(style="background: white",
 
              column(12, uiOutput("boxplot_control")),
-             column(12, plotOutput("boxplot_out")))
+             column(12, uiOutput("boxplot_out")))
   })
 
   output$stats_attributes<-renderUI({
@@ -3022,11 +3042,11 @@ output$shp_create<-renderUI({
 
   observeEvent(input$selobs,{
     if(input$selobs %% 2) {
-      datahand$df<-"Create a datalist from the selected observations"
-      datahand2$df<-NULL
-      datahand3$df<-NULL
+      hand_save$df<-"Create a datalist from the selected observations"
+      hand_save2$df<-NULL
+      hand_save3$df<-NULL
       showModal(
-        datahand_modal()
+        hand_save_modal()
       )
     }
   })
@@ -3384,7 +3404,7 @@ output$shp_feature2<-renderUI({
     modalDialog(
       if(isFALSE(bagdata$df)){"the selected datalist has unsaved changes.Please save them before continuing."} else{
         column(12,
-               h5(strong(downcenter_hand$df)),
+               h5(strong(hand_down$df)),
                splitLayout(cellWidths = c("30%","70%"),
                  column(12,
                         radioButtons("down_type",strong("format",tipify(icon("fas fa-question-circle"),"file extension", options=list(container="body"))),c(".xlsx",".csv"))),
@@ -3432,26 +3452,26 @@ output$shp_feature2<-renderUI({
 
     )
   })
-  downcenter_hand<-reactiveValues(df=0)
+  hand_down<-reactiveValues(df=0)
 
   observeEvent(input$downcenter_data,{
-    downcenter_hand$df<-"data"
+    hand_down$df<-"data"
     showModal(downcenter())
 
   })
   observeEvent(input$downcenter_factors,{
 
-    downcenter_hand$df<-"factors"
+    hand_down$df<-"factors"
     showModal(downcenter())
   })
   observeEvent(input$downcenter_coords,{
 
-    downcenter_hand$df<-"coords"
+    hand_down$df<-"coords"
     showModal(downcenter())
   })
   observeEvent(input$downcenter_som,{
 
-    downcenter_hand$df<-"som"
+    hand_down$df<-"som"
     showModal(downcenter())
   })
 
@@ -3459,7 +3479,7 @@ output$shp_feature2<-renderUI({
   output$download_action <- {
     downloadHandler(
       filename = function() {
-        paste0(downcenter_hand$df,"_", Sys.Date(), input$down_type)
+        paste0(hand_down$df,"_", Sys.Date(), input$down_type)
       }, content = function(file) {
         if(input$down_type==".csv"){
           write.table(x=data.frame(getdown()),file,append=T,quote=F,row.names=T,col.names=NA, input$down_sep,
@@ -4248,13 +4268,13 @@ output$tools_bar<-renderUI({
 
   output$phc <- renderUI({
     hc<-phc()
-
-    list(renderPlot({
-      hc_plot(hc)
-      phc_book$df<-T
-    }),
-
-    column(12, downloadButton('down_phc', 'Download')))
+   fluidRow(
+     column(12,actionButton('downp_hcut',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+     column(12,renderPlot({
+       hc_plot(hc)
+      })
+    )
+   )
 
 
   })
@@ -4268,26 +4288,30 @@ output$tools_bar<-renderUI({
 
   output$pclus <- renderUI({
 
-    list(column(12,uiOutput("pclus_control")),
-         column(12,
-                renderPlot({
-                  if(length(input$pclus_symbol)>0)
-                  {pclus(
-                    somC=cutsom.reactive(),
-                    cex = as.numeric(input$pclus_symbol_size),
-                    factor.pal = as.character(input$pclus_facpalette),
-                    labels.ind = pclus_factors(),
-                    pch=as.numeric(input$pclus_symbol),
-                    points=bmu_clus_points(),
-                    bg_palette=input$hcmodel_palette,
-                    ncol=input$ncol_pclus,
-                    insetx=input$insertx_pclus,
-                    insety=input$inserty_pclus,
-                    alpha.legend=input$bgleg_pclus
-                  )}else{
-                    pclus(cutsom.reactive(),  bg_palette=input$hcmodel_palette)
-                  }
-                })))
+    fluidRow(
+
+      column(12,uiOutput("pclus_control")),
+      column(12,actionButton('downp_pclus',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+      column(12,
+             renderPlot({
+               if(length(input$pclus_symbol)>0)
+               {pclus(
+                 somC=cutsom.reactive(),
+                 cex = as.numeric(input$pclus_symbol_size),
+                 factor.pal = as.character(input$pclus_facpalette),
+                 labels.ind = pclus_factors(),
+                 pch=as.numeric(input$pclus_symbol),
+                 points=bmu_clus_points(),
+                 bg_palette=input$hcmodel_palette,
+                 ncol=input$ncol_pclus,
+                 insetx=input$insertx_pclus,
+                 insety=input$inserty_pclus,
+                 alpha.legend=input$bgleg_pclus
+               )}else{
+                 pclus(cutsom.reactive(),  bg_palette=input$hcmodel_palette)
+               }
+             }))
+         )
   })
 
 
@@ -4378,6 +4402,7 @@ output$tools_bar<-renderUI({
              )
       ),
       column(12, style="margin-top: 5px",
+             column(12,actionButton('downp_map',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
              conditionalPanel("input.maptype=='discrete'",
                               {
                                 uiOutput("discrete_control")
@@ -4387,8 +4412,10 @@ output$tools_bar<-renderUI({
                                 uiOutput("interp_control")
                               })
       )
+
     )
   })
+
 
   output$scale_options00<-renderUI({
     fluidRow(
@@ -4610,7 +4637,7 @@ output$tools_bar<-renderUI({
     data <- getdata_map()
 
 
-    map_discrete_variable(
+    m<-map_discrete_variable(
       data = data,
       coords = attr(data,"coords"),
       base_shape = attr(data,"base_shape"),
@@ -4636,12 +4663,12 @@ output$tools_bar<-renderUI({
       bmu=F,
       colored_by_factor=  colored_by_factor(),
       showguides=input$showguides)
+    map_res$df<-m
+    m
   })
   output$map_data_interp <- renderPlot({
     data <- getdata_map()
-
-
-    map_interp_variables(
+    m<-map_interp_variables(
       data = data,
       coords = saved_coords$df[rownames(data), ],
       base_shape = saved_base_shape$df,
@@ -4664,12 +4691,14 @@ output$tools_bar<-renderUI({
       k=input$nmax,
       idp=input$idp,
       showguides=input$showguides)
+    map_res$df<-m
+    m
   })
   output$map_fac_disc<-renderPlot({
     col=input$pt_palette
     data <- attr(getdata_map(),"factors")
     coords <- attr(getdata_map(),"coords")[rownames(data),]
-    map_discrete_variable(
+    m<-map_discrete_variable(
       data = data,
       coords = coords,
       base_shape =  attr(getdata_map(),"base_shape"),
@@ -4695,7 +4724,8 @@ output$tools_bar<-renderUI({
       bmu=F,
       colored_by_factor=attr(getdata_map(),"factors")[as.character(input$map_hc)],
       showguides=input$showguides)
-
+    map_res$df<-m
+    m
   })
   show_labcoords<-reactive({
 
@@ -4709,7 +4739,7 @@ output$tools_bar<-renderUI({
     if(is.null(show_labcoords()))
     {col_labs="gray"} else{   col_labs<-input$col_factor}
 
-    map_interp_variables(
+    m<-map_interp_variables(
       data = data,
       coords = saved_coords$df[rownames(data), ],
       base_shape = saved_base_shape$df,
@@ -4733,6 +4763,8 @@ output$tools_bar<-renderUI({
       k=input$nmax,
       idp=input$idp,
       showguides=input$showguides)
+    map_res$df<-m
+    m
   })
 
 
@@ -4814,6 +4846,7 @@ output$tools_bar<-renderUI({
       res<-prf(mindeaphrf(), sigs = sigrf())
          }
     rf_sigs$df<-attr(res,"sigs")
+
     res
   })
 
@@ -4824,7 +4857,9 @@ output$tools_bar<-renderUI({
     gettrain(runRF())
   })
   output$prf <- renderPlot({
-    prf.reactive()
+    p<-prf.reactive()
+    rfd_res$df<-p
+    p
   })
 
 
@@ -5061,7 +5096,7 @@ output$pclus_legcontrol<-renderUI({
   })
 
   observeEvent(input$down_pcorr_results,{
-    downcenter_hand$df<-"pcorr"
+    hand_down$df<-"pcorr"
     showModal(downcenter())
 
   })
@@ -5303,9 +5338,12 @@ output$pclus_legcontrol<-renderUI({
 
 
 
+res_pfac<-reactive({
+  attr(getdata_upload(),"factors")[rownames(getdata_upload()),,drop=F]
+})
 
   output$factorsplot<-renderPlot({
-    pfac(attr(getdata_upload(),"factors")[rownames(getdata_upload()),,drop=F])
+    pfac(res_pfac())
   })
 
 
@@ -5331,6 +5369,7 @@ output$pclus_legcontrol<-renderUI({
     factors<-data[,unlist(lapply(data,is.factor))]
     numerics<-data[,unlist(lapply(data,is.numeric))]
     fluidRow(
+      column(12,actionButton('downp_summ_num',icon("fas fa-download"), style="button_active")),
       column(12,plotOutput("summ_num", height = ncol(numerics)*15, width = 550
 
       ))
@@ -5349,7 +5388,9 @@ output$pclus_legcontrol<-renderUI({
 
 
            ),
-           column(12,plotOutput("factorsplot")))
+           column(12,
+                  column(12,actionButton('downp_stats_fac',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                  column(12,plotOutput("factorsplot"))))
   })
 
   output$psummary <- renderPrint({
@@ -5416,13 +5457,13 @@ output$pclus_legcontrol<-renderUI({
 
   bagpca<-reactiveValues(df=0)
   bagpca_once<-reactiveValues(df=0)
-  output$mdscustom <- renderPlot({
 
+
+
+  plot_mds<-reactive({
     validate(need(input$distance!='', "Select a distance measure for the mds"))
-
-
     mds_data = mds.reactive()
-    if (exists("mds_data")){
+    if (exists("mds_data")) {
       if(length(input$show_symbols)>0)
       {
         res<- pmds(
@@ -5446,7 +5487,9 @@ output$pclus_legcontrol<-renderUI({
 
 
 
+
   })
+  output$mdscustom <- renderPlot({plot_mds()})
 
 
 
@@ -5456,32 +5499,34 @@ output$pclus_legcontrol<-renderUI({
     validate(need(length(saved_data$df)>0,"no data found"))
     res<-list(
       column(12,strong("Principal Component Analysis")),
+      column(12,splitLayout(
+        checkboxInput('biplot', strong("biplot", pophelp(NULL,"show biplot arrows")), T)
+      )),
+      column(12,actionButton('downp_pca',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
       column(12,renderPlot({
-        if(length(input$show_symbols)>0){
-          res<-ppca(
-            getdata_upload(),
-            key = symbol_factor(),
-            points = input$show_symbols,
-            text = input$show_labels,
-            palette = input$colpalette,
-            cex.points = input$cexpoint,
-            cex.text = input$cextext,
-            pch=pt_symbol0(),
-            textcolor=input$textcolor,
-            keytext=text_factor()
-          )
-        }else{
-          res<-ppca(getdata_upload())
-        }
-
-
-
-        res
-      })),
-
-      downloadButton('down_ppca', 'plot')
+        plot_pca()
+      }))
     )
+  })
 
+  plot_pca<-reactive({
+    if(length(input$show_symbols)>0){
+      ppca(
+        getdata_upload(),
+        key = symbol_factor(),
+        points = input$show_symbols,
+        text = input$show_labels,
+        palette = input$colpalette,
+        cex.points = input$cexpoint,
+        cex.text = input$cextext,
+        pch=pt_symbol0(),
+        textcolor=input$textcolor,
+        keytext=text_factor(),
+        biplot=input$biplot
+      )
+    }else {
+    ppca(getdata_upload(),biplot=input$biplot)
+    }
   })
   bagmds<-reactiveValues(df=0)
   bagmds_once<-reactiveValues(df=0)
@@ -5497,11 +5542,10 @@ output$pclus_legcontrol<-renderUI({
       column(12,strong("distance measure")),
       column(12,
              uiOutput("distance_mds")),
-      column(12,plotOutput("mdscustom")),
-
-
-
-      downloadButton('down_pmds', 'plot')
+      column(12,
+             column(12,
+                    conditionalPanel("input.distance!=''",actionButton('downp_mds',icon("fas fa-image"),icon("fas fa-download"), style="button_active"))),
+             column(12,plotOutput("mdscustom")))
     )
 
     res
@@ -6307,414 +6351,11 @@ output$pclus_legcontrol<-renderUI({
 
 
 
-  output$processed_data <- {
-    downloadHandler(
-      filename = function() {
-        paste("processed_data-", Sys.Date(), ".csv", sep = "")
-      },
-      content = function(file) {
-        write.csv(getdata_som(), file, sep = ";")
-      }
-    )
-  }
-  output$down_changes <- {
-    downloadHandler(
-      filename = function() {
-        paste("pchanges", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 1500,
-            height = 1500)
-        pchanges(getsom())
-        dev.off()
-      }
-    )
-  }
-  output$down_pcounts <- {
-    downloadHandler(
-      filename = function() {
-        paste("pcounts", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 1500,
-            height = 1500)
-        pcounts(getsom())
-        dev.off()
-      }
-    )
-  }
-  output$down_pUmatrix <- {
-    downloadHandler(
-      filename = function() {
-        paste("pUmatrix", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 1500,
-            height = 1500)
-        pUmatrix(getsom())
-        dev.off()
-      }
-    )
-  }
-  output$down_BMUs <- {
-    downloadHandler(
-      filename = function() {
-        paste("codescorr", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 2000)
 
 
-
-        if (input$varfacmap_action %% 2) {
-          npic=as.numeric(input$npic)} else{
-            npic = 0
-          }
-        if(length(input$pcor_symbol)>0){
-          p <-codes_corr_plot(
-            m=getsom(),
-            npic = npic,
-            indicate = var_corr_codes.reactive(),
-            pch = as.numeric(input$pcor_symbol),
-            labels.ind = pcor_factors(),
-            cex =as.numeric(input$pcor_symbol_size),
-            bg_palette = as.character(input$pcor_bgpalette),
-            factor.pal=as.character(input$pcor_facpalette),
-            points=bmu_points(),
-            cex.var=input$cexvar,
-            ncol=input$ncol_pcorr,
-            insetx=input$insertx_pcorr,
-            insety=input$inserty_pcorr,
-            alpha.legend=input$bgleg_pcorr
-          )
-        } else{
-          p<-codes_corr_plot(getsom(), npic,indicate = var_corr_codes.reactive(),)
-        }
-        p
-
-
-
-
-        dev.off()
-      }
-    )
-  }
-
-  output$down_pproperty <- {
-    downloadHandler(
-      filename = function() {
-        paste("pproperty", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 2000)
-
-
-        pproperty(getsom(),
-                  input$variable_pproperty,
-                  input$variable_pproperty)
-
-
-        dev.off()
-      }
-    )
-  }
-
-
-  output$down_pmds <- {
-    downloadHandler(
-      filename = function() {
-        paste("mds", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 2000)
-
-        mds_data = mds.reactive()
-        if (exists("mds_data"))
-          pmds(
-            mds_data = mds_data,
-            key = symbol_factor(),
-            points = input$show_symbols,
-            text = input$show_labels,
-            colpalette = input$colpalette,
-            cex.points = input$cexpoint,
-            cex.text = input$cextext
-          )
-        dev.off()
-      }
-    )
-  }
   rf2 <- reactiveValues()
 
-  output$down_pca <- {
-    downloadHandler(
-      filename = function() {
-        paste("pca", Sys.Date(), ".RData",sep = "")
-      },
-      content = function(file) {
-        res<-ppca(
-          getdata_upload(),
-          key = symbol_factor(),
-          points = input$show_symbols,
-          text = input$show_labels,
-          palette = input$colpalette,
-          cex.points = input$cexpoint,
-          cex.text = input$cextext,
-          pch=pt_symbol0(),
-          textcolor=input$textcolor,
-          keytext=text_factor()
-        )
 
-        saveRDS(res,file=file)
-
-      }
-    )
-  }
-  output$down_ppca <- {
-    downloadHandler(
-      filename = function() {
-        paste("pca", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 2000)
-
-        ppca(
-          getdata_upload(),
-          key = symbol_factor(),
-          points = input$show_symbols,
-          text = input$show_labels,
-          palette = input$colpalette,
-          cex.points = input$cexpoint,
-          cex.text = input$cextext,
-          pch=pt_symbol0(),
-          textcolor=input$textcolor,
-          keytext=text_factor()
-        )
-
-        dev.off()
-      }
-    )
-  }
-  output$down_hcdata <- {
-    downloadHandler(
-      filename = function() {
-        paste("hc_data_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 3000,
-            height = 2000)
-        plot(cutdata(getdata_hc(), input$method.hc0),
-             labels = as.character(labhc()))
-        dev.off()
-      }
-    )
-  }
-  output$down_hcmodel <- {
-    downloadHandler(
-      filename = function() {
-        paste("hc_model_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 3000,
-            height = 2000)
-
-        plot(cutm(getmodel_hc(), input$method.hc0))
-
-
-
-
-        dev.off()
-      }
-    )
-  }
-
-  output$down_data_WSS_results <- {
-    downloadHandler(
-      filename = function() {
-        paste("resuls_WSS_data_", Sys.Date(), ".csv", sep = "")
-      },
-      content = function(file) {
-        write.table(x=data.frame(WSSdata()),file,append=T,
-                    row.names=FALSE, sep=input$sep_data_WSS_results,
-                    dec=input$dec_data_WSS_results)
-
-      }
-    )
-  }
-  output$down_model_WSS_results <- {
-    downloadHandler(
-      filename = function() {
-        paste("resuls_WSS_model_", Sys.Date(), ".csv", sep = "")
-      },
-      content = function(file) {
-        write.table(x=data.frame(WSSmodel()),file,append=T,
-                    row.names=FALSE, sep=input$sep_model_WSS_results,
-                    dec=input$dec_model_WSS_results)
-
-      }
-    )
-  }
-
-  output$down_data_accRF_results <- {
-    downloadHandler(
-      filename = function() {
-        paste("resuls_accRF_data_", Sys.Date(), ".csv", sep = "")
-      },
-      content = function(file) {
-        write.table(x=data.frame(accRFdata()$acutable),file,append=T,
-                    row.names=FALSE, sep=input$sep_data_accRF_results,
-                    dec=input$dec_data_accRF_results)
-
-      }
-    )
-  }
-  output$down_model_accRF_results <- {
-    downloadHandler(
-      filename = function() {
-        paste("resuls_accRF_model_", Sys.Date(), ".csv", sep = "")
-      },
-      content = function(file) {
-        write.table(x=data.frame(accRFmodel()$acutable),file,append=T,
-                    row.names=FALSE, sep=input$sep_model_accRF_results,
-                    dec=input$dec_model_accRF_results)
-
-      }
-    )
-  }
-
-
-
-
-
-
-  output$down_data_WSS_plot <- {
-    downloadHandler(
-      filename = function() {
-        paste("screeplot_WSS_data_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 1500)
-        elbow_plot(WSSdata(), sugg = sugg_WSS_data())
-
-        dev.off()
-      }
-    )
-  }
-  output$down_model_WSS_plot <- {
-    downloadHandler(
-      filename = function() {
-        paste("screeplot_WSS_model_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 1500)
-        elbow_plot(WSSmodel(), sugg = sugg_WSS_model())
-
-        dev.off()
-      }
-    )
-  }
-  output$down_data_accRF_plot <- {
-    downloadHandler(
-      filename = function() {
-        paste("screeplot_accRF_data_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 1500)
-
-        plot_accuclus(accRFdata(), sugg = sugg_accRF_data())
-
-
-        dev.off()
-      }
-    )
-  }
-  output$down_model_accRF_plot <- {
-    downloadHandler(
-      filename = function() {
-        paste("screeplot_accRF_model_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 1500)
-
-        plot_accuclus(accRFmodel(), sugg = sugg_accRF_model())
-
-
-        dev.off()
-      }
-    )
-  }
-  output$down_votes <- {
-    downloadHandler(
-      filename = function() {
-        paste("votes_nclusters_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 2000,
-            height = 1500)
-        barplot(
-          res[[1]],
-          las = 1,
-          main = paste("optimal number of clusters", res[[2]]),
-          ylab = "Frequency among all indices",
-          xlab = "Number of Clusters "
-        )
-
-        dev.off()
-      }
-    )
-  }
-
-
-  output$down_phc <- {
-    downloadHandler(
-      filename = function() {
-        paste("hcut_", Sys.Date(), ".png", sep = "")
-      },
-      content = function(file) {
-        png(file,
-            res = 300,
-            width = 3000,
-            height = 2000)
-        hc_plot(phc())
-        dev.off()
-      }
-    )
-  }
 
 
   output$error_som<-renderUI({
@@ -6778,12 +6419,12 @@ colnames(Parameters)<-"Training Parameters"
 
 
 
-  output$stats_phist <- renderPlot({
-    phist(getdata_upload())
-
-
-
-  }, height = 300)
+  output$stats_phist <- renderUI({
+    fluidRow(
+      column(12,actionButton('downp_hist',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+      column(12,renderPlot(phist(getdata_upload())))
+    )
+  })
 
 
 
@@ -7305,87 +6946,64 @@ colnames(Parameters)<-"Training Parameters"
 
   output$plot_data_WSS <- renderUI({
     validate(need(input$getWSSdata %% 2,""))
-    list(renderPlot(elbow_plot(WSSdata(), sugg = sugg_WSS_data())),
-         column(12,
-                column(12,strong("Download")),
-
-                column(3,
-                       p(HTML('&nbsp;')),
-                       downloadButton('down_data_WSS_plot', 'plot')),
-                fluidRow(
-                  column(3,
-                         p(HTML('&nbsp;')),
-                         downloadButton('down_data_WSS_results', 'results')),
-                  column(2,selectInput("sep_data_WSS_results", "sep", choices=c(";",",","\t"))),
-                  column(2,selectInput("dec_data_WSS_results", "dec", choices=c(".",",")))
-
-                )
-
-         )
-
-
+    fluidRow(
+      column(12,
+        fluidRow(
+          actionButton('downr_WSSdata',icon("fas fa-table"),icon("fas fa-download"), style="button_active"),
+          actionButton('downp_WSSdata',icon("fas fa-image"),icon("fas fa-download"), style="button_active"),
+        )),
+      column(12,renderPlot(elbow_plot(WSSdata(), sugg = sugg_WSS_data())))
     )
-
   })
+
   output$plot_model_WSS <- renderUI({
     validate(need(input$getWSSmodel %% 2,""))
-    list(renderPlot(elbow_plot(WSSmodel(), sugg = sugg_WSS_model())),
-         column(12,
-                column(12,strong("Download")),
-                column(3,
-                       p(HTML('&nbsp;')),
-                       downloadButton('down_model_WSS_plot', 'plot')),
-                fluidRow(
-                  column(3,
-                         p(HTML('&nbsp;')),
-                         downloadButton('down_model_WSS_results', 'results')),
-                  column(2,selectInput("sep_model_WSS_results", "sep", choices=c(";",",","\t"))),
-                  column(2,selectInput("dec_model_WSS_results", "dec", choices=c(".",",")))
-
-                )
-         )
+    fluidRow(
+      column(12,
+             fluidRow(
+               actionButton('downr_WSSmodel',icon("fas fa-table"),icon("fas fa-download"), style="button_active"),
+               actionButton('downp_WSSmodel',icon("fas fa-image"),icon("fas fa-download"), style="button_active"),
+             )),
+      column(12,renderPlot(elbow_plot(WSSmodel(), sugg = sugg_WSS_model())))
     )
-
   })
   output$plot_data_accRF <- renderUI({
     validate(need(input$getaccRFdata %% 2,""))
-
-    list(renderPlot(plot_accuclus(accRFdata(), sugg = sugg_accRF_data())),
-         column(12,
-                column(12,strong("Download")),
-                column(3,
-                       p(HTML('&nbsp;')),
-                       downloadButton('down_data_accRF_plot', 'plot')),
-                fluidRow(
-                  column(3,
-                         p(HTML('&nbsp;')),
-                         downloadButton('down_data_accRF_results', 'results')),
-                  column(2,selectInput("sep_data_accRF_results", "sep", choices=c(";",",","\t"))),
-                  column(2,selectInput("dec_data_accRF_results", "dec", choices=c(".",",")))
-
-                )
-         )
-
+    fluidRow(
+      column(12,
+             fluidRow(
+               actionButton('downr_accRFdata',icon("fas fa-table"),icon("fas fa-download"), style="button_active"),
+               actionButton('downp_accRFdata',icon("fas fa-image"),icon("fas fa-download"), style="button_active"),
+             )),
+      column(12,renderPlot(plot_accuclus(accRFdata(), sugg = sugg_accRF_data())))
     )
   })
   output$plot_model_accRF <- renderUI({
     validate(need(input$getaccRFmodel %% 2,""))
-    list(renderPlot(plot_accuclus(accRFmodel(), sugg = sugg_accRF_model())),
-         column(12,
-                column(12,strong("Download")),
-                fluidRow(
-                  column(3,
-                         p(HTML('&nbsp;')),
-                         downloadButton('down_model_accRF_plot', 'plot')),
-                  column(3,
-                         p(HTML('&nbsp;')),
-                         downloadButton('down_model_accRF_results', 'results')),
-                  column(2,selectInput("sep_model_accRF_results", "sep", choices=c(";",",","\t"))),
-                  column(2,selectInput("dec_model_accRF_results", "dec", choices=c(".",",")))
-
-                )
-         )
+    fluidRow(
+      column(12,
+             fluidRow(
+               actionButton('downr_accRFmodel',icon("fas fa-table"),icon("fas fa-download"), style="button_active"),
+               actionButton('downp_accRFmodel',icon("fas fa-image"),icon("fas fa-download"), style="button_active"),
+             )),
+      column(12,renderPlot(plot_accuclus(accRFmodel(), sugg = sugg_accRF_model())))
     )
+  })
+  observeEvent(input$downr_accRFdata,{
+    hand_down$df<-"screeplot_accRF data"
+    showModal(downcenter())
+  })
+  observeEvent(input$downr_accRFmodel,{
+    hand_down$df<-"screeplot_accRF som"
+    showModal(downcenter())
+  })
+  observeEvent(input$downr_WSSdata,{
+    hand_down$df<-"screeplot_WSS data"
+    showModal(downcenter())
+  })
+  observeEvent(input$downr_WSSmodel,{
+    hand_down$df<-"screeplot_WSS som"
+    showModal(downcenter())
   })
 
 
@@ -7503,7 +7121,8 @@ colnames(Parameters)<-"Training Parameters"
                     fluidRow(style="margin-left:5px;",
                              tabsetPanel(id="hc_tab",
                                          tabPanel(strong("1. Dendrogram"),value="hc_tab1",
-                                                  uiOutput("Dendogram")),
+                                                  column(12,actionButton('downp_dend',icon("fas fa-image"),icon("fas fa-download"), style="button_active")) ,
+                                                  column(12,uiOutput("Dendrogram"))),
 
                                          tabPanel(
                                            strong("2. Clustering Tools"),
@@ -7804,11 +7423,11 @@ colnames(Parameters)<-"Training Parameters"
 
   observeEvent(input$tools_savehc,{
     if(input$tools_savehc %% 2) {
-      datahand$df<-"Save Clusters"
-      datahand2$df<-p(p(em(input$data_hc,style="color: gray"),strong("::"),em("Factor-Attribute",style="color: gray"), strong("::")))
-      datahand3$df<-NULL
+      hand_save$df<-"Save Clusters"
+      hand_save2$df<-p(p(em(input$data_hc,style="color: gray"),strong("::"),em("Factor-Attribute",style="color: gray"), strong("::")))
+      hand_save3$df<-NULL
       showModal(
-        datahand_modal()
+        hand_save_modal()
       )
     }
   })
@@ -7851,15 +7470,11 @@ colnames(Parameters)<-"Training Parameters"
 
 
   output$hcdata_plot <- renderPlot({
-    plot(
-      cutdata(getdata_hc(), input$method.hc0),
-      labels = as.character(labhc()),
-      main = "Dendogram"
-    )
+    plot(cutdata(getdata_hc(), input$method.hc0),labels = as.character(labhc()),main = "Dendrogram")
   })
 
   output$hcmodel_plot <- renderPlot({
-    plot(cutm(getmodel_hc(), input$method.hc0), main = "Dendogram")
+    plot(cutm(getmodel_hc(), input$method.hc0), main = "Dendrogram")
   })
 
   hc0panel <- reactive({
@@ -7897,7 +7512,7 @@ colnames(Parameters)<-"Training Parameters"
     })
 
 
-  output$Dendogram <- renderUI({
+  output$Dendrogram <- renderUI({
     hc0panel()
   })
   output$dt_panel<-renderUI({
@@ -7911,7 +7526,9 @@ colnames(Parameters)<-"Training Parameters"
                     uiOutput("data_dtX")
                   )),
            column(12,uiOutput("ptree_control")),
-           column(12,plotOutput("ptree"))
+           column(12,
+                  column(12,actionButton('downp_dt',icon("fas fa-image"),icon("fas fa-download"), style="button_active")),
+                  column(12,plotOutput("ptree")))
     )
 
   })
@@ -8034,16 +7651,525 @@ colnames(Parameters)<-"Training Parameters"
 
 
   getdown<-reactive({
-    switch(downcenter_hand$df,
+    switch(hand_down$df,
            "data"=saved_data$df[[input$data_upload]],
            "factors"=attr(saved_data$df[[input$data_upload]],"factors"),
            "coords"=attr(saved_data$df[[input$data_upload]],"coords"),
            "som"=combsom_down(),
            "rfdepth"=data.frame(mindeaphrf()[[2]]),
-           "pcorr"=pcoor_results$df
+           "pcorr"=pcoor_results$df,
+           "screeplot_WSS data"=WSSdata(),
+           "screeplot_WSS som"=WSSmodel(),
+           "screeplot_accRF data"={
+             rfs<-accRFdata()
+             rfs$acutable},
+           "screeplot_accRF som"={
+             rfs<-accRFmodel()
+             rfs$acutable}
+
     )
   })
 
+
+
+
+
+
+  downplot_center<-reactive({
+    modalDialog(
+      column(12,
+             splitLayout(
+               numericInput("fheight", "Height (cm)", min=2, max=15, step=1, value = 10),
+               numericInput("fwidth", "Width (cm)", min=2, max=15, step=1, value = 10),
+               selectInput("fres", "Res", choices=c("100","200","300"), selected = "100"),
+               numericInput("pointsize", "pointsize",value=12,step=1),
+               selectInput("fformat", "File type", choices=c("png","tiff","jpeg","pdf"), selected = "png", multiple = FALSE, selectize = TRUE),
+               div(style="margin-top: 25px",downloadButton("bn_download",NULL, style="button_active")),
+
+             ),
+             column(12, imageOutput("plotoutput"))
+             ),
+      title=p(strong("action:"),"download", hand_plot$df),
+      easyClose = T
+    )
+  })
+
+  get_plot<-reactive({
+
+  })
+
+  fn_downloadf <- reactive({
+
+    if(input$fformat=="png") filename <- paste0(hand_plot$df,".png",sep="")
+    if(input$fformat=="tiff") filename <- paste0(hand_plot$df,".tif",sep="")
+    if(input$fformat=="jpeg") filename <- paste0(hand_plot$df,".jpg",sep="")
+    if(input$fformat=="pdf") filename <- paste0(hand_plot$df,".pdf",sep="")
+    return(filename)
+  })
+
+
+
+  #### PREVIEW-PLOT
+  output$plotoutput <- renderImage({
+
+    fheight <- input$fheight
+    fwidth <- input$fwidth
+    fres <- as.numeric(input$fres)
+    png(paste0(hand_plot$df,".png",sep=""), height=fheight, width=fwidth, res=fres, units="cm")
+    if(hand_plot$df=="variable summary"){
+      data=getdata_upload()
+      numerics<-data[,unlist(lapply(data,is.numeric))]
+      str_numerics(numerics)
+    }
+    if(hand_plot$df=="factor summary"){
+      pfac(res_pfac())
+    }
+    if(hand_plot$df=="histogram"){
+      phist(getdata_upload())
+    }
+    if(hand_plot$df=="boxplot"){
+      res <- getbox()
+      if(length(input$box_palette)>0){
+        pbox(res=res, palette=input$box_palette,  coefic=1.5,lab_out=labbox(),cex.lab=as.numeric(input$box_cexlab), lwd=as.numeric(input$box_lwd), ylim=c(input$ymin_box, input$ymax_box), main=input$titlebox, insetx=input$insetx,insety=input$insety)
+      } else{pbox(res) }
+    }
+    if(hand_plot$df=="pca")   {
+      if(length(input$show_symbols)>0){
+        ppca(
+          getdata_upload(),
+          key = symbol_factor(),
+          points = input$show_symbols,
+          text = input$show_labels,
+          palette = input$colpalette,
+          cex.points = input$cexpoint,
+          cex.text = input$cextext,
+          pch=pt_symbol0(),
+          textcolor=input$textcolor,
+          keytext=text_factor(),
+          biplot=input$biplot
+        )
+      }else {
+        ppca(getdata_upload(),biplot=input$biplot)
+      }
+    }
+    if(hand_plot$df=="mds") {
+      mds_data = mds.reactive()
+      if (exists("mds_data")) {
+        if(length(input$show_symbols)>0)
+        {
+          pmds(
+            mds_data = mds_data,
+            key = symbol_factor(),
+            points =input$show_symbols,
+            text = input$show_labels,
+            palette = input$colpalette,
+            cex.points = input$cexpoint,
+            cex.text = input$cextext,
+            pch=pt_symbol0(),
+            textcolor=input$textcolor,
+            keytext=text_factor()
+          )
+        } else {
+          pmds(mds_data)
+        }
+      }
+    }
+    if(hand_plot$df=="Training plot"){    pchanges(getsom())}
+    if(hand_plot$df=="Couting plot"){  pcounts(getsom())}
+    if(hand_plot$df=="uMatrix"){   pUmatrix(getsom())}
+    if(hand_plot$df=="BMUs"){
+      if (input$varfacmap_action %% 2) {
+        npic=as.numeric(input$npic)} else{
+          npic = 0
+        }
+      if(length(input$pcor_symbol)>0){
+        codes_corr_plot(
+          m=getsom(),
+          npic = npic,
+          indicate = var_corr_codes.reactive(),
+          pch = as.numeric(input$pcor_symbol),
+          labels.ind = pcor_factors(),
+          cex =as.numeric(input$pcor_symbol_size),
+          bg_palette = as.character(input$pcor_bgpalette),
+          factor.pal=as.character(input$pcor_facpalette),
+          points=bmu_points(),
+          cex.var=input$cexvar,
+          ncol=input$ncol_pcorr,
+          insetx=input$insertx_pcorr,
+          insety=input$inserty_pcorr,
+          alpha.legend=input$bgleg_pcorr
+        )
+      } else{
+        codes_corr_plot(getsom(), npic,indicate = var_corr_codes.reactive(),)
+      }
+    }
+    if(hand_plot$df=="property plot") {
+      pproperty(getsom(),
+                input$variable_pproperty,
+                input$variable_pproperty)
+    }
+    if(hand_plot$df=="Dendrogram") {
+      plot(cutdata(getdata_hc(), input$method.hc0),labels = as.character(labhc()),main = "Dendrogram")
+    }
+
+    if(hand_plot$df=="screeplot_accRF data"){
+      plot_accuclus(accRFdata(), sugg = sugg_accRF_data())}
+    if(hand_plot$df=="screeplot_accRF som"){
+      plot_accuclus(accRFmodel(), sugg = sugg_accRF_model())}
+    if(hand_plot$df=="screeplot_WSS data"){
+      elbow_plot(WSSdata(), sugg = sugg_WSS_data())}
+    if(hand_plot$df=="screeplot_WSS som"){
+      elbow_plot(WSSmodel(), sugg = sugg_WSS_model())}
+
+    if(hand_plot$df=="Hcut"){hc_plot(phc())}
+
+    if(hand_plot$df=="codebook clusters"){
+      if(length(input$pclus_symbol)>0)
+      {pclus(
+        somC=cutsom.reactive(),
+        cex = as.numeric(input$pclus_symbol_size),
+        factor.pal = as.character(input$pclus_facpalette),
+        labels.ind = pclus_factors(),
+        pch=as.numeric(input$pclus_symbol),
+        points=bmu_clus_points(),
+        bg_palette=input$hcmodel_palette,
+        ncol=input$ncol_pclus,
+        insetx=input$insertx_pclus,
+        insety=input$inserty_pclus,
+        alpha.legend=input$bgleg_pclus
+      )}else{
+        pclus(cutsom.reactive(),  bg_palette=input$hcmodel_palette)
+      }
+    }
+    if(hand_plot$df=="Minimal Depth distribution"){plot(rfd_res$df)}
+
+    if(hand_plot$df=="Multi-way importance"){
+      plot(rfm_res$df)
+    }
+    if(hand_plot$df=="Decision Tree") {
+
+      rfs = get_supdt()
+      if(!is.null(input$testtype))
+      {ptree(
+        rfs,
+        teststat = input$teststat,
+        testtype = input$testtype,
+        mincriterion = input$mincriterion,
+        minsplit = input$minsplit,
+        minbucket = input$minbucket,
+        nresample = input$nresample,
+        maxsurrogate = input$maxsurrogate,
+        mtry = input$mtry,
+        maxdepth = input$maxdepth,
+        palette=input$dt_palette
+      )} else{
+        ptree(rfs, teststat = input$teststat,palette=input$dt_palette)
+      }
+
+    }
+    if(hand_plot$df=="Map"){plot(map_res$df)}
+
+    dev.off()
+
+    return(list(src = paste0(hand_plot$df,".png",sep=""),
+                contentType = "image/png",
+                width = round((input$fwidth*as.numeric(input$fres))/2.54, 0),
+                height = round((input$fheight*as.numeric(input$fres))/2.54, 0),
+                alt = "plot"))
+  },deleteFile=TRUE)
+
+  ## DOWNLOAD FUNCTION
+  fn_download <- function()
+  {
+
+    fheight <- input$fheight
+    fwidth <- input$fwidth
+    fres <- as.numeric(input$fres)
+
+    if(input$fformat=="pdf") fheight <- round(fheight*0.3937,2)
+    if(input$fformat=="pdf") fwidth <- round(fwidth*0.3937,2)
+
+    if(input$fformat=="png") png(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm")
+    if(input$fformat=="tiff") tiff(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm",compression="lzw")
+    if(input$fformat=="jpeg") jpeg(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm",quality=100)
+    if(input$fformat=="pdf") pdf(fn_downloadf(), height=fheight, width=fwidth)
+
+    switch (hand_plot$df,
+      "variable summary" = {
+        data=getdata_upload()
+        numerics<-data[,unlist(lapply(data,is.numeric))]
+        str_numerics(numerics)
+      },
+      "factor summary" ={
+        pfac(res_pfac())
+      }
+      ,
+      "histogram" ={
+        phist(getdata_upload())
+      },
+
+      "boxplot" ={
+        res <- getbox()
+        if(length(input$box_palette)>0){
+         pbox(res=res, palette=input$box_palette,  coefic=1.5,lab_out=labbox(),cex.lab=as.numeric(input$box_cexlab), lwd=as.numeric(input$box_lwd), ylim=c(input$ymin_box, input$ymax_box), main=input$titlebox, insetx=input$insetx,insety=input$insety)
+        } else{pbox(res) }
+      },
+      "pca"= {
+        if(length(input$show_symbols)>0){
+          ppca(
+            getdata_upload(),
+            key = symbol_factor(),
+            points = input$show_symbols,
+            text = input$show_labels,
+            palette = input$colpalette,
+            cex.points = input$cexpoint,
+            cex.text = input$cextext,
+            pch=pt_symbol0(),
+            textcolor=input$textcolor,
+            keytext=text_factor(),
+            biplot=input$biplot
+          )
+        }else {
+          ppca(getdata_upload(),biplot=input$biplot)
+        }
+      },
+      "mds"= {
+        mds_data = mds.reactive()
+        if (exists("mds_data")) {
+          if(length(input$show_symbols)>0)
+          {
+            pmds(
+              mds_data = mds_data,
+              key = symbol_factor(),
+              points =input$show_symbols,
+              text = input$show_labels,
+              palette = input$colpalette,
+              cex.points = input$cexpoint,
+              cex.text = input$cextext,
+              pch=pt_symbol0(),
+              textcolor=input$textcolor,
+              keytext=text_factor()
+            )
+          } else {
+            pmds(mds_data)
+          }
+        }
+      },
+      "Training plot"={    pchanges(getsom())},
+      "Couting plot"={  pcounts(getsom())},
+      "uMatrix"={   pUmatrix(getsom())},
+      "BMUs"={
+
+        if (input$varfacmap_action %% 2) {
+          npic=as.numeric(input$npic)} else{
+            npic = 0
+          }
+        if(length(input$pcor_symbol)>0){
+          codes_corr_plot(
+            m=getsom(),
+            npic = npic,
+            indicate = var_corr_codes.reactive(),
+            pch = as.numeric(input$pcor_symbol),
+            labels.ind = pcor_factors(),
+            cex =as.numeric(input$pcor_symbol_size),
+            bg_palette = as.character(input$pcor_bgpalette),
+            factor.pal=as.character(input$pcor_facpalette),
+            points=bmu_points(),
+            cex.var=input$cexvar,
+            ncol=input$ncol_pcorr,
+            insetx=input$insertx_pcorr,
+            insety=input$inserty_pcorr,
+            alpha.legend=input$bgleg_pcorr
+          )
+        } else{
+          codes_corr_plot(getsom(), npic,indicate = var_corr_codes.reactive(),)
+        }
+
+      },
+      "property plot"={
+        pproperty(getsom(),
+                  input$variable_pproperty,
+                  input$variable_pproperty)
+      },
+      "Dendrogram"={
+        plot(cutdata(getdata_hc(), input$method.hc0),labels = as.character(labhc()),main = "Dendrogram")
+      },
+      "screeplot_accRF data"={
+        plot_accuclus(accRFdata(), sugg = sugg_accRF_data())},
+      "screeplot_accRF som"={
+        plot_accuclus(accRFmodel(), sugg = sugg_accRF_model())},
+      "screeplot_WSS data"={
+        elbow_plot(WSSdata(), sugg = sugg_WSS_data())},
+      "screeplot_WSS som"={
+        elbow_plot(WSSmodel(), sugg = sugg_WSS_model())},
+      "Hcut"={hc_plot(phc())},
+      "codebook clusters"= {
+        if(length(input$pclus_symbol)>0)
+        {pclus(
+          somC=cutsom.reactive(),
+          cex = as.numeric(input$pclus_symbol_size),
+          factor.pal = as.character(input$pclus_facpalette),
+          labels.ind = pclus_factors(),
+          pch=as.numeric(input$pclus_symbol),
+          points=bmu_clus_points(),
+          bg_palette=input$hcmodel_palette,
+          ncol=input$ncol_pclus,
+          insetx=input$insertx_pclus,
+          insety=input$inserty_pclus,
+          alpha.legend=input$bgleg_pclus
+        )}else{
+          pclus(cutsom.reactive(),  bg_palette=input$hcmodel_palette)
+        }
+      },
+      "Minimal Depth distribution"={plot(rfd_res$df)},
+      "Multi-way importance"={plot(rfm_res$df)},
+      "Decision Tree"={
+        rfs = get_supdt()
+        if(!is.null(input$testtype))
+        {ptree(
+          rfs,
+          teststat = input$teststat,
+          testtype = input$testtype,
+          mincriterion = input$mincriterion,
+          minsplit = input$minsplit,
+          minbucket = input$minbucket,
+          nresample = input$nresample,
+          maxsurrogate = input$maxsurrogate,
+          mtry = input$mtry,
+          maxdepth = input$maxdepth,
+          palette=input$dt_palette
+        )} else{
+          ptree(rfs, teststat = input$teststat,palette=input$dt_palette)
+        }
+      },
+      "Map"={plot(map_res$df)}
+
+
+
+
+
+
+    )
+
+
+  }
+
+
+
+
+  output$bn_download <- downloadHandler(
+    filename = fn_downloadf,
+    content = function(file) {
+      fn_download()
+      dev.off()
+      file.copy(fn_downloadf(), file, overwrite=T)
+    }
+  )
+
+  ## observes PLOT
+  observeEvent(input$downp_summ_num,{
+    hand_plot$df<-"variable summary"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_stats_fac,{
+    hand_plot$df<-"factor summary"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_hist,{
+    hand_plot$df<-"histogram"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_box,{
+    hand_plot$df<-"boxplot"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_pca,{
+    hand_plot$df<-"pca"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_mds,{
+    hand_plot$df<-"mds"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_pchanges,{
+    hand_plot$df<-"Training plot"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_pcounts,{
+    hand_plot$df<-"Couting plot"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_pmatrix,{
+    hand_plot$df<-"uMatrix"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_bmu,{
+    hand_plot$df<-"BMUs"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_pproperty,{
+    hand_plot$df<-"property plot"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_dend,{
+    hand_plot$df<-"Dendrogram"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_accRFdata,{
+    hand_plot$df<-"screeplot_accRF data"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_accRFmodel,{
+    hand_plot$df<-"screeplot_accRF som"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_WSSdata,{
+    hand_plot$df<-"screeplot_WSS data"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_WSSmodel,{
+    hand_plot$df<-"screeplot_WSS som"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_hcut,{
+    hand_plot$df<-"Hcut"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_pclus,{
+    hand_plot$df<-"codebook clusters"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_prf,{
+    hand_plot$df<-"Minimal Depth distribution"
+    showModal(downplot_center())
+  })
+
+  observeEvent(input$downp_mrf,{
+    hand_plot$df<-"Multi-way importance"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_dt,{
+    hand_plot$df<-"Decision Tree"
+    showModal(downplot_center())
+  })
+  observeEvent(input$downp_map,{
+    hand_plot$df<-"Map"
+    showModal(downplot_center())
+  })
 
 
 

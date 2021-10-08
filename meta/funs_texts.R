@@ -1069,7 +1069,7 @@ pfac<-function(data.factors)
 
 }
 
-pmds<-function(mds_data,keytext=NULL,key=NULL,points=T, text=NULL,palette="black", cex.points=1, cex.text=1, pch=16, textcolor="gray")
+pmds<-function(mds_data,keytext=NULL,key=NULL,points=T, text=F,palette="black", cex.points=1, cex.text=1, pch=16, textcolor="gray")
 {
  if(!is.null(key)) {
   colkey<-getcolhabs(palette, nlevels(key))
@@ -1079,9 +1079,9 @@ pmds<-function(mds_data,keytext=NULL,key=NULL,points=T, text=NULL,palette="black
   par(mar=c(5,5,4,1))
   plot(mds_data$points, pch=pch,  las=1, type="n", main="Multidimensional scaling")
   legend("topr",legend=c(paste("Stress:",round(mds_data$stress,2)), paste0("Dissimilarity:", "'",mds_data$distmethod,"'")),cex=.8, bty="n")
-  if(is.null(points)==F){ points(mds_data$points, pch=pch, col=col, cex=cex.points)}
+  if(isTRUE(points)){ points(mds_data$points, pch=pch, col=col, cex=cex.points)}
 
-  if(is.null(text)==F){ text(mds_data$points, pch=pch, col=textcolor, labels=keytext, cex=cex.text)}
+  if(isTRUE(text)){ text(mds_data$points, col=textcolor, labels=keytext, cex=cex.text)}
   if(!is.null(key)){
     par(mar=c(0,0,0,0))
     plot.new()
@@ -1096,7 +1096,7 @@ return(mds_data)
 
 
 
-ppca<-function(data,key=NULL,keytext=NULL,points=T, text=NULL,palette="black", cex.points=1, cex.text=1, pch=16,textcolor="gray")
+ppca<-function(data,key=NULL,keytext=NULL,points=T, text=NULL,palette="black", cex.points=1, cex.text=1, pch=16,textcolor="gray", biplot=T)
 {
 
   {
@@ -1147,14 +1147,13 @@ ppca<-function(data,key=NULL,keytext=NULL,points=T, text=NULL,palette="black", c
   layout(matrix(c(1,2), nrow=1),widths = c(100,20))
   par(pty = "s",mar=c(5,5,5,1))
   plot(x, type = "n", xlim = xlim, ylim = ylim, las=1, xlab=exp_pc1, ylab=exp_pc2, main="Principal Component Analysis")
-  if(is.null(points)==F){
+  if(isTRUE(points)){
     points(x, pch=pch, col=col, cex=cex.points)
   }
-  if(is.null(text)==F){
-    text(x, pch=pch, col=textcolor, labels=keytext, cex=cex.text)
+  if(isTRUE(text)){
+    text(x, col=textcolor, labels=keytext, cex=cex.text)
   }
-
-  {
+if(isTRUE(biplot)){
 
     par(new = TRUE)
     xlim = xlim * ratio*2
@@ -1227,7 +1226,7 @@ str_factors<-function(factors, palette="viridis")
 
 str_numerics<-function(numerics)
 {
-
+  opar<-par(no.readonly=TRUE)
 
   par(mar=c(0,0,0,0), cex=1.2)
   m<-matrix(1:(ncol(numerics)*3), ncol=3)
@@ -1262,7 +1261,7 @@ str_numerics<-function(numerics)
   lapply(numerics, function(x){
     hist(x, ann=F, axes=F)
   })
-
+  on.exit(par(opar),add=TRUE,after=FALSE)
 }
 
 getclassmat<-function(data.factors)

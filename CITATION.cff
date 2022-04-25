@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: >-
+  iMESc: An Interactive Machine Learning App for
+  Environmental Science
+message: >-
+  Please cite this software using the metadata from
+  'preferred-citation'.
+type: software
+authors:
+  - given-names: Danilo Cândido
+    family-names: Vieira
+    email: vieiradc@yahoo.com.br
+    orcid: 'https://orcid.org/0000-0002-7989-6553'
+    affiliation: Universidade Federal de São Paulo
+  - orcid: 'https://orcid.org/0000-0001-8625-4279'
+    given-names: Gustavo
+    family-names: Fonseca
+    email: gfonseca.unifesp@gmail.com
+    affiliation: Universidade Federal de São Paulo
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.6484391
+repository-code: 'https://github.com/DaniloCVieira/iMESc'
+version: 2.1.0.2
+date-released: '2022-04-25'

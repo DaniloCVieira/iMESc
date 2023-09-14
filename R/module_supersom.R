@@ -537,10 +537,61 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
   observeEvent(input$trainSOM,{
     req(isTRUE(input$mysupersom))
     train_supersom()
+
   })
 
 
+  teste<-reactive({
+    if(is.null(attr(vals$saved_data[[input$data_som]],"som"))){
+      attr(vals$saved_data[[input$data_som]],"som")<-list()
+    }
+    layers = get_training_list()
+    layer_table<-ssom_reac()
+    weights<-layer_table$Weights
+    distances<-layer_table$Distances
+    data1<-vals$saved_data[layer_table$Datalist][[1]]
+    if(isTRUE(input$usepartition)){
+      #req(input$data_somY)
+      factors<-attr(vals$saved_data[[input$data_somY]],"factors")[rownames(data1),]
+      pic_split<-which(factors[,input$partition_column]%in%input$partition_ref)
+      test_ids<-rownames(factors)[pic_split]
+      train_ids<-rownames(factors)[-pic_split]
+      parts=list(train=train_ids,test=test_ids)
+      train<-parts$train
+      test<-parts$test
+      training_list<-lapply(layers,function(x){
+        x[train,]
+      })
+      test_list<-lapply(layers,function(x){
+        x[test,]
+      })
+    } else{
+      training_list<-layers
+      test_list<-"None"
+    }
 
+
+    args<-list(
+      data=training_list,
+      #whatmap = 1,
+      grid = kohonen::somgrid(
+        input$xdim,
+        input$ydim,
+        topo = input$topo,
+        toroidal = toroidal(),
+        neighbourhood.fct=tunesom$neighbourhood.fct
+      ),
+      rlen = input$rlen,
+      dist.fcts = distances,
+      user.weights=weights,
+      alpha = c(tunesom$a1, tunesom$a2),
+      radius = c(tunesom$r1, tunesom$r2),
+      mode = tunesom$mode,
+      maxNA.fraction = tunesom$maxna,
+      normalizeDataLayers=as.logical(input$normalizeDataLayers)
+    )
+    args
+  })
 
 
   train_supersom<-reactive({
@@ -585,7 +636,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
           m<-try({
             if(is.na(input$seed)==F){set.seed(input$seed)}
 
-            supersom2(
+            args<-list(
               data=training_list,
               #whatmap = 1,
               grid = kohonen::somgrid(
@@ -604,6 +655,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
               maxNA.fraction = tunesom$maxna,
               normalizeDataLayers=as.logical(input$normalizeDataLayers)
             )
+            do.call(supersom,args)
           })
 
 
@@ -4670,7 +4722,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
         names(datalist)<-input$data_som
         if(is.na(input$seed)==F){set.seed(input$seed)}
         m<-try(
-          supersom2(
+          supersom(
             datalist,
             grid = kohonen::somgrid(
               input$xdim,

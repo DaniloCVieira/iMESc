@@ -31,7 +31,7 @@ dtable_som_mysom<-function (kohobj, whatmap, data, classif = NULL)
   weights <- kohobj$user.weights[whatmap] * kohobj$distance.weights[whatmap]
   maxNA.fraction <- kohobj$maxNA.fraction
   distanceFunctions <- kohobj$dist.fcts[whatmap]
-  dist.ptrs <- mygetDistancePointers(distanceFunctions, maxNA.fraction = maxNA.fraction)
+  dist.ptrs <- getDistancePointers(distanceFunctions, maxNA.fraction = maxNA.fraction)
   data <- data[whatmap]
   codes <- kohobj$codes[whatmap]
   if (any(factor.idx <- sapply(data, is.factor)))
@@ -216,7 +216,7 @@ my_fit<-function (x, y, wts, param, lev, last, classProbs, ...){
   layer_wts <- layer_wts/sum(layer_wts)
   if (is.numeric(y))
     y <- as.matrix(y, ncol = 1)
-  kohonen::supersom2(list(X = as.matrix(x), Y = y), user.weights = layer_wts,
+  kohonen::supersom(list(X = as.matrix(x), Y = y), user.weights = layer_wts,
                     grid = kohonen::somgrid(param$xdim, param$ydim, as.character(param$topo),as.character(param$neighbourhood.fct),as.logical(param$toroidal)),rlen=param$rlen,...)
 
 

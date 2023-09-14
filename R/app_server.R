@@ -10,6 +10,14 @@
 #' @import shiny
 #' @noRd
 app_server<-function(input, output, session) {
+  # IMPORTANT!
+  # this is needed to terminate the R process when the
+  # shiny app session ends. Otherwise, you end up with a zombie process
+  session$onSessionEnded(function() {
+    stopApp()
+  })
+
+
   middle <- Sys.time()
 
   ns_tab4<-NS('hc_tab4')

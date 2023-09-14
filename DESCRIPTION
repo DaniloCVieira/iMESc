@@ -1,7 +1,7 @@
 Package: imesc
 Title: iMESc - an Interactive Machine Learning App for Environmental
     Science
-Version: 3.0
+Version: 1.0
 Authors@R: 
     person("Danilo", "Vieira", , "vieiradc@yahoo.com.br", role = c("cre", "aut"))
 Description: iMESc is an Interactive Machine Learning App for

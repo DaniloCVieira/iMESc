@@ -1009,11 +1009,6 @@ module_server_som2 <- function (input, output, session,vals,df_colors,newcolhabs
     if(is.null(vals$cur_xyf_topology)){vals$cur_xyf_topology<- paste0("hexagonal")}
     if(is.null(  vals$cur_xyf_maxna)){  vals$cur_xyf_maxna<-0.001}
 
-    choicesY<-choicesX<-c("euclidean","BrayCurtis","sumofsquares","manhattan",
-               "tanimoto")
-    if(input$som_type=="Regression"){
-      choicesY<-c("euclidean","BrayCurtis","sumofsquares","manhattan")
-    }
 
 
 
@@ -1023,35 +1018,58 @@ module_server_som2 <- function (input, output, session,vals,df_colors,newcolhabs
                  class="map_control_style",style="color: #05668D; margin-top: 20px",
                  uiOutput(ns("xyf_default")),
                  uiOutput(ns("xyf_custom")),
-                 div(
-                   pickerInput(ns("distance"),strong("Distance X",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
-
-                               width="150px",
-                               choices = choicesX,
-                               selected=vals$cur_xyf_distance)
-                 ),
-                 div(
-                   pickerInput(ns("distanceY"),strong("Distance Y",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
-
-                               width="150px",
-                               choices = choicesY,
-                               selected=vals$cur_xyf_distanceY)
-                 ),
-
-
-                 div(
-                   tipify(icon("fas fa-question-circle"),"the maximal fraction of values that may be NA to prevent the row to be removed", options = list(container="body")),
-                   "+ maxNA.fraction",
-                   inline(numericInput(ns("maxNA.fraction"), NULL, value=vals$cur_xyf_maxna, width="110px"))
-                 ),
-                 div(
-                   tipify(icon("fas fa-question-circle"),"Integer or a comma-delimited vector:  the times the complete data set will be presented to the network", options = list(container="body")),
-                   "+ Training length:",
-                   inline(textInput(ns("len"), NULL, value=vals$cur_xyf_len, width="110px"))
-                 ),
+                 uiOutput(ns("xyf_distanceX")),
+                 uiOutput(ns("xyf_distanceY")),
+                 uiOutput(ns('out_maxNA.fraction')),
+                 uiOutput(ns("xyf_len")),
                  uiOutput(ns("grid_xy"))
                )))
   })
+
+  output$xyf_len<-renderUI({
+    div(
+      tipify(icon("fas fa-question-circle"),"Integer or a comma-delimited vector:  the times the complete data set will be presented to the network", options = list(container="body")),
+      "+ Training length:",
+      inline(textInput(ns("len"), NULL, value=vals$cur_xyf_len, width="110px"))
+    )
+  })
+
+  output$xyf_distanceX<-renderUI({
+    choicesX<-c("euclidean","BrayCurtis","sumofsquares","manhattan",
+                "tanimoto")
+    div(
+      pickerInput(ns("distance"),strong("Distance X",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
+
+                  width="150px",
+                  choices = choicesX,
+                  selected=vals$cur_xyf_distance)
+    )
+  })
+  output$xyf_distanceY<-renderUI({
+    req(input$som_type)
+    choicesY<-choicesX<-c("euclidean","BrayCurtis","sumofsquares","manhattan",
+                          "tanimoto")
+    if(input$som_type=="Regression"){
+      choicesY<-c("euclidean","BrayCurtis","sumofsquares","manhattan")
+    }
+
+    div(
+      pickerInput(ns("distanceY"),strong("Distance Y",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
+
+                  width="150px",
+                  choices = choicesY,
+                  selected=vals$cur_xyf_distanceY)
+    )
+  })
+  output$out_maxNA.fraction<-renderUI({
+    div(
+      tipify(icon("fas fa-question-circle"),"the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.", options = list(container="body")),
+      "+ maxNA.fraction",
+      inline(numericInput(ns("maxNA.fraction"), NULL, value=vals$cur_xyf_maxna, width="110px"))
+    )
+  })
+
+
 
   observeEvent(ignoreInit = T,input$nei,{
     vals$cur_xyf_nei<-input$nei
@@ -1969,23 +1987,23 @@ Please save your model to proceed with permutation importance analysis."))
   output$plot_train<-renderUI({
     m<-getsom()
     div(actionLink(ns("download_changes"),"+ Download"),
-      renderPlot({
-        plot(m,type="changes")
-        p<-recordPlot()
-        vals$xyf_changes<-p
-        vals$xyf_changes
-      })
+        renderPlot({
+          plot(m,type="changes")
+          p<-recordPlot()
+          vals$xyf_changes<-p
+          vals$xyf_changes
+        })
     )
   })
   output$plot_counts<-renderUI({
     m<-getsom()
     div(actionLink(ns("download_counts"),"+ Download"),
-      renderPlot({
-        p<-plot(m,type="counts")
-        vals$xyf_counts<-p
-        vals$xyf_counts
+        renderPlot({
+          p<-plot(m,type="counts")
+          vals$xyf_counts<-p
+          vals$xyf_counts
 
-      })
+        })
     )
   })
   observeEvent(ignoreInit = T,input$download_changes,{

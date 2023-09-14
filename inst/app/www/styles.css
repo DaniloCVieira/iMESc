@@ -1793,6 +1793,7 @@ td {padding: 3px;
 
 
   .get_started{
+    z-index: 9999;
     position: fixed;
     right: 220px;
     top: 50px;
@@ -3027,4 +3028,22 @@ display: inline-block;
           }
 .navbar-static-top {
   z-index: 600;
+}
+
+
+.home:hover:after{
+content: "Home";
+padding: 2px;
+color: white;
+position: absolute;
+top: 0px;
+right: 0px;
+line-height: 15px;
+display: inline-block;
+z-index: 999999;
+background: black;
+font-size: 12px;
+border-radius: 3px 3px 3px 3px;
+margin-left:-30px;
+
 }

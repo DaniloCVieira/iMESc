@@ -9,8 +9,8 @@ ui_supersom <- function(id){
     #actionLink(ns("teste_comb"),"SAVE"),
     div(
       #uiOutput(ns("bug")),
-        uiOutput(ns("som_header")),
-        uiOutput(ns("som_panels")))
+      uiOutput(ns("som_header")),
+      uiOutput(ns("som_panels")))
 
   )
 
@@ -540,58 +540,6 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
   })
 
-
-  teste<-reactive({
-    if(is.null(attr(vals$saved_data[[input$data_som]],"som"))){
-      attr(vals$saved_data[[input$data_som]],"som")<-list()
-    }
-    layers = get_training_list()
-    layer_table<-ssom_reac()
-    weights<-layer_table$Weights
-    distances<-layer_table$Distances
-    data1<-vals$saved_data[layer_table$Datalist][[1]]
-    if(isTRUE(input$usepartition)){
-      #req(input$data_somY)
-      factors<-attr(vals$saved_data[[input$data_somY]],"factors")[rownames(data1),]
-      pic_split<-which(factors[,input$partition_column]%in%input$partition_ref)
-      test_ids<-rownames(factors)[pic_split]
-      train_ids<-rownames(factors)[-pic_split]
-      parts=list(train=train_ids,test=test_ids)
-      train<-parts$train
-      test<-parts$test
-      training_list<-lapply(layers,function(x){
-        x[train,]
-      })
-      test_list<-lapply(layers,function(x){
-        x[test,]
-      })
-    } else{
-      training_list<-layers
-      test_list<-"None"
-    }
-
-
-    args<-list(
-      data=training_list,
-      #whatmap = 1,
-      grid = kohonen::somgrid(
-        input$xdim,
-        input$ydim,
-        topo = input$topo,
-        toroidal = toroidal(),
-        neighbourhood.fct=tunesom$neighbourhood.fct
-      ),
-      rlen = input$rlen,
-      dist.fcts = distances,
-      user.weights=weights,
-      alpha = c(tunesom$a1, tunesom$a2),
-      radius = c(tunesom$r1, tunesom$r2),
-      mode = tunesom$mode,
-      maxNA.fraction = tunesom$maxna,
-      normalizeDataLayers=as.logical(input$normalizeDataLayers)
-    )
-    args
-  })
 
 
   train_supersom<-reactive({
@@ -1282,7 +1230,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     ss1_bp_som<-reactive({
       iind=ss1_indicate_hc()
       m<-getsom()
-      bp<-getbp_som(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
+      bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
       vals$ss1_bp_som<-bp
       bp
     })
@@ -3765,7 +3713,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
         renderPlot({
           plotnetwork_list(m, palette=as.character(input$netpalette),newcolhabs=vals$newcolhabs, label=input$net_label, main="")
         }),
-       # renderPlot(plotnetwork_list3(m, palette=as.character(input$netpalette),newcolhabs=vals$newcolhabs, label=input$net_label, main=""))
+        # renderPlot(plotnetwork_list3(m, palette=as.character(input$netpalette),newcolhabs=vals$newcolhabs, label=input$net_label, main=""))
       )
     } else{
       m<-getsom()
@@ -3815,11 +3763,12 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
   output$train_som_button<-renderUI({
     lab<- h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right"))
     if(isTRUE(input$mysupersom)){
+
       lab<-h4(icon("fas fa-braille"),"train superSOM",icon("fas fa-arrow-circle-right"))
     }
     actionButton(
       ns("trainSOM"),
-     lab, style = "background: #05668D; color: white")
+      lab, style = "background: #05668D; color: white")
 
   })
 
@@ -3838,7 +3787,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
   output$finetuning_train<-renderUI({
 
-    div(style="margin-top: 20px",
+    div(style="margin-top: 20px; margin-bottom: 40px;",
         div(
           span(class="finesom_btn",
                tipify(bsButton(ns("finesom"),"Fine tuning*", type="toggle", value=tunesom$finesom),"show all parameters available")
@@ -3851,45 +3800,27 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
   })
   output$finetuning_som<-renderUI({
     req(isTRUE(input$finesom))
-    div(          class='well3',div(id="finesom_out",    class="map_control_style",
-                                    style="color: #05668D",
-                                    div(
-                                      span("Alpha:"),
-                                      inline(
-                                        div(
-                                          numericInput(ns("a1"),label = NULL,value = tunesom$a1,step = 0.01, width="85px")
-                                        )
-                                      ),
-                                      inline(
-                                        div(
-                                          numericInput(ns("a2"),label = NULL,value = tunesom$a2,step = 0.01, width="85px")
-                                        )
-                                      )
-                                    ),
-                                    div(   span("Radius:"),
-                                           inline(
-                                             div(
-                                               numericInput(ns("r1"),label = NULL,value = tunesom$r1, width="85px")
-                                             )
-                                           ),
-                                           inline(
-                                             div(
-                                               numericInput(ns("r2"),label = NULL,value = tunesom$r2,step = 0.01, width="85px" )
-                                             )
-                                           )
-                                    ),
-                                    div(
-                                      span("mode"),
-                                      inline(pickerInput(ns("mode"), NULL, choices = c("online","batch", "pbatch"), selected=tunesom$mode, width="85px"))
-                                    ),
-                                    div(
-                                      inline(
-                                        div(
-                                          span("maxNA.fraction"),
-                                          numericInput(ns("maxna"),NULL,value = tunesom$maxna,step = 0.01, width="85px")
-                                        )
-                                      )
-                                    )))
+    div(
+      class='well3',
+      div(id="finesom_out",class="map_control_style2",
+          style="color: #05668D; width: 60%",
+          splitLayout(
+            numericInput(ns("a1"),label = "Alpha:",value = tunesom$a1,step = 0.01),
+            numericInput(ns("a2"),label = NULL,value = tunesom$a2,step = 0.01)),
+          splitLayout(
+            numericInput(ns("r1"),label = "Radius:",value = tunesom$r1),
+            numericInput(ns("r2"),label = NULL,value = tunesom$r2,step = 0.01 )),
+          pickerInput(ns("mode"), "mode", choices = c("online","batch", "pbatch"), selected=tunesom$mode),
+          uiOutput(ns("out_maxNA.fraction"))
+      )
+
+    )
+
+  })
+
+  output$out_maxNA.fraction<-renderUI({
+    lab<-span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right"))
+    numericInput(ns("maxna"),lab,value = tunesom$maxna,step = 0.01)
 
   })
 
@@ -3903,6 +3834,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
     )
   })
+
 
 
 
@@ -4270,7 +4202,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
       strong("Quality measures:", actionLink(ns("som_quality_help"),icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"))),
       renderTable(res,rownames =T),
       renderTable(neu.uti,rownames =T,colnames =F),
-      )
+    )
   })
 
 
@@ -4297,9 +4229,9 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
                  p("Quality measures computed using the aweSOM package (Boelaert, 2022). For multiple layers trained, iMESc implements these measures individually by data layer, except for Neuron utilization."),
                  p(h4("Quantization error:"),
-                  div(
-                    "This measure calculates the average squared distance between the data points and the map prototypes to which they are mapped. A lower value indicates better quality."
-                  )),
+                   div(
+                     "This measure calculates the average squared distance between the data points and the map prototypes to which they are mapped. A lower value indicates better quality."
+                   )),
                  p(h4("Percentage of explained variance:"),
                    div(
                      "Similar to other clustering methods, this measure represents the share of total variance that is explained by the clustering. It is calculated as 1 minus the ratio of quantization error to total variance. Higher values indicate better quality."
@@ -4721,6 +4653,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
         datalist<-list(as.matrix(data))
         names(datalist)<-input$data_som
         if(is.na(input$seed)==F){set.seed(input$seed)}
+
         m<-try(
           supersom(
             datalist,
@@ -5333,6 +5266,32 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     }
 
   })
+
+
+  validate_supersom<-reactive({
+    layers = get_training_list()
+    ids<-names(layers)
+    dists<-ssom_reac()
+    dists$id<-rownames(dists)
+    dd<-sapply(layers,function(x) {any(rowSums(x)==0)})
+    dists$notval<-dd
+    if(any(dists$Distances=="BrayCurtis")){
+      notval<-which(apply(dists,1,function(x) x[3]=='BrayCurtis'&x[5]==T))
+
+      if(length(notval)>0){
+        paste(
+          "Error: Empty rows detected. SOM cannot be trained using the 'Bray' method for the layers",ifelse(length(notval) == 1, notval,
+                                                                                                            ifelse(length(notval) == 2, paste0(notval, collapse = " and "),
+                                                                                                                   paste0(paste0(notval[1:(length(notval)-1)], collapse = ", "), " and ", notval[length(notval)])))
+        )
+      } else{ NULL}
+
+
+
+    }
+
+  })
+
 
 }
 

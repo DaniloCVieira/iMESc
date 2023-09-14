@@ -74,29 +74,31 @@ $('#scrollDownButton').click(function() {
 
 
 
-    shinydashboardPlus::dashboardPage(
-      scrollToTop=T,
-      skin = "blue",
+shinydashboardPlus::dashboardPage(
+  scrollToTop=T,
+  skin = "blue",
 
-      shinydashboardPlus::dashboardHeader(controlbarIcon=NULL,disable=T),
-      dashboardSidebar(
-        actionLink("scrollButton", icon("fas fa-caret-up")),
-        extendShinyjs(text = "shinyjs.collapse = function(boxid) {$('#' + boxid).closest('.box').find('[data-widget=collapse]').click();}",functions = 'collapse'),
-        useShinyjs(),
-        #use_cicerone(),
-        #introjsUI(),
-        width = "16%",
-        sidebarMenu(
-          id = "tabs",
-          div(id = "sidebar-main",
-            uiOutput("style_act"),
-            div(style = "background-color:  #05668D; font-size: 13px",class = "sidebar-menu",
+  shinydashboardPlus::dashboardHeader(controlbarIcon=NULL,disable=T),
+  dashboardSidebar(
+    actionLink("scrollButton", icon("fas fa-caret-up")),
+    extendShinyjs(text = "shinyjs.collapse = function(boxid) {$('#' + boxid).closest('.box').find('[data-widget=collapse]').click();}",functions = 'collapse'),
+    useShinyjs(),
+    #use_cicerone(),
+    #introjsUI(),
+    width = "16%",
+    sidebarMenu(
+      id = "tabs",
+      div(id = "sidebar-main",
+          uiOutput("style_act"),
+          div(style = "background-color:  #05668D; font-size: 13px",class = "sidebar-menu",
               menuItem(tabName = "menu_intro",
-                       div(class="side_menu_imesc",
-                           span(class="side_img_imesc",
-                                img(src = b64,height = '32px',width = '32px')),
-                           span(class="span_menu_imesc",
-                                img(src = imesc_icon,height = '20px',width = '70px'))
+                       div(class="home",
+                           div(class="side_menu_imesc",
+                               span(class="side_img_imesc",
+                                    img(src = b64,height = '32px',width = '32px')),
+                               span(class="span_menu_imesc",
+                                    img(src = imesc_icon,height = '20px',width = '70px'))
+                           )
                        ),
                        selected =T),
 
@@ -129,36 +131,36 @@ $('#scrollDownButton').click(function() {
 
 
 
-             menuItem(expandedName="unsup_expand",
-                      div(class="needed",
-                          icon =NULL,
-                          div(class="side_menu",
-                              span(class="side_img",img(src=unsup_icon,height='20',width='20')),
-                              span(class="span_menu","Unsupervised Algorithms")
-                          )
-                      ),
-                      menuSubItem(tabName = "menu_som",
-                                  icon=NULL,
-                                  div(class="side_menu",
-                                      span(class="side_img",
-                                           icon("fas fa-braille",style="height:20px;width: 20px")),
-                                      span(class="span_menu","Self-Organizing Maps")
-                                  )),
-                      menuSubItem(tabName = "menu_hc",
-                                  icon=NULL,
-                                  div(class="side_menu",
-                                      span(class="side_img",
-                                           icon("fas fa-network-wired",style="height:20px;width: 20px")),
-                                      span(class="span_menu","Hierarchical Clustering")
-                                  )),
-                      menuSubItem(tabName = "menu_kmeans",
-                                  icon=NULL,
-                                  div(class="side_menu",
-                                      span(class="side_img",
-                                           img(src=kmeans_icon,height='20px',width='20px')),
-                                      span(class="span_menu","K-means")
-                                  ))
-                    ),
+              menuItem(expandedName="unsup_expand",
+                       div(class="needed",
+                           icon =NULL,
+                           div(class="side_menu",
+                               span(class="side_img",img(src=unsup_icon,height='20',width='20')),
+                               span(class="span_menu","Unsupervised Algorithms")
+                           )
+                       ),
+                       menuSubItem(tabName = "menu_som",
+                                   icon=NULL,
+                                   div(class="side_menu",
+                                       span(class="side_img",
+                                            icon("fas fa-braille",style="height:20px;width: 20px")),
+                                       span(class="span_menu","Self-Organizing Maps")
+                                   )),
+                       menuSubItem(tabName = "menu_hc",
+                                   icon=NULL,
+                                   div(class="side_menu",
+                                       span(class="side_img",
+                                            icon("fas fa-network-wired",style="height:20px;width: 20px")),
+                                       span(class="span_menu","Hierarchical Clustering")
+                                   )),
+                       menuSubItem(tabName = "menu_kmeans",
+                                   icon=NULL,
+                                   div(class="side_menu",
+                                       span(class="side_img",
+                                            img(src=kmeans_icon,height='20px',width='20px')),
+                                       span(class="span_menu","K-means")
+                                   ))
+              ),
               menuItem(expandedName="sup_expand",
                        icon=NULL,
                        div(class="needed",id="sup_menu",
@@ -225,10 +227,10 @@ $('#scrollDownButton').click(function() {
                 div(class="needed",id="ensemble_menu",
                     icon =NULL,
                     div(class="side_menu",
-                      span(class="side_img",img(src=comp_icon,height='20',width='20')),
-                      span(class="span_menu","Compare & Ensemble Models")
-                      )
-                    ),
+                        span(class="side_img",img(src=comp_icon,height='20',width='20')),
+                        span(class="span_menu","Compare & Ensemble Models")
+                    )
+                ),
                 menuSubItem(tabName = "menu_compare",
                             icon=NULL,
                             div(class="side_menu",
@@ -243,42 +245,48 @@ $('#scrollDownButton').click(function() {
                                      img(src=ensemble_icon,height='20px',width='20px')),
                                 span(class="span_menu","Ensemble")
                             ))
-               ),
-             #menuItem(div(img(src=sim_icon,height='20',width='20'),"Simulate"),tabName ="menu_sim"),
-             # menuItem(div("teste",style = "margin-left: -8px; color: white; font-size: 14px; margin-top: -2px;margin-bottom: -2px;"),tabName = "menu_teste"),
+              ),
+              #menuItem(div(img(src=sim_icon,height='20',width='20'),"Simulate"),tabName ="menu_sim"),
+              # menuItem(div("teste",style = "margin-left: -8px; color: white; font-size: 14px; margin-top: -2px;margin-bottom: -2px;"),tabName = "menu_teste"),
               # uiOutput("testet"),
 
 
 
-             actionLink("scrollDownButton", icon("fas fa-caret-down"))
+              actionLink("scrollDownButton", icon("fas fa-caret-down"))
 
 
-            )
           )
-        )
+      )
+    )
 
 
-      ),
+  ),
 
 
-      dashboardBody(
-        useShinyjs(),
-        tags$script(jscode_screen),
-        tags$head( tags$script(src = "https://kit.fontawesome.com/7af7c9478d.js")),
-        tags$head(tags$script(HTML("$(document).on('.dataTables_filter').addClass('pull-left');"))),
-        tags$head(tags$script(HTML(js_getid))),
-        tags$head(tags$script(HTML('
+  dashboardBody(
+    useShinyjs(),
+    tags$script(jscode_screen),
+    tags$head(
+      tags$link(
+        rel = "stylesheet",
+        href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+      )
+    ),
+    tags$head( tags$script(src = "https://kit.fontawesome.com/7af7c9478d.js")),
+    tags$head(tags$script(HTML("$(document).on('.dataTables_filter').addClass('pull-left');"))),
+    tags$head(tags$script(HTML(js_getid))),
+    tags$head(tags$script(HTML('
         $(document).on("keydown", function (e) {
         Shiny.onInputChange("lastkeypresscode", e.keyCode);
         });
         '))),
 
 
-        tags$style(".pretty.p-default input:checked~.state label:after {background-color: SeaGreen !important;}"),
-        tags$script("$(document).on('click', '.name-opt a', function (evt) {
+    tags$style(".pretty.p-default input:checked~.state label:after {background-color: SeaGreen !important;}"),
+    tags$script("$(document).on('click', '.name-opt a', function (evt) {
   evt.preventDefault(); Shiny.setInputValue('name',this.dataset.name);
 });"
-        ),
+    ),
 
 tags$script("$(document).on('shiny:connected', function(event) {
 var myWidth = $(window).width();
@@ -295,7 +303,7 @@ Shiny.onInputChange('shiny_height',myHeight)
 div(
 
   column(12,  style = "position: fixed; overflow: visible;",class="needed",id="header_app",' An Interactive Machine Learning App for Environmental Science',
-       ),
+  ),
   uiOutput('preprocess'),
   uiOutput('tools_upload'),
 
@@ -318,19 +326,19 @@ div(
   )
 )
 
-      ),
+  ),
 footer=dashboardFooter(left=div(style="display: flex",
                                 div(style="width: 16%; display: inline-block; text-align: center",
-                                  actionLink("imesc_help", span('iMESc help',icon("fas fa-question-circle")))
+                                    actionLink("imesc_help", span('iMESc help',icon("fas fa-question-circle")))
                                 ),
                                 div(style="width: 80%; display: inline-block; text-align: center",
-                                 span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)
+                                    span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)
                                 ),
                                 div(style="width: 4%; display: inline-block; text-align: right",
                                     uiOutput('footer_qsave')
                                 )
 )),
-    )
+)
 
 
 

@@ -62,10 +62,10 @@ app_server<-function(input, output, session) {
     });
     '
 
-#sidebar-main > div.sidebar-menu > li:nth-child(6) > a
+  #sidebar-main > div.sidebar-menu > li:nth-child(6) > a
   js_code_remove <- '$(".teste_go").removeClass("teste_go");'
 
-   fun_toogle_submenus<-'$(".sidebar-menu ul.treeview-menu").css("display", "none");'
+  fun_toogle_submenus<-'$(".sidebar-menu ul.treeview-menu").css("display", "none");'
 
 
 
@@ -91,7 +91,7 @@ app_server<-function(input, output, session) {
 
   which_menu<-function(x){
     if(is_toolmenu(x)){return("tool_menu")} else if(is_unsupmenu(x)){'unsup_expand'}else
-    if(is_supmenu(x)){'sup_expand'}else  if(is_ccmenu(x)){'cc_expand'} else{"none"}
+      if(is_supmenu(x)){'sup_expand'}else  if(is_ccmenu(x)){'cc_expand'} else{"none"}
   }
 
   menu_is_in_expand <- function(menu, expand) {
@@ -119,17 +119,17 @@ app_server<-function(input, output, session) {
     }
     if(is_supmenu(menu)){
       if(!is.null(expanded))
-      if(expanded=="sup_expand"){
-        shinyjs::runjs(funs_dynamic_class$remove)
+        if(expanded=="sup_expand"){
+          shinyjs::runjs(funs_dynamic_class$remove)
           shinyjs::runjs(funs_dynamic_class$add_sup)}
     }
     if(is_ccmenu(menu)){
       if(!is.null(expanded))
         if(expanded=="cc_expand"){
-      shinyjs::runjs(funs_dynamic_class$remove)
+          shinyjs::runjs(funs_dynamic_class$remove)
           shinyjs::runjs(funs_dynamic_class$add_cc)}
 
-          }
+    }
   }
 
 
@@ -756,12 +756,13 @@ app_server<-function(input, output, session) {
                       ))
            ))
   })
+
   output$bank_input0<-renderUI({
     req(length(vals$saved_data)<1)
     div(style="margin-top: 5px;",
         div(class="get_started",
-            style="margin-top: 5px;margin-left: 5px",
-            div(icon(verify_fa = FALSE,name=NULL,class="fas fa-hand-point-up", style="font-size: 30px; color: SeaGreen")),div(em("Get started by creating a Datalist", style="color: black"))
+            div(icon("fas fa-hand-point-up", style="font-size: 30px; color: SeaGreen")),
+            div(em("Get started by creating a Datalist", style="color: black"))
 
         )
 
@@ -2206,7 +2207,7 @@ app_server<-function(input, output, session) {
         numericInput("sr_legpal_zajd",span(tips[[9]],"+ key-palette-adj-z"), value=0.03, step=0.01),
         numericInput("sr_labaxis_zadj",span(tips[[10]],"+  key-axis-text-adj-z"),value=-.1, step=0.01)
     )
-    })
+  })
 
 
   output$sr_limits<-renderUI({
@@ -4491,7 +4492,12 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
                       class="col-sm-12")
            ),
            uiOutput("tabs"),
-           gettitle())
+           uiOutput("imesc_title")
+    )
+  })
+
+  output$imesc_title<-renderUI({
+    gettitle()
   })
 
   observeEvent(ignoreInit = T,input$tabs,{
@@ -4626,14 +4632,14 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   observeEvent(ignoreInit = T,input$bmu_leg_transp,{
     vals$bmu_leg_transp<-input$bmu_leg_transp
   })
+
+
   gettitle<-reactive({
     div(style="color: #05668D", id="menu-title",
 
 
         switch(input$tabs,
-               "menu_intro"={""
-                  h4(strong("Introduction"))
-               },
+               "menu_intro"={""},
                "menu_upload"={
                  h4(strong("Data Bank",
                            popify(actionLink('help_databank',icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle")), NULL,"Create, manage and download datalists and their associated results. Click for start the tutorial on this panel", options = list(container="body"))
@@ -6124,8 +6130,8 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   getRemoveButton<-function(n, idS = "", lab = "Pit") {
     if (stringr::str_length(idS) > 0) idS<-paste0(idS, "-")
     ret<-shinyInput(actionLink, n,
-                      'button_', label = icon(verify_fa = FALSE,name=NULL,class="far fa-trash-alt"),
-                      onclick = sprintf('Shiny.onInputChange(\"%sremove_button_%s\",  this.id)' ,idS, lab), style="font-size: 15px")
+                    'button_', label = icon(verify_fa = FALSE,name=NULL,class="far fa-trash-alt"),
+                    onclick = sprintf('Shiny.onInputChange(\"%sremove_button_%s\",  this.id)' ,idS, lab), style="font-size: 15px")
     return (ret)
   }
   jssss<-c(
@@ -8617,67 +8623,67 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   output$upload_input2<-renderUI({
     req(input$up_or_ex)
     div(style="width: 100%; display: flex",
-      class="insert_c0",
-      div(style="width: 20%",
-          div(class="insert_col1",
-            div(
-              class="topa",
-              div(strong("Required:"), style="color: SeaGreen;"),
-              div(style="margin-left: 50px",div(class="req_border1"))
-            )
-          ),
-          div(style="width: 150px; margin-top: 20px",
-              div(strong("Optional:",style="color: #05668D")),
-              div(style="margin-left: 50px; margin-bottom: 60px",div(class="req_border2")),
-              em(span("*",style="font-size: 15px"),"Required for the spatial tools menu", style="margin-left: 10px")
-          )
-      ),
-      div(style="width: 80%",
-          div(
-            div(strong("Name the datalist"), style="color: SeaGreen;"),
-            div(inline(uiOutput("datalistname"))),
-            div(
-              inline(
+        class="insert_c0",
+        div(style="width: 20%",
+            div(class="insert_col1",
                 div(
-                  class='insert_form',
-                  # uiOutput('use_example_mess'),
-                  div(style="display: table-row",
-                      inline(div(class="req_border11")),
-                      inline(uiOutput('upload_numeric')),
-                      inline(uiOutput('insertDL_bts1'))
-                  ),
-                  div(id="insert_opt",
-                      div(style="display: table-row",
-                          inline(div(class="req_border12")),
-                          inline(uiOutput('upload_factors')),
-                          inline(uiOutput('insertDL_bts2'))
-                      ),
-                      div(style="display: table-row",
-                          inline(div(class="req_border12")),
-                          inline(uiOutput('upload_coords')),
-                          inline(uiOutput('insertDL_bts3'))
-                      ),
-                      div(style="display: table-row",
-                          inline(div(class="req_border12")),
-                          inline(uiOutput('upload_base_shape')),
-                          inline(uiOutput('insertDL_bts4'))
-                      ),
-                      div(style="display: table-row",
-                          inline(div(class="req_border12")),
-                          inline(uiOutput('upload_layer_shape')),
-                          inline(uiOutput('insertDL_bts5'))
-                      )
-                  )
+                  class="topa",
+                  div(strong("Required:"), style="color: SeaGreen;"),
+                  div(style="margin-left: 50px",div(class="req_border1"))
                 )
-              ),
-              bsTooltip("reset_insert_1","reset"),
-              bsTooltip("reset_insert_2","reset"),
-              bsTooltip("reset_insert_3","reset"),
-              bsTooltip("reset_insert_4","reset"),
-              bsTooltip("reset_insert_5","reset")
+            ),
+            div(style="width: 150px; margin-top: 20px",
+                div(strong("Optional:",style="color: #05668D")),
+                div(style="margin-left: 50px; margin-bottom: 60px",div(class="req_border2")),
+                em(span("*",style="font-size: 15px"),"Required for the spatial tools menu", style="margin-left: 10px")
             )
-          )
-          )
+        ),
+        div(style="width: 80%",
+            div(
+              div(strong("Name the datalist"), style="color: SeaGreen;"),
+              div(inline(uiOutput("datalistname"))),
+              div(
+                inline(
+                  div(
+                    class='insert_form',
+                    # uiOutput('use_example_mess'),
+                    div(style="display: table-row",
+                        inline(div(class="req_border11")),
+                        inline(uiOutput('upload_numeric')),
+                        inline(uiOutput('insertDL_bts1'))
+                    ),
+                    div(id="insert_opt",
+                        div(style="display: table-row",
+                            inline(div(class="req_border12")),
+                            inline(uiOutput('upload_factors')),
+                            inline(uiOutput('insertDL_bts2'))
+                        ),
+                        div(style="display: table-row",
+                            inline(div(class="req_border12")),
+                            inline(uiOutput('upload_coords')),
+                            inline(uiOutput('insertDL_bts3'))
+                        ),
+                        div(style="display: table-row",
+                            inline(div(class="req_border12")),
+                            inline(uiOutput('upload_base_shape')),
+                            inline(uiOutput('insertDL_bts4'))
+                        ),
+                        div(style="display: table-row",
+                            inline(div(class="req_border12")),
+                            inline(uiOutput('upload_layer_shape')),
+                            inline(uiOutput('insertDL_bts5'))
+                        )
+                    )
+                  )
+                ),
+                bsTooltip("reset_insert_1","reset"),
+                bsTooltip("reset_insert_2","reset"),
+                bsTooltip("reset_insert_3","reset"),
+                bsTooltip("reset_insert_4","reset"),
+                bsTooltip("reset_insert_5","reset")
+              )
+            )
+        )
     )
   })
 
@@ -8698,9 +8704,9 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
               fileInput(inputId = "filedata",label = NULL,accept = c(".csv",".xlsx"), placeholder=if(length(input$filedata$datapath)>0){input$filedata$name})
             }else{
               div(class="use_example",
-                div(
+                  div(
                     div(class="insert_e","nematode/abiotic data from Araca Bay, Brazil")
-                )
+                  )
               )
             }
           }
@@ -8725,7 +8731,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
                   div(class="insert_e","sampling factors for both Datalists")
               )
           )
-          }
+        }
       }
     )
   })
@@ -8764,7 +8770,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
               )
           )
 
-         }
+        }
       }
 
 
@@ -8788,7 +8794,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
               )
           )
 
-          }
+        }
       }
 
     )
@@ -8947,7 +8953,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
       )
     } else{
       div(style="width: 50%",
-        datalist_render(getdatalist()[[1]],F,width="60px")
+          datalist_render(getdatalist()[[1]],F,width="60px")
       )
     }
 
@@ -11158,26 +11164,26 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
       )
     )
   })
-observeEvent(input$show_smw_hc,{
-  vals$show_smw_hc<-input$show_smw_hc
-})
+  observeEvent(input$show_smw_hc,{
+    vals$show_smw_hc<-input$show_smw_hc
+  })
 
-output$show_smw_hc<-renderUI({
-  req(!is.null(vals$screeplot_results))
-  if(is.null(vals$show_smw_hc)){vals$show_smw_hc<-F}
+  output$show_smw_hc<-renderUI({
+    req(!is.null(vals$screeplot_results))
+    if(is.null(vals$show_smw_hc)){vals$show_smw_hc<-F}
 
-  inline(checkboxInput("show_smw_hc", value = vals$show_smw_hc, smw_labinfo()))
-})
+    inline(checkboxInput("show_smw_hc", value = vals$show_smw_hc, smw_labinfo()))
+  })
 
   output$smw_hc_out<-renderUI({
     renderUI({
       div(style="margin-top: 20px; border-top: 1px solid gray",
-        div(
+          div(
 
-          inline(uiOutput("show_smw_hc")),
-          inline(uiOutput("hc_smw_run"))
-        ),
-        uiOutput("hc_smw_control")
+            inline(uiOutput("show_smw_hc")),
+            inline(uiOutput("hc_smw_run"))
+          ),
+          uiOutput("hc_smw_control")
 
       )
 
@@ -11191,11 +11197,11 @@ output$show_smw_hc<-renderUI({
   output$smw_hc_w_out<-renderUI({
     ws=seq(2,length(vals$screeplot_results0$WSS)/2,by=2)
     tags$div(id="smw_hc_pool",
-      textInput(
-        "smw_hc_w",
-        span("+ Window sizes",tiphelp("comma-delimeted")),
-        value = paste0(ws,collapse=", ")
-      )
+             textInput(
+               "smw_hc_w",
+               span("+ Window sizes",tiphelp("comma-delimeted")),
+               value = paste0(ws,collapse=", ")
+             )
     )
   })
   output$smw_hc_rand_out<-renderUI({
@@ -11216,7 +11222,7 @@ output$show_smw_hc<-renderUI({
   output$hc_smw_control<-renderUI({
     req(isTRUE(input$show_smw_hc))
     div(
-     # uiOutput("smw_hc_seed_out"),
+      # uiOutput("smw_hc_seed_out"),
       uiOutput("smw_hc_w_out"),
       uiOutput("smw_hc_rand_out"),
       uiOutput("smw_hc_tol_out")
@@ -11368,8 +11374,8 @@ output$show_smw_hc<-renderUI({
   output$hcut_main<-renderUI({
     req(input$hc_tab=="hc_tab3")
     textInput("hcut_main",
-                 "+ Title",
-                 "Cluster Dendrogram")
+              "+ Title",
+              "Cluster Dendrogram")
   })
 
   output$hcut_xlab<-renderUI({
@@ -11383,9 +11389,9 @@ output$show_smw_hc<-renderUI({
   output$hcut_xlab_adj<-renderUI({
     req(input$hc_tab=="hc_tab3")
     numericInput("hcut_xlab_adj",
-              "+ xlab v-adj",
-              value = 30,
-              step = 1)
+                 "+ xlab v-adj",
+                 value = 30,
+                 step = 1)
   })
   output$hcut_ylab<-renderUI({
     req(input$hc_tab=="hc_tab3")
@@ -11397,14 +11403,14 @@ output$show_smw_hc<-renderUI({
 
 
 
- # ws=c(2,4)
+  # ws=c(2,4)
   #input$smw_hc_tol=1.5
- # input$smw_hc_rand=50
+  # input$smw_hc_rand=50
   observeEvent(input$run_smw_hc,{
     vals$screeplot_results<-vals$screeplot_results0
     vals$scree_plot_hc<- vals$scree_plot_hc0
     #input<-readRDS('input.rds')
-   # vals<-readRDS('savepoint.rds')
+    # vals<-readRDS('savepoint.rds')
     req(length(input$show_smw_hc)>0)
     req(length(input$smw_hc_w)>0)
     req(!is.null(vals$screeplot_results))
@@ -11416,11 +11422,11 @@ output$show_smw_hc<-renderUI({
     #session=MockShinySession$new()
     smw<-smwhc(result, n.rand,ws,
                #session=session
-               )
+    )
     vals$screeplot_results<-smw
     #savereac()
 
-    })
+  })
 
   getsmw_plot<-reactive({
     tol=input$smw_hc_tol
@@ -11435,11 +11441,11 @@ output$show_smw_hc<-renderUI({
 
   })
 
-    output$plot_hc_screeplot <-renderUI({
-      vals$scree_plot_hc<-getsmw_plot()
-      renderPlot({print(vals$scree_plot_hc)})
+  output$plot_hc_screeplot <-renderUI({
+    vals$scree_plot_hc<-getsmw_plot()
+    renderPlot({print(vals$scree_plot_hc)})
 
-    })
+  })
 
 
 
@@ -11652,11 +11658,11 @@ output$show_smw_hc<-renderUI({
         args<-hcut_argsplot()
         p<-do.call('hc_plot',args)
         #saveRDS(p,"p.rds")
-       # p<-readRDS("p.rds")
+        # p<-readRDS("p.rds")
         req(class(p)[1]=="gg")
-       vals$hc_tab3_plot<- p
-       print(p)
-       # vals$hc_tab3_plot
+        vals$hc_tab3_plot<- p
+        print(p)
+        # vals$hc_tab3_plot
       })
     )
   })
@@ -11759,11 +11765,11 @@ output$show_smw_hc<-renderUI({
     req(input$hc_tab!="hc_tab6")
     div(style='border-bottom: 1px solid gray; border-top: 1px solid gray; padding-bottom: 5px',
         div(
-            checkboxInput("hc_sort",span("+ Sort clusters",tiphelp("Sort clusters by a  variable")),value=vals$hc_sort,width="120px"),
-            div(style="margin-left: 40px",
-                inline(uiOutput("hc_sort_datalist")) ,
+          checkboxInput("hc_sort",span("+ Sort clusters",tiphelp("Sort clusters by a  variable")),value=vals$hc_sort,width="120px"),
+          div(style="margin-left: 40px",
+              inline(uiOutput("hc_sort_datalist")) ,
 
-                inline(uiOutput("hc_ord_factor")))
+              inline(uiOutput("hc_ord_factor")))
 
         )
     )
@@ -11894,11 +11900,11 @@ output$show_smw_hc<-renderUI({
 
 
     div(style="max-height:300px;overflow-y: scroll;",
-      uiOutput("hcs_side_somplot"),
-      div(actionLink('create_codebook',"+ Create Datalist with the Codebook and HC class")),
-      div(div(
-        tipify(downloadLink('down_hc_model',"+ Download HC model", style="button_active"),"Download file as .rds")
-      ))
+        uiOutput("hcs_side_somplot"),
+        div(actionLink('create_codebook',"+ Create Datalist with the Codebook and HC class")),
+        div(div(
+          tipify(downloadLink('down_hc_model',"+ Download HC model", style="button_active"),"Download file as .rds")
+        ))
     )
   })
   output$hcs_side_somplot<-renderUI({
@@ -12422,7 +12428,7 @@ output$show_smw_hc<-renderUI({
         args$hc<-phc()$som.hc
         p<-do.call(bmu_plot_hc,args)
         p
-        })
+      })
     )
 
   })
@@ -13153,8 +13159,8 @@ output$show_smw_hc<-renderUI({
     )
   })
 
-output$hcsom_newdata_mess<-  renderUI({
-   req(isTRUE(input$hcsom_newdata))
+  output$hcsom_newdata_mess<-  renderUI({
+    req(isTRUE(input$hcsom_newdata))
     span("select a gradient palette in '+ Points' to differentiate between training and the new data", style="color: gray")
 
   })
@@ -13720,7 +13726,7 @@ output$hcsom_newdata_mess<-  renderUI({
                       column(12,style='text-align:left',actionLink("down_histcolsums","+ Download plot")),
 
                )
-               )
+        )
     )
   })
   output$bins_histcolsums<-renderUI({
@@ -16189,96 +16195,99 @@ output$hcsom_newdata_mess<-  renderUI({
 
   output$imesc_panel<-renderUI({
 
-    column(12,id="imesc_panes",class="needed",style="background: white",
+    column(12,id="imesc_panes",class="needed",
 
            uiOutput("menutitle"),
 
-           div(style="margin-top: 25px; ",
-             tabsetPanel(
-               type = "hidden",
-               tabPanel("intro",
-                        tabItems(
-                          tabItem(
-                            tabName = "menu_intro",
-                            column(8,tabsetPanel(
-                              tabPanel(value="intro1",
-                                       strong("Welcome"),
-                                       textintro(),
-                                       uiOutput("license")
-                              ),
-                              tabPanel(strong("Authors"),value="intro2", textauthors()),
-                              tabPanel(  strong("Version"),value="intro5",
-                                fluidRow(
-                                  style="background: white",
-                                  column(12, style="margin-top 25px;",
-                                         p(h4(style="margin-top 25px",span("iMESc", style="font-family: 'Alata', sans-serif;")),version),
-                                         p(strong("Last update:"),last_update)
+           div(style="margin-top: 25px;",
+               tabsetPanel(
+                 type = "hidden",
+                 tabPanel("intro",
+                          tabItems(
+                            tabItem(
+                              tabName = "menu_intro",
+                              column(8,style="margin-top: -65px; background: white;",
+                                     div(style="margin-top: 25px; background: white;",
+                                         tabsetPanel(
+                                           tabPanel(value="intro1",
+                                                    strong("Welcome"),
+                                                    textintro(),
+                                                    uiOutput("license")
+                                           ),
+                                           tabPanel(strong("Authors"),value="intro2", textauthors()),
+                                           tabPanel(  strong("Version"),value="intro5",
+                                                      fluidRow(
+                                                        style="background: white",
+                                                        column(12, style="margin-top 25px;",
+                                                               p(h4(style="margin-top 25px",span("iMESc", style="font-family: 'Alata', sans-serif;")),version),
+                                                               p(strong("Last update:"),last_update)
 
-                                  ),
-                                  column(12, h5(strong("Technical Development Specifications:")),
-                                      uiOutput("sys_info")
-                                  ),
-                                  column(12,em("developed by Danilo C Vieira"))
+                                                        ),
+                                                        column(12, h5(strong("Technical Development Specifications:")),
+                                                               uiOutput("sys_info")
+                                                        ),
+                                                        column(12,em("developed by Danilo C Vieira"))
 
 
-                                )
-                              ),
-                              tabPanel(
-                                strong("References"),value="intro5",
-                                column(12,style="margin-top: 50px",
-                                  actionLink("imesc_help2", span('iMESc help',icon("fas fa-question-circle")))
-                                ))
+                                                      )
+                                           ),
+                                           tabPanel(
+                                             strong("References"),value="intro5",
+                                             column(12,style="margin-top: 50px",
+                                                    actionLink("imesc_help2", span('iMESc help',icon("fas fa-question-circle")))
+                                             ))
 
-                            ))),
-                          # training panel
+                                         )
+                                     ))),
+                            # training panel
 
-                          tabItem(tabName = "menu_nb",
-                                  uiOutput('menu_nb_out')),
-                          tabItem(tabName = "menu_svm",
-                                  uiOutput('menu_svm_out')),
-                          tabItem(tabName = "menu_upload",
-                                  uiOutput('menu_bank_out')),
-                          tabItem(tabName = "menu_explore",
-                                  uiOutput('menu_upload_out')),
-                          tabItem(tabName = "menu_som",
-                                  column(12,uiOutput('menu_som_out'))),
-                          tabItem(tabName = "menu_som2",
-                                  column(12,uiOutput('menu_som2_out'))),
-                          tabItem(tabName = "menu_hc",
-                                  column(12,uiOutput('clustering_panel'))),
-                          tabItem(tabName = "menu_rf",
-                                  uiOutput('menu_rf_out')),
-                          tabItem(tabName = "menu_knn",
-                                  uiOutput('menu_knn_out')),
-                          tabItem(tabName = "menu_sgboost",
-                                  uiOutput('menu_sgboost_out')),
-                          tabItem(tabName = "menu_compare",
-                                  uiOutput('menu_compare_out')),
-                          tabItem(tabName = "menu_ensemble",
-                                  uiOutput('menu_ensemble_out')),
-                          tabItem(tabName = "menu_sim",
-                                  uiOutput('menu_sim_out')),
-                          tabItem(tabName = "menu_kmeans",
-                                  uiOutput('menu_kmeans_out')),
-                          tabItem(  tabName = "menu_maps",
-                                    column(12,uiOutput('map_panel'))
+                            tabItem(tabName = "menu_nb",
+                                    uiOutput('menu_nb_out')),
+                            tabItem(tabName = "menu_svm",
+                                    uiOutput('menu_svm_out')),
+                            tabItem(tabName = "menu_upload",
+                                    uiOutput('menu_bank_out')),
+                            tabItem(tabName = "menu_explore",
+                                    uiOutput('menu_upload_out')),
+                            tabItem(tabName = "menu_som",
+                                    column(12,uiOutput('menu_som_out'))),
+                            tabItem(tabName = "menu_som2",
+                                    column(12,uiOutput('menu_som2_out'))),
+                            tabItem(tabName = "menu_hc",
+                                    column(12,uiOutput('clustering_panel'))),
+                            tabItem(tabName = "menu_rf",
+                                    uiOutput('menu_rf_out')),
+                            tabItem(tabName = "menu_knn",
+                                    uiOutput('menu_knn_out')),
+                            tabItem(tabName = "menu_sgboost",
+                                    uiOutput('menu_sgboost_out')),
+                            tabItem(tabName = "menu_compare",
+                                    uiOutput('menu_compare_out')),
+                            tabItem(tabName = "menu_ensemble",
+                                    uiOutput('menu_ensemble_out')),
+                            tabItem(tabName = "menu_sim",
+                                    uiOutput('menu_sim_out')),
+                            tabItem(tabName = "menu_kmeans",
+                                    uiOutput('menu_kmeans_out')),
+                            tabItem(  tabName = "menu_maps",
+                                      column(12,uiOutput('map_panel'))
 
-                          ),
-                          tabItem(  tabName = "menu_spd",
-                                    column(12,uiOutput('menu_spd_out'))
+                            ),
+                            tabItem(  tabName = "menu_spd",
+                                      column(12,uiOutput('menu_spd_out'))
 
-                          ),
-                          tabItem(tabName = "menu_div",
-                                  column(12,
-                                         uiOutput('menu_div_out'))
-                          ),
-                          tabItem(tabName = "menu_teste",
-                                  column(12,
-                                         uiOutput("menu_teste"))
+                            ),
+                            tabItem(tabName = "menu_div",
+                                    column(12,
+                                           uiOutput('menu_div_out'))
+                            ),
+                            tabItem(tabName = "menu_teste",
+                                    column(12,
+                                           uiOutput("menu_teste"))
+                            )
                           )
-                        )
+                 )
                )
-             )
            )
 
     )
@@ -16287,20 +16296,20 @@ output$hcsom_newdata_mess<-  renderUI({
 
   output$license<-renderUI({
     column(12,
-     column(12, h4(strong('Copyright Notice'), style="color: #05668D;"),
-            p('© 2023 Danilo Candido Vieira and Gustavo Fonseca. All rights reserved.'),
-            p('The content, coding, and related assets associated with the iMESc project are the sole property of the authors, Danilo Candido Vieira and Gustavo Fonseca. Redistribution, modification, commercial use, or any other form of utilization of this project is strictly prohibited without the express written consent of the authors.'),
+           column(12, h4(strong('Copyright Notice'), style="color: #05668D;"),
+                  p('© 2023 Danilo Candido Vieira and Gustavo Fonseca. All rights reserved.'),
+                  p('The content, coding, and related assets associated with the iMESc project are the sole property of the authors, Danilo Candido Vieira and Gustavo Fonseca. Redistribution, modification, commercial use, or any other form of utilization of this project is strictly prohibited without the express written consent of the authors.'),
 
-            h4(strong('License'), style="color: #05668D;"),
-            p("This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license. This license allows others to download the project and share it with others as long as they credit the authors, but they can't change it in any way or use it commercially."),
+                  h4(strong('License'), style="color: #05668D;"),
+                  p("This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license. This license allows others to download the project and share it with others as long as they credit the authors, but they can't change it in any way or use it commercially."),
 
-            h4(strong("Disclaimer"), style="color: #05668D;"),
-            p("The iMESc application ('the software') is provided 'as-is', without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software."),
+                  h4(strong("Disclaimer"), style="color: #05668D;"),
+                  p("The iMESc application ('the software') is provided 'as-is', without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software."),
 
-            p("While efforts have been made to ensure the accuracy and reliability of the software, the authors cannot guarantee that the software will always operate error-free or that it is completely secure. Users are advised to exercise their own skill and care with respect to their use of the software."),
+                  p("While efforts have been made to ensure the accuracy and reliability of the software, the authors cannot guarantee that the software will always operate error-free or that it is completely secure. Users are advised to exercise their own skill and care with respect to their use of the software."),
 
-            p("The software may contain links to other websites or resources. The authors are not responsible for the availability of such external sites or resources, and do not endorse and are not responsible or liable for any content, advertising, products, or other materials on or available from such sites or resources.")
-     ))
+                  p("The software may contain links to other websites or resources. The authors are not responsible for the availability of such external sites or resources, and do not endorse and are not responsible or liable for any content, advertising, products, or other materials on or available from such sites or resources.")
+           ))
   })
   output$menu_spd2_out<-renderUI({
     res<module_ui_spd("spd")
@@ -17289,7 +17298,7 @@ output$hcsom_newdata_mess<-  renderUI({
         #p(em("by: Danilo C Vieira")),
         style="background: transparent; color: white",
         inline(uiOutput("imesc_footer")),
-       inline(tipify(uiOutput("qnote"),"Creates a note for the Datalist", placement = 'top'))
+        inline(tipify(uiOutput("qnote"),"Creates a note for the Datalist", placement = 'top'))
     )
   })
 
@@ -17416,7 +17425,7 @@ output$hcsom_newdata_mess<-  renderUI({
 
   observeEvent(input$dimension,{
     delay(500,{vals$dimension_display<-input$dimension})
-    })
+  })
 
 
 
@@ -17430,7 +17439,7 @@ output$hcsom_newdata_mess<-  renderUI({
   })
 
   #final <- Sys.time()
- # tempo_carregamento_pacotes <- middle - inicio
+  # tempo_carregamento_pacotes <- middle - inicio
   #tempo_carregamento_server <- final - middle
 
 

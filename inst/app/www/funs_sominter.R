@@ -1739,3 +1739,29 @@ train.summary_fun<- function(m){
 }
 
 
+brayCurtisDissim<-function(data, codes, n, nNA) {
+  if (nNA > 0) return(NA)
+  num <- 0.0
+  denom <- 0.0
+  for (i in seq_len(n)) {
+    num <- num + abs(data[i] - codes[i])
+    denom <- denom + data[i] + codes[i]
+  }
+
+  return(num/denom)
+}
+
+BrayCurtis<-function() {
+  return(brayCurtisDissim)
+}
+
+BrayCurtis<-function(){
+  maxNA.fraction<-0L
+  prefab.idx<-1
+  dist.fcts<-prefabDists <- c("BrayCurtis")
+  dist.ptrs <- vector(length(dist.fcts), mode = "list")
+  dist.ptrs[prefab.idx]<-kohonen:::CreateStdDistancePointers(factor(dist.fcts[prefab.idx],
+                                                                    levels = prefabDists), maxNA.fraction > 0L)
+
+  dist.ptrs[[prefab.idx]]
+}

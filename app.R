@@ -1,5 +1,4 @@
-#
-# Launch the ShinyApp (Do not remove this comment)
+
 
 source("inst/app/www/global.R")
 source("R/app_ui.R")
@@ -22,5 +21,3 @@ if(!length(grep("connect/apps",getwd()))>0){
   shiny::shinyApp(imesc:::app_ui(), imesc:::app_server)
 }
 
-#shiny::runGitHub('imesc_beta','DaniloCVieira')
-#shiny::runGitHub('iMESc','DaniloCVieira')

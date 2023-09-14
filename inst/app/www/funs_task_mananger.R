@@ -1,0 +1,150 @@
+
+my_object.size<-function(x,dlm_getsize=T){
+  if(isTRUE(dlm_getsize)){
+    object.size(x)
+  } else{
+    NULL
+  }
+}
+getclass_names<-function(i,attrx){
+  if (i %in% c("som", "rf", "svm", "nb", "knn", "kmeans", "sgboost", "xyf")) "model-attribute"
+  else if (i == "extra_shape") "shape list"
+  else paste0(class(attrx[[i]])[1], collapse = "; ")
+}
+divstru_dl<-function(attrx_sizes,datalist_name,i,total_size=total_size,class_name,dlm_getsize, link=T){
+  div(
+    inline(div(class = 'link_mananger')),
+    if(isTRUE(link)){
+
+      actionLink(ns_attr_name(paste0(datalist_name, i)), strong(i))
+    }else{
+      i
+    },
+    if(isTRUE(dlm_getsize)){
+      if(i=="numeric"){
+        span(myformat(vals$datalist_sizes[[vals$data_dlmX]]-sum(unlist(attrx_sizes)), "auto", total_size = total_size))
+      } else{
+        span(myformat(attrx_sizes[[i]], "auto", total_size = total_size))
+      }
+    },
+
+
+    if(length(class_name)>0)
+      if(class_name=="data.frame")
+        actionLink(ns_attr_down(paste0(datalist_name, i)), icon('fas fa-download')),
+
+    if(!i%in%c("factors","numeric")){
+      actionLink(ns_attr_trash(paste0(datalist_name, i)), icon('fas fa-trash'))
+    }
+
+  )
+}
+divstru_model<-function(attrx,datalist_name, i, j,x,class_attr){
+  style="display: none"
+  if (i != "som")
+    div(
+      id = ns_model_out(paste0(datalist_name, i, x)),
+      style = style,
+      div(style = "margin-left: 20px",
+          inline(div(class = 'link_mananger')),
+          "class=", class_attr,
+          if (class_attr == "train") div(style = "margin-left: 20px", div(class = 'link_mananger'), "finalModel class=", class(attrx[[i]][[j]][[1]]$finalModel)[1])
+      )
+    )
+
+}
+divstru_feat<-function(attrx,datalist_name,i,j,x,dlm_getsize){
+
+  if ( 'feature_rands' %in% names(attrx[[i]][[j]]))
+    div(
+      style = "margin-left: 20px",
+      div(class = 'link_mananger'),
+      'Permutation importance=',
+      myformat(my_object.size(attrx[[i]][[j]]$feature_rands,dlm_getsize=dlm_getsize), "auto", total_size = datalist_bytes()),
+      actionLink(ns_feature_down(paste0(datalist_name, i, x)), icon('fas fa-download')),
+      actionLink(ns_feature_trash(paste0(datalist_name, i, x)), icon('fas fa-trash'))
+    )
+}
+divstru_attr<-function(datalist_name,i,x,obj_size,total_size){
+  div(
+    actionLink(ns_model_name(paste0(datalist_name, i, x)), x),
+    myformat(obj_size, "auto", total_size =total_size),
+    actionLink(ns_model_trash(paste0(datalist_name, i, x)), icon('fas fa-trash'))
+
+  )
+}
+divstru_attributes<-function(attrx,i,j,x,datalist_name,class_attr,dlm_getsize,obj_size,total_size,names_list){
+  div(
+
+    div(
+      style = "margin-left: 20px",
+      div(
+        inline(div(class = 'link_mananger')),
+        inline(divstru_attr(datalist_name,i,x,obj_size,total_size))
+      ),
+
+      if (i %in% c("extra_shape", "som")) div(style = "margin-left: 20px", "class=", class_attr),
+
+      divstru_model(attrx,datalist_name, i, j,x,class_attr),
+      divstru_feat(attrx,datalist_name,i,j,x,dlm_getsize)
+
+    )
+  )
+}
+div2<-function(attrx,datalist_name,i,dlm_getsize,class_name,names_list,total_size,vals){
+  style="display: none"
+  div(
+    id = ns_attr_out(paste0(datalist_name, i)),
+    style = style,
+
+    div(style = "margin-left: 20px",
+        div('class=', em(class_name),
+            if(class_name=="data.frame"){
+              if(i=="numeric"){
+                di<-dim(vals$saved_data[[vals$data_dlmX]])
+              } else{
+                di<-dim(attrx[[i]])
+              }
+              paste0("(",paste0(di, collapse="x"),")")}
+
+        ),
+        div(if (i %in% c("som", "rf", "svm", "nb", "knn", "kmeans", "sgboost", "xyf")) div("Number of models:", em(length(names_list)))),
+
+        if(vals$data_dlmX!="Saved Ensembles"){
+          if (class(attrx[[i]])[[1]] == "list") {
+            lapply(1:length(names_list), function(j) {
+              x<-names_list[[j]]
+              obj_size<-my_object.size(attrx[[i]][[j]],dlm_getsize=dlm_getsize)
+              class_attr<-class(attrx[[i]][[j]][[1]])[1]
+              divstru_attributes(attrx,i,j,x,datalist_name,class_attr,dlm_getsize,obj_size,total_size,names_list)
+            })
+          }
+        }
+    )
+  )
+}
+myformat<-function(x, ..., total_size) {
+  if(!is.null(x)){
+    color = colorRampPalette(c("Blue", "Red"))(100)[round(as.numeric(x) / as.numeric(total_size) *
+                                                            100)]
+    style = paste0("color: ", color)
+    em(format(x, "auto"), style = style)
+  } else{  }
+
+}
+
+ns_dl_box<-NS("dlm_box")
+ns_dl_name<-NS("dlm_name")
+ns_dl_trash<-NS("dlm_trash")
+ns_dl_out<-NS("dlm_out")
+ns_attr_name<-NS("dlm_attr_name")
+ns_attr_trash<-NS("dlm_attr_trash")
+ns_attr_out<-NS("dlm_attr_out")
+ns_model_name<-NS("dlm_model_name")
+ns_model_out<-NS("dlm_model_out")
+ns_model_trash<-NS("dlm_model_trash")
+ns_feature_trash<-NS("dlm_feature_trash")
+
+
+ns_attr_down<-NS("dlm_attr_down")
+ns_feature_down<-NS("dlm_feat_down")

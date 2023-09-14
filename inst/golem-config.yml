@@ -1,0 +1,11 @@
+default:  
+  golem_name: imesc
+  golem_version: 2.1
+  app_prod: no
+
+production: 
+  app_prod: yes
+  
+dev: 
+  golem_wd: !exp here::here()
+

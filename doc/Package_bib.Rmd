@@ -1,0 +1,11 @@
+---
+title: "Package_bib"
+output: html_document
+bibliography: packages.bib  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# References

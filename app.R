@@ -5,7 +5,7 @@ if(!length(grep("connect/apps",getwd()))>0){
   remotes::install_deps(upgrade="never")
   pkgload::load_all(export_all = FALSE,quiet =T,warn_conflicts =F)
   options(shiny.autoload.r=FALSE)
-  imesc::run_app(options=list(quiet=T,shiny.autoload.r=FALSE, test.mode=T
+  imesc::run_app(options=list(quiet=T,shiny.autoload.r=FALSE, 
                               #,launch.browser=T
   ))
 } else{

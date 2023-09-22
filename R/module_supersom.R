@@ -3013,12 +3013,15 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     p
   })
   output$pchanges <- renderPlot({
+    req(length(vals$som_results)>0)
     pchanges(vals$som_results)
   })
   output$pcounts <- renderPlot({
+    req(length(vals$som_results)>0)
     pcounts(vals$som_results)
   })
   output$pUmatrix <- renderPlot({
+    req(length(vals$som_results)>0)
     pUmatrix(vals$som_results)
   })
   output$pproperty <- renderPlot({

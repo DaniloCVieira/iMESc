@@ -20,7 +20,7 @@ module_ui_desctools<-function(id){
 # Server
 #' @export
 module_server_desctools<-function (input,output,session,vals,df_colors,newcolhabs,df_symbol ){
-  source("inst/app/www/funs_ordination_plot.R")
+
   ns<-session$ns
   pw_icon <- base64enc::dataURI(file = "inst/app/www/pwRDA_icon.png", mime = "image/png")
   smw_icon <- base64enc::dataURI(file = "inst/app/www/smw_icon.png", mime = "image/png")
@@ -336,7 +336,6 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
 
 
   output$dtab_pca<-renderUI({
-    validate(need(!anyNA(getdata_descX()), "This functionality does not support missing values; Please use the transformation tool to the handle missing values."))
 
     div(
       tabsetPanel(
@@ -566,6 +565,8 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
 
 
   output$pca_btn<-renderUI({
+    validate(need(!anyNA(getdata_descX()), "This functionality does not support missing values; Please use the transformation tool to the handle missing values."))
+
     div(style="margin: 0px; padding: 0px",class="col-sm-12",
       div(class="col-sm-4",style="margin: 0px; padding: 0px",
         div(class="well2",style="padding-left: 10px;  padding-right: 0px; ",align="right",
@@ -1655,7 +1656,7 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
 
 
   observeEvent(args_corrplot(),{
-    graphics.off()
+
     req(input$run_cor)
     runval$corr<-"save_changes_nice"
   })
@@ -1663,16 +1664,17 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
   observeEvent(input$run_cor,{
     args<-args_corrplot()
     try({
+      plot.new()
+      dev.control("enable")
+
       do.call(i_corplot,args)
       vals$plot_correlation<-recordPlot()
+      dev.off()
     })
     runval$corr<-"btn_nice"
   })
   args_corrplot<-reactive({
     cordata=get_corrdata()
-
-
-
     args<-list(cordata=cordata,
                newcolhabs=vals$newcolhabs,
                cor_palette=input$cor_palette,
@@ -1699,10 +1701,11 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
   })
 
   output$corr_plot<-renderUI({
+    req(class(vals$plot_correlation)=="recordedplot")
     div(
 
       renderPlot({
-        vals$plot_correlation
+        replayPlot(vals$plot_correlation)
 
       })
     )

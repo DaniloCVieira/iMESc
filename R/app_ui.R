@@ -314,7 +314,7 @@ div(
   div(
 
 
-    uiOutput("change_head"),
+    uiOutput("change_head_out"),
     uiOutput("change_background"),
   ),
   div(id="main_panel",class="needed",

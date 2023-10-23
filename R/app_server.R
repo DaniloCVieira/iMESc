@@ -9876,6 +9876,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
           scalesize_color=scalesize_color())
   })
 
+
   map_data_disc_args<-reactive({
     req(input$long_xmin)
     req(input$lat_xmin)
@@ -9914,6 +9915,14 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
     if(isTRUE(input$pizza_map)){
       factors<-attr(vals$saved_data[[input$data_map]],"factors")
       pizza_fac<-factors[filtermap(),input$pizza_fac]
+    }
+    layer_col_border<-input$layer_col_border
+    layer_col<-input$layer_col
+    if(is.null(layer_col)){
+      layer_col<-"gray"
+    }
+    if(is.null(layer_col_border)){
+      layer_col_border<-"gray"
     }
 
     args<-
@@ -9954,7 +9963,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
           c(input$long_xmin,  input$lat_xmin),
           c(input$long_xmax,  input$lat_xmax)
         ),
-        layer_col=getcolhabs(vals$newcolhabs,input$layer_col,1),
+        layer_col=getcolhabs(vals$newcolhabs,layer_col,1),
         lighten=input$layer_lighten,
         base_col=getcolhabs(vals$newcolhabs,input$base_col,1),
         base_lighten=input$base_lighten,
@@ -9967,7 +9976,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
         keyscale=input$keyscale,
         width_hint=input$scabarsize,
         cex_scabar=input$scabartextsize,
-        layer_shape_border=getcolhabs(vals$newcolhabs,input$layer_col_border,1),
+        layer_shape_border=getcolhabs(vals$newcolhabs,layer_col_border,1),
         base_shape_border= getcolhabs(vals$newcolhabs,input$base_col_border,1),
         cex.main=input$pt_titlemap,
         pie=input$pizza_map,

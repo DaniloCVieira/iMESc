@@ -3,7 +3,7 @@
 module_ui_kmeans <- function(id){
   ns<-NS(id)
   div(class='choosechannel',
-       #  inline( actionButton(ns("teste_comb"),"SAVE")),
+        # inline( actionButton(ns("teste_comb"),"SAVE")),
          div(span(
            inline(uiOutput(ns('kmeans_inputs')))
          )) ,
@@ -107,6 +107,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
   observeEvent(ignoreInit = T,input$kmeans_models,{
 
     req(input$data_kmeans)
+    req(input$kmeans_models!="new kmeans (unsaved)")
     models<-attr(vals$saved_data[[input$data_kmeans]],"kmeans")
 
     data<-vals$saved_data[[input$data_kmeans]]
@@ -199,7 +200,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
     hc<-get_hc()
     if(isFALSE(input$hc_sort)){
       vals$kmeans_clusters<-hc$somC
-      return(hc)
+
     } else{
       som.hc_names<-names(hc$som.hc)
       somC_names<-names(hc$somC)
@@ -209,8 +210,9 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
       hc$som.hc<-hc$som.hc[som.hc_names]
       hc$somC<-hc$somC[somC_names]
       vals$kmeans_clusters<-hc$somC
-      hc
+
     }
+    hc
   })
 
 
@@ -325,7 +327,9 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
       NULL
     }
 
-    b <-    if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"SOM-codebook"}else{NULL}
+    b <-    if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"SOM-codebook"}else{
+
+      NULL}
     res <- c(a, b)
     res
   })
@@ -337,7 +341,9 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
       NULL
     }
 
-    b <-    if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"som codebook"}else{NULL}
+    b <-    if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"som codebook"}else{
+      vals$model_or_data<-"data"
+      NULL}
     res <- c(a, b)
     res
   })
@@ -373,15 +379,10 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
                inline(
                  div(class="align_hc",uiOutput(ns("kmeans_alg")))
                ),
-               inline(
-                 div(class="align_hc",
-                     div("Seed"),
-                     numericInput(ns("kmeans_seed"),NULL,value=NA,width="80px"))
-               ),
-
+               inline(uiOutput(ns("kmeans_seed"))),
                div(style="padding-left: 50px",
                  inline(uiOutput(ns("kmeans_runs"))),
-                 inline(uiOutput(ns('kmeans_models'))),
+                 inline(uiOutput(ns('kmeans_models_out'))),
                  inline(uiOutput(ns('save_kmeans_models'))),
                  inline(uiOutput(ns('trash_kmeans')))
                )
@@ -394,6 +395,13 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
            )
 
     )
+  })
+
+  output$kmeans_seed<-renderUI({
+    req(input$model_or_data)
+    div(class="align_hc",
+        div("Seed"),
+        numericInput(ns("kmeans_seed"),NULL,value=NA,width="80px"))
   })
 
   output$trash_kmeans<-renderUI({
@@ -418,16 +426,18 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
     }
   })
 
-  output$kmeans_models<-renderUI({
+  output$kmeans_models_out<-renderUI({
+    req(input$model_or_data)
     req(input$kmeans_tab=='kmeans_tab1')
     req(input$data_kmeans)
     data<-vals$saved_data[[input$data_kmeans]]
     choices<-names(attr(data,"kmeans"))
-    req(length(choices)>0)
+    #req(length(choices)>0)
     pickerInput(ns("kmeans_models"),NULL,
                 choices = choices,selected=vals$kmeans_models,width="200px")
 
   })
+
 
 
   output$save_kmeans_models<-renderUI({
@@ -468,6 +478,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
 
 
   output$kmeans_runs<-renderUI({
+    req(input$model_or_data)
     switch (input$kmeans_tab,
             'kmeans_tab1' =inline(actionButton(ns("kmeans_run"),"RUN"))
 
@@ -696,16 +707,14 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
     points(data.frame(Cluster=clu,data),col="black",bg=colors, pch=21)
 
   })
+
+
   output$pdata_plot<-renderPlot({
     req(input$data_kmeans)
     req(!is.null(vals$k_means_results))
     req(input$model_or_data=="data")
     target<-attr(getkmodel(),"data")
-
-    if(is.null(vals$kmeans_clusters)){
-
-      vals$kmeans_clusters<-phc()$somC
-    }
+    vals$kmeans_clusters<-phc()$somC
 
 
     #library("factoextra")
@@ -965,7 +974,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
 
 
   observeEvent(list(input$data_kmeans,input$km_centers,input$km_itermax,input$km_nstart,input$km_alg,input$model_or_data, input$k.max),{
-    #vals$k_means_results<-NULL
+    vals$k_means_results<-NULL
     #vals$k_means_results<-NULL
     #vals$kmeans_elbow<-NULL
 
@@ -1018,6 +1027,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
 
 
     try({
+
       if (!is.na(input$kmeans_seed)) {set.seed(input$kmeans_seed)}
       centers<-input$km_centers
       data<-getdata_kmeans()
@@ -1115,7 +1125,6 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
   observeEvent(ignoreInit = T,input$som_kmeans,{ vals$som_kmeans<-input$som_kmeans})
   output$somkmeans<-renderUI({
     req(input$data_kmeans)
-    req(input$model_or_data)
     req(input$model_or_data)
     req(input$model_or_data=='som codebook')
     data=vals$saved_data[[input$data_kmeans]]
@@ -1300,12 +1309,7 @@ module_server_kmeans <- function (input, output, session,vals,df_colors,newcolha
   savereac<-reactive({
 
     tosave<-isolate(reactiveValuesToList(vals))
-    tosave<-tosave[-which(names(vals)%in%c("saved_data","newcolhabs",'colors_img'))]
-    tosave<-tosave[-which(unlist(lapply(tosave,function(x) object.size(x)))>1000)]
-    tosave$saved_data<-vals$saved_data
-    tosave$newcolhabs<-vals$newcolhabs
-    tosave$colors_img<-vals$colors_img
-    tosave$k_means_result<-vals$k_means_results
+
     saveRDS(tosave,"savepoint.rds")
     saveRDS(reactiveValuesToList(input),"input.rds")
 

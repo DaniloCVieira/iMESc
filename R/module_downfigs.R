@@ -23,7 +23,21 @@ module_server_figs <- function (input, output, session,vals,file="",datalist_nam
 
   fn_download <- function()
   {
+    vals$fres<-input$fres
+    vals$fwidth<-input$fwidth
+    vals$fheight<-input$fheight
+    vals$pointsize<-input$pointsize
+    vals$fformat<-input$fformat
+    vals$fig_preview<-input$fig_preview
 
+    fn_downloadf<-fn_downloadf()
+    #saveRDS(fn_downloadf,"fn_downloadf.rds")
+    #saveRDS(reactiveValuesToList(input),'input.rds')
+
+
+    #fn_downloadf<-readRDS("fn_downloadf.rds")
+    #input<-readRDS("input.rds")
+    #vals<-readRDS("vals.rds")
     fheight <- input$fheight
     fwidth <- input$fwidth
     fres <- as.numeric(input$fres)
@@ -320,48 +334,33 @@ module_server_figs <- function (input, output, session,vals,file="",datalist_nam
 
   },deleteFile=TRUE)
 
-  observeEvent(input$fheight,ignoreInit = T,{
-    vals$fheight<-input$fheight
+  observeEvent(input$fheight,{})
+  observeEvent(input$fwidth,{})
+  observeEvent(input$fres,{
+
   })
-  observeEvent(input$fwidth,ignoreInit = T,{
-    vals$fwidth<-input$fwidth
-  })
-  observeEvent(input$fres,ignoreInit = T,{
-    vals$fres<-input$fres
-  })
-  observeEvent(input$pointsize,ignoreInit = T,{
-    vals$pointsize<-input$pointsize
-  })
-  observeEvent(input$fformat,ignoreInit = T,{
-    vals$fformat<-input$fformat
-  })
-  observeEvent(input$fig_preview,ignoreInit = T,{
+  observeEvent(input$pointsize,{})
+  observeEvent(input$fformat,{})
+  observeEvent(input$fig_preview,{
+
     vals$fig_preview<-input$fig_preview
   })
 
-  output$out_fheight<-renderUI({
-    numericInput(ns("fheight"), "Height (cm)", min=2,  step=1, value = vals$fheight)
-  })
+  output$out_fheight<-renderUI({})
   output$out_fwidth<-renderUI({
-    numericInput(ns("fwidth"), "Width (cm)", min=2,  step=1, value = vals$fwidth)
+
   })
-  output$out_fres<-renderUI({
-    selectInput(ns("fres"), "Res", choices=c("100","200","300"), selected = vals$fres)
-  })
-  output$out_pointsize<-renderUI({
-    numericInput(ns("pointsize"), "pointsize",value=vals$pointsize,step=1)
-  })
-  output$out_fformat<-renderUI({
-    selectInput(ns("fformat"), "File type", choices=c("png","tiff","jpeg","pdf","svg"), selected =vals$fformat, multiple = FALSE, selectize = TRUE)
-  })
+
+
 
   output$fig_specifications<-renderUI({
     splitLayout(
-      uiOutput(ns("out_fheight")),
-      uiOutput(ns("out_fwidth")),
-      uiOutput(ns("out_fres")),
-      uiOutput(ns("out_pointsize")),
-      uiOutput(ns("out_fformat")),
+
+      numericInput(ns("fheight"), "Height (cm)", min=2,  step=1, value = vals$fheight),
+      numericInput(ns("fwidth"), "Width (cm)", min=2,  step=1, value = vals$fwidth),
+      numericInput(ns("fres"), "Res", value=vals$fres,step=50),
+      numericInput(ns("pointsize"), "pointsize",value=vals$pointsize,step=1),
+      selectInput(ns("fformat"), "File type", choices=c("png","tiff","jpeg","pdf","svg"),selected=vals$fformat),
       div(style="margin-top: 25px",class="save_changes",downloadButton(ns("bn_download"),"Download")),
 
     )
@@ -399,7 +398,7 @@ module_server_figs <- function (input, output, session,vals,file="",datalist_nam
     showModal({
       if(is.null(vals$fheight)){vals$fheight<-15}
       if(is.null(vals$fwidth)){vals$fwidth<-20}
-      if(is.null(vals$fres)){vals$fres<-"100"}
+      if(is.null(vals$fres)){vals$fres<-100}
       if(is.null(vals$pointsize)){vals$pointsize<-12}
       if(is.null(vals$fformat)){vals$fformat<-"pdf"}
       if(is.null(vals$fig_preview)){vals$fig_preview<-T}
@@ -414,7 +413,7 @@ module_server_figs <- function (input, output, session,vals,file="",datalist_nam
             div(class="remove_modal", actionLink(ns("remove_modal"),"[x] close",style="position: absolute; top: 0px; right: 0px; padding: 10px; ")))
       })
 
-      observeEvent(input$remove_modal,ignoreInit = T,{
+      observeEvent(input$remove_modal,{
         if(input$remove_modal%%2)
           removeModal()
       })
@@ -459,9 +458,11 @@ module_server_figs <- function (input, output, session,vals,file="",datalist_nam
 
 
   output$prevbutton<-renderUI({
-    req(length(vals$hand_plot)>0)
+    #req(length(vals$hand_plot)>0)
+    fheight <- input$fheight
+    fwidth <- input$fwidth
+    fres <- as.numeric(input$fres)
     div(
-
       div(checkboxInput(ns("fig_preview"),span("Render preview"),value=T)),
 
     )

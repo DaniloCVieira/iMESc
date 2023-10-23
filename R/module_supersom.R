@@ -811,11 +811,6 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
 
 
-  output$pred_bmu00<-renderUI({
-    renderPlot({
-      plot(get_som_model_pred(), shape="straight",type ="mapping")
-    })
-  })
 
 
 
@@ -837,7 +832,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
   output$bmu_plot_side<-renderUI({
 
     # req(input$model_or_data=="som codebook")
-    div(class="map_control_style",style="color: #05668D",
+    div(class="map_control_style2",style="color: #05668D",
         uiOutput(ns("ss1_side_somplot")),
         uiOutput(ns("bmu_down_links")))
   })
@@ -845,18 +840,43 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
 
   {
+    output$bmu_down_links<-renderUI({
+      div(
+        div(actionLink(ns('downp_bmu'),"Download plot")),
+        div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
+        div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
+        )
+    })
+
+
+    observeEvent(ignoreInit = T,input$create_vfm_results,{
+      vals$hand_save<-"Create Datalist  - Variables from VFM"
+      m<-getsom()
+      vals$hand_save2<-NULL
+      if(length(m$data>1)){
+        vals$hand_save2<-"Note that the trained SOM is composed by multiple layers. Variables from different layers will be merged (cbind) into a single Datalist"
+      }
+
+      vals$hand_save3<-NULL
+      showModal(module_som())
+    })
+
+
     output$ss1_side_somplot<-renderUI({
-
-
-
-      div(class="map_control_style",style="color: #05668D",
+      div(class="map_control_style2",style="color: #05668D;height: 380px; overflow-y: scroll",
           div(
-
-
-            uiOutput(ns('ss1_umapro')),
+            div(style="border-bottom: 1px solid gray;",
+                uiOutput(ns('ss1_umapro')),
+                uiOutput(ns('ss1_property_layer')),
+                uiOutput(ns("ss1_var_pproperty"))),
             uiOutput(ns("ss1_hc_ordcluster")),
-            uiOutput(ns('ss1_hc_palette')),
 
+            div(style='border-bottom: 1px solid gray;',
+                uiOutput(ns('ss1_unit_palette')),
+                uiOutput(ns('ss1_unit_ligh')),
+                uiOutput(ns('ss1_unit_bord')),
+                uiOutput(ns('ss1_base_size_out'))
+            ),
 
             div(
               style='border-bottom: 1px solid gray',
@@ -876,27 +896,27 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
             div(
               uiOutput(ns("ss1_vfm_check"))
             ),
-            uiOutput(ns("ss1_showerrors_som")),
+
             uiOutput(ns("ss1_theme")),
             uiOutput(ns("ss1_title"))
 
 
           ))
     })
-    output$ss1_hc_palette<-renderUI({
+    output$ss1_unit_palette<-renderUI({
       choices<-ss1_get_choices_pal()
       title<-attr(choices,"title")
-      div(style='border-bottom: 1px solid gray;',
-          div(class="palette",
-              title,
-              pickerInput(inputId = ns("ss1_bg_palette"),
-                          label =NULL,
-                          choices =  vals$colors_img$val[choices],
-                          selected=vals$somplot_bg,
-                          choicesOpt = list(
-                            content =  vals$colors_img$img[choices] ),
-                          options=list(container="body"), width="100px")),
-          uiOutput(ns("ss1_pcodes_bgalpha"))
+      req(input$ss1_somback_value)
+      selected<-ifelse(input$ss1_somback_value=="None","gray","viridis")
+      div(
+          pickerInput(inputId = ns("ss1_bg_palette"),
+                      label =title,
+                      choices =  vals$colors_img$val[choices],
+                      selected=selected,
+                      choicesOpt = list(
+                        content =  vals$colors_img$img[choices] ),
+                      options=list(container="body"))
+
 
       )
     })
@@ -915,9 +935,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
                     value=vals$pclus_addtext)
     })
     output$ss1_title<-renderUI({
-      div("+ Title: ",
-          inline(textInput(ns("ss1_title"), NULL, "", width="200px"))
-      )
+      textInput(ns("ss1_title"), "+ Title: ", "")
     })
     output$ss1_theme<-renderUI({
       if(is.null(vals$theme)){
@@ -932,10 +950,13 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
       )
     })
     output$ss1_umapro<-renderUI({
+      div(style='border-top: 1px solid gray; ',
+          div(class="map_control_style",
+            style="font-size: 14px; margin-bottom: 5px",
+            div(strong("+ Unit value:"), style="margin-bottom: 5px; height: 24px"),
+            radioButtons(ns("ss1_somback_value"),NULL,list("None"="None","U-Matrix"="uMatrix","Property"="property"), selected=vals$ss1_somback_value)
 
-
-      div(style='border-bottom: 1px solid gray; border-top: 1px solid gray; ',
-          inline(uiOutput(ns('ss1_somback_value')))
+          )
       )
     })
     output$ss1_plus_umatrix <- renderUI({
@@ -945,48 +966,25 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     observeEvent(ignoreInit = T,input$ss1_somback_value,{
       vals$ss1_somback_value<-input$ss1_somback_value
     })
-    output$ss1_somback_value <- renderUI({
 
-
-
-      div(
-        style="font-size: 14px; margin-bottom: 5px",
-        div(strong("+ Background value:"), style="margin-bottom: 5px; height: 24px"),
-        radioButtons(ns("ss1_somback_value"),NULL,list("None"="None","U-Matrix"="uMatrix","Property"="property"), selected=vals$ss1_somback_value),
-        uiOutput(ns("ss1_var_pproperty"))
-
-      )
-    })
     output$ss1_var_pproperty<-renderUI({
       req(input$ss1_somback_value=="property")
-
-      div(style="width: 250px;margin-left: 25px; margin-bottom: 10px",class='small_picker',
-          div(style="","Layer:",inline(uiOutput(ns('ss1_property_layer')))),
-          div(style="width: 300px",
-              "Variable:",
-              inline(
-                div(
-                  inline(uiOutput(ns('ss1_prev_property'))),
-                  inline(
-                    uiOutput(ns('ss1_out_variable_pproperty'))),
-                  inline(uiOutput(ns('ss1_next_property')))
-
-                )
-              ))
-
+      div(
+        inline(uiOutput(ns('ss1_prev_property'))),
+        inline(
+          uiOutput(ns('ss1_out_variable_pproperty'))),
+        inline(uiOutput(ns('ss1_next_property')))
 
       )
     })
-    observeEvent(ignoreInit = T,input$ss1_property_layer,{
-      vals$ss1_property_layer<-input$ss1_property_layer
-    })
+
     output$ss1_property_layer<-renderUI({
+      req(input$ss1_somback_value=="property")
       choices = names(getsom()$data)
       req(length(choices)>0)
       pickerInput(ns("ss1_property_layer"),
-                  label = NULL,
-                  choices = choices,
-                  selected=vals$ss1_property_layer
+                  label = "Layer:",
+                  choices = choices
       )
     })
     ss1_getdata_layer<-reactive({
@@ -1003,9 +1001,8 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
       choices<-colnames(ss1_getdata_layer())
       div(id="ssom_property",
           pickerInput(ns("ss1_variable_pproperty"),
-                      label = NULL,
-                      choices = choices,
-                      selected=vals$variable_pproperty
+                      label = "Variable:",
+                      choices = choices
           )
       )
     })
@@ -1022,200 +1019,154 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     output$ss1_pclus_points_inputs<-renderUI({
       req(isTRUE(input$ss1_pclus_addpoints))
       div(
-        div("+ Palette",inline(uiOutput(ns("ss1_pclus_points_palette")))),
-        div("+ Factor",inline(uiOutput(ns("ss1_pclus_points_factor_out")))),
-        div("+ Shape",inline(uiOutput(ns("ss1_pclus_points_shape")))),
-        div("+ Size",inline(uiOutput(ns("ss1_pclus_points_size"))))
+        uiOutput(ns("ss1_pclus_points_palette")),
+        uiOutput(ns("ss1_pclus_points_factor_out")),
+        uiOutput(ns("ss1_pclus_points_shape")),
+        uiOutput(ns("ss1_pclus_points_size"))
       )
     })
     output$ss1_pclus_points_palette<-renderUI({
-
-      if(is.null(vals$pclus_points_palette)){vals$pclus_points_palette<-"black"}
-      inline(
-        tipify(pickerInput(inputId = ns("ss1_pclus_points_palette"),
-                           label =NULL,
-                           choices = vals$colors_img$val,
-                           choicesOpt = list(content = vals$colors_img$img),
-                           selected=vals$pclus_points_palette,
-                           options=list(container="body"), width="75px"),
-               "Symbol colors"
-        )
-      )
+      pickerInput(inputId = ns("ss1_pclus_points_palette"),
+                  label ="+ Palette",
+                  choices = vals$colors_img$val,
+                  choicesOpt = list(content = vals$colors_img$img),
+                  selected="black",
+                  options=list(container="body"))
     })
     output$ss1_pclus_points_factor_out<-renderUI({
       req(input$ss1_pclus_points_palette)
       choices<-c(colnames(attr(vals$saved_data[[input$data_som]],"factors")))
-
-
-      inline(
-        pickerInput(ns("ss1_pclus_points_factor"),NULL,
-                    choices = c(choices),selected=vals$pclus_points_factor,width="150px")
-      )
+      pickerInput(ns("ss1_pclus_points_factor"),"+ Factor",
+                  choices = c(choices),selected=vals$pclus_points_factor)
 
 
     })
     output$ss1_pclus_points_shape<-renderUI({
-      tipify(pickerInput(inputId = ns("ss1_pclus_symbol"),
-                         label = NULL,
-                         choices = df_symbol$val,
-                         choicesOpt = list(content = df_symbol$img),
-                         options=list(container="body"), width="100px",
-                         selected=vals$pclus_symbol)
-             ,"symbol shape")
+      pickerInput(inputId = ns("ss1_pclus_symbol"),
+                  label = "+ Shape",
+                  choices = df_symbol$val,
+                  choicesOpt = list(content = df_symbol$img),
+                  options=list(container="body"))
     })
-    output$ss1_pclus_points_size<-renderUI({
-      if(is.null(vals$pclus_points_size)){vals$pclus_points_size<-1}
-      inline(
-        tipify(numericInput(ns("ss1_pclus_points_size"),NULL,value = vals$pclus_points_size,min = 0.1,max = 3,step = .1, width="100px"),"symbol size")
-      )
+    output$ss1_pclus_points_size<-renderUI({  1
+      numericInput(ns("ss1_pclus_points_size"),"+ Size",value = 1,min = 0.1,max = 3,step = .1)
     })
     output$ss1_pclus_text_inputs<-renderUI({
       req(isTRUE(input$ss1_pclus_addtext))
       div(
-        div("+ Palette",inline(uiOutput(ns("ss1_pclus_text_palette")))),
-        div("+ Factor",inline(uiOutput(ns("ss1_pclus_text_factor_out")))),
-        div("+ Size",inline(uiOutput(ns("ss1_pclus_text_size"))))
+        uiOutput(ns("ss1_pclus_text_palette")),
+        uiOutput(ns("ss1_pclus_text_factor_out")),
+        uiOutput(ns("ss1_pclus_text_size"))
       )
     })
     output$ss1_pclus_text_palette<-renderUI({
-
-      if(is.null(vals$pclus_text_palette)){vals$pclus_text_palette<-"black"}
-      inline(
-        tipify(pickerInput(inputId = ns("ss1_pclus_text_palette"),
-                           label =NULL,
-                           choices =  vals$colors_img$val[getsolid_col()],
-                           selected=vals$pclus_text_palette,
-                           choicesOpt = list(
-                             content =  vals$colors_img$img[getsolid_col()] ),
-                           options=list(container="body"), width="75px"),
-               "Symbol colors"
-        )
-      )
+      pickerInput(inputId = ns("ss1_pclus_text_palette"),
+                  label ="+ Palette",
+                  choices =  vals$colors_img$val[getsolid_col()],
+                  selected="black",
+                  choicesOpt = list(
+                    content =  vals$colors_img$img[getsolid_col()] ),
+                  options=list(container="body"))
     })
     output$ss1_pclus_text_factor_out<-renderUI({
       req(input$ss1_pclus_text_palette)
       choices<-c(colnames(attr(vals$saved_data[[input$data_som]],"factors")))
-      inline(
-        pickerInput(ns("ss1_pclus_text_factor"),NULL,
-                    choices = c(choices),selected=vals$pclus_text_factor,width="150px")
-      )
+
+      pickerInput(ns("ss1_pclus_text_factor"),"+ Factor",
+                  choices = c(choices),selected=vals$pclus_text_factor)
+
 
 
     })
     output$ss1_pclus_text_size<-renderUI({
-      if(is.null(vals$pclus_text_size)){vals$pclus_text_size<-1}
-      inline(
-        tipify(numericInput(ns("ss1_pclus_text_size"),NULL,value = vals$pclus_text_size,min = 0.1,max = 3,step = .1, width="100px"),"symbol size")
-      )
+      numericInput(ns("ss1_pclus_text_size"),"+ Size",value = 1,min = 0.1,max = 3,step = .1)
+
     })
     output$ss1_vfm_check<-renderUI({
       if(is.null(vals$pclus_varfacmap_action)){vals$pclus_varfacmap_action<-T}
       div(style='border-bottom: 1px solid gray',
-          span("+ ",
-               inline(checkboxInput(ns("ss1_varfacmap_action"), span("Variable factor map",actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value =vals$pclus_varfacmap_action, width="100px"))),
+          checkboxInput(ns("ss1_varfacmap_action"), span("Variable factor map (VFM)",actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value =vals$pclus_varfacmap_action),
           div(style="margin-left: 10px",uiOutput(ns("ss1_varfac_out")))
       )
     })
     output$ss1_varfac_out<-renderUI({
       req(isTRUE(input$ss1_varfacmap_action))
-      if(is.null(vals$pclus_border)){
-        vals$pclus_border<-"white"
-      }
       div(
         uiOutput(ns('ss1_vfm_type_out')),
-        uiOutput(ns('ss1_npic_out')))})
-    output$ss1_pcodes_bgalpha<-renderUI({
-      if(is.null(vals$pclus_border)){vals$pclus_border<-"white"}
-      if(is.null(vals$pcodes_bgalpha)){
-
-        vals$pcodes_bgalpha<-0
-
-
-      }
-      if(is.null(vals$base_size)){
-        vals$base_size<-12
-      }
-      div(span(
-        "+ Background lightness",inline(
-          tipify(numericInput(ns("ss1_pcodes_bgalpha"),NULL,value = vals$pcodes_bgalpha,min = 0,max = 1,step = .1, width="75px"),"symbol size")
-        )
-      ),
-      div(span(span('+ Border:'),inline(
-        div(class="palette", pickerInput(ns("ss1_pclus_border"),
-                                         label =NULL,
-                                         choices =  vals$colors_img$val[getsolid_col()] ,
-                                         choicesOpt = list(
-                                           content =  vals$colors_img$img[getsolid_col()] ),
-                                         selected= vals$pclus_border, width = '75px'))
-      ))),
-
-      div(
-        "+ Base size",inline(
-          tipify(numericInput(ns("ss1_base_size"),NULL,value = vals$base_size, width="75px"),"symbol size")
-        )
-      )
-      )
-    })
+        uiOutput(ns('ss1_vfm_out')))})
     output$ss1_vfm_type_out<-renderUI({
       my_choices<-list("Highest"='var', "Clockwise"="cor")
+      pickerInput(ns("ss1_vfm_type"),"+ Show correlation:",
+                  choices =my_choices
 
-      div(span("+ Show correlation:",inline(
-        pickerInput(ns("ss1_vfm_type"),NULL,
-                    choices =my_choices,
-                    selected=vals$vfm_type,
-                    width="150px"
-        ))))
+      )
     })
+
+
     output$ss1_npic_out<-renderUI({
-      if(is.null(vals$npic)){vals$npic<-10}
-      if(is.null(vals$pclus.cex.var)){vals$pclus.cex.var=1}
-      if(is.null(vals$p.clus.col.text)){vals$p.clus.col.text<-"black"}
-      if(is.null(vals$var_bg)){vals$var_bg<-"white"}
-      if(is.null(vals$var_bg_transp)){vals$var_bg_transp=0}
       div(
-        div(
-          span("+ Number",
-               inline(
-                 tipify(
-                   numericInput(ns("ss1_npic"), NULL, value = vals$npic, min = 2, width="75px"),"Number of variables to display"
-                 )))
-        ),
-        div(
-          span("+ Var size",
-               inline(
-                 numericInput(ns("ss1_pclus.cex.var"), NULL, value = vals$pclus.cex.var, min = 2, width="75px")))
-        ),
-        div(
-          span("+ Var text color",
-               inline(
-                 div(class="palette",
-                     pickerInput(inputId = ns("ss1_p.clus.col.text"),
-                                 label = NULL,
-                                 choices = vals$colors_img$val[getsolid_col()],
-                                 choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
-                                 selected=vals$p.clus.col.text,
-                                 width="100px"))))
-        ),
-        div(
-          span("+ Var background",
-               inline(
-                 div(class="palette",
-                     pickerInput(inputId = ns("ss1_var_bg"),
-                                 label = NULL,
-                                 choices = vals$colors_img$val[getsolid_col()],
-                                 choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
-                                 selected=vals$var_bg,
-                                 width="100px"))))
-        ),
-        div(
-          span("+ Var transparency",
-               inline(
-                 tipify(
-                   numericInput(ns("ss1_var_bg_transp"), NULL, value = vals$var_bg_transp, min = 2, width="75px"),"Number of variables to display"
-                 )))
+        tipify(
+          numericInput(ns("ss1_npic"), "+ Number", value = 10, min = 2),"Number of variables to display"
         )
       )
     })
+    output$ss1_pclus.cex.var_out<-renderUI({
+      numericInput(ns("ss1_pclus.cex.var"), "+ Var size", value = 1, min = 2)
+    })
+    output$ss1_p.clus.col.text_out<-renderUI({
+      pickerInput(inputId = ns("ss1_p.clus.col.text"),
+                  label = "+ Var text color",
+                  choices = vals$colors_img$val[getsolid_col()],
+                  choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
+                  selected="black")
+    })
+    output$ss1_var_bg_out<-renderUI({
+      pickerInput(inputId = ns("ss1_var_bg"),
+                  label = "+ Var background",
+                  choices = vals$colors_img$val[getsolid_col()],
+                  choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
+                  selected="white")
+    })
+    output$ss1_var_bg_transp_out<-renderUI({
+      tipify(
+        numericInput(ns("ss1_var_bg_transp"), "+ Var transparency", value = 0, min = 2,),"Number of variables to display"
+      )
+    })
+
+
+
+
+
+    output$ss1_vfm_out<-renderUI({
+      div(
+        uiOutput(ns('ss1_npic_out')),
+        uiOutput(ns('ss1_pclus.cex.var_out')),
+        uiOutput(ns('ss1_p.clus.col.text_out')),
+        uiOutput(ns('ss1_var_bg_out')),
+        uiOutput(ns('ss1_var_bg_transp_out'))
+      )
+    })
+
+    output$ss1_unit_ligh<-renderUI({
+      numericInput(ns("ss1_pcodes_bgalpha"), "+ Unit lightness",value = 0,min = 0,max = 1,step = .1)
+    })
+
+
+
+    output$ss1_unit_bord<-renderUI({
+      pickerInput(ns("ss1_pclus_border"),
+                  label ='+ Border:',
+                  choices =  vals$colors_img$val[getsolid_col()] ,
+                  choicesOpt = list(
+                    content =  vals$colors_img$img[getsolid_col()] ),
+                  selected= "white")
+    })
+
+    output$ss1_base_size_out<-renderUI({
+      numericInput(ns("ss1_base_size"),"+ Base size",value = 12)
+    })
+
+
     ss1_indicate_hc<-reactive({
       npic<-NULL
       indicate<-NULL
@@ -1282,9 +1233,8 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     })
     ss1_get_choices_pal<-reactive({
 
-
-      req(length(input$ss1_somback_value)>0)
-      title="+ Background palette"
+      req(input$ss1_somback_value)
+      title="+ Unit palette"
       if(input$ss1_somback_value=="None"){
         vals$somplot_bg<-"gray"
         choices=getsolid_col()
@@ -1498,58 +1448,61 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
         uiOutput(ns("predbmu_down_links")))
   })
 
-  {output$ss2_side_somplot<-renderUI({
+  {
 
 
-
-    div(class="map_control_style",style="color: #05668D",
-        div(
-
-
-          uiOutput(ns('ss2_umapro')),
-          uiOutput(ns("ss2_hc_ordcluster")),
-          uiOutput(ns('ss2_hc_palette')),
-
-
+    output$ss2_side_somplot<-renderUI({
+      div(class="map_control_style2",style="color: #05668D;",
           div(
-            style='border-bottom: 1px solid gray',
-            uiOutput(ns('ss2_out_pclus_addpoints')),
-            div(
-              style="margin-left: 10px",
-              uiOutput(ns("ss2_pclus_points_inputs"))
-            )
-          ),
+            div(style="border-bottom: 1px solid gray;",
+                uiOutput(ns('ss2_umapro')),
+                uiOutput(ns('ss2_property_layer')),
+                uiOutput(ns("ss2_var_pproperty"))),
+            uiOutput(ns("ss2_hc_ordcluster")),
 
-          div(style='border-bottom: 1px solid gray',
-              uiOutput(ns('ss2_out_pclus_addtext')),
+            div(style='border-bottom: 1px solid gray;',
+                uiOutput(ns('ss2_unit_palette')),
+                uiOutput(ns('ss2_unit_ligh')),
+                uiOutput(ns('ss2_unit_bord')),
+                uiOutput(ns('ss2_base_size_out'))
+            ),
+
+            div(
+              style='border-bottom: 1px solid gray',
+              uiOutput(ns('ss2_out_pclus_addpoints')),
               div(
                 style="margin-left: 10px",
-                uiOutput(ns("ss2_pclus_text_inputs"))
-              )),
-          div(
-            uiOutput(ns("ss2_vfm_check"))
-          ),
-          uiOutput(ns("ss2_showerrors_som")),
-          uiOutput(ns("ss2_theme")),
-          uiOutput(ns("ss2_title"))
+                uiOutput(ns("ss2_pclus_points_inputs"))
+              )
+            ),
+
+            div(style='border-bottom: 1px solid gray',
+                uiOutput(ns('ss2_out_pclus_addtext')),
+                div(
+                  style="margin-left: 10px",
+                  uiOutput(ns("ss2_pclus_text_inputs"))
+                )),
+            div(
+              uiOutput(ns("ss2_vfm_check"))
+            ),
+
+            uiOutput(ns("ss2_theme")),
+            uiOutput(ns("ss2_title"))
 
 
-        ))
-  })
-    output$ss2_hc_palette<-renderUI({
+          ))
+    })
+    output$ss2_unit_palette<-renderUI({
       choices<-ss2_get_choices_pal()
       title<-attr(choices,"title")
-      div(style='border-bottom: 1px solid gray;',
-          div(class="palette",
-              title,
-              pickerInput(inputId = ns("ss2_bg_palette"),
-                          label =NULL,
-                          choices =  vals$colors_img$val[choices],
-                          selected=vals$somplot_bg,
-                          choicesOpt = list(
-                            content =  vals$colors_img$img[choices] ),
-                          options=list(container="body"), width="100px")),
-          uiOutput(ns("ss2_pcodes_bgalpha"))
+      div(
+        pickerInput(inputId = ns("ss2_bg_palette"),
+                    label =title,
+                    choices =  vals$colors_img$val[choices],
+                    choicesOpt = list(
+                      content =  vals$colors_img$img[choices] ),
+                    options=list(container="body"))
+
 
       )
     })
@@ -1568,9 +1521,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
                     value=vals$pclus_addtext)
     })
     output$ss2_title<-renderUI({
-      div("+ Title: ",
-          inline(textInput(ns("ss2_title"), NULL, "", width="200px"))
-      )
+      textInput(ns("ss2_title"), "+ Title: ", "")
     })
     output$ss2_theme<-renderUI({
       if(is.null(vals$theme)){
@@ -1585,10 +1536,13 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
       )
     })
     output$ss2_umapro<-renderUI({
+      div(style='border-top: 1px solid gray; ',
+          div(class="map_control_style",
+              style="font-size: 14px; margin-bottom: 5px",
+              div(strong("+ Unit value:"), style="margin-bottom: 5px; height: 24px"),
+              radioButtons(ns("ss2_somback_value"),NULL,list("None"="None","U-Matrix"="uMatrix","Property"="property"), selected=vals$ss2_somback_value)
 
-
-      div(style='border-bottom: 1px solid gray; border-top: 1px solid gray; ',
-          inline(uiOutput(ns('ss2_somback_value')))
+          )
       )
     })
     output$ss2_plus_umatrix <- renderUI({
@@ -1598,57 +1552,34 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     observeEvent(ignoreInit = T,input$ss2_somback_value,{
       vals$ss2_somback_value<-input$ss2_somback_value
     })
-    output$ss2_somback_value <- renderUI({
 
-
-
-      div(
-        style="font-size: 14px; margin-bottom: 5px",
-        div(strong("+ Background value:"), style="margin-bottom: 5px; height: 24px"),
-        radioButtons(ns("ss2_somback_value"),NULL,list("None"="None","U-Matrix"="uMatrix","Property"="property"), selected=vals$ss2_somback_value),
-        uiOutput(ns("ss2_var_pproperty"))
-
-      )
-    })
     output$ss2_var_pproperty<-renderUI({
       req(input$ss2_somback_value=="property")
-
-      div(style="width: 250px;margin-left: 25px; margin-bottom: 10px",class='small_picker',
-          div(style="","Layer:",inline(uiOutput(ns('ss2_property_layer')))),
-          div(style="width: 300px",
-              "Variable:",
-              inline(
-                div(
-                  inline(uiOutput(ns('ss2_prev_property'))),
-                  inline(
-                    uiOutput(ns('ss2_out_variable_pproperty'))),
-                  inline(uiOutput(ns('ss2_next_property')))
-
-                )
-              ))
-
+      div(
+        inline(uiOutput(ns('ss2_prev_property'))),
+        inline(
+          uiOutput(ns('ss2_out_variable_pproperty'))),
+        inline(uiOutput(ns('ss2_next_property')))
 
       )
     })
-    observeEvent(ignoreInit = T,input$ss2_property_layer,{
-      vals$ss2_property_layer<-input$ss2_property_layer
-    })
+
     output$ss2_property_layer<-renderUI({
-      choices = names(get_som_model_pred()$data)
+      req(input$ss2_somback_value=="property")
+      choices = names(getsom()$data)
       req(length(choices)>0)
       pickerInput(ns("ss2_property_layer"),
-                  label = NULL,
-                  choices = choices,
-                  selected=vals$ss2_property_layer
+                  label = "Layer:",
+                  choices = choices
       )
     })
     ss2_getdata_layer<-reactive({
-      choices0 = names(get_som_model_pred()$data)
+      choices0 = names(getsom()$data)
       if(length(choices0)>0){
         req(input$ss2_property_layer)
-        get_som_model_pred()$data[[input$ss2_property_layer]]
+        getsom()$data[[input$ss2_property_layer]]
       } else{
-        get_som_model_pred()$data[[1]]
+        getsom()$data[[1]]
       }
 
     })
@@ -1656,9 +1587,8 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
       choices<-colnames(ss2_getdata_layer())
       div(id="ssom_property",
           pickerInput(ns("ss2_variable_pproperty"),
-                      label = NULL,
-                      choices = choices,
-                      selected=vals$variable_pproperty
+                      label = "Variable:",
+                      choices = choices
           )
       )
     })
@@ -1675,200 +1605,154 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     output$ss2_pclus_points_inputs<-renderUI({
       req(isTRUE(input$ss2_pclus_addpoints))
       div(
-        div("+ Palette",inline(uiOutput(ns("ss2_pclus_points_palette")))),
-        div("+ Factor",inline(uiOutput(ns("ss2_pclus_points_factor_out")))),
-        div("+ Shape",inline(uiOutput(ns("ss2_pclus_points_shape")))),
-        div("+ Size",inline(uiOutput(ns("ss2_pclus_points_size"))))
+        uiOutput(ns("ss2_pclus_points_palette")),
+        uiOutput(ns("ss2_pclus_points_factor_out")),
+        uiOutput(ns("ss2_pclus_points_shape")),
+        uiOutput(ns("ss2_pclus_points_size"))
       )
     })
     output$ss2_pclus_points_palette<-renderUI({
-
-      if(is.null(vals$pclus_points_palette)){vals$pclus_points_palette<-"black"}
-      inline(
-        tipify(pickerInput(inputId = ns("ss2_pclus_points_palette"),
-                           label =NULL,
-                           choices = vals$colors_img$val,
-                           choicesOpt = list(content = vals$colors_img$img),
-                           selected=vals$pclus_points_palette,
-                           options=list(container="body"), width="75px"),
-               "Symbol colors"
-        )
-      )
+      pickerInput(inputId = ns("ss2_pclus_points_palette"),
+                  label ="+ Palette",
+                  choices = vals$colors_img$val,
+                  choicesOpt = list(content = vals$colors_img$img),
+                  selected="black",
+                  options=list(container="body"))
     })
     output$ss2_pclus_points_factor_out<-renderUI({
       req(input$ss2_pclus_points_palette)
       choices<-c(colnames(attr(vals$saved_data[[input$data_som]],"factors")))
-
-
-      inline(
-        pickerInput(ns("ss2_pclus_points_factor"),NULL,
-                    choices = c(choices),selected=vals$pclus_points_factor,width="150px")
-      )
+      pickerInput(ns("ss2_pclus_points_factor"),"+ Factor",
+                  choices = c(choices),selected=vals$pclus_points_factor)
 
 
     })
     output$ss2_pclus_points_shape<-renderUI({
-      tipify(pickerInput(inputId = ns("ss2_pclus_symbol"),
-                         label = NULL,
-                         choices = df_symbol$val,
-                         choicesOpt = list(content = df_symbol$img),
-                         options=list(container="body"), width="100px",
-                         selected=vals$pclus_symbol)
-             ,"symbol shape")
+      pickerInput(inputId = ns("ss2_pclus_symbol"),
+                  label = "+ Shape",
+                  choices = df_symbol$val,
+                  choicesOpt = list(content = df_symbol$img),
+                  options=list(container="body"))
     })
-    output$ss2_pclus_points_size<-renderUI({
-      if(is.null(vals$pclus_points_size)){vals$pclus_points_size<-1}
-      inline(
-        tipify(numericInput(ns("ss2_pclus_points_size"),NULL,value = vals$pclus_points_size,min = 0.1,max = 3,step = .1, width="100px"),"symbol size")
-      )
+    output$ss2_pclus_points_size<-renderUI({  1
+      numericInput(ns("ss2_pclus_points_size"),"+ Size",value = 1,min = 0.1,max = 3,step = .1)
     })
     output$ss2_pclus_text_inputs<-renderUI({
       req(isTRUE(input$ss2_pclus_addtext))
       div(
-        div("+ Palette",inline(uiOutput(ns("ss2_pclus_text_palette")))),
-        div("+ Factor",inline(uiOutput(ns("ss2_pclus_text_factor_out")))),
-        div("+ Size",inline(uiOutput(ns("ss2_pclus_text_size"))))
+        uiOutput(ns("ss2_pclus_text_palette")),
+        uiOutput(ns("ss2_pclus_text_factor_out")),
+        uiOutput(ns("ss2_pclus_text_size"))
       )
     })
     output$ss2_pclus_text_palette<-renderUI({
-
-      if(is.null(vals$pclus_text_palette)){vals$pclus_text_palette<-"black"}
-      inline(
-        tipify(pickerInput(inputId = ns("ss2_pclus_text_palette"),
-                           label =NULL,
-                           choices =  vals$colors_img$val[getsolid_col()],
-                           selected=vals$pclus_text_palette,
-                           choicesOpt = list(
-                             content =  vals$colors_img$img[getsolid_col()] ),
-                           options=list(container="body"), width="75px"),
-               "Symbol colors"
-        )
-      )
+      pickerInput(inputId = ns("ss2_pclus_text_palette"),
+                  label ="+ Palette",
+                  choices =  vals$colors_img$val[getsolid_col()],
+                  selected="black",
+                  choicesOpt = list(
+                    content =  vals$colors_img$img[getsolid_col()] ),
+                  options=list(container="body"))
     })
     output$ss2_pclus_text_factor_out<-renderUI({
       req(input$ss2_pclus_text_palette)
       choices<-c(colnames(attr(vals$saved_data[[input$data_som]],"factors")))
-      inline(
-        pickerInput(ns("ss2_pclus_text_factor"),NULL,
-                    choices = c(choices),selected=vals$pclus_text_factor,width="150px")
-      )
+
+      pickerInput(ns("ss2_pclus_text_factor"),"+ Factor",
+                  choices = c(choices),selected=vals$pclus_text_factor)
+
 
 
     })
     output$ss2_pclus_text_size<-renderUI({
-      if(is.null(vals$pclus_text_size)){vals$pclus_text_size<-1}
-      inline(
-        tipify(numericInput(ns("ss2_pclus_text_size"),NULL,value = vals$pclus_text_size,min = 0.1,max = 3,step = .1, width="100px"),"symbol size")
-      )
+      numericInput(ns("ss2_pclus_text_size"),"+ Size",value = 1,min = 0.1,max = 3,step = .1)
+
     })
     output$ss2_vfm_check<-renderUI({
       if(is.null(vals$pclus_varfacmap_action)){vals$pclus_varfacmap_action<-T}
       div(style='border-bottom: 1px solid gray',
-          span("+ ",
-               inline(checkboxInput(ns("ss2_varfacmap_action"), span("Variable factor map",actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value =vals$pclus_varfacmap_action, width="100px"))),
+          checkboxInput(ns("ss2_varfacmap_action"), span("Variable factor map",actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value =vals$pclus_varfacmap_action),
           div(style="margin-left: 10px",uiOutput(ns("ss2_varfac_out")))
       )
     })
     output$ss2_varfac_out<-renderUI({
       req(isTRUE(input$ss2_varfacmap_action))
-      if(is.null(vals$pclus_border)){
-        vals$pclus_border<-"white"
-      }
       div(
         uiOutput(ns('ss2_vfm_type_out')),
-        uiOutput(ns('ss2_npic_out')))})
-    output$ss2_pcodes_bgalpha<-renderUI({
-      if(is.null(vals$pclus_border)){vals$pclus_border<-"white"}
-      if(is.null(vals$pcodes_bgalpha)){
-
-        vals$pcodes_bgalpha<-0
-
-
-      }
-      if(is.null(vals$base_size)){
-        vals$base_size<-12
-      }
-      div(span(
-        "+ Background lightness",inline(
-          tipify(numericInput(ns("ss2_pcodes_bgalpha"),NULL,value = vals$pcodes_bgalpha,min = 0,max = 1,step = .1, width="75px"),"symbol size")
-        )
-      ),
-      div(span(span('+ Border:'),inline(
-        div(class="palette", pickerInput(ns("ss2_pclus_border"),
-                                         label =NULL,
-                                         choices =  vals$colors_img$val[getsolid_col()] ,
-                                         choicesOpt = list(
-                                           content =  vals$colors_img$img[getsolid_col()] ),
-                                         selected= vals$pclus_border, width = '75px'))
-      ))),
-
-      div(
-        "+ Base size",inline(
-          tipify(numericInput(ns("ss2_base_size"),NULL,value = vals$base_size, width="75px"),"symbol size")
-        )
-      )
-      )
-    })
+        uiOutput(ns('ss2_vfm_out')))})
     output$ss2_vfm_type_out<-renderUI({
       my_choices<-list("Highest"='var', "Clockwise"="cor")
+      pickerInput(ns("ss2_vfm_type"),"+ Show correlation:",
+                  choices =my_choices
 
-      div(span("+ Show correlation:",inline(
-        pickerInput(ns("ss2_vfm_type"),NULL,
-                    choices =my_choices,
-                    selected=vals$vfm_type,
-                    width="150px"
-        ))))
+      )
     })
+
+
     output$ss2_npic_out<-renderUI({
-      if(is.null(vals$npic)){vals$npic<-10}
-      if(is.null(vals$pclus.cex.var)){vals$pclus.cex.var=1}
-      if(is.null(vals$p.clus.col.text)){vals$p.clus.col.text<-"black"}
-      if(is.null(vals$var_bg)){vals$var_bg<-"white"}
-      if(is.null(vals$var_bg_transp)){vals$var_bg_transp=0}
       div(
-        div(
-          span("+ Number",
-               inline(
-                 tipify(
-                   numericInput(ns("ss2_npic"), NULL, value = vals$npic, min = 2, width="75px"),"Number of variables to display"
-                 )))
-        ),
-        div(
-          span("+ Var size",
-               inline(
-                 numericInput(ns("ss2_pclus.cex.var"), NULL, value = vals$pclus.cex.var, min = 2, width="75px")))
-        ),
-        div(
-          span("+ Var text color",
-               inline(
-                 div(class="palette",
-                     pickerInput(inputId = ns("ss2_p.clus.col.text"),
-                                 label = NULL,
-                                 choices = vals$colors_img$val[getsolid_col()],
-                                 choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
-                                 selected=vals$p.clus.col.text,
-                                 width="100px"))))
-        ),
-        div(
-          span("+ Var background",
-               inline(
-                 div(class="palette",
-                     pickerInput(inputId = ns("ss2_var_bg"),
-                                 label = NULL,
-                                 choices = vals$colors_img$val[getsolid_col()],
-                                 choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
-                                 selected=vals$var_bg,
-                                 width="100px"))))
-        ),
-        div(
-          span("+ Var transparency",
-               inline(
-                 tipify(
-                   numericInput(ns("ss2_var_bg_transp"), NULL, value = vals$var_bg_transp, min = 2, width="75px"),"Number of variables to display"
-                 )))
+        tipify(
+          numericInput(ns("ss2_npic"), "+ Number", value = 10, min = 2),"Number of variables to display"
         )
       )
     })
+    output$ss2_pclus.cex.var_out<-renderUI({
+      numericInput(ns("ss2_pclus.cex.var"), "+ Var size", value = 1, min = 2)
+    })
+    output$ss2_p.clus.col.text_out<-renderUI({
+      pickerInput(inputId = ns("ss2_p.clus.col.text"),
+                  label = "+ Var text color",
+                  choices = vals$colors_img$val[getsolid_col()],
+                  choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
+                  selected="black")
+    })
+    output$ss2_var_bg_out<-renderUI({
+      pickerInput(inputId = ns("ss2_var_bg"),
+                  label = "+ Var background",
+                  choices = vals$colors_img$val[getsolid_col()],
+                  choicesOpt=list(content=vals$colors_img$img[getsolid_col()]),
+                  selected="white")
+    })
+    output$ss2_var_bg_transp_out<-renderUI({
+      tipify(
+        numericInput(ns("ss2_var_bg_transp"), "+ Var transparency", value = 0, min = 2,),"Number of variables to display"
+      )
+    })
+
+
+
+
+
+    output$ss2_vfm_out<-renderUI({
+      div(
+        uiOutput(ns('ss2_npic_out')),
+        uiOutput(ns('ss2_pclus.cex.var_out')),
+        uiOutput(ns('ss2_p.clus.col.text_out')),
+        uiOutput(ns('ss2_var_bg_out')),
+        uiOutput(ns('ss2_var_bg_transp_out'))
+      )
+    })
+
+    output$ss2_unit_ligh<-renderUI({
+      numericInput(ns("ss2_pcodes_bgalpha"), "+ Unit lightness",value = 0,min = 0,max = 1,step = .1)
+    })
+
+
+
+    output$ss2_unit_bord<-renderUI({
+      pickerInput(ns("ss2_pclus_border"),
+                  label ='+ Border:',
+                  choices =  vals$colors_img$val[getsolid_col()] ,
+                  choicesOpt = list(
+                    content =  vals$colors_img$img[getsolid_col()] ),
+                  selected= "white")
+    })
+
+    output$ss2_base_size_out<-renderUI({
+      numericInput(ns("ss2_base_size"),"+ Base size",value = 12)
+    })
+
+
     ss2_indicate_hc<-reactive({
       npic<-NULL
       indicate<-NULL
@@ -1882,8 +1766,8 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     })
     ss2_bp_som<-reactive({
       iind=ss2_indicate_hc()
-      m<-get_som_model_pred()
-      bp<-getbp_som(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
+      m<-getsom()
+      bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
       vals$ss2_bp_som<-bp
       bp
     })
@@ -1901,7 +1785,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
 
 
-      m<-get_som_model_pred()
+      m<-getsom()
       hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
       vals$ss2_hc_network<-hexs
       hexs
@@ -1909,13 +1793,13 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     ss2_get_copoints<-reactive({
       m<-get_som_model_pred()
       copoints<-getcopoints(m)
-      vals$copoints_hc<-copoints
+      vals$copoints_hc2<-copoints
       copoints
     })
     ss2_copoints_scaled<-reactive({
       ss2_get_network()
       ss2_get_copoints()
-      points_tomap=rescale_copoints(hexs=vals$ss2_hc_network,copoints=vals$copoints_hc)
+      points_tomap=rescale_copoints(hexs=vals$ss2_hc_network,copoints=vals$copoints_hc2)
       data<-vals$saved_data[[input$data_som]]
 
       factors<-attr(data,"factors")
@@ -1937,7 +1821,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
 
       req(length(input$ss2_somback_value)>0)
-      title="+ Background palette"
+      title="+ Unit palette"
       if(input$ss2_somback_value=="None"){
         vals$somplot_bg<-"gray"
         choices=getsolid_col()
@@ -2081,6 +1965,13 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
 
       errors<-NULL
 
+
+
+
+      copoints2<-vals$copoints2
+      copoints3<-copoints2
+      #opoints2$point<-args$points_factor
+      #attach(vals$args)
 
 
       args<-list(m=m,
@@ -2745,22 +2636,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
            uiOutput(ns('npic_out')))})
 
 
-  output$bmu_shape<-renderUI({
-    req(input$bmu_dotlabel=='symbols')
-    if(is.null(vals$bmu_symbol)){vals$bmu_symbol<-df_symbol$val[1]}
 
-    div(span("+ Shape",inline(
-      tipify(
-        pickerInput(ns("bmu_symbol"),
-                    label = NULL,
-                    choices = df_symbol$val,
-                    choicesOpt = list(content = df_symbol$img),
-
-                    selected=vals$bmu_symbol, width="75px")
-        ,"symbol shape"
-      )
-    )))
-  })
   observeEvent(ignoreInit = T,input$bmu_symbol,{
     vals$bmu_symbol<-input$bmu_symbol
   })
@@ -2781,178 +2657,20 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
            inline(checkboxInput(ns("varfacmap_action"), span("Variable factor map",actionLink(ns("varfacmap"), tipify(icon("fas fa-question-circle"), "Click for more details"))),value =vals$varfacmap_action, width="100px")))
     )
   })
-  output$bmu_display_out<-renderUI({
-    if(is.null(vals$bmu_dotlabel)){vals$bmu_dotlabel<-'symbols'}
-    div(span("+ Display:",inline(
-      radioButtons(
-        ns("bmu_dotlabel"),NULL , choices = c("labels", "symbols"),selected=vals$bmu_dotlabel,inline=T, width="100px")
-    )))
-  })
-  output$bmu_facpalette_out<-renderUI({
-    if(is.null(vals$bmu_facpalette)){vals$bmu_facpalette<-dfcolors$val[11]}
-    div(span("+ Obs color:",inline(
-      tipify(
-        pickerInput(ns("bmu_facpalette"),
-                    label =NULL,
-                    choices = vals$colors_img$val,
-                    choicesOpt = list(content = vals$colors_img$img),
-                    selected=vals$bmu_facpalette, width="75px"),
-        "Symbol colors. Choose a gradient to color observations by a factor"
-      )
-    )))
-  })
 
-  output$bmu_symbol_size_out<-renderUI({
-    div(span("+ Size:",
-             inline(
-               tipify(numericInput(ns("bmu_symbol_size"),strong(),value = vals$bmu_symbol_size,min = 0.1,max = 3,step = .1, width="75px"),"symbol size")
-             )))
-  })
-  output$bmu_bgpalette_out<-renderUI({
-    if(is.null(vals$bmu_bgpalette)){vals$bmu_bgpalette<-dfcolors$val[16]}
-    div(span("+ Background",
-             inline(
-               tipify(
-                 pickerInput(ns("bmu_bgpalette"),
-                             label = NULL,
-                             choices = vals$colors_img$val,
-                             choicesOpt = list(content = vals$colors_img$img),
 
-                             selected=vals$bmu_bgpalette, width="75px"),
-                 "Color of grid units"
-               )
-             )
-    ))
-  })
   observeEvent(ignoreInit = T,input$bmu_bgpalette,
                vals$bmu_bgpalette<-input$bmu_bgpalette)
 
 
-  output$bmu_bg_transp_out<-renderUI({
-    div(span("+ Transparency:",
-             inline( tipify(
-               numericInput(ns("bmu_bg_transp"),NULL,
-                            value=vals$bmu_bg_transp, min=0, max=1,step=0.1, width="75px"),
-               "Background transparency"))
-    ))
-  })
-  output$bmu_border_grid_out<-renderUI({
-    if(is.null(vals$bmu_border_grid)) {vals$bmu_border_grid<-vals$colors_img$val[getsolid_col()] [7]}
-    div(span("+ Border", inline(
-      tipify(
-        pickerInput(ns("bmu_border_grid"),
-                    label =NULL,
-                    choices =  vals$colors_img$val[getsolid_col()] ,
-                    choicesOpt = list(
-                      content =  vals$colors_img$img[getsolid_col()] ),
-                    selected= vals$bmu_border_grid, width="75px"),
-        "Grid border color"
-      )
-    )))
-  })
-  output$bmu_var_color_out<-renderUI({
-    if(is.null(vals$bmu_var_color)){vals$bmu_var_color<-"black"}
-    div(span("+ Var color:",inline(
-      tipify(
-        pickerInput(ns("bmu_var_color"),
-                    label =NULL,
-                    choices =  vals$colors_img$val[getsolid_col()] ,
-                    choicesOpt = list(
-                      content =  vals$colors_img$img[getsolid_col()]), width="75px",
-                    options=list(container="body"),
-                    selected=vals$bmu_var_color
-        ),
-        "Variable color"
-      )
-    )))
-  })
-
-  output$bmu_cexvar_out<-renderUI({
-    div(span("+ Var size",
-             inline(
-               tipify(numericInput(ns("bmu_cexvar"),NULL,value = vals$bmu_cexvar,min = 0.1,max = 3,step = .1, width="75px"),"variable text size (only for the variable factor map)")
-             )))
-  })
-
-  output$bmu_down_links<-renderUI({
-    div(
-      div(
-        tipify(
-          actionLink(
-            ns('downp_bmu'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-image")))
-          ),
-          "download BMU plot",     options=list(container="body")
-        )
-      ),
-
-      div(
-        tipify(
-          actionLink(
-            ns('down_pcorr_results'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table")))
-          ),
-          "download variable factor results",     options=list(container="body")
-        )
-      )
-    )
-
-  })
-  output$pop_pcorr<-renderUI({
 
 
-    div(class="map_control_style",style="color: #05668D",
-        uiOutput(ns("vfm_check")),
-        uiOutput(ns("varfac_out")),
-        br(),
-        uiOutput(ns("bmu_display_out")),
-        uiOutput(ns("bmu_facpalette_out")),
-        uiOutput(ns("bmu_fac_control")),
-        uiOutput(ns("bmu_shape")),
-        uiOutput(ns("bmu_symbol_size_out")),
-        uiOutput(ns("bmu_bgpalette_out")),
-        uiOutput(ns("bmu_bg_transp_out")),
-        uiOutput(ns("bmu_border_grid_out")),
-        uiOutput(ns("bmu_var_color_out")),
-        uiOutput(ns("bmu_cexvar_out")),
-        uiOutput(ns("bmu_legend_out")),
-        uiOutput(ns("bmu_down_links"))
-    )
 
-  })
   observeEvent(ignoreInit = T,input$bmu_var_color,{
     vals$bmu_var_color<-input$bmu_var_color
   })
-  output$bmu_legend_out<-renderUI({
-    req(input$bmu_dotlabel=="symbols")
-    col<-getcolhabs(vals$newcolhabs,input$bmu_facpalette,2)
-    req(col[1]!=col[2])
-
-    div(
-      actionLink(ns("bmu_legend") ,h5("+ Legend adjustment:",style="color: blue")),
-      uiOutput(ns("pcorr_legcontrol"))
-    )
-  })
-  output$pcorr_legcontrol<-renderUI({
-    #req(isTRUE(vals$bmuleg))
-    column(12,
-           div(span("+ leg x",inline(
-             tipify(numericInput(ns("bmu_insertx"),NULL,value=vals$bmu_insertx,step=0.05, width="75px"),"legend position relative to the x location")
-           ))),
-           div(span("+ leg y",
-                    inline(
-                      tipify(numericInput(ns("bmu_inserty"),NULL,value=vals$bmu_inserty,step=0.05, width="75px"),"legend position relative to the y location")
-                    ))),
-           div(span("+ ncol leg",
-                    inline(
-                      tipify(numericInput(ns("bmu_ncol"),NULL,value=vals$bmu_ncol,step=1, width="75px"),"the number of columns in which to set the legend items")
-                    ))),
-           div(span("+ bg leg",
-                    inline(
-                      tipify(numericInput(ns("bmu_leg_transp"),NULL,value=vals$bmu_leg_transp,step=0.05, max=1, width="75px"),"Legend background transparency")
-                    )))
-    )
 
 
-  })
   observeEvent(ignoreInit = T,input$bmu_leg_transp,{
     vals$bmu_leg_transp<-input$bmu_leg_transp
   })
@@ -2971,47 +2689,12 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     vals$bmu_inserty<-input$bmu_inserty
   })
 
-  output$pcorr_control <- renderUI({
-    column(12,style="background: white",
-           p(strong(h4("Best matching units"))),
-           sidebarLayout(
-             sidebarPanel(uiOutput(ns("pop_pcorr"), width=300)),
-             mainPanel(
-               div( plotOutput(ns("pCorrCodes")),
-                    #renderPrint({
-                    #m=vals$som_results
-                    #grid<-m$grid$pts
-                    #dtopo<-unit.distances(m$grid)
-                    #dcodes<-object.distances(m,"codes")
-                    #res<-unlist(lapply(codes, function (x)  sum(dist(x)/dist(dtopo))))
-                    #sort(res, dec=T)})
 
-               )
-             )
-           ))
-  })
   observeEvent(ignoreInit = T,input$bmu_factors,{
     vals$bmu_factors<-input$bmu_factors
   })
-  output$bmu_fac_control<-renderUI({
-    req(input$bmu_facpalette)
-    req(input$bmu_dotlabel)
-    col<-getcolhabs(vals$newcolhabs,input$bmu_facpalette,2)
-    if(input$bmu_dotlabel=='labels'|col[1]!=col[2])
-    {span("+ Labels",
-          inline(
-            tipify(pickerInput(ns("bmu_factors"),NULL,
-                               choices = c(colnames(attr(vals$saved_data[[input$data_som]],"factors","factors"))), selected=vals$bmu_factors, width="150px"),"color observations by factor")
-          )
-    )
-    }})
-  output$pCorrCodes <- renderPlot({
-    #req(input$varfacmap_action)
-    #req(input$npic)
-    p<-BMUs()
-    vals$pcorr_results<-data.frame(attr(p,"result"))
-    p
-  })
+
+
   output$pchanges <- renderPlot({
     req(length(vals$som_results)>0)
     pchanges(vals$som_results)
@@ -3314,20 +2997,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
            )
     )
   })
-  output$pred_bmu0<-renderUI({
-    column(12,style="background: white",
-           p(strong(h4("Predictions - Best matching units"))),
-           uiOutput(ns("bmu_p_tools")),
-           sidebarLayout(
-             sidebarPanel(
-               uiOutput(ns("pop_bmu_p"))
-             ),  mainPanel(
-               plotOutput(ns("bmu_pCodes"))
-             )
-           ))
 
-
-  })
   observeEvent(ignoreInit = T,input$bmu_p_factors,{
     vals$bmu_p_factors<-input$bmu_p_factors
   })
@@ -4847,7 +4517,8 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     req(!is.null(vals$hand_save))
     newname$df<-switch(
       vals$hand_save,
-      ##RF
+      ##RF,
+      "Create Datalist  - Variables from VFM"=bag_vfm(),
       "Create Datalist  - SOM predictions for New Data (X)"=bag_predsom_results(),
       "Create Datalist  - SOM codebook predictions"=bag_predsom_results(),
       "Create Datalist  - SOM performace"=bag_predsom_errors(),
@@ -5011,6 +4682,7 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     req(!is.null(vals$hand_save))
     switch(
       vals$hand_save,
+      "Create Datalist  - Variables from VFM"=create_som_vfm(),
       "Create Datalist  - SOM predictions for New Data (X)"=create_predsom_newdata(),
       "Create Datalist  - SOM codebook predictions"=create_predsom_codebook(),
       "Create Datalist  - SOM performace"=create_predsom_errors(),
@@ -5022,6 +4694,33 @@ server_supersom <- function (input, output, session,vals,df_colors,newcolhabs ){
     )
     removeModal()
 
+  })
+
+  create_som_vfm<-reactive({
+
+    data_o<-vals$saved_data[[input$data_som]]
+    m<-getsom()
+    dd<-do.call(cbind,m$data)
+    colnames(dd)<-unlist(sapply(m$data,colnames))
+    temp<-data.frame(dd[,rownames(vals$biplot_som),drop=F])
+    colnames(temp)<-rownames(vals$biplot_som)
+    if(input$hand_save=="create") {
+      temp<-data_migrate(data_o,temp,input$newdatalist)
+      vals$saved_data[[input$newdatalist]]<-temp
+    } else{
+      temp<-data_migrate(data_o,temp,input$over_datalist)
+      vals$saved_data[[input$over_datalist]]<-temp
+    }
+
+
+
+
+  })
+
+  bag_vfm<-reactive({
+    name0<-paste0(input$data_som,"_",input$ss1_npic,"vars")
+    name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
+    name1[length(vals$saved_data)+1]
   })
   create_predsom_errors<-reactive({
 

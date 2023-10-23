@@ -64,10 +64,9 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
 
   observe({
     req(input$desc_options)
-    if(input$desc_options%in%c('tab_scatter','tab_segrda','tab_rda',"tab_omi")){
+    if(input$desc_options%in%c('tab_scatter','tab_segrda','tab_rda',"tab_omi",'tab_box')){
       shinyjs::hide('upload_selection')
-    }
-    if(!input$desc_options%in%c('tab_scatter','tab_segrda','tab_rda',"tab_omi")){
+    } else{
       shinyjs::show('upload_selection')
     }
   })
@@ -3117,10 +3116,18 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
   output$stats_cbox<-renderUI({
     div(class="well2",style="padding-top: 5px; padding-bottom: 2px;padding-left: 10px ",
       div(class="map_control_style2",style="color: #05668D; display: inline-block;  vertical-align: middle;",
-          inline(uiOutput(ns("box_y_input"))),
-          inline(uiOutput(ns("boxplot_X"))),
-          inline(uiOutput(ns("filter_box1"))),
-          inline(uiOutput(ns("filter_box2")))
+          div(
+            inline(uiOutput(ns("box_x_datalist"))),
+            inline(uiOutput(ns("boxplot_X_out"))),
+            inline(uiOutput(ns("filter_box1"))),
+            inline(uiOutput(ns("filter_box2")))
+          ),
+          div(
+            inline(uiOutput(ns("box_y_datalist"))),
+            inline(uiOutput(ns("box_y_input")))
+          ),
+
+
       ),
       inline(
         tags$div(
@@ -3132,47 +3139,67 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
 
 
 
+  output$box_y_datalist<-renderUI({
+    req(input$bbox_x_datalist)
+    datax<-attr(vals$saved_data[[input$bbox_x_datalist]],"factors")
+    choices<-get_samerows_datalist(datax,vals$saved_data)
 
+    pickerInput(ns("bbox_y_datalist"),tipify(
+      span("Y (Numeric):"),
+      "Datalist for selecting the Numeric-Value", options = list(container="body")
+    ),choices = choices)
 
-  output$box_y_input<-renderUI({
-    data<-getdata_descX()
-    div(
-      div(tipify(
-        strong("Y ~"),
-        " y is the data values to be split into groups according to the grouping variable", options = list(container="body")
-      )),
-      pickerInput( ns("box_y"),NULL,choices = colnames(data),selected= colnames(data)[1], multiple=T))
+  })
+  get_samerows_datalist<-function(current,list_data){
+    cid<-rownames(current)
+    lid<-lapply(list_data,rownames)
+    pic<-sapply(lid,function(x) sum(x%in%cid))==length(cid)
+    names(list_data[pic])
+  }
+
+  output$box_x_datalist<-renderUI({
+    pickerInput(ns("bbox_x_datalist"),tipify(
+      span("X (Factor):"),
+      "Datalist for selecting the Factor", options = list(container="body")
+    ),choices = names(vals$saved_data))
 
   })
 
-  output$boxplot_X<-renderUI({
-    div(
-      div(strong("Factor:")),
-      pickerInput(ns("boxplot_X"),NULL,
-                  choices =rev(colnames(attr(vals$saved_data[[input$data_descX]],
-                                             "factors"))),
-                  selected=vals$boxplot_X, width="200px")
-    )
+  output$box_y_input<-renderUI({
+    req(input$bbox_y_datalist)
+    data<-vals$saved_data[[input$bbox_y_datalist]]
+    pickerInput( ns("box_y"),tipify(
+      span(">>"),
+      " y is the numeric values to be split into groups according to the grouping variable", options = list(container="body")
+    ),choices = colnames(data),selected= colnames(data)[1], multiple=T)
+
+  })
+
+  output$boxplot_X_out<-renderUI({
+    req(input$bbox_x_datalist)
+    pickerInput(ns("boxplot_X"),">>",
+                choices =rev(colnames(attr(vals$saved_data[[input$bbox_x_datalist]],"factors"))),
+                selected=vals$boxplot_X,
+                width="200px")
   })
   observeEvent(ignoreInit = T,input$boxplot_X,{vals$box_y<-input$box_y})
   observeEvent(ignoreInit = T,input$boxplot_X,{vals$boxplot_X<-input$boxplot_X})
   output$filter_box1<-renderUI({
-    div(
-      div(strong("Filter:")),
-      pickerInput(ns("filter_box1"),NULL,choices = c("none", colnames(attr(getdata_descX(),"factors"))),selected=filter_box1_cur$df, width="200px"))
+    req(input$bbox_x_datalist)
+    data<-vals$saved_data[[input$bbox_x_datalist]]
+    factors<-attr(data,"factors")
+    pickerInput(ns("filter_box1"),"Filter:",choices = c("none", colnames(factors)), width="200px")
   })
   output$filter_box2<-renderUI({
+    req(input$bbox_x_datalist)
     req(input$filter_box1)
     if (input$filter_box1 != "none") {
-      data = getdata_descX()
-      labels<-attr(data,"factors")[rownames(data), input$filter_box1]
-      div(
-        div(strong("Class:")),
-        pickerInput(ns("filter_box2"),
-                    NULL,
-                    choices = c(levels(as.factor(labels))),
-                    selected=filter_box2_cur$df, width="200px")
-      )
+      data<-vals$saved_data[[input$bbox_x_datalist]]
+      factors<-attr(data,"factors")
+      labels<-factors[rownames(data), input$filter_box1]
+      pickerInput(ns("filter_box2"),
+                  "Class:",
+                  choices = c(levels(as.factor(labels))), width="200px")
     }
   })
 
@@ -3188,12 +3215,16 @@ module_server_desctools<-function (input,output,session,vals,df_colors,newcolhab
     req(input$boxplot_X)
     req(input$box_y)
     req(input$filter_box1)
-    data=getdata_descX()
-    labels<-attr(data,"factors")
+
+    datax<-vals$saved_data[[input$bbox_x_datalist]]
+    labels<-factors<-attr(datax,"factors")
+
+    data<-datay<-vals$saved_data[[input$bbox_y_datalist]][rownames(datax),]
+
     pic<-1:nrow(data)
     req(any(input$boxplot_X%in%colnames(labels)))
     x<-labels[input$boxplot_X]
-    req(any(input$box_y%in%colnames(data)))
+    req(any(input$box_y%in%colnames(datay)))
     y<-data[input$box_y]
 
     if (input$filter_box1 != "none") {

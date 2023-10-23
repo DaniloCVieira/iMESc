@@ -4833,13 +4833,13 @@ data_migrate0<-function(data,newdata, newname){
 }
 
 #' @export
-data_migrate<-function(data,newdata, newname){
+data_migrate<-function(data,newdata, newname=NULL){
   {
-    attr(newdata, "data.factor")=attr(data,"data.factor")
+    #attr(newdata, "data.factor")=attr(data,"data.factor")[rownames(newdata),]
     attr(newdata, "datalist")=newname
     attr(newdata, "filename")=attr(data, "filename")
-    attr(newdata, "factors")=attr(data, "factors")[rownames(data), , drop=FALSE]
-    attr(newdata, "coords")= attr(data,"coords")
+    attr(newdata, "factors")=attr(data, "factors")[rownames(newdata), , drop=FALSE]
+    attr(newdata, "coords")= attr(data,"coords")[rownames(newdata), , drop=FALSE]
     attr(newdata, "base_shape")= attr(data,"base_shape")
     attr(newdata, "layer_shape")=attr(data,"layer_shape")
     attr(newdata, "extra_shape")=attr(data,"extra_shape")

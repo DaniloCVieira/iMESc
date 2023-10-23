@@ -1800,6 +1800,13 @@ req(input$rf_useinter)
 
 
   })
+
+
+
+
+
+
+
   output$rf_sideinter<-renderUI({
     div(
       class="map_control_style",style="color: #05668D",
@@ -1841,7 +1848,7 @@ req(input$rf_useinter)
 
 
   output$varinter_saves<-renderUI({
-    req(length(attr(vals$rf_results,"interframe"))>0)
+    #req(length(attr(vals$rf_results,"interframe"))>0)
     div(
       div(
         tipify(
@@ -3952,7 +3959,8 @@ req(input$interframe_palette)
 
   })
   datalistrf_predicions<-reactive({
-
+    #input<-readRDS('input.rds')
+    #vals<-readRDS('vals.rds')
 
     temp_f<-temp<-data.frame(vals$rftab_pred)
     colnames(temp_f)<-colnames(temp)<-paste0("pred_",colnames(temp))
@@ -3962,6 +3970,7 @@ req(input$interframe_palette)
     datao<-if(vals$rfpred_which=="Datalist"){
       vals$saved_data[[input$predrf_new]]
     } else{ vals$saved_data[[input$data_rfX]]}
+    req(!is.null(attr(datao,'factors')))
     faco<-attr(datao,'factors')[rownames(temp),]
     temp_f<-cbind(faco,temp_f)
     attr(temp,"factors")<-temp_f

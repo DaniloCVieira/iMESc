@@ -26,7 +26,7 @@ Note: When you use the iMESc app for the first time, it will automatically insta
 ## Desktop Version for Windows Users
 
 If you are a Windows user, you can enhance your experience with the standalone iMESc desktop version. Visit the [iMESc-Desktop repository](https://github.com/DaniloCVieira/iMESc-Desktop) to find more details and download the installer.
-Esta seção chama a atenção para a versão desktop e sugere uma experiência aprimorada 
+
 
 ## Tutorial
 For a detailed walkthrough of the application and its features, visit the tutorial page: iMESc_help [https://danilocvieira.github.io/iMESc_help/]
@@ -35,7 +35,4 @@ For a detailed walkthrough of the application and its features, visit the tutori
 
 This project is licensed under the CC BY-NC-ND 4.0 license. To view a copy of this license, visit [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.txt).
 
-## Copyright Notice
-
-© 2023 Danilo Candido Vieira and Gustavo Fonseca. All rights reserved.
 

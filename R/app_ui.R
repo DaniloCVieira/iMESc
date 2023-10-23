@@ -302,7 +302,7 @@ Shiny.onInputChange('shiny_height',myHeight)
 
 div(
 
-  column(12,  style = "position: fixed; overflow: visible;",class="needed",id="header_app",' An Interactive Machine Learning App for Environmental Science',
+  column(12,  style = "position: fixed; ",class="needed",id="header_app",' An Interactive Machine Learning App for Environmental Science',
   ),
   uiOutput('preprocess'),
   uiOutput('tools_upload'),
@@ -315,7 +315,7 @@ div(
 
 
     uiOutput("change_head_out"),
-    uiOutput("change_background"),
+   # uiOutput("change_background"),
   ),
   div(id="main_panel",class="needed",
       div(

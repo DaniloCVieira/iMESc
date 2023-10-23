@@ -88,9 +88,10 @@ req(cur_data)
     data <-  saved_data[[cur_data]]
    # pic<-  which(apply(data,2,function(x) (mean(x, na.rm=T)==0 )& sd(x, na.rm=T)==0 ))
     #if(length(pic)>0){    data<-data[,-pic]}
-
+   # data<-readRDS("savepoint.rds")$saved_data[["SR"]]
     try({
       data0<-data
+
       data=data.frame(retype(data0))
       rownames(data)<-rownames(data0)
       if (isTRUE(na.omit)) {data <- na.omit(data)}

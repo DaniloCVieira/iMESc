@@ -42,7 +42,6 @@ min-height: 40px;
 
 #radio_cogs_null
 
-
 #coog0 {
 margin: 0px;
 padding: 0px;
@@ -675,6 +674,7 @@ border: none;
 .data_change0{
   padding: 0px;
   height: 40px;
+  top: 50px;
   line-height: 40px;
   max-height: 40px;
   min-height: 40px;
@@ -2216,19 +2216,7 @@ border-radius: 0px;
   z-index: 999999;
 }
 
-.tool_title0{
-  border: none;
-  height: 40px;
-  font-size: 16px;
 
-  background: Grey;
-  position: fixed;
-  z-index: 10000;
-  right: 5px;
-  width: 50%;
-  padding-left: 0px;
-  box-shadow: 0 2px 1px 1px #f0eeeeff
-}
 #tog_tools{
 border: none;
 width: 50%;
@@ -2249,18 +2237,6 @@ border-radius: 0px 0px 0px 0px;
 
 }
 
-
-.fade_panel{
-  position: fixed;
-  z-index: 9;
-  height: 100%;
-  top: 50px;
-  right: 50%;
-  margin-left: 160px;
-  z-index: 0;
-  border: 1px solid Grey;
-  background: #00000086;
-}
 
 
 #histo_plot{
@@ -3046,4 +3022,48 @@ font-size: 12px;
 border-radius: 3px 3px 3px 3px;
 margin-left:-30px;
 
+}
+#cogs_null {
+z-index: 999999;
+}
+
+#imesc_after_title {
+  position: fixed;
+  top: 90px;
+  left: 16%;
+  overflow-x: scroll;
+  bottom: 25px;
+  right: 5px;
+  padding-bottom: 10px;
+
+}
+
+.tool_title0{
+  border: none;
+  height: 40px;
+  font-size: 16px;
+  top: 50px;
+  background: Grey;
+  position: fixed;
+  z-index: 10000;
+  right: 5px;
+  width: 50%;
+  padding-left: 0px;
+  box-shadow: 0 2px 1px 1px #f0eeeeff
+}
+
+
+.fade_panel{
+  position: fixed;
+  z-index: 9;
+  height: 100%;
+  top: 50px;
+  right: 50%;
+  margin-left: 160px;
+  z-index: 0;
+  border: 1px solid Grey;
+  background: #00000086;
+}
+body{
+  overflow-y: hidden;
 }

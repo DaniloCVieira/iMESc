@@ -13,9 +13,7 @@ app_server<-function(input, output, session) {
   # IMPORTANT!
   # this is needed to terminate the R process when the
   # shiny app session ends. Otherwise, you end up with a zombie process
-  session$onSessionEnded(function() {
-    stopApp()
-  })
+  #session$onSessionEnded(function() {    stopApp()  })
 
 
   middle <- Sys.time()
@@ -697,43 +695,40 @@ app_server<-function(input, output, session) {
       p("A Numeric-Attribute can handle only numeric variables. Use ",icon(verify_fa = FALSE,name=NULL,class="fas fa-cog"),">","Exchange Factors/Variables' to convert factors to numeric variables")
     ))
   })
-  observeEvent(ignoreInit = T,input$data_bank,{
+  output$viewdata<-renderUI({
 
-    output$viewdata<-renderUI({
-
-      div(
-        div(class="datalist_tools",
-            h5(strong("Numeric-Attribute"),
-               inline(
-                 div(
-                   id="ddcogs",
-                   div(class="ddcogs0",span(icon(verify_fa = FALSE,name=NULL,class="fas fa-cog"),style="padding-left: 6px")),
-                   div(class='ddlinks_all',
-                       div(class="ddlinks",
-                           actionLink("ddcogs1","Rename Variables")
-                       ),
-                       div(class="ddlinks",
-                           actionLink("ddcogs3","Edit changes")
-                       ),
-                       div(class="ddlinks",
-                           actionLink("ddcogs2","Download table")
-                       )
-                   )
-
-
+    div(
+      div(class="datalist_tools",
+          h5(strong("Numeric-Attribute"),
+             inline(
+               div(
+                 id="ddcogs",
+                 div(class="ddcogs0",span(icon(verify_fa = FALSE,name=NULL,class="fas fa-cog"),style="padding-left: 6px")),
+                 div(class='ddlinks_all',
+                     div(class="ddlinks",
+                         actionLink("ddcogs1","Rename Variables")
+                     ),
+                     div(class="ddlinks",
+                         actionLink("ddcogs3","Edit changes")
+                     ),
+                     div(class="ddlinks",
+                         actionLink("ddcogs2","Download table")
+                     )
                  )
 
+
                )
-            )),
 
-        column(12,style=" background: white;",
-               uiOutput("data_attr")
-        )
+             )
+          )),
 
+      column(12,style=" background: white;",
+             uiOutput("data_attr")
       )
 
+    )
 
-    })
+
   })
   output$bank_tools<-renderUI({
     column(12,id="bank_tools",
@@ -1430,7 +1425,21 @@ app_server<-function(input, output, session) {
       style="background-color: white",
       column(12,uiOutput("map_part1")),
       column(12,id="side_map",class="map_control_style",
-             uiOutput("automap")
+             column(12,
+
+                    span("+ Auto-refresh",
+                         inline(
+                           switchInput(
+                             inputId = "automap",
+                             label = NULL,
+                             value = TRUE,
+                             onStatus = "success",
+                             size ="mini",inline=T
+                           )
+                         ), inline(uiOutput("gomap")),
+                         inline(uiOutput("automap_war"))
+                    )
+             )
       )
       ,
       #column(12,uiOutput("map_teste")),
@@ -1444,24 +1453,7 @@ app_server<-function(input, output, session) {
   })
 
 
-  output$automap<-renderUI({
-    req(input$saved_maps=='new map'|isTRUE(input$stack_map))
-    column(12,
 
-           span("+ Auto-refresh",
-                inline(
-                  switchInput(
-                    inputId = "automap",
-                    label = NULL,
-                    value = TRUE,
-                    onStatus = "success",
-                    size ="mini",inline=T
-                  )
-                ), inline(uiOutput("gomap")),
-                inline(uiOutput("automap_war"))
-           )
-    )
-  })
   output$gomap<-renderUI({
     req(isFALSE(input$automap))
     inline(
@@ -1817,81 +1809,7 @@ app_server<-function(input, output, session) {
 
 
       })
-      output$ssrgl_out<-renderRglwidget({
 
-        req(isTRUE(input$ss_rgl))
-        data=vals$ss_map
-        coords=  attr(vals$ss_map,"coords")
-        base_shape=if(isTRUE(input$ssmap_base)){
-          attr(data,"base_shape") } else{ NULL}
-        layer_shape=if(isTRUE(input$ssmap_layer)){
-          attr(data,"layer_shape") } else{ NULL}
-        sscol_layer=adjustcolor(getcolhabs(vals$newcolhabs,input$sslayer_col,1), input$sslayer_lighten)
-        sscol_base=adjustcolor(getcolhabs(vals$newcolhabs,input$ssbase_col,1), input$ssbase_lighten)
-
-        pal<-c()
-        cex<-c()
-        zs<-c()
-        co<-c()
-        labs<-list()
-        showlab<-c()
-
-        for(i in 1:length(vals$ss_map))
-        {
-          pal[i]<-input[[paste0("pt_palette",i)]]
-          cex[i]<-input[[paste0("ss_cex",i)]]
-          zs[i]<-input[[paste0("ss_z",i)]]
-          labs[[i]]<-attr(getdata_map(),"factors")[rownames(coords), input[[paste0("ss_labels",i)]]]
-          co[i]<-input[[paste0("ss_co",i)]]
-          showlab[i]<-input[[paste0("ss_lab",i)]]
-
-        }
-
-
-        #options(rgl.useNULL = TRUE)
-        rgl.bg(color=c('white','white'))
-
-        stack_scatter_rgl(data,coords,base_shape,layer_shape,
-                          col.palette=pal,
-                          newcolhabs=vals$newcolhabs,
-                          pt_cex=cex,
-                          spacing=1,
-                          expand=input$ss3d_exp,
-                          theta=input$ss3d_theta,
-                          phi=input$ss3d_phi,
-                          r=input$ss3d_eye,
-                          d=input$ss3d_d,
-                          xlim=c(input$sslong_xmin,input$sslong_xmax),
-                          ylim=c(input$sslat_xmin,input$sslat_xmax),
-                          col_base=sscol_base,
-                          col_layer=sscol_layer,
-                          z=zs,
-                          zmin=input$ss_zmin,
-                          zmax=input$ss_zmax,
-                          ticktype=input$ss_ticktype,
-                          xlab=input$ss_xlab,
-                          ylab=input$ss_ylab,
-                          zlab=input$ss_zlab,
-                          leglab.adj=input$ss_leglab.pos,
-                          legtit.posy=input$ss_legtitle.posy,
-                          breaks=input$ss_breaks+1,
-                          legwidth=50,
-                          legtit.posx=input$ss_legtitle.posx,
-                          title.srt=0,
-                          lab.srt=0,
-                          col.labels=input$col_factor_ss,
-                          cex.labels=input$pt_factor_ss,
-                          labels=labs,
-                          col.coords=input$col_coords_ss,
-                          cex.coords=input$pt_coords_ss,
-                          show_coords=co,
-                          show_labels=showlab,
-                          texmipmap=F,texmagfilter="nearest",texminfilter="nearest.mipmap.nearest",texenvmap=F,front="filled", back="points",size=1,point_antialias=F,line_antialias=F,depth_mask=F,lit =F,top=F)
-
-
-
-
-      })
     }
 
   })
@@ -2434,67 +2352,27 @@ app_server<-function(input, output, session) {
     req(
       length(vals$ss_map)>1
     )
-    base_shape=attr(getdata_map(),"base_shape")
-    layer_shape=attr(getdata_map(),"layer_shape")
-    limits<-get_limits(limits=NULL,base_shape, layer_shape, coords = attr(getdata_map(),"coords"))
-
     div(
-
-      div(
-        actionLink('smd_3dcontrol',"+ 3D control"),
-        column(12,id='smd_3dcontrol_id',uiOutput('ss_3dcontrol'))),
-
-      column(12,
-             fluidRow(
-               class="well2",
-               uiOutput("show_map_coords_ss")
-             )),
-      column(12,
-             fluidRow(
-               class="well2",
-               uiOutput("show_map_labels_ss")
-             )),
       column(12,
              fluidRow(class="well2",
                       uiOutput("ssmap_zlim")
              )),
       column(12,
              fluidRow(class="well2",
-                      uiOutput("ssmap_leg")
-             )),
-
-      column(12,
-             fluidRow(class="well2",
                       uiOutput("ssmap_base")
              )),
-
-
-
       column(12,
              fluidRow(class="well2",
-                      uiOutput("ssmap_layer")
-             )),
-
-
-      column(12,
-             fluidRow(class="well2",
-                      div(span("+ Limits:",style="color: #05668D"),
-                          div(style="margin-top: -20px;",
-                              div(span("Long",style="margin-left: 70px"),span("Lat",style="margin-left: 60px")),
-                              div(
-                                splitLayout("+ min:",cellWidths = c("50px",'90px',"90px"),
-                                            numericInput("sslong_xmin",NULL, value=limits[1,1], width="87px", step=0.01),
-                                            numericInput("sslat_xmin",NULL, limits[1,2], width="87px", step=0.01))),
-                              div(
-                                splitLayout("+ max:",cellWidths = c("50px",'90px',"90px"),
-                                            numericInput("sslong_xmax",NULL, value=limits[2,1], width="87px", step=0.01),
-                                            numericInput("sslat_xmax",NULL, limits[2,2], width="87px", step=0.01)))
-
-
-                          ))
+                      uiOutput("ssmap_nbreaks_out")
              ))
-
     )})
+
+  output$ssmap_nbreaks_out<-renderUI({
+    req(input$choices_map=="Factor-Attribute")
+    div(class="map_control_style2",
+      numericInput("ssmap_nbreaks","+ Number of Breaks",5,step=1)
+    )
+  })
 
   observeEvent(ignoreInit = T,input$ss3d_exp,vals$ss3d_exp<-input$ss3d_exp)
   observeEvent(ignoreInit = T,input$ss3d_theta,vals$ss3d_theta<-input$ss3d_theta)
@@ -2502,135 +2380,23 @@ app_server<-function(input, output, session) {
   observeEvent(ignoreInit = T,input$ss3d_eye,vals$ss3d_eye<-input$ss3d_eye)
   observeEvent(ignoreInit = T,input$ss3d_d,vals$ss3d_d<-input$ss3d_d)
 
-  output$ss_3dcontrol<-renderUI({
 
-    if(is.null(vals$ss3d_exp)){ vals$ss3d_exp<-1}
-    if(is.null(vals$ss3d_theta)){vals$ss3d_theta<-0}
-    if(is.null(vals$ss3d_phi)){ vals$ss3d_phi<-40}
-    if(is.null(vals$ss3d_eye)){vals$ss3d_eye<-1.73}
-    if(is.null(vals$ss3d_d)){vals$ss3d_d<-1}
-
-    column(12,id="smr_3dcontrol",
-           fluidRow(class="well2",
-                    "+ 3D control",
-                    column(12,
-                           div(tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"a expansion factor applied to the z coordinates. Often used with 0 < expand < 1 to shrink the plotting box in the z direction", placement = "bottom", options=list(container="body")),
-                               '+ exp:',
-                               inline(numericInput("ss3d_exp",NULL, vals$ss3d_exp, width="75px", step=.1))
-                           ),
-                           div(tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"azimuthal direction", placement = "bottom", options=list(container="body")),
-                               '+ theta:',
-                               inline(numericInput("ss3d_theta",NULL, vals$ss3d_theta, width="75px",step=10))
-                           ),
-                           div(tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"colatitude direction", placement = "bottom", options=list(container="body")),
-                               '+ phi:',
-                               inline(numericInput("ss3d_phi",NULL, vals$ss3d_phi, width="75px", step=5))
-                           ),
-                           div(tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"rhe distance of the eyepoint from the centre of the plotting box", placement = "bottom", options=list(container="body")),
-                               '+ Eye point:',
-                               inline(numericInput("ss3d_eye",NULL, vals$ss3d_eye, width="75px"))
-                           ),
-                           div(
-                             tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"a value which can be used to vary the strength of the perspective transformation. Values of d greater than 1 will lessen the perspective effect and values less and 1 will exaggerate it", placement = "bottom", options=list(container="body")),
-                             '+ persp strength:',
-                             inline(numericInput("ss3d_d",NULL, vals$ss3d_d, width="50px"))
-                           )
-                    )))
-  })
-  output$ssmap_leg<-renderUI({
-    fluidRow(
-      column(12,"+ Legend adustment",
-             column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Number of breaks for continuous values", placement = "bottom", options=list(container="body")),
-                    '+ Breaks:',inline(numericInput("ss_breaks",NULL, 4, width="75px",step=1))),
-
-             column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Adjustment of the titles along the y-axis:", placement = "bottom", options=list(container="body")),
-                    '+ Title y-pos:',inline(numericInput("ss_legtitle.posy",NULL, 1.15, width="75px",step=.1))),
-             column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Adjustment of the titles along the x-axis:", placement = "bottom", options=list(container="body")),
-                    '+ Title x-pos:',inline(numericInput("ss_legtitle.posx",NULL, 1, width="75px",step=.1))),
-
-
-             column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Adjustment of the labels along the y-axis:", placement = "bottom", options=list(container="body")),
-                    '+ Label pos:',inline(numericInput("ss_leglab.pos",NULL, 0.85, width="75px",step=.1)))
-
-      ))
-  })
 
 
   output$ssmap_zlim<-renderUI({
-    zs<-c()
-    for(i in 1:length(vals$ss_map))
-    {
-      zs[i]<-input[[paste0("ss_z",i)]]
-
-    }
-
+    zs<-as.numeric(ss_map_input_list(vals$ss_map,input)$z)
+    req(is.numeric(zs))
     fluidRow(
       column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Z limits", placement = "bottom", options=list(container="body")),
              span("+ zmin:",
                   inline(numericInput("ss_zmin",NULL, min(zs), width="80px",step=1))
              ),
              span("zmax:",
-                  inline(numericInput("ss_zmax",NULL, value=max(zs)*1.5, width="80px", step=0.01))
-             )),
-      column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"'simple' draws just an arrow parallel to the axis to indicate direction of increase; 'detailed' draws normal ticks as per 2D plots", placement = "bottom", options=list(container="body")),
-             span("+ Ticktype:",
-                  pickerInput("ss_ticktype",NULL,choices=c("detailed", "simple"),inline=T, width="75px"))
-      ),
-      column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"X axis label", placement = "bottom", options=list(container="body")),
-             span("+ xlab:",
-                  textInput("ss_xlab",NULL,"Longitude", width="100px"))
-      ),
-      column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Y axis label", placement = "bottom", options=list(container="body")),
-             span("+ ylab:",
-                  textInput("ss_ylab",NULL,"Latitude", width="100px"))
-      ),
-      column(12,tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle",style="color: gray"),"Z axis label", placement = "bottom", options=list(container="body")),
-             span("+ zlab:",
-                  textInput("ss_zlab",NULL,"Layer", width="100px"))
-      )
+                  inline(numericInput("ss_zmax",NULL, value=max(zs)*1.05, width="80px", step=0.01))
+             ))
     )
   })
-  output$show_map_coords_ss<-renderUI({
-    co<-c()
-    for(i in 1:length(vals$ss_map))
-    {co[i]<-input[[paste0("ss_co",i)]]}
-    req(any(co))
-    div("+ Coords style",
-        column(12,class="palette",' + Color:',
-               pickerInput(inputId = "col_coords_ss",
-                           label = NULL,
-                           choices =   vals$colors_img$val[getsolid_col()],
-                           choicesOpt = list(content =   vals$colors_img$img[getsolid_col()]), inline=T, width="100px")),
-        column(12,
-               '+ Size:',
-               inline(numericInput("pt_coords_ss",NULL, 1, width="100px", step=0.1))
-        )
-    )
-  })
-  output$show_map_labels_ss<-renderUI({
-    showlab<-c()
-    for(i in 1:length(vals$ss_map))
-    {showlab[i]<-input[[paste0("ss_lab",i)]]}
 
-    req(any(showlab))
-    column(12,
-           fluidRow(
-             class="well2",
-             div(' + Labels style:',
-                 column(12,class="palette",' + Color:',
-                        pickerInput(inputId = "col_factor_ss",
-                                    label = NULL,
-                                    choices =   vals$colors_img$val[getsolid_col()],
-                                    choicesOpt = list(content =   vals$colors_img$img[getsolid_col()]), inline=T, width="75px")),
-                 column(12,
-                        '+ Size:',
-                        inline(numericInput("pt_factor_ss",NULL, 1, width="100px", step=0.1))
-                 )
-             )
-           ))
-
-
-  })
 
   output$added_scatter_stack<-renderUI({
     req(!is.null( vals$ss_map))
@@ -2699,32 +2465,15 @@ app_server<-function(input, output, session) {
     lapply(vals$ss_map,function(x){
       i=which(names(vals$ss_map)%in%attr(x,"name"))
       added_ss3d$df[[attr(x,"name")]]<-isolate(list(
-        div(
+        div(style="padding-bottom: 5px; border-bottom: 1px solid gray",
 
           span("+",inline( textInput(paste0("ss_name",i),NULL,names(vals$ss_map)[i], width='150px' ))),
           column(12,class="palette",span("+ Palette:",
                                          pickerInput(inputId = paste0("pt_palette",i),label = NULL,choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img),options=list(container="body"),inline=T, width="55px")
           )),
-          column(12,span("+ Size:",
-                         numericInput(paste0("ss_cex",i),NULL, 1, width="100px",step=0.1)
-          )),
           column(12,span("+ Z-value:",
                          numericInput(paste0("ss_z",i),NULL, i, width="100px",step=0.1)
           )),
-          column(12,
-                 span("+",
-                      inline(checkboxInput(paste0("ss_co",i),"coords", T, width="100px"))
-                 )
-          ),
-          column(12,
-                 span("+",
-                      inline(checkboxInput(paste0("ss_lab",i),"labels", F, width="60px")),
-                      inline(
-                        conditionalPanel(paste0("input.",paste0("ss_lab",i)," % 2"),{
-                          pickerInput(paste0("ss_labels",i),NULL, choices=colnames( attr(getdata_map(),"factors")),options=list(container="body"), width="75px", inline=T)
-                        })
-                      )
-                 )),
 
           actionLink(paste0("ss_del",attr(x,"name")),icon(verify_fa = FALSE,name=NULL,class="far fa-trash-alt"))
 
@@ -2742,15 +2491,7 @@ app_server<-function(input, output, session) {
              class="well2",
              span(
                "+",
-               checkboxInput("ssmap_base","Base Shape", T, width="120px"),
-               div(class="palette",
-                   span("+ Color:",
-                        inline(tags$div(class = "ident-picker", pickerInput(inputId = "ssbase_col",label = NULL,choices =   vals$colors_img$val[getsolid_col()],choicesOpt = list(content =   vals$colors_img$img[getsolid_col()]),options=list(container="body"),inline=F, width="80px", selected="white")))
-                   ),
-                   span("+ Transp:",
-                        numericInput("ssbase_lighten",NULL,value=0.6, width="50px", min=0, max=1, step=0.1)
-                   )
-               )
+               checkboxInput("ssmap_base","Base Shape", T, width="120px")
              )
            ))
   })
@@ -2843,89 +2584,69 @@ app_server<-function(input, output, session) {
   })
   observeEvent(ignoreInit = T,input$sslayer_lighten,vals$sslayer_lighten<-input$sslayer_lighten)
   observeEvent(ignoreInit = T,input$sslayer_col,vals$sslayer_col<-input$sslayer_col)
-  output$ss3d<-renderUI({
-    req(input$ss3d_d)
-    validate(need(input$ss3d_d>0, "error: requires persp strength >0 "))
+
+  observeEvent(list(
+    input$ssmap_base,
+    input$ssmap_nbreaks,
+    ss_map_input_list(vals$ss_map,input),
+    input$ss_zmax,
+    input$ss_zmin,
+    input$py_ssmap_width,
+    input$py_ssmap_height
+  ),{
+    vals$run_ssplot3d<-"save_changes"
+  })
+
+
+  ssplot3d_args<-reactive({
+    req(length(input$run_ssplot3d)>0)
     req(isTRUE(input$stack_scatter_3d))
     validate(need(length(vals$ss_map)>1,"Add at least two variables to generate the plot"))
-
-
+    req(input$ss_zmin)
+    req(input$ss_zmax)
+    req(length(input$ssmap_base)>0)
+    if(input$choices_map=="Factor-Attribute"){
+      req(input$ssmap_nbreaks)
+    }
     data=vals$ss_map
     coords=  na.omit(attr(vals$ss_map,"coords"))
-    base_shape=if(isTRUE(input$ssmap_base)){
-      attr(data,"base_shape") } else{ NULL}
-    layer_shape=if(isTRUE(input$ssmap_layer)){
-      attr(data,"layer_shape") } else{ NULL}
-    sscol_layer=adjustcolor(getcolhabs(vals$newcolhabs,input$sslayer_col,1), input$sslayer_lighten)
-    sscol_base=adjustcolor(getcolhabs(vals$newcolhabs,input$ssbase_col,1), input$ssbase_lighten)
-
-    pal<-c()
-    cex<-c()
-    zs<-c()
-    co<-c()
-    labs<-list()
-    showlab<-c()
-    df<-getdata_map()
-    for(i in 1:length(vals$ss_map))
-    {
+    ips<-ss_map_input_list(vals$ss_map,input)
+    max<-input$ss_zmax
+    min<-input$ss_zmin
+    ss_map<-vals$ss_map
+    pals<-ips$pals
+    zs<-as.numeric(ips$zs)
+    names(ss_map)<-ips$names
+    args<-list(ss_map=ss_map,zs=zs,pals=pals,min=min,max=max, show_base_shape=input$ssmap_base,nlevels=input$ssmap_nbreaks, newcolhabs=vals$newcolhabs)
+    args
+  })
 
 
-      pal[i]<-input[[paste0("pt_palette",i)]]
-      cex[i]<-input[[paste0("ss_cex",i)]]
-      zs[i]<-input[[paste0("ss_z",i)]]
-      labs[[i]]<-attr(df,"factors")[rownames(coords), input[[paste0("ss_labels",i)]]]
-      co[i]<-input[[paste0("ss_co",i)]]
-      showlab[i]<-input[[paste0("ss_lab",i)]]
-    }
+  output$ss3d_plot<-renderPlotly({
 
-
-    #data<-do.call(cbind,data)
-    div(
-
-
-      renderPlot({
-        p<-stack_scatter3D(data=vals$ss_map,coords=coords,base_shape=base_shape,layer_shape=layer_shape,
-                           col.palette=pal,
-                           newcolhabs=vals$newcolhabs,
-                           pt_cex=cex,
-                           spacing=1,
-                           expand=input$ss3d_exp,
-                           theta=input$ss3d_theta,
-                           phi=input$ss3d_phi,
-                           r=input$ss3d_eye,
-                           d=input$ss3d_d,
-                           xlim=c(input$sslong_xmin,input$sslong_xmax),
-                           ylim=c(input$sslat_xmin,input$sslat_xmax),
-                           col_base=sscol_base,
-                           col_layer=sscol_layer,
-                           z=zs,
-                           zmin=input$ss_zmin,
-                           zmax=input$ss_zmax,
-                           ticktype=input$ss_ticktype,
-                           xlab=input$ss_xlab,
-                           ylab=input$ss_ylab,
-                           zlab=input$ss_zlab,
-                           leglab.adj=input$ss_leglab.pos,
-                           legtit.posy=input$ss_legtitle.posy,
-                           breaks=input$ss_breaks+1,
-                           legwidth=50,
-                           legtit.posx=input$ss_legtitle.posx,
-                           title.srt=0,
-                           lab.srt=0,
-                           col.labels=input$col_factor_ss,
-                           cex.labels=input$pt_factor_ss,
-                           labels=labs,
-                           col.coords=input$col_coords_ss,
-                           cex.coords=input$pt_coords_ss,
-                           show_coords=co,
-                           show_labels=showlab,
-                           custom_legend=vals$ss_names)
-        vals$map_res<-p
-        p
-      })
-    )
+    vals$plotly_scatter3d
 
   })
+
+  observeEvent(input$run_ssplot3d,ignoreInit = T,{
+    #saveRDS(reactiveValuesToList(input),"input2.rds")
+    #saveRDS(reactiveValuesToList(vals),"vals.rds")
+        args<-ssplot3d_args()
+    vals$plotly_scatter3d<-do.call(plot_3d_ly,args)
+    vals$run_ssplot3d<-"div"
+  })
+
+
+
+
+
+
+
+
+
+
+
+
   output$cmap<-renderUI({
     req(!isTRUE(input$mantel_map))
     req(!isTRUE(input$surface_map))
@@ -4154,7 +3875,8 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
 
       uiOutput('map_out1'),
       uiOutput("scatter_out"),
-      uiOutput("ss3d"),
+      uiOutput("run_ss3d_plot"),
+      uiOutput("plot_ly_ss3d"),
       uiOutput("map_ssrgl"),
       uiOutput("map_srrgl"),
       uiOutput("map_out2"),
@@ -4165,6 +3887,42 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
 
     res
   })
+
+  output$plot_ly_ss3d<-renderUI({
+    req(isTRUE(input$stack_scatter_3d))
+    div(
+      div(class="map_control_style2",
+          "Plot dimensions",
+          inline(numericInput("py_ssmap_width","",700, width='150px')),
+          "X", inline(numericInput("py_ssmap_height","",400, width='150px')),"px"),
+      div(uiOutput("plot_ly_con1"))
+
+
+    )
+  })
+
+  output$plot_ly_con1<-renderUI({
+    req(isTRUE(input$stack_scatter_3d))
+    req(input$py_ssmap_width)
+    req(input$py_ssmap_height)
+    width<-paste0(input$py_ssmap_width,"px")
+    height<-paste0(input$py_ssmap_height,"px")
+    div(
+      plotlyOutput("ss3d_plot", width = width,height  = height)
+    )
+  })
+
+
+
+  output$run_ss3d_plot<-renderUI({
+    req(length(vals$ss_map)>1)
+    req(isTRUE(input$stack_scatter_3d))
+    if(is.null(vals$run_ssplot3d)){vals$run_ssplot3d<-"save_changes"}
+    div(class=vals$run_ssplot3d,actionButton('run_ssplot3d',"RUN >>"))
+  })
+
+
+
 
   output$stack_control<-renderUI({
     column(12,class="map_control_style2",
@@ -9875,7 +9633,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
       if(length(input$coords$datapath)>0){
         if(length(grep(".xlsx",input$coords$datapath))>0) {
           require(readxl)
-          df<-read_excel(input$coords$datapath, sheet = input$sheet_coord,na=c("","NA"))
+          df<-read_excel(input$coords$datapath, sheet = input$sheet_coord,na=c("","NA"))[1:3]
           data<-data.frame(df)
           cnames<-iconv(colnames(df), from = 'UTF-8', to = 'ASCII//TRANSLIT')
           colnames(data)<-cnames
@@ -9883,7 +9641,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
           rownames(coords)<-coords[, 1]
           coords[, 1]<-NULL
         } else{
-          coords<-data.frame(fread(input$coords$datapath))
+          coords<-data.frame(fread(input$coords$datapath))[1:3]
           rownames(coords)<-coords[, 1]
           coords[, 1]<-NULL
         }
@@ -12421,12 +12179,10 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
 
 
       renderPlot({
-
         somC<-phc()
         args<-argsplot_somplot()
-
         args$hc<-phc()$som.hc
-        p<-do.call(bmu_plot_hc,args)
+        vals$hc_tab4_plot<- p<-do.call(bmu_plot_hc,args)
         p
       })
     )
@@ -13547,14 +13303,25 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
     vals$hist_tabs<-input$hist_tabs
   })
   output$histo_plot<-renderUI({
-    if(is.null(vals$hist_tabs)){vals$hist_tabs<-"Summary"}
-    req(ncol(data_cogs$df)<10000)
+    data0<-vals$saved_data[[vals$cur_data]]
+    not_num<-any(!sapply(data0,is.numeric))
+    # if(length(not_num)>0){data[not_num]<-data.frame(lapply(data[not_num],as.numeric))}
+    validate(need(isFALSE(not_num),
+                  paste0("Error: Mixed character and numeric variables in ",
+                         vals$cur_data,
+                         " Datalist. Recreate it by downloading their attributes from Data-Bank menu and uploading them in 'Create Datalist' (Pre-processing tools)")
+    ))
+
+
+    #if(is.null(vals$hist_tabs)){vals$hist_tabs<-"Summary"}
+   # validate(need(nrow(vals$saved_data[[vals$cur_data]])<=1000,"This functionality is only available for data with less than 1000 observations"))
     column(12,style="padding: 5px; font-size: 12px",
            column(12,em("Track changes"),style="background: SeaGreen; color: white"),
            tabsetPanel(
-             id="hist_tabs", selected=vals$hist_tabs,
+             id="hist_tabs",selected="Summary",
              tabPanel("Changes",uiOutput("track_change")),
              tabPanel("Summary",uiOutput("hist_d0")),
+             tabPanel("Str",uiOutput("hist_str")),
              tabPanel("Data",uiOutput("hist_d1")),
              tabPanel("colSums",uiOutput("hist_d2")),
              tabPanel("rowSums",uiOutput("hist_d3")),
@@ -13570,7 +13337,35 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   })
 
 
+  output$hist_str<-renderUI({
+    div(
+      checkboxInput("check_str_num","str-> Numeric-Attribute"),
+      uiOutput('out_str_num'),
 
+      checkboxInput("check_str_factor","str-> Factor-Attribute"),
+      uiOutput('out_str_factor')
+
+    )
+  })
+
+
+  output$out_str_num<-renderUI({
+    req(isTRUE(input$check_str_num))
+    div(style="height: 200px; overflow-y: scroll",
+      renderPrint({
+        str(data_cogs$df)
+      })
+    )
+  })
+
+  output$out_str_factor<-renderUI({
+    req(isTRUE(input$check_str_factor))
+    div(style="height: 200px; overflow-y: scroll",
+        renderPrint({
+          str(attr(data_cogs$df,"factors"))
+        })
+    )
+  })
   output$hist_d5<-renderUI({
     req(is.data.frame(data_cogs$df))
     data=data_cogs$df
@@ -13594,35 +13389,38 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   })
 
   output$hist_d0<-renderUI({
-    renderPrint({
-      req(is.data.frame(data_cogs$df))
-      data=data_cogs$df
+    div(
+     # renderPrint(dim(data_cogs$df)),
+      renderPrint({
+        #req(is.data.frame(data_cogs$df))
+        data=data_cogs$df
 
-      nas=sum(is.na(unlist(data)))
-      n=data.frame(rbind(Param=paste('Missing values:', nas)))
+        nas=sum(is.na(unlist(data)))
+        n=data.frame(rbind(Param=paste('Missing values:', nas)))
 
-      a<-data.frame(rbind(Param=paste('nrow:', nrow(data)),paste('ncol:', ncol(data))))
-      c<-data.frame(
-        rbind(paste('min:', min(data,na.rm = T)),
-              paste('mean:', mean(unlist(data),na.rm = T)),
-              paste('median:', median(unlist(data),na.rm = T)),
-              paste('max:', max(data,na.rm = T)))
-      )
-
-
-      ppsummary("-------------------")
-
-      ppsummary(n)
-      ppsummary("-------------------")
-
-      ppsummary(a)
-      ppsummary("-------------------")
-
-      ppsummary(c)
-      ppsummary("-------------------")
+        a<-data.frame(rbind(Param=paste('nrow:', nrow(data)),paste('ncol:', ncol(data))))
+        c<-data.frame(
+          rbind(paste('min:', min(data,na.rm = T)),
+                paste('mean:', mean(unlist(data),na.rm = T)),
+                paste('median:', median(unlist(data),na.rm = T)),
+                paste('max:', max(data,na.rm = T)))
+        )
 
 
-    })
+        ppsummary("-------------------")
+
+        ppsummary(n)
+        ppsummary("-------------------")
+
+        ppsummary(a)
+        ppsummary("-------------------")
+
+        ppsummary(c)
+        ppsummary("-------------------")
+
+
+      })
+    )
 
 
   })
@@ -13878,7 +13676,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   })
 
   output$transf_attr<-DT::renderDataTable({
-    req(is.data.frame(data_cogs$df))
+    #req(is.data.frame(data_cogs$df))
     table<-  attr(data_cogs$df, 'transf')
     req(!is.null(table))
     req(nrow(table)==8)
@@ -15192,8 +14990,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
     try({
 
       validate(need(length(vals$saved_data)>0,"No data found"))
-      validate(need(nrow(vals$saved_data[[vals$cur_data]])<=1000,"This functionality is only available for data with less than 1000 observations"))
-      req(vals$cur_data)
+
       div(id="tool1",class="tools_content",
 
           div(checkboxInput("na.omit", span("NA.omit",pophelp(NULL,"check to remove all observations that contain any empty cases (NAs)")), value = F,)),
@@ -15226,6 +15023,8 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   })
 
   output$filterobs_byindividual<-renderUI({
+    validate(need(nrow(vals$saved_data[[vals$cur_data]])<=1000,"This functionality is only available for data with less than 1000 observations"))
+    req(vals$cur_data)
     div(
       div(
         div(actionLink("show_indsel","Individual selection:"),tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"),"Click to expand observations"),style="border-bottom: 1px solid gray; margin-top: 10px"),
@@ -15766,7 +15565,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   change_inputs<-reactive({
     list(
       input$radio_cogs,
-      vals$cur_data,
+      input$data_upload,
       input$filter_data,
       input$cutlevel_obs,
       input$selecvar,
@@ -15795,7 +15594,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
     args<-list(
 
       saved_data=vals$saved_data,
-      cur_data=vals$cur_data,
+      cur_data=input$data_upload,
       filter_data=input$filter_data,
       cutlevel_obs=input$cutlevel_obs,
       filter_datalist=input$filter_datalist,
@@ -16150,8 +15949,12 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
   })
   savechanges_comb<-reactive({
 
-
-
+    #input<-readRDS('input.rds')
+ #   vals<-readRDS('vals.rds')
+   # data_cogs<-readRDS("data_cogs.rds")
+    #saveRDS(reactiveValuesToList(input),'input.rds')
+   # saveRDS(reactiveValuesToList(vals),'vals.rds')
+  #  saveRDS(reactiveValuesToList(data_cogs),'data_cogs.rds')
 
     temp<-data_cogs$df
 
@@ -16199,7 +16002,7 @@ tipify(span('Breakpoints'), "The break points computed", placement = "right")
 
            uiOutput("menutitle"),
 
-           div(style="margin-top: 25px;",
+           div(id="imesc_after_title",
                tabsetPanel(
                  type = "hidden",
                  tabPanel("intro",

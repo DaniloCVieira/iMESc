@@ -392,3 +392,167 @@ stack_scatter_rgl<-function(data=NULL,coords,base_shape, layer_shape,z=NULL,col_
     }
   }
 }
+
+ss_map_input_list<-function(ss_map,input){
+  validate(need(length(ss_map)>1,"Add at least two variables to generate the plot"))
+  re<- do.call(rbind,lapply(1:length(ss_map),function(i){
+    c(
+      pals=input[[paste0("pt_palette",i)]],
+      zs= input[[paste0("ss_z",i)]],
+      labs=attr(df,"factors")[rownames(coords), input[[paste0("ss_labels",i)]]],
+      showlab=input[[paste0("ss_lab",i)]],
+      names=input[[paste0("ss_name",i)]]
+    )
+  }))
+  data.frame(re)
+}
+
+#attach(args)
+#
+cut_borders <- function(x){
+  pattern <- "(\\(|\\[)(-*[0-9]+\\.*[0-9]*),(-*[0-9]+\\.*[0-9]*)(\\)|\\])"
+
+  start <- as.numeric(gsub(pattern,"\\2", x))
+  end <- as.numeric(gsub(pattern,"\\3", x))
+
+  data.frame(start, end)
+}
+
+plot_3d_ly<-function(ss_map,zs,pals,min,max, show_base_shape=T, nlevels=5, newcolhabs,cex=100) {
+  {
+    names_z<-names(ss_map)
+    nlay<-length(pals)
+    max0<-max
+    fac<-is.factor(ss_map[[1]][,1])
+    max<-max0*1000
+    coords<-attr(ss_map,"coords")
+    colnames(coords)<-c("x","y")
+    df<-cbind(coords,data.frame(lapply(ss_map,function(x) x[,1])))
+    require(plotly)
+    if(isTRUE(fac)){
+      data2<-do.call(rbind,lapply(1:length(ss_map),function(i){
+        x1<-data.frame(variable=ss_map[[i]][,1])
+        x1$value<-1
+        x1$z<-zs[i]
+        cbind(x1,coords)
+      }))
+
+    } else{
+      data2<-reshape2::melt(df,c("x","y"))
+      data2$z<-as.numeric(factor(as.numeric(data2$variable),levels=zs))
+    }
+    if(isFALSE(fac)){
+      cutted<-lapply(1:nlay,function(i){
+        x<-ss_map[[i]][,1]
+        breaks<- seq(min(x),max(x),len=nlevels)
+        cut(x,breaks,include.lowest=T)
+      })
+
+      levels_list<-lapply(cutted,levels)
+      cols<-lapply(1:nlay,function(i){
+        x<-pals[i]
+        newcolhabs[[x]](length(levels_list[[i]]))[cutted[[i]]]
+      })
+      cols0<-lapply(1:nlay,function(i){
+        x<-pals[i]
+        newcolhabs[[x]](length(levels_list[[i]]))
+      })
+    } else{
+      cutted<-as.list(df[,-c(1:2)])
+      levels_list<-lapply(cutted,levels)
+      cols<-lapply(1:nlay,function(i){
+        x<-pals[i]
+        newcolhabs[[x]](length(levels_list[[i]]))[cutted[[i]]]
+      })
+      cols0<-lapply(1:nlay,function(i){
+        x<-pals[i]
+        newcolhabs[[x]](length(levels_list[[i]]))
+      })
+
+    }
+
+    cols2<-unlist(cols)
+    data3<-data2
+    data3$col<-cols2
+    data3$factor<-unlist(cutted)
+
+    data3<-do.call(rbind,lapply(split(data3,data3$z),function(x){
+      x[order(x$factor),]
+    }))
+
+
+    newvec<-paste0("var_",data3$variable,"_z",data3$z,"_fac",data3$factor,"_col",data3$col)
+    data3$newvec<-newvec
+    data3$newvec<-factor(data3$newvec, levels= unique(newvec))
+
+    if(isFALSE(fac)){
+      newvec<-paste0("var_",data3$variable,"_z",data3$factor,"_col",data3$col)
+      data3$newvec<-newvec
+      li<-split(data3,list(data3$z))
+      li<-unlist(lapply(li,function(x) split(x,x$factor)),recursive = F)
+
+    }  else{
+      li<-split(data3,data3$newvec)
+    }
+
+    vars<-sapply(ss_map,colnames)
+    fig<-plot_ly( sizes=c(10,100))
+    i=3
+    li<-li[rev(1:length(li))]
+    for(i in 1:length(li)){
+      d1=li[[i]]
+      #d1$value
+      dim(d1)
+      head(d1)
+      d1$size<-as.numeric(d1$factor)
+
+      (fig <- add_trace(fig,data=d1, x = ~x, y = ~y, z=~z,
+                        name =   unique(d1$factor),
+
+                        col=~col,
+                        size=~value,
+                        stroke=NA,
+                        mode="markers",
+                        type="scatter3d",
+                        legendgroup =d1$z,
+                        marker=list(color=d1$col
+                                   #size=as.numeric(d1$factor)
+
+                                    )))
+    }
+  }
+   base_shape<-attr(ss_map,"base_shape")
+  sf<-st_as_sf(base_shape)
+  if(isTRUE(show_base_shape)){
+    for( i in zs){
+      fig<-add_sf(fig, data=sf,z=c(i), color=I("black"),showlegend=F)
+    }
+  }
+
+  axz <- list(
+    tickvals = c(zs),
+    range = c(min,max0),
+    title = "Layers",
+    ticktext = names_z
+  )
+  suppressWarnings(plotly::layout(
+    fig,scene = list(bgcolor = "rgb(244, 244, 248)", zaxis=axz),
+    uniformtext=list(minsize=0),
+
+    legend=list(
+      traceorder="reversed+grouped",
+      itemwidth=1,
+      size=1,
+      grouptitlefont=list(
+        size=20
+      ),
+      font=list(size=10)
+    )
+
+  ))
+
+
+}
+
+
+

@@ -1,7 +1,9 @@
 ## Copyright © 2023 [Danilo Candido Vieira]
 ## Licensed under the CC BY-NC-ND 4.0 license.
 
+
 getbp_som2<-function(m,indicate,npic,hc){
+
   if(is.null(indicate)){return(NULL)}
   grid<-m$grid$pts
   grid.size<-nrow(grid)
@@ -114,7 +116,8 @@ get_maxdistances_clusters <- function(coords, n, centro = c(0, 0)) {
       subset_coords <- coords[coords$cluster == cl,]
       subset_coords_sorted <- subset_coords[order(-subset_coords$dist_to_center),]
       if(nrow(subset_coords_sorted) >= iteration) {
-        results <- c(results, rownames(subset_coords_sorted)[iteration])
+        results <- unique(c(results, rownames(subset_coords_sorted)[iteration]))
+
         if(length(results) == n) break
       }
     }
@@ -141,7 +144,9 @@ get_maxdistances <- function(coords, top, centro = c(0, 0)) {
   return(top_points)
 }
 get_maxdistances_quadrants <- function(coords, n, centro = c(0, 0)) {
-  if(n<1){n<-1}
+  if (n < 1) {
+    n <- 1
+  }
   # Calculate the distance of each point from the center
   coords$dist_to_center <- sqrt((coords$x - centro[1])^2 + (coords$y - centro[2])^2)
 
@@ -156,17 +161,22 @@ get_maxdistances_quadrants <- function(coords, n, centro = c(0, 0)) {
   # Adjust the order of the quadrants based on the quadrant of the point with the greatest distance
   all_quadrants <- c("BottomLeft", "TopLeft", "TopRight", "BottomRight")
   start_idx <- which(all_quadrants == max_distance_quadrant)
-  quadrant_order <- c(all_quadrants[start_idx:length(all_quadrants)], all_quadrants[1:(start_idx-1)])
+  quadrant_order <- c(all_quadrants[start_idx:length(all_quadrants)], all_quadrants[1:(start_idx - 1)])
 
-  results <- c()
+  results <- character(0)  # Initialize an empty character vector
   iteration <- 1
-  while(length(results) < n) {
+  selected_rows <- numeric(0)  # Initialize an empty numeric vector to keep track of selected rows
+
+  while (length(results) < n) {
     for (q in quadrant_order) {
-      subset_coords <- coords[coords$quadrant == q,]
-      subset_coords_sorted <- subset_coords[order(-subset_coords$dist_to_center),]
-      if(nrow(subset_coords_sorted) >= iteration) {
-        results <- c(results, rownames(subset_coords_sorted)[iteration])
-        if(length(results) == n) break
+      subset_coords <- coords[coords$quadrant == q, ]
+      subset_coords_sorted <- subset_coords[order(-subset_coords$dist_to_center), ]
+      rows_to_select <- setdiff(rownames(subset_coords_sorted), selected_rows)
+
+      if (length(rows_to_select) >= iteration) {
+        results <- c(results, rows_to_select[iteration])
+        selected_rows <- c(selected_rows, rows_to_select[iteration])
+        if (length(results) == n) break
       }
     }
     iteration <- iteration + 1
@@ -174,6 +184,7 @@ get_maxdistances_quadrants <- function(coords, n, centro = c(0, 0)) {
 
   return(results)
 }
+
 switch_theme<-function(p,theme, base_size){
   p<-switch(theme,
             'theme_grey'={p+theme_grey(base_size)},

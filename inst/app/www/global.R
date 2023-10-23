@@ -1,7 +1,7 @@
 
-rm(list=ls())
+#rm(list=ls())
 inicio <- Sys.time()
-
+library(shiny)
 jscode_screen<-'var dimension = [0, 0];
                                 $(document).on("shiny:connected", function(e) {
                                     dimension[0] = window.innerWidth;

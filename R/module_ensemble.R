@@ -148,7 +148,7 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
                tabsetPanel(
 
                  id=ns("Ensemble_tab3"),
-                 selected=vals$Ensemble_tab3,
+
                  tabPanel("4.1. Pool results",
                           value="tab_pool",
                           uiOutput(ns("entab_2"))
@@ -470,9 +470,7 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
       scrollY = "400px",
       fixedHeader=TRUE,
       fixedColumns = list(leftColumns = 2, rightColumns = 0)),
-    rownames = F,
-    class ='cell-border compact stripe',
-    editable=F)
+    rownames = F)
 
 
   observeEvent(ignoreInit = T,input$download_table_model,{
@@ -1143,8 +1141,7 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
       fixedHeader=TRUE,
       fixedColumns = list(leftColumns = 1, rightColumns = 0)),
     filter="top",
-    rownames = F,
-    class ='cell-border compact stripe')
+    rownames = F)
 
   observeEvent(ignoreInit = T,input$download_table_pool,{
     vals$down_ensemble_pool_metrics<-data.frame(get_pool_metrics_df())
@@ -1317,13 +1314,26 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
       div(
           pickerInput(ns("optimal_ensemble"), lab1,choices=colnames(get_pool_metrics()), selected=vals$optimal_ensemble)),
       uiOutput(ns("pool_result_side")),
-      div(class='button_min',
-          div(class='save_changes',
-              tipify(actionButton(ns("save_selected_ensemble"), icon("fas fa-save")), "Save the selected ensemble model for result recovery and predicting unknown data")
+      uiOutput(ns("pool_save_optimal_ensemble")),
 
+    )
+  })
+
+  output$pool_save_optimal_ensemble<-renderUI({
+    req(input$ensemble_models)
+    if(input$ensemble_models=="New Ensemble"){
+    span(icon("fas fa-lightbulb"),"First, save the 'Ensemble List' so you can then save the 'Optimal Ensemble' and make predictions based on it.",style="color: SeaGreen")
+    }else{
+      div(class='button_min',
+          span(
+            inline(div(class='save_changes',
+                       tipify(actionButton(ns("save_selected_ensemble"), icon("fas fa-save")), "Save the selected ensemble model for result recovery and predicting unknown data","right")
+
+            )),icon("fas fa-hand-point-left"),"Save the Optimal Ensemble"
           )
       )
-    )
+  }
+
   })
 
   get_best_table_pool<-reactive({
@@ -1697,7 +1707,7 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
 
 
   )
-  output$weis_df<-DT::renderDataTable({},options = list(info = FALSE, autoWidth=T,dom = 't'), rownames = F,class ='cell-border compact stripe')
+  output$weis_df<-DT::renderDataTable({},options = list(info = FALSE, autoWidth=T,dom = 't'), rownames = F)
 
 
   output$Ensemble_tab8<-renderUI({
@@ -1749,7 +1759,7 @@ module_server_comp2 <- function (input, output, session,vals,df_colors,newcolhab
     req(length(vals$saved_ensemble[[input$ensemble_models]]$result_inter1)>0)
     data.frame(vals$saved_ensemble[[input$ensemble_models]]$result_inter1)
 
-  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE,class ='cell-border compact stripe')
+  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE)
 
 
   observeEvent(ignoreInit = T,input$download_table_iter,{
@@ -3526,7 +3536,7 @@ p(
     }
 
     rbind(accs,get_predtab())
-  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE,class ='cell-border compact stripe')
+  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE)
 
 
 
@@ -3536,7 +3546,7 @@ p(
 
   output$ensemble_predictions<-DT::renderDataTable({
     get_pred()
-  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE,class ='cell-border compact stripe')
+  },options = list(pageLength = 20, info = FALSE,lengthMenu = list(c(20, -1), c( "20","All")), autoWidth=T,dom = 'lt'), rownames = TRUE)
 
 
 
@@ -3793,6 +3803,7 @@ p(
 
 
   comb_create_training_errors<-reactive({
+    datao<-vals$saved_data[[input$data_tosel_ensemble]]
     em<-get_the_model2()
 
 
@@ -3804,7 +3815,6 @@ p(
     newdata<- em$newdata
     newdata<-vals$saved_data[[input$data_tosel_ensemble]][rownames(newdata),]
 
-    datao<-newdata[rownames(temp),]
 
     temp<-data_migrate(datao,temp,"newdatalist")
     if(modelist[[1]]$modelType=="Classification"){
@@ -3846,7 +3856,7 @@ p(
     m<-get_modelist_from_em()[[1]]
     var<-attr(m,"supervisor")
     temp<-vals$comp_treetest
-    datao<-vals$saved_data[[input$obc]]
+
     factors<-attr(temp,"factors")
 
     factors<-temp[c('q_class')]
@@ -3857,15 +3867,16 @@ p(
 
   resample_create<-reactive({
 
+    datao<-vals$saved_data[[input$data_tosel_ensemble]]
     temp<-resample_data()
     if(input$hand_save=="create") {
       temp<-data_migrate(datao,temp,input$newdatalist)
-      attr(temp,"factors")<-factors
+      attr(temp,"factors")<-cbind(attr(temp,"factors"),temp)
       vals$saved_data[[input$newdatalist]]<-temp
 
     } else{
       temp<-data_migrate(datao,temp,input$over_datalist)
-      attr(temp,"factors")<-factors
+      attr(temp,"factors")<-cbind(attr(temp,"factors"),temp)
       vals$saved_data[[input$over_datalist]]<-temp
 
     }
@@ -3877,6 +3888,8 @@ p(
 
 
   combb_create_pred<-reactive({
+
+    datao<-vals$saved_data[[input$data_tosel_ensemble]]
     temp<-get_pred()
     newdata<- get_newdata_source()
     if(input$ensemble_predtype=='new_val'){
@@ -3888,17 +3901,21 @@ p(
 
       }
     modelist<-get_modelist_from_em()
+    temp<-data_migrate(newdata,temp)
+
     if(modelist[[1]]$modelType=="Regression"){
     }else{
-      facs<- attr(newdata,"factors")[rownames(datao),, drop=F]
+      obcs<-get_obc()
+      facs<- attr(newdata,"factors")[names(obcs),, drop=F]
       facs<-cbind(facs,temp)
-      facs[,colnames(temp)]<-factor(facs[,colnames(temp)], levels=levels(get_obc()))
-      attr(newdata,"factors")<-facs
+      facs[,colnames(temp)]<-factor(facs[,colnames(temp)], levels=levels(obcs))
+      attr(temp,"factors")<-facs
     }
+
     if(input$hand_save=="create") {
-      vals$saved_data[[input$newdatalist]]<-newdata
+      vals$saved_data[[input$newdatalist]]<-temp
     } else{
-      vals$saved_data[[input$over_datalist]]<-newdata
+      vals$saved_data[[input$over_datalist]]<-temp
     }
   })
 
@@ -4280,8 +4297,10 @@ p(
     vals$run_ensemble_pred<-F
     shinyjs::removeClass('run_preds_id', 'save_changes')
     updateTabsetPanel(session,'ensemble_pages',"page3")
-    if(!length(get_obc())>0){
-      delay(500,updateTabsetPanel(session,'Ensemble_tab3',"tab_model"))
+    if(isTRUE(input$best_comb)){
+      updateTabsetPanel(session,'Ensemble_tab3',"tab_pool")
+    } else{
+      updateTabsetPanel(session,'Ensemble_tab3',"tab_model")
     }
 
 

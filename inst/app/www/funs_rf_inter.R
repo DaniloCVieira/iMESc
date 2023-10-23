@@ -362,7 +362,7 @@ rf_global_predall<-function(models){
 rf_global_test<-function(m) {
   observed<-attr(m,"sup_test")
   if(class(m$finalModel)=="randomForest"){
-    rf_pred <- predict(m$finalModel,newdata = attr(m,"test"), predict.all=T)} else{
+    rf_pred <- randomForest:::predict.randomForest(m$finalModel,newdata = attr(m,"test"), predict.all=T)} else{
       rf_pred <- predict(m,newdata = attr(m,"test"))
     }
   if(m$modelType=="Regression"){

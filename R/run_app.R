@@ -10,7 +10,6 @@ options(shiny.autoload.r=FALSE)
 #' @importFrom shiny shinyApp
 #' @importFrom golem with_golem_options
 run_app<-function(
-  onStart =   function(...){source("inst/www/global.R")},
   options = list(quiet=T),
   enableBookmarking = NULL,
   uiPattern = "/",
@@ -21,7 +20,6 @@ run_app<-function(
     app = shinyApp(
       ui = app_ui,
       server = app_server,
-      onStart = onStart,
       options = options,
       enableBookmarking = enableBookmarking,
       uiPattern = uiPattern

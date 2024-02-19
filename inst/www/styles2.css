@@ -1,0 +1,251 @@
+
+
+
+.toolbar .navbar {
+
+  margin-bottom: 0px;
+  padding: 0px;
+  min-height: 10px;
+}
+
+.toolbar .navbar, .toolbar .container-fluid {
+   margin: 0px;
+    padding: 0px;
+
+
+}
+.toolbar .nav i {
+color: white
+}
+.blur {
+filter: brightness(0) invert(1);}
+
+.navbar-default {
+height: 35px;
+margin: 0px;
+padding: 0px
+}
+.toolbar .nav>li {
+
+height: 35px;
+margin: 0px;
+padding: 0px
+
+}
+.toolbar .nav>li a {
+margin: 0px;
+
+
+}
+
+
+
+
+
+.toolbar .navbar-default .navbar-nav>.active > a {
+margin: 0px;
+padding: 0px;
+max-height: 35px;
+border-radius: 0px 0px 0px 0px;
+width: 50px;
+# height: 35px;
+
+cursor: default;
+border: 0px solid;
+}
+
+
+
+.toolbar .navbar-brand {
+    padding: 0px;
+margin: 0px
+}
+
+ .toolbar .navbar div {
+
+
+}
+
+.toolbar .nav>li a {
+    margin: 0px;
+    padding: 0px;
+width: 50px
+
+}
+.toolbar .nav > a {
+    padding: 4px;
+}
+
+.active  .blur,  .nav .active i   {
+  filter: brightness(1);
+    color: #05668D;
+border: 0px solid;
+}
+#data-toolbar-drop_options_links:focus,
+#data-toolbar-drop_options_links:hover,
+.navbar-default .navbar-nav>.active>a .tool2,
+.navbar-default .navbar-nav>.active>a:focus .tool2,
+.navbar-default .navbar-nav>.active>a:hover .tool2,
+.navbar-default .navbar-nav>.active>a .tool,
+.navbar-default .navbar-nav>.active>a:focus .tool,
+.navbar-default .navbar-nav>.active>a:hover .tool {
+    color: #05668D;
+    background-color: white;
+  -webkit-box-shadow: inset 0px 1px 5px #797979ff;
+  -moz-box-shadow: inset 0px 1px 5px #797979ff;
+  box-shadow: inset 0px 1px 5px #797979ff;
+width: 50px;
+min-width: 35px;
+height: 35px;
+max-heigth: 30px
+}
+l a:focus  {
+ background-color: white;
+}
+.tool2 {
+  background: grey;
+ text-align: center;
+width: 50px;
+height: 35px;
+border: 1px solid;
+padding: 5px
+
+}
+.tool {
+  background: DarkSlateGray;
+ text-align: center;
+width: 50px;
+height: 35px;
+border: 1px solid;
+padding: 5px
+
+}
+
+.blur { filter: brightness(0) invert(1);}
+.toolbar .btn-radio_cogs:focus .blur{
+color: #05668D;
+}
+.toolbar .btn-radio_cogs.active  .blur {
+ color: #05668D;
+  filter: brightness(1);}
+.toolbar .btn-radio_cogs:hover .blur { filter: brightness(1);}
+.toolbar .btn-radio_cogs{
+color: white;
+  border: 0px solid;
+border-radius: 0px 0px 0px 0px;
+background:DarkSlateGray ;
+
+}
+
+
+
+.dlinks_all,.ddlinks_all{
+
+  padding: 5px;
+  padding-top: 10px;
+  height: 320px;
+  margin-left: -5px;
+
+  z-index: 999994;
+
+}
+.dflinks_all{
+
+  background: Gainsboro;
+  padding: 5px;
+  padding-top: 10px;
+
+  height: 50px;
+  margin-left: -5px;
+  border-left: 1px solid #05668D;
+  border-right: 1px solid #05668D;
+  border-bottom: 1px solid #05668D;
+  z-index: 999994;
+
+}
+
+.ddlinks_all{height: 82px;}
+
+.dlinks, .ddlinks, .dflinks{
+  box-shadow: 0 0px 1px  grey;
+  padding: 3px;
+}
+.tool_side{
+  padding-left: 15px;
+}
+.tool_side label {
+    position: relative;
+    padding-left: 15px;
+
+}
+
+
+
+.tool_side {
+  border-left: 1px dashed #3c8dbc;
+      margin-left: 10px
+      }
+      .tool_side label::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    bottom: calc(50% + 3px);
+    left: -15px;
+      border-bottom: 1px dashed #3c8dbc;
+    width: 10px;
+      }
+.tools_page {
+padding: 5px;
+padding-left: 10px;
+background: #f7f7f7ff;
+-webkit-box-shadow: inset 0px 0px 5px #797979ff;
+}
+
+.tools_page .form-group {
+    margin-bottom: 0px;
+}
+
+#data-toolbar-drop_options_links {
+     background: DarkSlateGray;
+}
+
+#dropdown-menu-data-toolbar-drop_options_links .btn:focus,
+#dropdown-menu-data-toolbar-drop_options_links .btn:hover {
+font-weight: bold;
+color: SeaGreen;
+ background: #f0eeeeff;
+  -webkit-box-shadow: inset 0px 0px 5px #797979ff;
+-moz-box-shadow: inset 0px 0px 5px #797979ff;
+box-shadow: inset 0px 0px 5px #797979ff;
+
+}
+
+      #dropdown-menu-data-toolbar-drop_options_links .btn {
+ background: Gainsboro;
+      padding: 2px;
+      text-align: left;
+  width: 200px;
+   border-left: 1px solid #05668D;
+  border-right: 1px solid #05668D;
+  border-bottom: 1px solid #05668D;
+}
+.tools_content   {
+border: 1px solid orange;
+margin: 0px;
+padding: 0px
+
+}
+
+.half-drop  {
+margin: 0px;
+padding: 0px
+}
+.half-drop  .col-sm-6 {
+margin: 0px;
+padding: 0px
+}
+.half-drop  .col-sm-6 .btn  {
+   width: 100%;
+   text-align: left;
+
+   }

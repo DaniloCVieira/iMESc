@@ -7,12 +7,12 @@ suppressWarnings({
   if(!length(grep("connect/apps",getwd()))>0){
     new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
     if(length(new.packages)) {install.packages(new.packages, dependencies = TRUE)}
-    remotes::install_deps(upgrade="never")
+    remotes::install_deps("inst",upgrade="never")
   }
 
-  pkgload::load_all(export_all = T,quiet =T,warn_conflicts =F)
+  pkgload::load_all("inst",export_all = T,quiet =T,warn_conflicts =F)
 
-  run_app(options=list(quiet=T,shiny.autoload.r=FALSE, launch.browser=T))
+  shinyApp(app_ui,app_server)
 
 })
 

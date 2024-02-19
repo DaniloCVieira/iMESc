@@ -1,3 +1,4 @@
+library(shiny)
 options(shiny.autoload.r=FALSE)
 #' @importFrom caret getModelInfo
 #library(viridis)
@@ -42,7 +43,7 @@ jscode_screen<-'var dimension = [0, 0];
 #last_update<-"2022-11-08"
 if(getwd()=="D:/R3/imesc/imesc3"){
   last_update<-Sys.Date()
-  saveRDS(last_update,"inst/www/last_update.rds")
+  saveRDS(last_update,"www/last_update.rds")
   qsave=T
 
 
@@ -50,7 +51,7 @@ if(getwd()=="D:/R3/imesc/imesc3"){
 
 }
 
-last_update<-readRDS('inst/www/last_update.rds')
+last_update<-readRDS('www/last_update.rds')
 #last_update<-format(Sys.Date(),"%d-%m-%Y")
 
 TESTE<- reactive({
@@ -92,27 +93,27 @@ transf_df<-list(
 )
 mytips<-paste0(do.call(paste0,args=list("'",lapply(transf_df,function(x) x$tooltip), sep="'")),collapse=",")
 
-source("inst/www/funs_ordination_plot.R")
-source('inst/www/funs_texts.R')
-source("inst/www/funs_pre_treat.R")
-source("inst/www/funs_sominter.R")
-source("inst/www/funs_somplot.R")
-source("inst/www/funs_mapplot.R")
-source("inst/www/funs_rf_inter.R")
-source("inst/www/funs_ensemble.R")
-source("inst/www/funs_interp.R")
-source("inst/www/mytrain_som.R")
-source("inst/www/funs_spd.R")
-source("inst/www/funs_som2.R")
-source("inst/www/funs_task_mananger.R")
-source("inst/www/funs_desc.R")
+source("www/funs_ordination_plot.R")
+source('www/funs_texts.R')
+source("www/funs_pre_treat.R")
+source("www/funs_sominter.R")
+source("www/funs_somplot.R")
+source("www/funs_mapplot.R")
+source("www/funs_rf_inter.R")
+source("www/funs_ensemble.R")
+source("www/funs_interp.R")
+source("www/mytrain_som.R")
+source("www/funs_spd.R")
+source("www/funs_som2.R")
+source("www/funs_task_mananger.R")
+source("www/funs_desc.R")
 #file.remove(paste0(getwd(), "/", 'bookmarks.rds'))
 js<-'$(document).keyup(function(event) {
     if (event.keyCode == 13) {
         $("#data_confirm").click()'
 
-source("inst/www/fun_gg_rst.R")
-source("inst/www/funs_leaflet.R")
+source("www/fun_gg_rst.R")
+source("www/funs_leaflet.R")
 
 convertMenuItem<-function(mi, tabName) {
   mi$children[[1]]$attribs['data-toggle'] = "tab"
@@ -124,56 +125,56 @@ convertMenuItem<-function(mi, tabName) {
 }
 
 
-unsup_icon<-base64enc::dataURI(file = "inst/www/unsup_icon.png", mime = "image/png")
-sup_icon<-base64enc::dataURI(file = "inst/www/sup_icon.png", mime = "image/png")
-imesc_icon<-base64enc::dataURI(file = "inst/www/imesc_logo.png", mime = "image/png")
-b64<-base64enc::dataURI(file = "inst/www/logo.png", mime = "image/png")
-split_icon<-base64enc::dataURI(file = "inst/www/split_icon2.png", mime = "image/png")
-split_icon_white<-base64enc::dataURI(file = "inst/www/split_icon3.png", mime = "image/png")
-smw_icon<-base64enc::dataURI(file = "inst/www/smw_icon.png", mime = "image/png")
+unsup_icon<-base64enc::dataURI(file = "www/unsup_icon.png", mime = "image/png")
+sup_icon<-base64enc::dataURI(file = "www/sup_icon.png", mime = "image/png")
+imesc_icon<-base64enc::dataURI(file = "www/imesc_logo.png", mime = "image/png")
+b64<-base64enc::dataURI(file = "www/logo.png", mime = "image/png")
+split_icon<-base64enc::dataURI(file = "www/split_icon2.png", mime = "image/png")
+split_icon_white<-base64enc::dataURI(file = "www/split_icon3.png", mime = "image/png")
+smw_icon<-base64enc::dataURI(file = "www/smw_icon.png", mime = "image/png")
 
-pw_icon<-base64enc::dataURI(file = "inst/www/pwrda_icon.png", mime = "image/png")
-na_icon<-base64enc::dataURI(file = "inst/www/na_icon2.png", mime = "image/png")
+pw_icon<-base64enc::dataURI(file = "www/pwrda_icon.png", mime = "image/png")
+na_icon<-base64enc::dataURI(file = "www/na_icon2.png", mime = "image/png")
 
-tutor_icon<-base64enc::dataURI(file = "inst/www/tutor_icon.png", mime = "image/png")
+tutor_icon<-base64enc::dataURI(file = "www/tutor_icon.png", mime = "image/png")
 
-nb_icon<-base64enc::dataURI(file = "inst/www/nb_icon.png", mime = "image/png")
-nb_icon2<-base64enc::dataURI(file = "inst/www/nb_icon2.png", mime = "image/png")
+nb_icon<-base64enc::dataURI(file = "www/nb_icon.png", mime = "image/png")
+nb_icon2<-base64enc::dataURI(file = "www/nb_icon2.png", mime = "image/png")
 
-svm_icon<-base64enc::dataURI(file = "inst/www/smv_icon.png", mime = "image/png")
-svm_icon2<-base64enc::dataURI(file = "inst/www/smv_icon2.png", mime = "image/png")
+svm_icon<-base64enc::dataURI(file = "www/smv_icon.png", mime = "image/png")
+svm_icon2<-base64enc::dataURI(file = "www/smv_icon2.png", mime = "image/png")
 
-agg_icon2<-base64enc::dataURI(file = "inst/www/agg_icon2.png", mime = "image/png")
+agg_icon2<-base64enc::dataURI(file = "www/agg_icon2.png", mime = "image/png")
 
-knn_icon<-base64enc::dataURI(file = "inst/www/knn_icon.png", mime = "image/png")
-knn_icon2<-base64enc::dataURI(file = "inst/www/knn_icon2.png", mime = "image/png")
+knn_icon<-base64enc::dataURI(file = "www/knn_icon.png", mime = "image/png")
+knn_icon2<-base64enc::dataURI(file = "www/knn_icon2.png", mime = "image/png")
 
-comp_icon<-base64enc::dataURI(file = "inst/www/comp_icon.png", mime = "image/png")
-comp_icon2<-base64enc::dataURI(file = "inst/www/comp_icon2.png", mime = "image/png")
-sim_icon<-base64enc::dataURI(file = "inst/www/sim_icon.png", mime = "image/png")
+comp_icon<-base64enc::dataURI(file = "www/comp_icon.png", mime = "image/png")
+comp_icon2<-base64enc::dataURI(file = "www/comp_icon2.png", mime = "image/png")
+sim_icon<-base64enc::dataURI(file = "www/sim_icon.png", mime = "image/png")
 
-compare_icon<-base64enc::dataURI(file = "inst/www/compare_icon.png", mime = "image/png")
-ensemble_icon<-base64enc::dataURI(file = "inst/www/ensemble_icon.png", mime = "image/png")
-sgboost_icon<-base64enc::dataURI(file = "inst/www/sgboost_icon.png", mime = "image/png")
-sgboost_icon2<-base64enc::dataURI(file = "inst/www/sgboost_icon2.png", mime = "image/png")
-
-
-kmeans_icon<-base64enc::dataURI(file = "inst/www/kmeans_icon.png", mime = "image/png")
-kmeans_icon2<-base64enc::dataURI(file = "inst/www/kmeans_icon2.png", mime = "image/png")
-
-div_icon<-base64enc::dataURI(file = "inst/www/div_icon.png", mime = "image/png")
+compare_icon<-base64enc::dataURI(file = "www/compare_icon.png", mime = "image/png")
+ensemble_icon<-base64enc::dataURI(file = "www/ensemble_icon.png", mime = "image/png")
+sgboost_icon<-base64enc::dataURI(file = "www/sgboost_icon.png", mime = "image/png")
+sgboost_icon2<-base64enc::dataURI(file = "www/sgboost_icon2.png", mime = "image/png")
 
 
-icon_360_hor<-base64enc::dataURI(file = "inst/www/icon_360_hor.png", mime = "image/png")
+kmeans_icon<-base64enc::dataURI(file = "www/kmeans_icon.png", mime = "image/png")
+kmeans_icon2<-base64enc::dataURI(file = "www/kmeans_icon2.png", mime = "image/png")
+
+div_icon<-base64enc::dataURI(file = "www/div_icon.png", mime = "image/png")
 
 
-icon_360_ver<-base64enc::dataURI(file = "inst/www/icon_360_ver.png", mime = "image/png")
+icon_360_hor<-base64enc::dataURI(file = "www/icon_360_hor.png", mime = "image/png")
 
-rf_icon<-base64enc::dataURI(file = "inst/www/rf_icon.png", mime = "image/png")
 
-rf_icon2<-base64enc::dataURI(file = "inst/www/rf_icon2.png", mime = "image/png")
+icon_360_ver<-base64enc::dataURI(file = "www/icon_360_ver.png", mime = "image/png")
 
-xyf_icon<-base64enc::dataURI(file = "inst/www/xyf_icon.png", mime = "image/png")
+rf_icon<-base64enc::dataURI(file = "www/rf_icon.png", mime = "image/png")
+
+rf_icon2<-base64enc::dataURI(file = "www/rf_icon2.png", mime = "image/png")
+
+xyf_icon<-base64enc::dataURI(file = "www/xyf_icon.png", mime = "image/png")
 
 
 
@@ -278,7 +279,7 @@ df_symbol<-data.frame(
 )
 for(i in 1:length(symbols))
 {
-  symbol1<-base64enc::dataURI(file = paste0('inst/www/pch',i,".png"), mime = "image/png")
+  symbol1<-base64enc::dataURI(file = paste0('www/pch',i,".png"), mime = "image/png")
   df_symbol$img[i]<- sprintf(paste0(img(src = symbol1, width = '10')))}
 
 

@@ -1,6 +1,7 @@
 #' @import shiny shinyBS shinybusy data.table
 #' @importFrom shinydashboardPlus dashboardFooter dashboardSidebar
 #' @importFrom shinydashboard sidebarMenu menuItem menuSubItem dashboardBody tabItems tabItem dashboardHeader
+options(shiny.autoload.r=FALSE)
 #' @importFrom shinyWidgets updatePickerInput pickerInput radioGroupButtons updateRadioGroupButtons dropdownButton tooltipOptions toggleDropdownButton switchInput
 #' @importFrom shinyjs hide show hidden addClass removeClass toggle runjs toggleState extendShinyjs useShinyjs delay onclick
 #roxygen2::roxygenise()

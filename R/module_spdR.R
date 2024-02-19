@@ -1,4 +1,4 @@
-
+options(shiny.autoload.r=FALSE)
 #' @importFrom lattice trellis.par.set bwplot
 #' @importFrom scales	percent_format rescale
 #' @importFrom dplyr mutate

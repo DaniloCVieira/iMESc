@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' KNN
 #'
 #' @description  A shiny Module.

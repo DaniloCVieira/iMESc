@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @export
 #' @noRd
 

@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @noRd
 print.ggmatrix<-GGally:::print.ggmatrix
 

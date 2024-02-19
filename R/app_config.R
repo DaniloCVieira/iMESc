@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' Access files in the current app
 #'
 #' NOTE: If you manually change your package name in the DESCRIPTION,

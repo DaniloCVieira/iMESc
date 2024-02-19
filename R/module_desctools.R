@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @importFrom colorspace lighten
 #' @importFrom data.table rleid
 #' @importFrom segRDA OrdData bp

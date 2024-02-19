@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @importFrom shiny NS tagList
 #' @export
 #'

@@ -242,6 +242,7 @@ my_levels<-function (x) {
 }
 #' @export
 my_tags<-c("Self-Organising Maps")
+options(shiny.autoload.r=FALSE)
 #' @export
 my_sort<-function (x){
   x[order(x$xdim, x$ydim), ]}

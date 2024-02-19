@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 ## Licensed under the CC BY-NC-ND 4.0 license.
 #' @noRd
 

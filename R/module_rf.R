@@ -1,4 +1,4 @@
-
+options(shiny.autoload.r=FALSE)
 #' @noRd
 
 

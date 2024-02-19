@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @noRd
 #' @importFrom webshot webshot
 #' @importFrom geodist geodist

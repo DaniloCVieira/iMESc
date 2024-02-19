@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 ## Copyright © 2023 [Danilo Candido Vieira]
 ## Licensed under the CC BY-NC-ND 4.0 license.
 #' @importFrom kernlab predict

@@ -1,3 +1,4 @@
+options(shiny.autoload.r=FALSE)
 #' @importFrom caret getModelInfo
 #library(viridis)
 #library(shinyBS)

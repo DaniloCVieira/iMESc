@@ -6,7 +6,7 @@
 #roxygen2::roxygenise()
 #' @export
 #' @noRd
-
+library(shinyBS)
 version<-"1.0.2"
 app_ui<-function(request) {
 

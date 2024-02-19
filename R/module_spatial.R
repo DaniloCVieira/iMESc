@@ -886,7 +886,7 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
 
     sidebarLayout(
 
-      sidebarPanel(style="min-height: 500px;",
+      sidebarPanel(style="min-height: 600px;",
                    div(style="position: absolute; top: 0px; right: 0px",
                        div(class="save_changes",id=ns("run_leaflet_btn1"),actionButton(ns("run_leaflet1"),span(icon("angles-right"),icon("map")),class='button_run_map'))),
                    hidden(div(
@@ -942,11 +942,16 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
           navbarPage(id=ns('mode_plot'),
                      title=NULL,selected="leaflet",
                      tabPanel("Leaflet",value="leaflet",
-                              inline(ll_options$ui(ns("options1"))),
+
+                              span(id=ns("zoom_leaflet_btn"),style="display: none",
+                                   inline(ll_options$ui(ns("options1"))),
+                                actionButton(ns("zoom_leaflet"),icon("magnifying-glass-plus"))
+                              ),
+                              bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
 
 
 
-                              leafletOutput(ns("plot_from_leaflet"))),
+                              leafletOutput(ns("plot_from_leaflet"), height  = 500)),
                      tabPanel("GGplot",value="ggplot",
                               checkboxInput(ns("show_ggcontrol"),"Customize",F),
                               div(class="div",
@@ -1088,6 +1093,33 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,vals){
       #validate_data(vals$data_map)
       map_result1_final()
     })
+
+    output$plot_from_leaflet2<-renderLeaflet({
+      #validate_data(vals$data_map)
+      map_result1_final()
+    })
+
+    observe({
+      if(is.null(map_result1_final())){
+        shinyjs::hide('zoom_leaflet_btn')
+      } else{
+        shinyjs::show('zoom_leaflet_btn')
+      }
+    })
+    observeEvent(input$zoom_leaflet,{
+      showModal(
+        tags$div(id="modal_leaflet",
+          modalDialog(
+            size ="xl",
+            leafletOutput(ns("plot_from_leaflet2"), height  = 600),
+            easyClose = T
+          )
+        )
+
+      )
+    })
+
+
     observeEvent(vals$data_map,{
       #req(vals$data_map)
       ggcontrol<-gg_control$update_server("gg_control1",vals$data_map)

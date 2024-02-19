@@ -3283,3 +3283,8 @@ element.style {
 .act label {
   color: #3c8dbc;
 }
+
+#modal_leaflet .modal-dialog{
+width: 1200px;
+
+}

@@ -246,7 +246,7 @@ my_tags<-c("Self-Organising Maps")
 my_sort<-function (x){
   x[order(x$xdim, x$ydim), ]}
 #' @export
-ldaModelInfo <- getModelInfo(model = "xyf", regex = FALSE)[[1]]
+ldaModelInfo <- caret::getModelInfo(model = "xyf", regex = FALSE)[[1]]
 #' @export
 ko_predict<-function (modelFit, newdata, submodels = NULL) {
   if(modelFit$problemType=="Regression"){

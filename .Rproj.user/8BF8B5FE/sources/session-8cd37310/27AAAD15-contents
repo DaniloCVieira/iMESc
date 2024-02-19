@@ -1,0 +1,98 @@
+all_packages_from_functions<-function(files_funs){
+  library(NCmisc)
+  file<-files_funs[44]
+  all_packages<-lapply(files_funs, function (file){
+    message(paste0(which(files_funs==file),"/",length(files_funs)))
+
+    funs<-list.functions.in.file(file)
+    resdf<-NULL
+    if(length(funs)>0){
+      fnames<-gsub("package:","",names(funs))
+      fnames<-gsub("\\)","",gsub("c\\(","",gsub('"',"",fnames)))
+
+      resdf<-lapply(seq_along(fnames),function(l){
+        funs_name<-funs[[l]]
+        res2<-data.frame(fun=funs_name)
+        packs<-unlist(strsplit(fnames[l],","))
+
+        do.call(rbind, lapply(packs,function(pac){
+          res2$package<-pac
+
+          res2
+        }))
+
+      })
+
+      resdf<-do.call(rbind,resdf)
+      resdf$file<-file
+      resdf
+    }
+
+
+  })
+
+  packages_www<-all_packages
+
+  sapply(packages_www,length)
+  packages_www<-packages_www[sapply(packages_www,length)>1]
+  packages_www_df<-do.call(rbind,packages_www)
+  pack_df<-packages_www_df
+  rownames(pack_df)<-NULL
+
+  pack_df
+}
+
+unique(pack_df$package)
+
+sort()
+pack_df$file
+
+pack_df$file_name<-as.character(gsub(".R","",sapply(pack_df$file,basename)))
+pack_df<-pack_df[-grep("zzz",pack_df$file_name),]
+
+unique(pack_df$file_name)
+saveRDS(pack_df,"pack_df.rds")
+"module_createcolors"
+"module_downcenter"
+"module_downfigs"
+
+c("Server","UI","Compare & Ensemble models - Compare","Data Bank","Descriptive tools","Diversity Tools","Compare & Ensemble models - Ensemble", "Hierachical Clustering", "K-Means","K")
+
+
+
+
+files_R<-list.files('D:/R3/imesc2024/app/R',pattern = ".R",full.names = T)
+files_www<-list.files('D:/R3/imesc2024/app/inst/www/',pattern = ".R",full.names = T)
+files_funs<-c(files_R,files_www)
+all_result<-all_packages_from_functions(files_funs)
+
+
+saveRDS("all_funs","allfuns.rds")
+
+
+packs1<-gsub(" ","",unique(all_result$package))
+packs1<-unique(packs1)
+pic1<-grep("character",packs1)
+pic2<-grep(".GlobalEnv",packs1)
+pic3<-which(packs1=="base")
+pic4<-grep("grDev",packs1)
+pic5<-grep("imesc",packs1)
+
+pack_final<-packs1[-c(pic1,pic2,pic3,pic4, pic5)]
+
+
+for(i in pack_final){message(i)}
+
+
+
+
+tail(all_result)
+
+globals<-all_result[all_result$package==".GlobalEnv",]
+once_funs<-table(globals$fun)[table(globals$fun)==1]
+once_functions<-all_result[all_result$fun%in%names(once_funs),]
+once_functions$fun[4]
+container_global_caret
+which(all_result$fun=="check_model0")
+check_model0
+glo<-globals[order(globals$fun),]

@@ -1,0 +1,5 @@
+runGadget(app_ui, app_server, viewer = dialogViewer("iMESc", width = 3000 , height = 2000 ))
+
+runApp()
+
+paneViewer

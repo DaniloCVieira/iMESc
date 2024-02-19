@@ -1,0 +1,5 @@
+[1,"=> shiny::runApp()\n\n"]
+[2,"Carregando pacotes exigidos: shiny\r\n"]
+[2,"Registered S3 method overwritten by 'GGally':\r\n  method from   \r\n  +.gg   ggplot2\r\n"]
+[2,"Registered S3 method overwritten by 'vegan':\r\n  method     from      \r\n  rev.hclust dendextend\r\n"]
+[1,"\nShiny application successfully stopped.\n\n"]

@@ -1,0 +1,7 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^Dockerfile$
+^app\.R$
+^rsconnect/
+^running_lines\.R$
+

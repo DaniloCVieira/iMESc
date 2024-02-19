@@ -1,4 +1,3 @@
-library(caret)
 #' @importFrom caret getModelInfo
 #library(viridis)
 #library(shinyBS)

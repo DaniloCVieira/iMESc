@@ -1,3 +1,4 @@
+#' @importFrom readxl excel_sheets read_excel
 #' @importFrom gplots heatmap.2
 #' @importFrom Metrics mae mape mse rmse
 #' @import leaflet sf gstat randomForestExplainer ggplot2

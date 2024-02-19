@@ -5,8 +5,9 @@ if(!length(grep("connect/apps",getwd()))>0){
   if(length(new.packages)) {install.packages(new.packages, dependencies = TRUE)}
   remotes::install_deps(upgrade="never")
 }
-pkgload::load_all(export_all = T,quiet =T,warn_conflicts =F)
 options(shiny.autoload.r=FALSE)
+pkgload::load_all(export_all = T,quiet =T,warn_conflicts =F)
+
 run_app(options=list(quiet=T,shiny.autoload.r=FALSE, launch.browser=T))
 
 #shiny::runGitHub("iMESc","DaniloCVieira","main")

@@ -888,7 +888,17 @@ module_server_svm <- function (input, output, session,vals,df_colors,newcolhabs 
         icon(verify_fa = FALSE,name=NULL,class="fas fa-hand-point-left"),"-",strong(length(names_svm)), "saved model(s)")
   })
 
+  Valid_model<-reactive({
+    req(input$data_svmX)
+    req(input$data_svmY)
+    x<-vals$saved_data[[input$data_svmX]]
+    y<-vals$saved_data[[input$data_svmY]]
+    validate_xy(x,y)
+  })
+
   output$svm_params<- renderUI({
+    Valid_model()
+
     column(12,class="well2",
            div(class="map_control_style",style="color: #05668D; margin-top: 20px",
                div(

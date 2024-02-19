@@ -111,7 +111,16 @@ observeEvent(ignoreInit = T,input$rf_tab,{
              }
     )
   })
+  Valid_model<-reactive({
+    req(input$data_rfX)
+    req(input$data_rfY)
+    x<-vals$saved_data[[input$data_rfX]]
+    y<-vals$saved_data[[input$data_rfY]]
+    validate_xy(x,y)
+  })
+
   output$rf_params<-renderUI({
+    Valid_model()
     column(12,class="well2",
 
            div(class="map_control_style",style="color: #05668D; margin-top: 20px",

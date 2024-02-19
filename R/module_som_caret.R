@@ -61,6 +61,21 @@ module_server_som2<-function (input, output, session,vals,df_colors,newcolhabs )
             'TRUE' = TRUE,
             "FALSE" = FALSE)
   })
+
+  Valid_model<-reactive({
+    req(input$data_xyfX)
+    req(input$data_somY)
+    x<-vals$saved_data[[input$data_xyfX]]
+    y<-vals$saved_data[[input$data_somY]]
+    validate_xy(x,y)
+  })
+
+  output$xyf_params<-renderUI({
+    Valid_model()
+    splitLayout(uiOutput(ns('som_sideleft')),
+                uiOutput(ns("som_sideright")))
+  })
+
   output$som_panels<-renderUI({
     #validate(need(length(vals$saved_data)>0,"No Datalist found"))
     column(12,style="background: white",
@@ -70,8 +85,7 @@ module_server_som2<-function (input, output, session,vals,df_colors,newcolhabs )
                   tabsetPanel(id = ns("som_tab"),
                               tabPanel(
                                 strong("1. Training"),value='som_tab1',
-                                splitLayout(uiOutput(ns('som_sideleft')),
-                                            uiOutput(ns("som_sideright")))
+                                uiOutput(ns("xyf_params"))
                               ),
                               tabPanel(strong("2. Results"),value='som2_results',
                                        uiOutput(ns("results_som"))),

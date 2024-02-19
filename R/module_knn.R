@@ -25,7 +25,7 @@ module_server_knn<-function (input, output, session,vals,df_colors,newcolhabs ){
   output$knn_panels<-renderUI({
    # validate(need(length(vals$saved_data)>0,"No Datalist found"))
    div(
-    # includeCSS("meta/styles_mod.css"),
+      # includeCSS("meta/styles_mod.css"),
      column(12,style="background: white",
             uiOutput(ns("knn_inputs")),
             uiOutput(ns("war_knn")),
@@ -752,7 +752,18 @@ module_server_knn<-function (input, output, session,vals,df_colors,newcolhabs ){
         icon(verify_fa = FALSE,name=NULL,class="fas fa-hand-point-left"),"-",strong(length(names_knn)), "saved model(s)")
   })
 
+  Valid_model<-reactive({
+    req(input$data_knnX)
+    req(input$data_knnY)
+    datalist_x<-vals$saved_data[[input$data_knnX]]
+    datalist_y<-vals$saved_data[[input$data_knnY]]
+    validate_xy(datalist_x,datalist_y)
+  })
+
+
+
   output$knn_params<- renderUI({
+    Valid_model()
     column(12,class="well2",
            div(class="map_control_style",style="color: #05668D; margin-top: 20px",
                div(
@@ -1995,6 +2006,7 @@ Please save your model to proceed with permutation importance analysis."))
   })
 
   observeEvent(ignoreInit = T,input$trainknn,{
+
     t<-try({
 
       vals$cur_knn_models<-"new knn (unsaved)"

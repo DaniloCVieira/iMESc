@@ -84,7 +84,8 @@ Imports:
     viridis,
     webshot,
     wesanderson,
-    writexl
+    writexl,
+    readxl
 Suggests: 
     knitr,
     rmarkdown

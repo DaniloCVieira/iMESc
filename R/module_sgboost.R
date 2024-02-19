@@ -833,8 +833,16 @@ module_server_sgboost<-function (input, output, session,vals,df_colors,newcolhab
     )
   })
 
-  output$sgboost_params<- renderUI({
+  Valid_model<-reactive({
+    req(input$data_sgboostX)
+    req(input$data_sgboostY)
+    x<-vals$saved_data[[input$data_sgboostX]]
+    y<-vals$saved_data[[input$data_sgboostY]]
+    validate_xy(x,y)
+  })
 
+  output$sgboost_params<- renderUI({
+    Valid_model()
     column(12,class="well2",
            div(class="map_control_style",style="color: #05668D; margin-top: 20px",
                uiOutput(ns("sgboost_default")),

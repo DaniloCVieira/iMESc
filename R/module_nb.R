@@ -915,8 +915,17 @@ pred_test_nb<-reactive({
 
     )
   })
+  Valid_model<-reactive({
+    req(input$data_nbX)
+    req(input$data_nbY)
+    x<-vals$saved_data[[input$data_nbX]]
+    y<-vals$saved_data[[input$data_nbY]]
+    validate_xy(x,y)
+  })
 
   output$nb_params<- renderUI({
+
+
     column(12,class="well2",
            div(class="map_control_style",style="color: #05668D; margin-top: 20px",
                uiOutput(ns("nb_default")),

@@ -1,4 +1,43 @@
 #' @export
+validate_xy<-function(datalist_x,datalist_y){
+  ids_x <- rownames(datalist_x)
+  ids_y <- rownames(datalist_y)
+
+  validations <- list()
+
+  validate(
+    need(nrow(datalist_x) == nrow(datalist_y), "Datalist X and Datalist Y must have the same number of observations.")
+  )
+
+  # Check for 'NA' in both lists
+  if ("NA" %in% ids_x) {
+    validations <- c(validations, "Error: Missing ID ('NA') detected in Datalist X. Missing IDs are not allowed.")
+    ids_x <- ids_x[ids_x != "NA"]
+  }
+  if ("NA" %in% ids_y) {
+    validations <- c(validations, "Error: Missing ID ('NA') detected in Datalist Y. Missing IDs are not allowed.")
+    ids_y <- ids_y[ids_y != "NA"]
+  }
+
+  # Identify and report unmatched IDs
+  unmatched_y_in_x <- ids_y[!ids_y %in% ids_x]
+  if (length(unmatched_y_in_x) > 0) {
+    validations <- c(validations, paste("Error: The following ID(s) from Datalist Y are missing in Datalist X:", paste(unmatched_y_in_x, collapse = ", ")))
+  }
+
+  unmatched_x_in_y <- ids_x[!ids_x %in% ids_y]
+  if (length(unmatched_x_in_y) > 0) {
+    validations <- c(validations, paste("Error: The following ID(s) from Datalist X are missing in Datalist Y:", paste(unmatched_x_in_y, collapse = ", ")))
+  }
+
+  validation_message<-paste0("\n ",validations )
+  # Compile validations into a single message
+  validation_message <- paste(validation_message, collapse = " ")
+  validate(need(!length(validations)>0,validation_message))
+
+
+}
+#' @export
 flattenlist <- function(x){
   morelists <- sapply(x, function(xprime) class(xprime)[1]=="list")
   out <- c(x[!morelists], unlist(x[morelists], recursive=FALSE))

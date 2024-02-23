@@ -739,6 +739,34 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   map <- map |> addLayersControl(overlayGroups = overlayGroups)
   map
 }
+gg_add_extra_shape<-function(p, rst,extra_shape_args  ){
+  if(is.null(extra_shape_args)){
+    return(p)
+  }
+  extralayers<-data.frame(extra_shape_args$args_extra)
+
+
+  extralayers$layers<-as.logical(extralayers$layers)
+
+  extras<-attr(rst,"extra_shape")
+  if(is.null(extras)){
+    return(p)
+  }
+  if(!any(extralayers$layers)){
+    return(p)
+  }
+  if(any(extralayers$layers)){
+    extralayers<-subset(extralayers,isTRUE(layers))
+
+    for(i in 1:length(  extralayers$layers)){
+      col_extra<-extralayers$colors[i]
+      p<-p+geom_sf(data=st_as_sf(extras[[i]]), col=mylighten(col_extra,as.numeric(extralayers$alphas[i])), lty=1)
+      names( p$layers)[length( p$layers)]<-paste0("extra",i)
+    }
+    return(p)
+  }
+}
+
 gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_size=13,axis.title_size=13,plot.title_size=13,plot.subtitle_size=13,legend.text_size=13,layer_shape=NULL,extra_shape=NULL,breaks=T,n_breaks=5,pal="turbo",key.height=NULL,newcolhabs=list(turbo=viridis::turbo),add_extra_shape=F,add_base_shape=T,add_layer_shape=F,show_labels=F,labels=attr(rst,"factors")[1],cex.fac=13,col.fac="red",show_coords=F,col.coords="black",cex.coords=13,
                  show_guides=F,layer_col="gray",lighten=0.4,layer_shape_border="gray",
                  keyscale=30,width_hint=0.15,cex_scabar=0.7,fillOpacity=1,reverse_palette=F,
@@ -808,7 +836,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
 
     extra_shape<-attr(rst,'extra_shape')
     if(!is.null(args_extra_shape)){
-      p<-add_extra_shapes(p,extra_shape,args_extra_shape)
+      p<-gg_add_extra_shape(p,rst,args_extra_shape)
     }
 
     p0<-p

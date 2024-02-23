@@ -1088,6 +1088,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,vals){
         args<-c(args, color_args, args_ggplot)
       }
       args<-c(args,args_labels())
+      args$args_extra_shape<-extra_shapes()    
       args
     })
     output$plot_from_leaflet<-renderLeaflet({

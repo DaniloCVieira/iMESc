@@ -23,7 +23,8 @@ getbp_som2<-function(m,indicate,npic,hc){
   scores[,1]<-  scales::rescale(coord_vars[,1], c(min(grid[,1]), max(grid[,1])))
   scores[,2]<-  scales::rescale(coord_vars[,2], c(min(grid[,2]), max(grid[,2])))
   #scores<-coord_vars
-
+  scores<-na.omit(scores)
+  sigma2<-sigma2[rownames(scores)]
 
   if(indicate=="cor"){
     indicadores<-get_maxdistances_quadrants(coord_vars,npic)

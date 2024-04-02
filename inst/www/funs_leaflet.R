@@ -907,10 +907,10 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
 
 
   if(!is.null(data_depth)) {
-    # point_layer<-p$layers[ grep("points",  names(p$layers))]
-    # old_layer<-p$layers[-grep("points",  names(p$layers))]
-    # new_p <- append(old_layer, point_layer, after=data_depth-1)
-    #  p$layers<-new_p
+     point_layer<-p$layers[ grep("points",  names(p$layers))]
+     old_layer<-p$layers[-grep("points",  names(p$layers))]
+     new_p <- append(old_layer, point_layer, after=data_depth-1)
+     p$layers<-new_p
 
   }
 

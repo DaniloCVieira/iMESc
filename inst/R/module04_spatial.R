@@ -558,6 +558,53 @@ map_ggoptions$server<-function(id){
 }
 
 
+box_caret<-function(id,content=NULL,inline=T, class="train_box",click=T,title=NULL,button_title=NULL,tip=NULL,auto_overflow=F, color=NULL,show_tittle=T,hide_content=F){
+  ns<-NS(id)
+
+  id0<-strsplit(id,"-")[[1]]
+  id0<-id0[length(id0)]
+  if(is.null(color)){
+    color=getcolorbox(id0)
+  }
+  background=paste0("background: ",color,";")
+  # border=paste0("box-shadow: 0 0px 2px ","#303030ff","; ")
+  color=paste0("color: ",color,";")
+  style<-paste0(background)
+
+  if(is.null(title))
+    title<-getboxtitle(id0)
+  if(isTRUE(inline)){
+    class=paste("inline_pickers",class)
+  }
+  if(is.null(tip)){
+    tip<-getboxhelp(id0,ns,click)
+  }
+  style_over='padding-top: 5px;'
+  if(auto_overflow){
+    style_over='padding-top: 5px; overflow:auto;'
+  }
+  if(isTRUE(hide_content)){
+    hide_content<-"+"
+  } else{
+    hide_content="-"
+  }
+  div_title<-NULL
+  if(isTRUE(show_tittle)){
+    div_title<-div(class="box_title",
+                   actionButton(ns("show_hide"),hide_content,style=style),
+                   title,tip)
+  } else{
+    class='train_box ptop0'
+  }
+
+  div(class=class,
+      #style=border,
+      div_title,div(button_title,style="position: absolute; top: -1px;right: 0px; padding: 3px"),
+      div(id=ns('content'),style=style_over,
+          content
+      )
+  )
+}
 ll_shapes$server_update1<-function(id, data,sf_in,vals){
   moduleServer(id,function(input, output, session) {
     ns<-session$ns
@@ -1622,10 +1669,11 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
             showlabels$ui(ns('leaflet_label_map'),surface),
           uiOutput(ns('surface_3d_control')),
 
-          div(
-            id=ns("shapes_leaflet"),
-            ll_shapes$ui(ns("shapes1"),sf_in,base_on=F, surface=surface,stack=stack)
-          ),
+          if(isFALSE(scatter3d))
+            div(
+              id=ns("shapes_leaflet"),
+              ll_shapes$ui(ns("shapes1"),sf_in,base_on=F, surface=surface,stack=stack)
+            ),
 
           div(id=ns("map_labels_id"),
               box_caret(
@@ -1671,13 +1719,13 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
         div(style="position: absolute; right:0px; top: 30px ",
             div(id=ns("down_btn_ll"),
                 ll_down_plot$ui(ns("save_png"))),
-            div(id=ns("down_btn_plotly"),
-                actionButton(ns("down_plotly"), "down plotly",icon("download"))),
+            hidden(div(id=ns("down_btn_plotly"),
+                       actionButton(ns("down_plotly"),icon("download")))),
 
             hidden(div(id=ns("down_btn_gg"),
-                       actionButton(ns("down_ggplot"), "down ggplot",icon("download")))),
+                       actionButton(ns("down_ggplot"), icon("download")))),
             hidden(div(id=ns("down_btn_generic"),
-                       actionButton(ns("down_plot3D_btn"), "down plot3D",icon("download"))))
+                       actionButton(ns("down_plot3D_btn"), icon("download"))))
         ),
         div(
           div(
@@ -1862,6 +1910,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       }
       req(input$s3d_points_zcolor%in%colnames(data))
       zdata<-data[rownames(vals$data_map),input$s3d_points_zcolor]
+      attr(zdata,"name")<-input$s3d_points_zcolor
       zdata
 
     })
@@ -1870,6 +1919,16 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       shinyjs::toggle("s3d_points_zdatalist",condition=input$s3d_zvariable!="Z-Value")
     })
     output$s3d_points_z_scale_out<-renderUI({
+
+      div(style="padding-left: 10px;display: none",id=ns("s3d_points_z_scale_args"),
+          uiOutput(ns("s3d_points_z_scale_datalist_out")),
+
+          uiOutput(ns("s3d_points_z_scale_vars")),
+          numericInput(ns('s3d_points_minsize'),"Min-size",0.5)
+      )
+    })
+
+    output$s3d_points_z_scale_datalist_out<-renderUI({
       choices3=names(vals$saved_data)
 
       pic<-which(sapply(choices3,function(x){
@@ -1878,12 +1937,10 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       choices3<-choices3[pic]
       selected3=vals$cur_s3d_points_z_scale_datalist
       selected3=get_selected_from_choices(selected3,choices3)
-      div(style="padding-left: 10px;display: none",id=ns("s3d_points_z_scale_args"),
-          pickerInput(ns("s3d_points_z_scale_datalist"),"Datalist", choices3,selected=selected3),
-          uiOutput(ns("s3d_points_z_scale_vars")),
-          numericInput(ns('s3d_points_minsize'),"Min-size",0.5)
-      )
+      pickerInput(ns("s3d_points_z_scale_datalist"),"Datalist", choices3,selected=selected3)
     })
+
+
 
 
     output$s3d_points_zdatalist_out<-renderUI({
@@ -1909,6 +1966,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       box_caret(
         ns("s3d_points"),
         title="Points",
+        color="#c3cc74ff",
         div(
 
           selectInput(ns("s3d_zvariable"),"Z-Color", c("Z-Value","4th variable (numeric)","4th variable (factor)")),
@@ -1927,6 +1985,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       vals$cur_s3d_points_z_scale_vars<-input$s3d_points_z_scale_vars
     })
     output$s3d_points_z_scale_vars<-renderUI({
+      req(input$s3d_points_z_scale_datalist)
       choices<-colnames(vals$saved_data[[input$s3d_points_z_scale_datalist]])
       selected=vals$cur_s3d_points_z_scale_vars
       selected=get_selected_from_choices(selected,choices)
@@ -1942,17 +2001,20 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       z=data[,1]
       points<-data.frame(coords,z)
       colnames(points)<-c("x","y","z")
+      points$z_name<-colnames(data)
       req(color_args1()$pal)
       pal<-vals$newcolhabs[[color_args1()$pal]]
       fillOpacity<-color_args1()$fillOpacity
 
       col_zvalue<-col_fac<-z
+      points$color_var<-colnames(vals$data_map)
       if(input$s3d_zvariable!="Z-Value"){
         col_zvalue<-col_fac<-s3d_points_color_data()
+        points$color_var<-attr(col_zvalue,"name")
       }
-      n_colors<-if(is.factor(col_fac)){nlevels(col_fac)}else{length(unique(col_fac))}
+      n_colors<-if(is.factor(col_fac)){nlevels(col_fac)}else{5}
       if(is.numeric(col_fac)){
-        col_fac<-cut(col_fac,length(unique(col_fac)))
+        col_fac<-cut(col_fac,5)
       }
       colors<-pal(n_colors)
       reverse_palette<-color_args1()$reverse_palette
@@ -1963,6 +2025,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       points$color<-col_poins
       points$col_factor<-col_fac
       points$col_zvalue<-col_zvalue
+      points$size_value<-z
       points$size<-input$s3d_points_size
       points$size_var<-colnames(vals$data_map)
 
@@ -1972,6 +2035,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
         req(input$s3d_points_z_scale_vars%in%colnames(data_size))
         tosize<-data_size[,input$s3d_points_z_scale_vars]
+        points$size_value<-tosize
         # print(class(tosize))
         newsize<-scales::rescale(tosize,c(input$s3d_points_minsize,input$s3d_points_size))
 
@@ -1983,9 +2047,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       points
     })
 
-    observeEvent(args_labels(),{
-      print(args_labels())
-    })
+
     get_plot3Dtext<-reactive({
       al<-args_labels()
       if(isFALSE(al$show_labels)){
@@ -2007,21 +2069,27 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
 
 
-
     ##
 
-    scatter_3dplotly<-function(points,text){
+    scatter_3dplotly<-function(points,text,shape_args=NULL){
 
       p <- plotly::plot_ly( points,    showlegend = T)
       lpoints<-split(points,points$col_factor)
       p1<-p
 
-      paste0("Size:",pts$size_var[1])
-      #paste0("Size value:",pts$)
+      pts$color_var
+
+
 
       for(i in seq_along(lpoints)) {
         pts<-lpoints[[i]]
-        hover_text <- paste("Color:", pts$color)
+        hover_text <- paste0(
+          paste(pts$z_name[1],pts$z,sep=":"),
+          "\n",
+          paste(pts$size_var[1],pts$size_value,sep=":"),
+          "\n",
+          paste(pts$color_var,pts$col_zvalue,sep=":")
+        )
         p1<-plotly::add_trace(
           p1,
           data = pts,
@@ -2044,12 +2112,16 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
 
         )
+        #shape_args$base_shape_args$z<-min(pts$z)
+        # shape_args$layer_shape_args$z<-min(pts$z)
+        # p1<-add_shape_plotly(p1,vals$data_map,shape_args$base_shape_args,which_shape="base_shape")
+        # p1<-add_shape_plotly(p1,vals$data_map,shape_args$layer_shape_args,which_shape="layer_shape")
       }
 
-      p1
+
       if(!is.null(text)){
-        plotly::add_trace(
-          p,
+        p1<-plotly::add_trace(
+          p1,
           data = text,
           x = text$x,
           y =text$y,
@@ -2059,33 +2131,31 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
           text=text$labels,
           showlegend = F,
           textfont =list(
-            size=text$size*5,
+            size=text$size,
             color = text$color
           )
 
         )
       }
-      p
+      p1
+
     }
     get_args_scatter3d<-reactive({
 
       points<-get_plot3Dpoints()
       text<-get_plot3Dtext()
-
-      args=list(points=points,text=text)
+      shape_args<-get_shapes()
+      args=list(points=points,text=text,shape_args=NULL)
       args
     })
     run_map_scatter3d_plotly<-eventReactive(input$run_map,ignoreInit = T,{
 
-      print("run")
+
       req(isTRUE(scatter3d))
       req(input$mode_plot=="plotly")
 
       args<-get_args_scatter3d()
-      saveRDS(args,"args.rds")
-      #req(args)
-      library('plotly')
-      print("go")
+
 
 
 
@@ -2261,7 +2331,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
     output$stack_layers<-renderUI({
 
-      div(numericInput(ns('stack_layers'),"Nº layers",5, max=length(vals$saved_maps)),
+      div(numericInput(ns('stack_layers'),"Nº layers",2, max=length(vals$saved_maps)),
           numericInput(ns('sep_factor'),"z-expansion",1),
           numericInput(ns('surf_exp'),"surface-expansion",1),
           div(class="switch_box",switchInput(ns("stack_surface"),"Surface",value=F,size="mini",labelWidth="60px")),
@@ -4072,6 +4142,8 @@ div(style="display: flex",
       } else if(isTRUE(stack)){
         out_id='plotly_stack_out'
 
+      } else if(isTRUE(scatter3d)){
+        out_id='plotly_scatter3d_out'
       }
       plotly_download$ui(ns("d-plotly"))
       plotly_download$server("d-plotly",out_id=out_id,session_in=session$ns(""))
@@ -4165,6 +4237,12 @@ llet$ui<-function(id){
                        id=ns("stack_page"),
                        ll_map$ui(ns("stack"), stack=T),
                        uiOutput(ns("map_stack"))
+                     )
+            ),
+            tabPanel("Scatter3D",value="scatter3d",
+                     div(
+                       ll_map$ui(ns("scatter3d"), scatter3d=T),
+                       uiOutput(ns("map_scatter3d"))
                      )
             )
 
@@ -4305,4 +4383,6 @@ llet$server<-function(id,vals){
 
   })
 }
+
+
 

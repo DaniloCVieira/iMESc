@@ -23,7 +23,7 @@ get_mean_resolution<-function(data){
   min_res<-min(res_x,res_y)
   max_res<-max(res_x,res_y)
 
-  res <-  min_res/max_res
+  res <-  max(min_res,max_res)
   round(res,3)
 }
 
@@ -98,8 +98,11 @@ rst_factor<-function(my_rst,data){
 #' @export
 
 map_rst<-function(data,cut_shape=T, crs="+proj=longlat +datum=WGS84 +no_defs",resolution){
+
   coords<-attr(data,"coords")
   my_rst<-rst0(data,resolution)
+  req(raster::nrow(my_rst)>1)
+  req(raster::ncol(my_rst)>1)
   if(is.factor(data[,1])){
     my_rst<-rst_factor(my_rst,data)
   } else{

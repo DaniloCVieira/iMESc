@@ -2826,10 +2826,6 @@ div(style="display: flex",
 
       p<-plotly::layout(
         p,
-        modebar=list(
-          activecolor="red"
-        ),
-
         title = list(
           text=main,
           font=list(

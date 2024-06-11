@@ -3051,7 +3051,7 @@ div(style="display: flex",
       })
 
       r_new <- raster(extent(fine_res), ncol=fine_res@ncols, nrow=fine_res@nrows)
-      x<-to_decrease[[4]]
+
       map_decreased<-lapply(to_decrease,function(x){
 
         if(ncol(x@data@attributes[[1]])==2){

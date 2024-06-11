@@ -1,0 +1,96 @@
+Package: imesc
+Title: iMESc - an Interactive Machine Learning App for Environmental
+    Science
+Version: 1.0
+Authors@R: 
+    person("Danilo", "Vieira", , "vieiradc@yahoo.com.br", role = c("cre", "aut"))
+Description: iMESc is an Interactive Machine Learning App for
+    Environmental Science.
+License: file LICENSE
+URL: https://github.com/DaniloCVieira/iMESc
+BugReports: https://github.com/DaniloCVieira/iMESc/issues
+VignetteBuilder: 
+    knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+RoxygenNote: 7.3.1
+Depends: R (>= 3.5.0), shinyTree
+Imports: 
+    ade4,
+    base,
+    base64enc,
+    beepr,
+    caret,
+    colorRamps,
+    colorspace,
+    colourpicker,
+    data.table,
+    dendextend,
+    doSNOW,
+    dplyr,
+    DT,
+    e1071,
+    factoextra,
+    foreach,
+    gbm,
+    geodist,
+    GGally,
+    ggnewscale,
+    ggplot2,
+    gplots,
+    ggpubr,
+    ggraph,
+    ggrepel,
+    ggridges,
+    golem,
+    gstat,
+    htmlwidgets,
+    igraph,
+    kernlab,
+    kohonen,
+    lattice,
+    leaflet,
+    leaflet.minicharts,
+    Metrics,
+    mice,
+    parallel,
+    pdp,
+    randomForest,
+    randomForestExplainer,
+    raster,
+    RColorBrewer,
+    reshape2,
+    rstudioapi,
+    scales,
+    scatterpie,
+    segRDA,
+    sf,
+    shiny,
+    shinyBS,
+    shinybusy,
+    shinycssloaders,
+    shinydashboard,
+    shinydashboardPlus,
+    shinyjs,
+    shinyWidgets,
+    sortable,
+    sp,
+    stringr,
+    tibble,
+    vegan,
+    viridis,
+    webshot,
+    wesanderson,
+    writexl,
+    readxl,
+    RANN,
+    partykit,
+    automap
+Suggests: 
+    knitr,
+    rmarkdown
+
+
+

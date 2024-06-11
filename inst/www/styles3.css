@@ -1,0 +1,419 @@
+
+
+
+.setup_box {min-height: 30px;align-items: flex-end;margin-top:2px;position: relative;box-sizing: border-box}
+.trailab {margin-top: 0px;padding-right: 5px; background: darkgray; text-align: center;height: 30px;padding: 5px;color:white}
+.setup_top {min-height: 30px;align-items: flex-start;margin-top:2px;position: relative;box-sizing: border-box;}
+
+
+
+.setup_box .form-group{
+  margin-bottom: 0px;
+}
+.setup_box .form-control{
+  border-radius: 0px;
+  height: 30px;
+}
+.setup_60{
+height: 50px;
+}
+.train_box{
+background: #f9f9f9ff;
+margin-left: 0px;
+margin-right: 5px;
+box-shadow: 0 1px 3px gray;
+border-bottom-right-radius: 10px;
+padding: 10px;
+margin-bottom: 5px;
+box-sizing: border-box;
+position: relative;
+}
+.radio_search .btn{
+height: 22px;
+padding-top: 0px;
+padding-left: 7px;
+padding-right: 7px;
+}
+.box_deep{
+box-shadow: inset 0 1px 2px gray;
+margin-left: -5px;
+padding-left: 15px;
+padding-top: 10px;
+background: white
+}
+.train_button .btn{
+border-radius: 4px;
+border: 0px;
+ box-shadow: 0px 1px 3px 0px black  ;
+box-sizing: border-box;
+background:  #05668D; color: white; margin: 0px; font-size: 16px; position: absolute;left: 0px; margin-top: 8px
+}
+
+.ashow:before {
+content: '-'
+}
+
+
+.box_title{
+height: 26px;
+box-shadow: 0px 1px 2px gray;
+margin-top: -10px;
+margin-left: -10px;
+margin-right: -10px;
+font-weight: bold;
+background:#ecececff
+}
+.train_box .shiny-input-container label{
+font-weight: normal;
+color: #2F4F4F
+}
+
+
+.radio_search .btn.active{
+background: #748cccff;
+color: white
+}
+.radio-btn-green .btn.active{
+background: #7bcc7dff;
+color: white
+}
+
+
+
+.box_title .btn{
+width: 20px;
+}
+.box_title .btn,.box_title .btn i {
+margin: 0px;
+margin-top:0px;
+box-sizing: content-box;
+border:0px solid;
+padding: 3px;
+height: 20px;
+font-size:8px;
+border-radius: 0px;
+color: white;
+}
+
+.box_title a ,.box_title i{
+color: #a6a6a6ff;
+}
+.train_box i {
+border-radius: 50%;
+color: #a6a6a6ff;
+}
+
+
+.show_hide{
+padding: 5px;
+font-size: 11px;font-style: italic; position: absolute; top: 0px; right: 0px
+}
+
+
+
+
+
+.tip_panel .tippy-tooltip.material-theme {
+font-size: 12px;
+color: black;
+font-weight: 100;
+width: 500px
+}
+
+
+.ghost_box{
+background: GhostWhite; border: 1px solid #dfdfe6;
+}
+
+.color_box {
+background: GhostWhite;
+border: 1px solid #ebebfa;
+margin: 0px;
+border-radius: 1px
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button{
+padding: 2px;font-size: 11px
+}
+
+
+.radiotab .btn-default.active {
+ background: Grey;
+box-shadow: inset 0 1px 2px #333;
+color: white
+}
+.radiotab .btn {
+margin: 0px;
+border-top-right-radius: 3px;
+border-top-left-radius: 3px;
+}
+
+.dataTables_length{
+font-size: 11px;
+}
+.dataTables_wrapper .dataTables_length select{
+border-radius: 1px;
+font-size: 11px;
+}
+div.dt-buttons {
+width: 150px
+}
+div.dt-buttons>.dt-button, div.dt-buttons>div.dt-button-split .dt-button {
+font-size: 11px;
+margin: 0px;
+padding: 2px
+}
+.picker-flex {}
+
+.picker-flex .shiny-input-container{
+width: calc(100%) !important;
+max-width: 300px !important;
+
+min-width: 150px;
+
+}
+
+
+
+
+.inline_pickers .form-control, .inline_pickers .selectize-input,.inline_pickers .dropdown .btn,.inline_pickers .shiny-input-container,.inline_pickers .form-group,.inline_pickers .selectize-control.multi .selectize-input.has-items {
+min-height: 25px;
+
+padding: 1px;
+padding-left: 3px;
+border-radius: 0px
+}
+.inline_pickrs label{
+  color: #05668D;;
+}
+.inline_pickers .shiny-input-select>div>div {
+margin: 0px;padding 0px;
+}
+.setup_box .selectize-input,.setup_box .btn {min-height: 30px;max-height: 30px;height-height: 30px;border-radius: 0px;padding-top: 4px}
+
+.setup_box .control-label{margin: 0px}
+.setup_box .shiny-input-container label{
+font-weight:bold
+}
+
+
+
+@keyframes change_anim3 {
+50% {color:#0093fcff ;}
+
+}
+.save_changes2 {
+
+animation: change_anim3 600ms infinite;
+
+}
+ .normal-checkbox{
+        padding-bottom: 10px;
+    }
+.normal-checkbox .shiny-options-group{
+    margin: 0px;
+    padding: 0px;
+    padding-left: 20px;
+
+
+    }
+.normal-checkbox .shiny-input-container {
+min-width: 100% !important;
+      display: inline-block;
+
+    }
+.radio_search .form-group {
+       align-items: start;
+       height: 100% !important;
+ }
+.nav_caret {
+margin-top: 10px;
+}
+.nav_caret .tabbable > .nav {
+background:#ecececff;
+
+color: black
+
+}
+
+.nav_caret  .nav-tabs>li a{
+padding-left: 5px;
+padding-right: 5px;
+padding-top:3px;
+font-size: 12px;
+}
+.nav_caret .tabbable > .nav > li[class=active]> a {
+box-shadow: inset 0 1px 2px #333;
+    border-bottom: 0px solid SeaGreen;
+    background: Grey;
+    font-weight: normal;
+color: white
+}
+.nav_caret .tabbable > .nav > li > a:hover{
+background: lightgray
+}
+.nav_caret .nav-tabs li,.nav_caret .nav-tabs a {
+padding: 0px;
+margin: 0px;
+height: 25px
+}
+
+.nav_caret .tabbable > .nav > li  {
+margin: 0px;
+padding: 0px
+}
+.nav_caret .nav_caret .tabbable > .nav a{
+color:#333;
+
+}
+.model_setup .train_box{
+background:  #e6e6e6;
+box-shadow: 0 1px 3px #748cccff;
+}
+.icon-box{background: ",color,";width: 26px;height: 22px; position: absolute; top: 0px; left: 0px;box-sizing: content-box;padding-top: 5px}
+
+.icon-gray {
+background: lightgray}
+
+.tip_html150 .tooltip-inner{
+width: 300px;
+min-width: 300px;
+}
+.tip_html150 .title{
+color: white;
+font-weight: bold
+}
+.tip_html150 .topic{
+background: white;
+color: black
+}
+
+.best:hover:after{
+content: 'x'}
+
+.hei300{
+height: 300px;
+overflow: auto;
+padding-top: 5px
+}
+.hei300 pre{
+  font-size: 11px;
+}
+
+.radio_yellow .btn.active{
+background: DarkGoldenRod;
+color: white
+}
+
+.check_title .form-group{
+margin: 0px;padding: 0px;
+height: 20px
+ }
+
+ .swib {
+padding: 2px;
+font-size: 11px;
+}
+.on:after {
+color: Seagreen;
+content: 'on'
+}
+
+.off:after {
+color: red;
+content: 'off'
+}
+
+
+
+.inline_pickers .form-control{
+  height: 25px;
+
+}
+
+
+.inline_pickers .form-group{
+  margin: 3px;
+
+}
+
+
+.inline_pickers  .checkbox, .inline_pickers  .radio {
+      margin-top: 3px;
+    margin-bottom: 3px;
+}
+.checktitle .form-group {max-height: 10px;padding: 0px;margin: 0px}
+
+.bank_attr i {
+  color:#333;
+}
+.ptop0{
+padding-top: 0px
+}
+.half-drop-inline .dataTables_wrapper .dataTables_paginate {
+    float: left;
+    text-align: left;
+    padding-top: .25em;
+}
+.p20 .input-group .btn,.p20 .input-group .form-control{
+height: 60px
+}
+.form-group {margin-bottom: 5px}
+.navmap2  .navbar>.container-fluid .navbar-brand{border: 0px solid red; height: 100% !important}
+.rfexpainer .col-sm-1,
+    .rfexpainer .col-sm-2,
+    .rfexpainer .col-sm-3,
+    .rfexpainer .col-sm-4,
+    .rfexpainer .col-sm-5,
+    .rfexpainer .col-sm-6,
+    .rfexpainer .col-sm-7,
+    .rfexpainer .col-sm-8,
+    .rfexpainer .col-sm-9,
+    .rfexpainer .col-sm-10,
+    .rfexpainer .col-sm-11,
+    .rfexpainer .col-sm-12 {
+    margin: 0px;padding: 0px
+    }
+
+
+.radio-btn-green .btn.active{
+background: #7bcc7dff;
+color: white
+}
+
+.inline_pickers .dropdown .btn-default{
+  background:white;
+  border: 0px;
+}
+.inline_pickers .dropdown .btn{
+  padding: 0px;
+}
+
+
+.picker-before-x:before{
+             border: 1px solid red
+             padding-right: 5px; background: darkgray; text-align: center;height: 30px;padding: 5px;color:white;content:'X';margin-top: 20px;
+             position: flex;box-sizing: border-box;border-top: 1px solid #ccc;border-left: 1px solid #ccc;border-bottom: 1px solid #ccc;
+    }
+    .picker-before-y:before{
+             border: 1px solid red
+             padding-right: 5px; background: darkgray; text-align: center;height: 30px;padding: 5px;color:white;content:'Y';margin-top: 20px;
+             position: flex;box-sizing: border-box;border-top: 1px solid #ccc;border-left: 1px solid #ccc;border-bottom: 1px solid #ccc;
+    }
+    .picker-before-x {
+display: flex;
+
+padding: 0px;
+
+    }
+ .picker-before-y {
+display: flex;
+
+padding: 0px;
+
+    }
+
+
+.selectize-control.single .selectize-input:not(.no-arrow):after{
+  right: 4px;
+}

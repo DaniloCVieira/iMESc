@@ -1202,7 +1202,7 @@ showlabels$server_update<-function(id,vals,selected_labels=NULL,surface=F){
       selected=vals$cur_surf_ap_vars
       selected=get_selected_from_choices(selected,choices)
 
-      pickerInput(ns("z_label_value"),"Datalist:",
+      pickerInput(ns("z_label_value"),"Z-Value:",
                   choices =choices,selected=selected)
     })
 
@@ -2119,7 +2119,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       }
 
 
-      if(!is.null(text)){
+      if(!is.null(text)) {
         p1<-plotly::add_trace(
           p1,
           data = text,
@@ -2473,6 +2473,7 @@ div(style="display: flex",
     })
     output$surf_ap_datalist<-renderUI({
       req(isTRUE(input$surf_addpoints))
+
       choices=names(vals$saved_data)
       selected=vals$cur_surf_ap_datalist
       selected=get_selected_from_choices(selected,choices)
@@ -2506,16 +2507,12 @@ div(style="display: flex",
       selected2=vals$cur_surf_ap_colfac
       selected2=get_selected_from_choices(selected2,choices2)
 
-      choices3=names(vals$saved_data)
 
-      pic<-which(sapply(choices3,function(x){
-        all(rownames(vals$saved_data[[x]])%in%rownames(data))
-      }))
-      choices3<-choices3[pic]
-      selected3=vals$cur_surf_ap_z_scale_datalist
-      selected3=get_selected_from_choices(selected3,choices3)
+
+
 
       div(
+
         pickerInput(ns("surf_ap_vars"),"Z-Value", choices,selected=selected ),
         selectInput(ns("surf_ap_colfac"),"Z-Color", choices2,selected=selected2 ),
 
@@ -2525,11 +2522,35 @@ div(style="display: flex",
         ),
         numericInput(ns('surf_ap_size'),"Size",1.5),
         checkboxInput(ns("surf_z_scale"),"Scale Size", F ),
-        div(style="padding-left: 10px;display: none",id=ns("surf_z_scale_args"),
-            selectInput(ns("surf_ap_z_scale_datalist"),"Datalist", choices3,selected=selected3),
-            uiOutput(ns("surf_ap_z_scale_vars")),
-            numericInput(ns('surf_ap_minsize'),"Min-size",0.5)
-        )
+        uiOutput(ns("surf_z_scale_args")),
+
+
+      )
+    })
+
+
+    observe({
+      shinyjs::toggle("surf_z_scale_args",condition=isTRUE(input$surf_z_scale))
+      shinyjs::toggle("surf_ap_minsize",condition=isTRUE(input$surf_z_scale))
+
+
+    })
+
+    output$surf_z_scale_args<-renderUI({
+      req(isTRUE(input$surf_z_scale))
+      choices3=names(vals$saved_data)
+      req(input$surf_ap_datalist)
+      data<-vals$saved_data[[input$surf_ap_datalist]]
+      pic<-which(sapply(choices3,function(x){
+        all(rownames(vals$saved_data[[x]])%in%rownames(data))
+      }))
+      choices3<-choices3[pic]
+      selected3=vals$cur_surf_ap_z_scale_datalist
+      selected3=get_selected_from_choices(selected3,choices3)
+      div(style="padding-left: 10px;",
+          selectInput(ns("surf_ap_z_scale_datalist"),"Datalist", choices3,selected=selected3),
+          uiOutput(ns("surf_ap_z_scale_vars")),
+          numericInput(ns('surf_ap_minsize'),"Min-size",0.5)
       )
     })
 
@@ -2545,12 +2566,7 @@ div(style="display: flex",
       pickerInput(ns("surf_ap_z_scale_vars"),"Z-Value", choices,selected=selected )
     })
 
-    observe({
-      shinyjs::toggle("surf_z_scale_args",condition=isTRUE(input$surf_z_scale))
-      shinyjs::toggle("surf_ap_minsize",condition=isTRUE(input$surf_z_scale))
 
-
-    })
 
 
 
@@ -2587,9 +2603,11 @@ div(style="display: flex",
       validate(need(length(attr(data,"coords"))>0,"No coordinates found in the selected Data"))
       coords<-attr(data,"coords")
       req(input$surf_ap_vars)
+      req(input$surf_ap_vars%in%colnames(data))
       var=data[input$surf_ap_vars]
       points<-data.frame(coords,var)
       pal<-vals$newcolhabs[[input$surf_ap_palette]]
+
       if(input$surf_ap_colfac=="Z-Value"){
 
         cut_var<-cut(var[,1],length(unique(var[,1])))
@@ -2598,6 +2616,8 @@ div(style="display: flex",
         cut_var<-attr(data0,"factors")[,input$surf_ap_colfac]
         points$color<-pal(nlevels(cut_var))[cut_var]
       }
+
+
       points$size<-input$surf_ap_size
       if(isTRUE(input$surf_z_scale)){
         req(input$surf_ap_z_scale_datalist)
@@ -2611,6 +2631,8 @@ div(style="display: flex",
         points$size<-newsize
       }
       points
+
+
     })
 
     output$print_ap_color<-renderUI({
@@ -2881,7 +2903,7 @@ div(style="display: flex",
     }
     # my_rst1<-args$my_rst1
     # my_rst2<-args$my_rst2
-    ploly_map<-function(
+    surface_plotly<-function(
     my_rst1,my_rst2,addpoints,colors,exp=0.5,theta,phi,r,custom_breaks,
     xlab='x',
     ylab="y",
@@ -2891,6 +2913,7 @@ div(style="display: flex",
     main="",
     plot.title_size=1,
     shape_args=NULL,
+    addtext=NULL,
 
     ...){
 
@@ -2948,6 +2971,26 @@ div(style="display: flex",
                            )
 
       )
+      text=addtext
+      if(!is.null(text)) {
+        p<-plotly::add_trace(
+          p,
+          data = text,
+          x = text$x,
+          y =text$y,
+          z=text$z,
+          type = 'scatter3d',
+          mode = 'text',
+          text=text$label,
+          showlegend = F,
+          textfont =list(
+            size=text$size,
+            color = text$color
+          )
+
+        )
+      }
+
 
       cam<-get_camera(theta-80,
                       phi+25,
@@ -3212,7 +3255,8 @@ div(style="display: flex",
       args<-get_args_surface()
       req(args)
       shinyjs::removeClass("run_map_btn", "save_changes")
-      do.call(ploly_map,args)
+
+      do.call(surface_plotly,args)
 
     })
     run_map_stack_plotly<-eventReactive(input$run_map,ignoreInit = T,{
@@ -4379,6 +4423,7 @@ llet$server<-function(id,vals){
 
   })
 }
+
 
 
 

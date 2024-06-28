@@ -3590,7 +3590,7 @@ confusion_module$server<-function(id, vals){
       validate(need(model$modelType=="Classification","Confusion matrices are only valid for classification models."))
       req(input$caret_cm_type)
       res<-if(input$caret_cm_type=="Resampling"){
-        confusionMatrix(model$pred$pred,model$pred$obs)
+        confusionMatrix(model)
       } else{
         confusionMatrix(predict(model),model$trainingData[,'.outcome'])
       }
@@ -3605,7 +3605,7 @@ confusion_module$server<-function(id, vals){
       if(input$caret_cm_type=="Resampling"){
         cm<-table(m$pred$pred,m$pred$obs)
 
-        res<-plotCM(cm, input$caretpalette,  newcolhabs=vals$newcolhabs)
+        res<-plotCM(m, input$caretpalette,  newcolhabs=vals$newcolhabs)
       } else{
         cm<-table(predict(model),model$trainingData[,'.outcome'])
         res<-plotCM(cm,input$caretpalette,vals$newcolhabs)

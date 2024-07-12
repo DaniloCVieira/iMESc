@@ -3625,7 +3625,21 @@ tool6$server<-function(id,vals){
   })
 }
 
-generate_partiton<-function(data,split_t,split_y,split_p,split_seed){
+generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="Balanced"){
+  if(part_type=="Random"){
+    nobs<-nrow(data)
+    p<-split_p/100
+    ntest<-round(nobs*p)
+    test_vec<-rep("Test",ntest)
+    train_vec<-rep("Training",nobs-ntest)
+    if(is.na(split_seed)){split_seed=NULL}
+    set.seed(split_seed)
+    part_vec<-sample(c(train_vec,test_vec))
+    df<-data.frame(Partition=part_vec)
+    df$Partition<-as.factor(df$Partition)
+    rownames(df)<-rownames(data)
+    return(df)
+  }
 
   factors<-attr(data,"factors")
   if(split_t=="Classification"){
@@ -3654,22 +3668,13 @@ tool7$ui<-function(id){
       div(
         style="background-color: #f5f5f5;
           width: 50%;padding: 5px;",class="half-drop",
+        div(
+          class="radio_search radio-btn-green",
+          radioGroupButtons(ns("part_type"),span(tiphelp("<li> Balanced partition: Ensures balanced distributions within the splits for classification or regression intended models.</li><li> Random partition: random sampling is done.</li>","left"),"Type:"),c("Balanced", "Random"))
+        ),
         div(class="impute",
-            selectInput(
-              ns("split_t"),
-              span(pophelp(
-                NULL,
-                HTML(paste0(
-                  p(HTML(paste0(strong("Choose the model type for which you are creating a partition")))),
-                  p(HTML(paste0(tags$li('For classification models, the random sampling is done within the levels of y in an attempt to balance the class distributions within the splits')))),
-                  p(HTML(paste0(tags$li(
-                    "For regression regression models, samples are divided into sections based on percentiles of the numeric target variable (Y), with sampling performed within these subgroups. "
-                  )))),
 
-                  p(HTML(paste0(em("Both uses the createDataPartition function from the caret package."))))
-                )),"left"
-              ),"Partition for:"),c("Classification","Regression")
-            ),
+            uiOutput(ns("part_for")),
             div(class="short",
                 style="margin-left: 20px",
                 uiOutput(ns("split_y_out"))
@@ -3706,24 +3711,42 @@ tool7$server<-function(id,vals=NULL){
       vals$pp_data
     })
 
-    cur_y<-reactiveVal()
-    cur_t<-reactiveVal()
-    observeEvent(input$split_y,{
-      req(input$split_y!="")
-      cur_y(input$split_y)
+
+
+    output$part_for<-renderUI({
+      req(input$part_type=="Balanced")
+      ns<-session$ns
+      req(data())
+      choices<-c("Classification","Regression")
+     # selected<-get_selected_from_choices(vals$cur_partition,choices)
+      selectInput(
+        ns("split_t"),
+        span(pophelp(
+          NULL,
+          HTML(paste0(
+            p(HTML(paste0(strong("Choose the model type for which you are creating a partition")))),
+            p(HTML(paste0(tags$li('For classification models, the random sampling is done within the levels of y in an attempt to balance the class distributions within the splits')))),
+            p(HTML(paste0(tags$li(
+              "For regression regression models, samples are divided into sections based on percentiles of the numeric target variable (Y), with sampling performed within these subgroups. "
+            )))),
+
+            p(HTML(paste0(em("Both uses the createDataPartition function from the caret package."))))
+          )),"left"
+        ),"Partition for:"),choices, selected=vals$cur_partition
+      )
     })
 
-    observeEvent(input$split_t,{
-      req(input$split_t!="")
-      cur_t(input$split_t)
-    })
 
-    observeEvent(data(),{
-      updateSelectInput(session,'split_t',selected=cur_t())
-    })
+
+
+
+
+
 
 
     output$split_y_out<-renderUI({
+      req(input$part_type=="Balanced")
+      req(data())
       req(input$split_t)
       if(input$split_t%in%"Classification"){
         choices_factors<-colnames(attr(data(),"factors"))
@@ -3731,7 +3754,23 @@ tool7$server<-function(id,vals=NULL){
         choices_factors<-colnames(data())
       }
 
-      selectInput(session$ns("split_y"),tags$label(span(tiphelp("Select the target variable",'left'),'Y:'),style=""),choices_factors,selected=cur_t())
+     # selected<-get_selected_from_choices(vals$cur_split_y,choices_factors)
+      #selectInput(session$ns("split_y"),SelectedText="Columns selected", label=span(tiphelp("Select the target variable",'left'),'Y:'),choices=choices_factors,selected=vals$cur_split_y)
+
+      pickerInput(session$ns("split_y"),tags$label(span(tiphelp("Select the target variable. Choose multiple variables for creating multiple partition columns",'left'),'Y:'),style=""),choices_factors,selected=choices_factors[1],multiple =T)
+    })
+
+    observeEvent(input$split_y,{
+      shinyjs::removeClass('split_y',"half-drop")
+    })
+
+
+    observeEvent(input$split_t,{
+      vals$cur_partition<-input$split_t
+    })
+    observeEvent(input$split_y,{
+      req(input$split_t)
+      vals$cur_split_y<-input$split_y
     })
 
 
@@ -3742,6 +3781,7 @@ tool7$server<-function(id,vals=NULL){
 
     args_part<-reactive({
 
+      req(input$split_t)
       if(input$split_t=="Classification"){
         data0<-attr(data(),"factors")
       } else{
@@ -3754,7 +3794,8 @@ tool7$server<-function(id,vals=NULL){
         split_t=input$split_t,
         split_y=input$split_y,
         split_p=input$split_p,
-        split_seed=input$split_seed
+        split_seed=input$split_seed,
+        part_type=input$part_type
       )
     })
 
@@ -3802,9 +3843,29 @@ tool7$server<-function(id,vals=NULL){
       shinyjs::addClass("create_partition_btn","save_changes")
     })
     observeEvent(input$create_partition,ignoreInit = T,{
-      args<-args_part()
-      part<-do.call(generate_partiton,args)
+      args0<-args<-args_part()
+      result<-lapply(args$split_y, function(x){
+        args0$split_y<-x
+        do.call(generate_partiton,args0)
+      })
+
+      part<-data.frame(result)
+
+      fac0<-attr(data(),"factors")
+      if(input$part_type=="Balanced"){
+        partnames<-paste0("Partition_",args$split_y)
+        newfacnames<-make.unique(c(colnames(fac0),partnames))
+        newfacnames<-newfacnames[(ncol(fac0)+1):length(newfacnames)]
+        colnames(part)<-newfacnames
+      }
+
+
+
+     # part<-do.call(generate_partiton,args)
       r_partition(part)
+
+
+      vals$vtools$tool7_partition<-part
       shinyjs::removeClass("create_partition_btn","save_changes")
     })
     output$print_partition<-renderUI({
@@ -3821,11 +3882,15 @@ tool7$server<-function(id,vals=NULL){
     })
     output$print_partition_summary<-renderUI({
       req(r_partition())
-      summ<-table(r_partition()[,1])
 
-      lapply(names(summ),function(i){
-        div(span(strong(i),"-",summ[i], em("obs")))
-      })
+      part<-r_partition()
+      #req(ncol(r_partition())==1)
+
+      summ0<-lapply(part, table)
+      renderTable(do.call(rbind,summ0),rownames =T)
+
+
+
     })
     result_v7<-reactive({
       if(is.null(r_partition())){
@@ -3833,9 +3898,15 @@ tool7$server<-function(id,vals=NULL){
       }
       data<-data()
       factors<-attr(data,"factors")
-      factors["New partition"]<-r_partition()
+      factors<-cbind(factors,r_partition())
+     # factors["New partition"]<-r_partition()
       attr(data,"factors")<-factors
-      attr(data,"bag")<-paste0("Partition_",input$split_y)
+      if(input$part_type=="Balanced"){
+        attr(data,"bag")<-paste0("Partition_",input$split_y)
+      } else{
+        attr(data,"bag")<-paste0("Partition")
+      }
+
       attr(data,"action")<-"factor-column"
       data
     })
@@ -4227,6 +4298,19 @@ tool10$server<-function (id,vals){
       } else{
         mybooks<-readRDS(input$load_savepoint$datapath)
       }
+      vnew<-list()
+      vnew$saved_data<-mybooks$saved_data
+      for(i in names(vnew$saved_data)){
+        if(length(attr(vnew$saved_data[[i]],"rf"))>0){
+          for(j in 1:length(attr(vnew$saved_data[[i]],"rf")) ){
+            x<-attr(vnew$saved_data[[i]],"rf")[[j]]
+            if(!inherits(x,"list")){
+              attr(vnew$saved_data[[i]],"rf")[[j]]<- list(x)
+            }
+          }
+        }
+      }
+      mybooks$saved_data<-vnew$saved_data
       newvals<-mybooks
       if(is.null(newvals$cur_data)){newvals$cur_data<-names(vals$saved_data)[[1]]}
 
@@ -5637,7 +5721,10 @@ pre_process$server<-function(id, vals){
       if(r_action()=="datalist"){
         "Save changes"
       } else if(r_action()=="factor-column"){
-        "Create/Replace Factor-Attribute Column"
+        if(ncol(vals$vtools$tool7_partition)==1){"Create/Replace Factor-Attribute Column"} else{
+          "Add Partition columns to Factor-Attribute"
+        }
+
       } else if(r_action()=="numeric-column"){
         "Create/Replace Nmeric-Attribute Column"
       }
@@ -5667,10 +5754,12 @@ pre_process$server<-function(id, vals){
               div(class="half-drop",
                   style="display: flex",
                   div(style="width: 20%",
-                      radioButtons(ns("create_replace"),NULL,c("Create","Replace"))
+                      uiOutput(ns('create_replace_out'))
+
                   ),
                   div(style="padding-top: 10px",
                       uiOutput(ns("out_newdatalit")),
+                      uiOutput(ns("out_newcolumns")),
                       uiOutput(ns("out_overdatalist"))
                   )
 
@@ -5686,6 +5775,26 @@ pre_process$server<-function(id, vals){
         )
       )
     })
+
+    output$out_newcolumns<-renderUI({
+      req(r_action())
+      req(r_action()=="factor-column")
+      req(ncol(vals$vtools$tool7_partition)>1)
+      newnames<-colnames(vals$vtools$tool7_partition)
+      emgray(paste(newnames,collapse=", "))
+
+    })
+
+    output$create_replace_out<-renderUI({
+      ns<-session$ns
+      req(r_action())
+      choices<-c("Create","Replace")
+      if(r_action()=="factor-column"){
+        if(ncol(vals$vtools$tool7_partition)>1){
+          choices<-"Create"}
+      }
+      radioButtons(ns("create_replace"),NULL,choices)
+    })
     output$out_newdatalit<-renderUI({
       req(input$create_replace=="Create")
       ns<-session$ns
@@ -5694,14 +5803,22 @@ pre_process$server<-function(id, vals){
         newnames<-make.unique(c(names(vals$saved_data),vals$bagname))
         name0<-newnames[length(newnames)]
       } else if(action=="factor-column"){
+        req(ncol(vals$vtools$tool7_partition)==1)
         newnames<-make.unique(c(colnames(attr(vals$saved_data[[vals$cur_data]],"factors")),vals$bagname))
         name0<-newnames[length(newnames)]
       }
       textInput(ns("newdatalit"),NULL,name0)
     })
+
+
+
+
     output$out_overdatalist<-renderUI({
       ns<-session$ns
       req(input$create_replace=="Replace")
+      action=r_action()
+      if(action=="factor-column"){
+        req(ncol(vals$vtools$tool7_partition)==1)}
       selectInput(ns("overdatalist"),NULL,choices=r_choices_over(),selected=vals$cur_data)
     })
     datalistnew<-reactive({
@@ -5721,11 +5838,15 @@ pre_process$server<-function(id, vals){
         datalist_root<-attr(vals$tosave,"datalist_root")
         factors<-attr(vals$tosave,"factors")
         if(input$create_replace=="Create"){
-          colnames(factors)[ncol(factors)]<-datalistnew()
+          if(ncol(vals$vtools$tool7_partition)==1){
+          colnames(factors)[ncol(factors)]<-datalistnew()}
         } else {
-          req(input$overdatalist%in%colnames(factors))
-          factors[input$overdatalist]<-factors[ncol(factors)]
-          factors[ncol(factors)]<-NULL
+          if(ncol(vals$vtools$tool7_partition)==1){
+            req(input$overdatalist%in%colnames(factors))
+            factors[input$overdatalist]<-factors[ncol(factors)]
+            factors[ncol(factors)]<-NULL
+          }
+
         }
         attr(vals$saved_data[[datalist_root]],"factors")<-factors
 

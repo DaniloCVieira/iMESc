@@ -18,7 +18,10 @@ diversity_tool$ui<-function(id){
                 div(
                   div(style="display: flex;height: 50px",class="setup_box picker-flex",
                       div(tags$div("X",class="trailab")),
-                      selectInput(ns("data_div"),tipify(span("Datalist:"),"Datalist for selecting the Factor", ),choices = NULL)))),
+                      selectInput(ns("data_div"),tipify(span("Datalist:"),"Datalist for selecting the Factor", ),choices = NULL),
+                      uiOutput(ns('try_chao_fisher'))
+
+                      ))),
 
       column(
         4,class="mp0",
@@ -30,10 +33,10 @@ diversity_tool$ui<-function(id){
                       ns("divInds"),
                       NULL,
                       choiceValues =list(
-                        "N","S","margalef","D","H","Hlog2","Hlog10","J'","Dom_rel","Skewness"
+                        "N","S","margalef","D","H","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
                       ),
                       selected=c(
-                        "N","S","margalef","D","H","Hlog2","Hlog10","J'","Dom_rel","Skewness"
+                        "N","S","margalef","D","H","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
                       ),
                       inline = F,
 
@@ -48,7 +51,10 @@ diversity_tool$ui<-function(id){
                         span("J",actionLink(ns('Jhelp'),icon("fas fa-question-circle")), uiOutput(ns("Jhelp"))),
 
                         span("Dom_rel",actionLink(ns('Domhelp'),icon("fas fa-question-circle")), uiOutput(ns("Domhelp"))),
-                        span("Skewness",actionLink(ns('Skhelp'),icon("fas fa-question-circle")),uiOutput(ns("Skhelp")))
+                        span("Skewness",actionLink(ns('Skhelp'),icon("fas fa-question-circle")),uiOutput(ns("Skhelp"))),
+                        span("Chao1",actionLink(ns('Chao1help'),icon("fas fa-question-circle")),uiOutput(ns("Chao1help"))),
+                        span("Fisher",actionLink(ns('Fisherhelp'),icon("fas fa-question-circle")),uiOutput(ns("Fisherhelp"))),
+                        span("BP",actionLink(ns('BPhelp'),icon("fas fa-question-circle")),uiOutput(ns("BPhelp")))
                       )
 
 
@@ -170,6 +176,22 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
       val = palette
     )
 
+
+
+
+    output$try_chao_fisher<-renderUI({
+      tryfisher<-vals$tryfisher
+      trychao<-vals$trychao
+      req(length(c(tryfisher,trychao))>0)
+      war<-paste(paste(c(tryfisher,trychao),collapse=" and "),"indices require integer values and were not calculated due to non-integer data")
+      div(style="padding: 5px; font-size:11px",
+          class = "alert_warning",
+          icon("triangle-exclamation",style="color: Dark yellow3"),
+          war
+      )
+
+    })
+
     ns<-session$ns
     output$div_results<-renderUI({
       div(class="half-drop-inline",style="max-width: 100%;overflow-x: auto",
@@ -280,6 +302,39 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
                )),p("where ",em(HTML(paste0(HTML("&mu;"),tags$sub("i"))),paste0("is the mean of log("),em(HTML(paste0("n",tags$sub("i")))),")"))
       )
     })
+    output$Chao1help <- renderUI({
+      req(input$Chao1help %% 2)
+      column(12, style = "background: white",
+             strong("Chao1 Index"),
+             p("The Chao1 index is an estimate of species richness that adjusts for rare species. It accepts only integers (counts). The formula for the Chao1 index is:",
+               withMathJax(helpText("$$ \\text{Chao1} = S_{\\text{observed}} + \\frac{F_1^2}{2F_2} $$")),
+               p("where \\( S_{\\text{observed}} \\) is the number of observed species, \\( F_1 \\) is the number of species observed only once, and \\( F_2 \\) is the number of species observed twice.")
+             )
+      )
+    })
+
+    # Help for Berger-Parker Index
+    output$BPhelp <- renderUI({
+      req(input$BPhelp %% 2)
+      column(12, style = "background: white",
+             strong("Berger-Parker Index"),
+             p("The Berger-Parker index measures the dominance of the most abundant species in a community. It is defined as the proportion of the total sample that is composed of the most abundant species. The formula for the Berger-Parker index is:",
+               withMathJax(helpText("$$ BP = \\frac{N_{\\text{max}}}{N} $$")),
+               p("where \\( N_{\\text{max}} \\) is the number of individuals of the most abundant species, and \\( N \\) is the total number of individuals in the community.")
+             )
+      )
+    })
+
+    # Help for Fisher's Alpha
+    output$Fisherhelp <- renderUI({
+      req(input$Fisherhelp %% 2)
+      column(12, style = "background: white",
+             strong("Fisher's Alpha"),
+             p("Fisher's alpha is a diversity index that is derived from the log-series distribution. It accepts only integers (counts). The index is calculated using maximum likelihood estimation from the observed species abundance data.")
+      )
+    })
+
+
     observeEvent(ignoreInit = T,input$tools_savediv,{
       vals$hand_save<-"Save diversity results"
       vals$hand_save2<-NULL
@@ -293,6 +348,7 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
 
       req(input$divInds)
       abund=getdata_div()
+
 
       validate(need(!any(colSums(sapply(abund,function (x) x<0))>0),"Data must be non-negative"))
 
@@ -312,6 +368,23 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
 
       if("Dom_rel"%in%choices){res$Dom_rel<-apply(decostand(abund, "total"),1,sort,T)[1,]}
       if("Skewness"%in%choices){res$Skewness=apply(abund,1,skewness)}
+      if ("Chao1" %in% choices) {
+        trychao<-try( res$Chao1 <- vegan::estimateR(abund)["S.chao1",] )
+        vals$trychao<-NULL
+        if(inherits(trychao,"try-error")){
+          vals$trychao<-"Chao1"
+        }
+      }
+      if ("Fisher" %in% choices) {
+        tryfisher<-try( res$Fisher <- vegan::fisher.alpha(abund) )
+        vals$tryfisher<-NULL
+        if(inherits(tryfisher,"try-error")){
+          vals$tryfisher<-"Fisher"
+        }
+      }
+      if ("BP" %in% choices) {
+        res$BP <- apply(abund, 1, function(x) max(x) / sum(x))
+      }
       res<-data.frame(do.call(cbind,res))
 
       #rowSums(apply(data,2,function(x)x==1))

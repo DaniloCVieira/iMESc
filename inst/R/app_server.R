@@ -4,7 +4,7 @@
 #' @importFrom readxl excel_sheets read_excel
 #' @importFrom gplots heatmap.2
 #' @importFrom Metrics mae mape mse rmse
-#' @importFrom vegan ordiplot rda scores decostand vegdist metaMDS specnumber diversity rrarefy ordiArrowTextXY
+#' @importFrom vegan ordiplot rda scores decostand vegdist metaMDS specnumber diversity rrarefy ordiArrowTextXY estimateR fisher.alpha
 #' @importFrom mice mice complete
 #' @importFrom tibble rownames_to_column
 #' @importFrom foreach `%dopar%` `%:%` foreach
@@ -853,7 +853,7 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observe({
+  observeEvent(input$savepoint_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

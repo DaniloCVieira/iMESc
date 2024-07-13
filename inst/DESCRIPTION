@@ -16,7 +16,7 @@ Encoding: UTF-8
 Language: en-US
 LazyData: true
 RoxygenNote: 7.3.1
-Depends: R (>= 3.5.0), shinyTree
+Depends: R (>= 3.5.0), shinyTree, aweSOM
 Imports: 
     ade4,
     base,
@@ -87,7 +87,8 @@ Imports:
     readxl,
     RANN,
     partykit,
-    automap
+    automap,
+    aweSOM
 Suggests: 
     knitr,
     rmarkdown

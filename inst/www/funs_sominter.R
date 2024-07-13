@@ -799,7 +799,7 @@ hc_plot<-function(somC, col=NULL, labels=NULL, lwd=2, main="", xlab="Observation
   }
   p<-p+theme(axis.text.x=element_blank(),
 
-             axis.title.x = element_text(margin = margin(t =xlab_adj)))
+             axis.title.x = element_text(margin = ggplot2::margin(t =xlab_adj)))
   p<-p + coord_cartesian(clip = 'off', ylim=c((offset_labels*.9999)/2.5,max(hc$height)*1.05), expand = FALSE, xlim=c(0,length(lab_dend)+1))+theme(plot.margin = unit(c(1,1,1,1), "cm"))+
     scale_x_discrete(labels=lab_dend,limits=lab_dend)
   p

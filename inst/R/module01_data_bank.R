@@ -516,7 +516,8 @@ databank_module$server<-function(id, vals){
     })
 
     output$DT_data<-{
-
+      req(getdata_bank())
+      req(is.data.frame(getdata_bank()))
       DT::renderDataTable({
         validate(need(ncol(getdata_bank()) < 1000, "Preview not available for data with more than 1000 columns"))
         getdata_bank()},

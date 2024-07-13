@@ -357,15 +357,8 @@ rf_explainer$ui<-function(id){
         )
     ))
 }
-new_scale <- function(new_aes) {
-  structure(ggplot2::standardise_aes_names(new_aes), class = "new_aes")
-}
-ggplot_add.new_aes <- function(object, plot, object_name) {
-  plot$layers <- lapply(plot$layers, bump_aes, new_aes = object)
-  plot$scales$scales <- lapply(plot$scales$scales, bump_aes, new_aes = object)
-  plot$labels <- bump_aes(plot$labels, new_aes = object)
-  plot
-}
+
+
 rf_explainer$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     ns<-session$ns

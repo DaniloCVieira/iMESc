@@ -24,6 +24,7 @@ hc_module$ui<-function(id){
                 )
               )
     ),
+    uiOutput(ns('teste')),
     uiOutput(ns('hc_error')),
     tabsetPanel(id=ns("tabs_view"),title=NULL,
                 tabPanel("1. Dendrogram",value="tab1"),
@@ -1366,24 +1367,20 @@ hc_module$server<-function(id, vals){
           args$ask<-F
           args$which.plots<-2
         }
-        do.call(plot,args)
-        vals$hc_tab1_plot<-recordPlot()
-        vals$hc_tab1_plot
+        output$hcdata_plot<-renderUI({
+          renderPlot({
+            do.call(plot,args)
+            vals$hc_tab1_plot<-recordPlot()
+          })
+        })
+
+
       }
 
 
     })
 
-    output$hcdata_plot<-renderUI({
-      req( vals$hc_tab1_plot)
 
-
-      renderPlot({
-        vals$hc_tab1_plot
-
-      })
-
-    })
 
 
     observeEvent(vals$saved_data,{

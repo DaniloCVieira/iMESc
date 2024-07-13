@@ -41,7 +41,7 @@ jscode_screen<-'var dimension = [0, 0];
                             '
 
 #last_update<-"2022-11-08"
-if(getwd()=="D:/R3/imesc2024/app/inst"){
+if(getwd()=="D:/R3/imesc2024/app_new/inst"){
   last_update<-Sys.Date()
   saveRDS(last_update,"www/last_update.rds")
   qsave=T

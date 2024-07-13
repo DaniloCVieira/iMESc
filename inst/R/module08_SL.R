@@ -5766,7 +5766,7 @@ caret_models$server<-function(id,vals){
             vals$model_error<-m<-try(suppressWarnings({
               set.seed(seed)
               args_train$ntree<-50
-              do.call(train,args_train)}))
+              do.call(caret::train,args_train)}))
             time1<-Sys.time()
             req(!inherits(m,"try-error"))
             attr(m,"test_partition")<-paste("Test data:",args$partition,"::",args$partition_ref)
@@ -5914,7 +5914,7 @@ caret_models$server<-function(id,vals){
 
               vals$model_error<-m<-try(suppressWarnings({
                 set.seed(seed)
-                do.call(train,args_train)}))
+                do.call(caret::train,args_train)}))
               #try({
               #rsq<-m$results[rownames(m$bestTune),"Rsquared"]
               #if(rsq>0.6){
@@ -5950,7 +5950,7 @@ caret_models$server<-function(id,vals){
               attr(m,"model_name")<-model_name
               attr(m,"run_time")<-difftime(time1,time0, units='secs')
 
-             model_results[[i]]<-list(m=m)
+              model_results[[i]]<-list(m=m)
 
 
             }
@@ -6368,30 +6368,30 @@ caret_train$server<-function(id,vals=NULL){
     observeEvent(input$trash_model,ignoreInit = T,{
       choices<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
       ns<-session$ns
-     showModal(
-       modalDialog(
-         easyClose = T,
-         title="Remove models",
-         div(
-           shinyWidgets::virtualSelectInput(
-             inputId = ns("trash_picker"),
-             label = "Select the columns",
-             optionHeight='24px',
-             choices = choices,
-             search = TRUE,
-             keepAlwaysOpen = TRUE,
-             multiple =T,
-             hideClearButton=T,
-             alwaysShowSelectedOptionsCount=T,
-             searchPlaceholderText="Select all",
-             optionsSelectedText="Models selected",
-             optionSelectedText="Models selected"
-           ),
-           actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
-         ),
-         footer=div(modalButton("Close"))
-       )
-     )
+      showModal(
+        modalDialog(
+          easyClose = T,
+          title="Remove models",
+          div(
+            shinyWidgets::virtualSelectInput(
+              inputId = ns("trash_picker"),
+              label = "Select the columns",
+              optionHeight='24px',
+              choices = choices,
+              search = TRUE,
+              keepAlwaysOpen = TRUE,
+              multiple =T,
+              hideClearButton=T,
+              alwaysShowSelectedOptionsCount=T,
+              searchPlaceholderText="Select all",
+              optionsSelectedText="Models selected",
+              optionSelectedText="Models selected"
+            ),
+            actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
+          ),
+          footer=div(modalButton("Close"))
+        )
+      )
     })
 
     observeEvent(input$trash_confirm,ignoreInit = T,{

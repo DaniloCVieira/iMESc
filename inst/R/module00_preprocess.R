@@ -4419,12 +4419,22 @@ pp_data$server<-function(id,vals){
 
 
     data<-reactive({
-      vals$r_impute<-T
-      req(input$data_upload)%in%names(vals$saved_data)
-      data<-vals$saved_data[[input$data_upload]]
-      req(data)
-      attr(data,"datalist_root")<-input$data_upload
-      data
+      data<-try({
+
+        vals$r_impute<-T
+        req(input$data_upload)%in%names(vals$saved_data)
+        data<-vals$saved_data[[input$data_upload]]
+        req(data)
+        attr(data,"datalist_root")<-input$data_upload
+        data
+
+      })
+      if(!inherits(data,"try-error")){
+        return(data)
+      } else{
+        return(NULL)
+      }
+
     })
 
 

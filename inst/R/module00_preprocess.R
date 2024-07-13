@@ -4428,7 +4428,7 @@ pp_data$server<-function(id,vals){
         attr(data,"datalist_root")<-input$data_upload
         data
 
-      })
+      },silent = T)
       if(!inherits(data,"try-error")){
         return(data)
       } else{

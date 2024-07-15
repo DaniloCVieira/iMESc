@@ -398,6 +398,7 @@ desctools_tab2$ui<-function(id){
                                numericInput(ns('box_base_size'),"Base size:", 12,step=1),
                                numericInput(ns('box_cex.main'),"Title size:", 1.5,step=.1),
                                numericInput(ns('box_cex.label_panel'),"Panel Title Size:", 1.5,step=.1),
+                               selectInput(ns("box_title_font"),"Title font",c("italic","bold","plain")),
 
                                numericInput(ns('box_cex.lab'),"Label size:", 1.5,step=.1),
                                numericInput(ns('box_cex.axes'),"Axis size:", 1.5,step=.1),
@@ -414,7 +415,9 @@ desctools_tab2$ui<-function(id){
                                checkboxInput(ns('box_violin'),"Violin:",value=F),
 
                                numericInput(ns('box_width'),"Plot widht:",550, step=50),
-                               numericInput(ns('box_heigth'),"Plot heigth:",400, step=50))
+                               numericInput(ns('box_heigth'),"Plot heigth:",400, step=50),
+                               numericInput(ns('box_ncol'),"N columns",2),
+                               numericInput(ns('box_nrow'),"N rows",NA),)
                            ))
                    )
 
@@ -482,6 +485,7 @@ desctools_tab2$server<-function(id,vals){
 
         }
         res = data.frame(x,y)[pic,]
+        colnames(res)[-1]<-colnames(y)
         res[,1]<-res[,1]
         res
         # saveRDS(res,"res.rds")
@@ -628,7 +632,10 @@ desctools_tab2$server<-function(id,vals){
         grid=input$box_grid,
         xlab_rotate=input$box_xlab_rotate,
         ylab_rotate=input$box_ylab_rotate,
-        newcolhabs=vals$newcolhabs
+        newcolhabs=vals$newcolhabs,
+        nrow=input$box_nrow,
+        ncol=input$box_ncol,
+        box_title_font=input$box_title_font
       )
       args
     })
@@ -1676,7 +1683,6 @@ desctools_tab7$server<-function(id,vals){
         numericInput(ns('pca_biplot_n') ,tiphelp3("Number of Variables", "Set the number of variables to display"),value=value, min=1),
         div(colourpicker::colourInput(ns('pca_biplot_color') ,"Text Color",value="blue","background")),
         div(colourpicker::colourInput(ns('pca_biplot_arrow_color') ,"Arrow Color",value="blue","background")),
-        pickerInput(ns('pca_biplot_type') ,tiphelp3("Sorting", "Select the sorting method for variables in the pca biplot. When clockwise_quadrants is chosen, variables are sorted based on quadrants in a clockwise direction. For clockwise_distance, variables are chosen based on their distance from the biplot center in the selected direction."),choices=c("clockwise_quadrants","clockwise_distance")),
         numericInput(ns('pca_biplot_size') ,"Text Size",value=4),
         checkboxInput(ns('pca_loading_axis'),"Axes",T),
         checkboxInput(ns('pca_lo_axis_color'),"Axes color as Arrows",T),
@@ -1725,7 +1731,6 @@ desctools_tab7$server<-function(id,vals){
         text_palette=vals$newcolhabs[[text_palette]],
         text_size=input$pca_text_size,
         biplot_n=input$pca_biplot_n,
-        biplot_type=input$pca_biplot_type,
         biplot_size=input$pca_biplot_size,
         biplot_color=input$pca_biplot_color,
         biplot_arrow_color=input$pca_biplot_arrow_color,
@@ -2038,7 +2043,6 @@ desctools_tab8$server<-function(id,vals){
         biplot_n=tiphelp3("Number of Variables", "Set the number of variables to display"),
         biplot_arrow_color="Arrow Color",
         biplot_color="Text Color",
-        biplot_type=tiphelp3("Sorting Method", "Select the sorting method for variables in the RDA biplot. When clockwise_quadrants is chosen, variables are sorted based on quadrants in a clockwise direction. For clockwise_distance, variables are chosen based on their distance from the biplot center in the selected direction."),
         biplot_size="Text size"
       )
 
@@ -2048,7 +2052,6 @@ desctools_tab8$server<-function(id,vals){
         div(colourpicker::colourInput(ns('rda_biplot_color') ,tips$biplot_color,value="blue","background")),
         div(colourpicker::colourInput(ns('rda_biplot_arrow_color') ,tips$biplot_arrow_color,value="blue","background")),
 
-        pickerInput(ns('rda_biplot_type') ,tips$biplot_type,choices=c("clockwise_quadrants","clockwise_distance")),
         numericInput(ns('rda_biplot_size') ,tips$biplot_size,value=4)
 
       )
@@ -2108,12 +2111,12 @@ desctools_tab8$server<-function(id,vals){
         text_palette=vals$newcolhabs[[text_palette]],
         text_size=input$rda_text_size,
         biplot_n=input$rda_biplot_n,
-        biplot_type=input$rda_biplot_type,
+
         biplot_size=input$rda_biplot_size,
         biplot_color=input$rda_biplot_color,
         biplot_arrow_color=input$rda_biplot_arrow_color,
         species_n=input$rda_species_n,
-        species_type=input$rda_species_type,
+
         species_plot=input$rda_species_plot,
         species_size=input$rda_species_size,
         species_shape=as.numeric(input$rda_species_shape),
@@ -2194,7 +2197,7 @@ desctools_tab8$server<-function(id,vals){
                     options = list(container = "body"),
                     width = "100px"),
         numericInput(ns('rda_species_n') ,"sp number:",value=value),
-        pickerInput(ns('rda_species_type') ,"sp.n direction:",choices=c("clockwise_quadrants","clockwise_distance")),
+
         numericInput(ns('rda_species_size') ,"Size:",value=2),
 
       )
@@ -2685,7 +2688,7 @@ desctools_tab9$server<-function(id,vals){
         biplot_n=tiphelp3("Number of Variables", "Set the number of variables to display"),
         biplot_arrow_color="Arrow Color",
         biplot_color="Text Color",
-        biplot_type=tiphelp3("Sorting Method", "Select the sorting method for variables in the pwRDA biplot. When clockwise_quadrants is chosen, variables are sorted based on quadrants in a clockwise direction. For clockwise_distance, variables are chosen based on their distance from the biplot center in the selected direction."),
+
         biplot_size="Text size"
       )
 
@@ -2694,7 +2697,6 @@ desctools_tab9$server<-function(id,vals){
         div(colourpicker::colourInput(ns('segrda_biplot_color') ,tips$biplot_color,value="blue","background")),
         div(colourpicker::colourInput(ns('segrda_biplot_arrow_color') ,tips$biplot_arrow_color,value="blue","background")),
 
-        pickerInput(ns('segrda_biplot_type') ,tips$biplot_type,choices=c("clockwise_quadrants","clockwise_distance")),
         numericInput(ns('segrda_biplot_size') ,tips$biplot_size,value=4)
 
       )
@@ -2715,7 +2717,7 @@ desctools_tab9$server<-function(id,vals){
                     options = list(container = "body"),
                     width = "100px"),
         numericInput(ns('segrda_species_n') ,"sp number:",value=value),
-        pickerInput(ns('segrda_species_type') ,"sp.n direction:",choices=c("clockwise_quadrants","clockwise_distance")),
+
         numericInput(ns('segrda_species_size') ,"Size:",value=2),
 
       )
@@ -2771,12 +2773,12 @@ desctools_tab9$server<-function(id,vals){
         text_palette=vals$newcolhabs[[text_palette]],
         text_size=input$segrda_text_size,
         biplot_n=input$segrda_biplot_n,
-        biplot_type=input$segrda_biplot_type,
+
         biplot_size=input$segrda_biplot_size,
         biplot_color=input$segrda_biplot_color,
         biplot_arrow_color=input$segrda_biplot_arrow_color,
         species_n=input$segrda_species_n,
-        species_type=input$segrda_species_type,
+
         species_plot=input$segrda_species_plot,
         species_size=input$segrda_species_size,
         species_shape=as.numeric(input$segrda_species_shape),

@@ -226,6 +226,8 @@ module_compare$server<-function (id,vals,df_colors,newcolhabs,df_symbol){
 
     observeEvent(vals$modellist,{
       req(length(vals$modellist)>1)
+      names(vals$modellist)<-gsub(" ","",gsub("[^0-9A-Za-z///' ]", ".", names(vals$modellist), ignore.case = TRUE)) # no libraries needed
+
       results<-resamples(vals$modellist)
       vals$compare_results<-results
 
@@ -451,6 +453,7 @@ module_compare$server<-function (id,vals,df_colors,newcolhabs,df_symbol){
     })
     output$plot3<-renderUI({
       results<-vals$compare_results
+
       req(!is.null(results))
       renderPlot({
         lattice::trellis.par.set(caretTheme())

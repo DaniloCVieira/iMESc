@@ -378,8 +378,8 @@ emgreen<-function(text){
 embrown<-function(text){
   em(text,style="color: brown")
 }
-emgray<-function(text){
-  em(text,style="color: gray")
+emgray<-function(...){
+  em(...,style="color: gray")
 }
 emwarning<-function(text){
   div(

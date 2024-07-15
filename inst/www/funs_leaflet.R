@@ -785,6 +785,7 @@ add_base_shape<-function(map,data,shape_attr="base_shape",color="blue",fillOpaci
     }}
   map
 }
+
 map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,...){
   palette0<-palette
   if(is.factor(data[,1])){
@@ -823,7 +824,7 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
 
   map<-add_shapes1(map,data,layer_shape_args,base_shape_args)
 
-  map<-add_extraLL(map,data,args_extra_shape)
+  #map<-add_extraLL(map,data,args_extra_shape)
 
   if(isTRUE(addCircles)){
     map <- map |> addCircleMarkers(

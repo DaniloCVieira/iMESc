@@ -2709,7 +2709,7 @@ tool4$ui<-function(id){
                  div(virtualPicker(ns("selecvar"),"Variable(s) selected")),
                  uiOutput(ns('print_selcol'))
         ),
-        tabPanel(span("Value-based remotion", tips[1]),
+        tabPanel(span("Value-based removal", tips[1]),
                  div(class="check_input",
                      div(
                        span(tipify( icon(verify_fa=FALSE,name=NULL,class="fas fa-question-circle"),"Remove columns where the values are less than x-percent of their cumulative total","bottom"),
@@ -5330,6 +5330,7 @@ tool2_tab3$server<-function(id,vals){
       if(convert()[[2]]=="factor"){
         data<-data.frame(lapply(data,as.factor))
       }
+      colnames(data)<-vars
       data
     })
     get_data_cutted<-reactive({

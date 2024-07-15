@@ -1,6 +1,42 @@
 #' @noRd
+#' @export
+fixed_dt_con<-list()
+#' @export
+fixed_dt_con$ui<-function(id,data,max_length=100){
+  if(is.null(data)){
+    return(NULL)
+  }
+  vecs<-split_vector_max_elements(1:ncol(data),max_length)
+  choices_containers<-sapply(vecs,function(x) paste(range(x),collapse="-"))
+  choices_names<-names(choices_containers)
+  names(choices_names)<-choices_containers
+  ns<-NS(id)
+  div(
+    pickerInput(ns("data_container"),"Show columns" , choices_names)
 
+  )
+}
+#' @export
+fixed_dt_con$server<-function(id,data,max_length=100){
+  moduleServer(id,function(input,output,session){
 
+    if(is.null(data)){
+      return(NULL)
+    }
+    vecs<-split_vector_max_elements(1:ncol(data),max_length)
+    data_containers<-lapply(vecs,function(x) data[,x])
+    output$data_render<-renderUI({
+      div(
+        class="half-drop-inline",
+        style="max-width: 100%; overflow-x: auto",
+        fixed_dt(data_containers[[input$data_container]],scrollY = "300px",scrollX=T)
+      )
+    })
+  })
+}
+split_vector_max_elements <- function(vec, max_length) {
+  split(vec, ceiling(seq_along(vec) / max_length))
+}
 #' @export
 imesc_supersom<-list()
 #' @export
@@ -25,555 +61,562 @@ padding-left: 3px;
                     padding: 0px;
     }"
     )),
-    div(
-      column(8,class="mp0",
-             box_caret(ns("box_setup1"),
-                       color="#374061ff",
-                       inline=F,
-                       title="Model Setup",
-                       button_title =
-                         switchInput(ns("mysupersom"),"supersom",size="mini", inline=T,labelWidth="75px",handleWidth="30px"),
-
-                       div(
-
-                         div(style="vertical-align: text-top;display: flex;",
-                             div(style="display: flex;",
-                                 div(
-                                   uiOutput(ns("data_som_out")),
-
-                                   ),
-                                 div(style="margin-top: 25px",
-                                     uiOutput(ns("saved_som_print")))
-                             ),
-                             uiOutput(ns("supersom_layers")),
-                             popify(
-                               div(class="save_changes",style="margin-top: 25px",
-                                   bsButton(ns("tools_savesom"), div(icon("fas fa-save")),style  = "animation: glowing 1000ms infinite;", type="action",value=FALSE)
-                               )
-                               , NULL, "Save the som model in the Datalist"
-                             )
-                         )
-                       )
-
-             )
-      ),
-
-      column(4,id=ns('som_models_panel'),
-             uiOutput(ns("som_models_panel"))
-             ),
-
-      column(4,id=ns('partition_panel'),
-             box_caret(ns('box_setup3'),
-                       title="Partition",
-                       color="#374061ff",
-                       inline = F,
-                       button_title =
-                         switchInput(ns("usepartition"),"Use partition",size="mini", inline=T,labelWidth="75px",handleWidth="30px"),
-
-
-                       div(id=ns("partition_on"),class="inline_pickers",
-                           uiOutput(ns("data_somY_out")),
-                           pickerInput(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), NULL),
-                           pickerInput(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=NULL)
-
-                       )))
-    )),
-
-    column(12,class="mp0",tabsetPanel(
-      id = ns("som_tab"),
-
-      tabPanel(
-        value = "som_tab1",
-
-        strong("1. Training"),
-
-        div(
-          column(6,class="mp0",
-                 box_caret(ns("box_setup4"),inline=F,
-                           color="#c3cc74ff",
-                           title="1.1. Set the grid",
-                           tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
-                                    actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
-                           div(
-                             div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
-                             div(id = ns("topocontrol"),
-                                 div(style="display: flex;width: 100%",class="inline_pickers2",
-
-                                     numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1),
-                                     numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1)
-                                     ,
-                                     pickerInput(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
-                                     pickerInput(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
-                                     pickerInput(ns("toroidal"),label = "toroidal",choices = c(F, T))
-                                 ),
-                                 div(
-                                   style="text-align: center; width: 350px",
-                                   uiOutput(ns("showgrid"))
-                                 )
-                             )
-
-
-
-                           )
-                 )
-          ),
-          column(6,
-                 box_caret(
-                   ns("box_setup4"),
-                   color="#c3cc74ff",
+div(
+  column(8,class="mp0",
+         box_caret(ns("box_setup1"),
+                   color="#374061ff",
                    inline=F,
-                   title="1.2. Set the training parameters",
-                   tip=span(actionLink(ns("supersomhelp"), tipify(
-                     icon("fas fa-question-circle"), "Click for more details"
-                   )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+                   title="Model Setup",
+                   button_title =
+                     switchInput(ns("mysupersom"),"supersom",size="mini", inline=T,labelWidth="75px",handleWidth="30px"),
+
                    div(
-                     div(class="inline_pickers2",
-                         pickerInput(ns("distmethod"),strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
-                                     choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
-                         pickerInput(ns("normalizeDataLayers"),"normalizeDataLayers",
-                                     choices = c("TRUE","FALSE")),
-                         numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
-                         numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
-                     ),
-                     div(align = "center",
-                         br(),
-                         actionButton(
-                           ns("trainSOM"),
-                           h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
-                     ),
 
-                     div(
-                       span(class="finesom_btn",
-                            tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
-                       )),
-                     div(id=ns("finetuning_som"),
-                         div(id="finesom_out",class="map_control_style2",
+                     div(style="vertical-align: text-top;display: flex;",
+                         div(style="display: flex;",
+                             div(
+                               uiOutput(ns("data_som_out")),
 
-
-                             div(style="display: flex",
-                                 numericInput(ns("a1"),
-                                              label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
-                                 numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
                              ),
-
-                             div(style="display: flex",
-                                 numericInput(ns("r1"),
-                                              label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
-                                 numericInput(ns("r2"),
-                                              label = NULL,value = 0,step = 0.01 )
-                             ),
-                             pickerInput(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
-                             numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
+                             div(style="margin-top: 25px",
+                                 uiOutput(ns("saved_som_print")))
+                         ),
+                         uiOutput(ns("supersom_layers")),
+                         popify(
+                           div(class="save_changes",style="margin-top: 25px",
+                               bsButton(ns("tools_savesom"), div(icon("fas fa-save")),style  = "animation: glowing 1000ms infinite;", type="action",value=FALSE)
+                           )
+                           , NULL, "Save the som model in the Datalist"
                          )
-
                      )
                    )
 
-                 )
-          ),
-          bsTooltip(ns('resettopo'),"Reset parameters"),
-          bsTooltip(ns('resetsom'),"Reset parameters")
-        )
+         )
+  ),
 
-      ),
-      tabPanel(
-        value = "som_tab2",
-        strong("2. Results"),
-        div(
-          style = "background: WhiteSmoke;",
-          tabsetPanel(
-            id=ns("som_res"),
+  column(4,id=ns('som_models_panel'),
+         uiOutput(ns("som_models_panel"))
+  ),
+
+  column(4,id=ns('partition_panel'),
+         box_caret(ns('box_setup3'),
+                   title="Partition",
+                   color="#374061ff",
+                   inline = F,
+                   button_title =
+                     switchInput(ns("usepartition"),"Use partition",size="mini", inline=T,labelWidth="75px",handleWidth="30px"),
 
 
-            tabPanel(
-              value= 'train_tab1',
-              "2.1. Parameters",
-              column(
-                6,class="mp0",
-                box_caret(
-                  ns("tbox1"),
-                  title="Quality Measures",
-                  tip=actionLink(ns("som_quality_help"),icon("fas fa-question-circle")),
-                  uiOutput(ns("som_errors"))
-                ),
-                box_caret(
-                  ns("tbox1"),
-                  title="Downloads",
-                  color="#c3cc74ff",
-                  div(
-                    div(div(tipify(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
-                    div(tipify(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
-                    div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
-                    div(tipify(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components")))
-                )
-              ),
-              column(
-                6,class="mp0",
-                box_caret(
-                  ns("tbox2"),
-                  title="Training Parameters",
-                  tableOutput(ns("train.summary"))
-                )
-              )
-            ),
-            tabPanel(
-              "2.2. Changes & Counting",value = "train_tab2",
-              column(6,class="mp0",box_caret(
-                ns("ccbox1"),
-                title="Changes",
-                button_title = actionLink(ns("downp_pchanges"),"Download",icon('download')),
-                plotOutput(ns("pchanges"))
-              )),
-              column(6,class="mp0",box_caret(
-                ns("ccbox2"),
-                title="Couting",
-                button_title = actionLink(ns("downp_pcounts"),"Download",icon('download')),
-                plotOutput(ns("pcounts"))
-              ))
+                   div(id=ns("partition_on"),class="inline_pickers",
+                       uiOutput(ns("data_somY_out")),
+                       pickerInput(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), NULL),
+                       pickerInput(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=NULL)
 
-            ),
-            tabPanel(
+                   )))
+)),
 
-              "2.3. BMUs", value = "train_tab5",
-              column(
-                4,class="mp0",
-                box_caret(
-                  ns("rbox1"),
-                  color="#c3cc74ff",
-                  title="Background",
-                  div(
-                    div(class="radio_search radio_yellow",
-                        radioGroupButtons(ns("ss1_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
-                    ),
+column(12,class="mp0",tabsetPanel(
+  id = ns("som_tab"),
 
-                    pickerInput(ns("ss1_property_layer"),label = "Layer:",choices = NULL),
-                    div(id=ns('ss1_var_pproperty'),style="display: flex",
-                        actionButton(ns("ss1_prev_property"),"<<"),
-                        pickerInput(ns("ss1_variable_pproperty"),label = "Variable:",choices = NULL),
-                        actionButton(ns("ss1_next_property"),">>")
+  tabPanel(
+    value = "som_tab1",
 
-                    ),
+    strong("1. Training"),
 
-                    pickerInput(inputId = ns("ss1_bg_palette"),"Palette",NULL),
-                    numericInput(ns("ss1_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-                    pickerInput(ns("ss1_pclus_border"),label ='Border:',NULL)
-                  )
-                ),
-                box_caret(
-                  ns("rbox2"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss1_pclus_addpoints"),strong("Points"),value=T,width="80px")
-                  ),
-                  div(
-                    div(id=ns("ss1_pclus_points_inputs"),
-                        pickerInput(inputId = ns("ss1_pclus_points_palette"),
-                                    label ="Palette",
-                                    choices = NULL),
-                        pickerInput(ns("ss1_pclus_points_factor"),"Factor",
-                                    choices = NULL),
-                        pickerInput(inputId = ns("ss1_pclus_symbol"),
-                                    label = "Shape",
-                                    choices = NULL),
-                        numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                    )
-                  )
-                ),
-                box_caret(
-                  ns("rbox3"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss1_pclus_addtext"),strong("Labels"),value=F,width="80px")
-                  ),
-                  div(id=ns('ss1_pclus_text_inputs'),
-                      pickerInput(inputId = ns("ss1_pclus_text_palette"),
-                                  label ="Palette",
-                                  choices =  NULL),
-                      pickerInput(ns("ss1_pclus_text_factor"),"Factor",
-                                  choices = NULL),
-                      numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                  )
-                ),
-                box_caret(
-                  ns("rbox4"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss1_varfacmap_action"),strong("Variable factor map"),value=T,width="150px")
-                  ),
-                  tip = actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
-                  div(id=ns('ss1_varfac_out'),
-                      pickerInput(ns("ss1_vfm_type"),"Show correlation:",
-                                  choices =list("Highest"='var', "Clockwise"="cor")
+    div(
+      column(6,class="mp0",
+             box_caret(ns("box_setup4"),inline=F,
+                       color="#c3cc74ff",
+                       title="1.1. Set the grid",
+                       tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
+                                actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+                       div(
+                         div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
+                         div(id = ns("topocontrol"),
+                             div(style="display: flex;width: 100%",class="inline_pickers2",
 
-                      ),
+                                 numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1),
+                                 numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1)
+                                 ,
+                                 pickerInput(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
+                                 pickerInput(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
+                                 pickerInput(ns("toroidal"),label = "toroidal",choices = c(F, T))
+                             ),
+                             div(
+                               style="text-align: center; width: 350px",
+                               uiOutput(ns("showgrid"))
+                             )
+                         )
 
-                      div(id=ns('ss1_vfm_out'),
-                          div(tipify(numericInput(ns("ss1_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
-                          numericInput(ns("ss1_pclus.cex.var"), "Size", value = 1, min = 2),
-                          pickerInput(inputId = ns("ss1_p.clus.col.text"),
-                                      label = "Color",
-                                      NULL
-                          ),
-                          pickerInput(inputId = ns("ss1_var_bg"),
-                                      label = "Background",
-                                      choices =NULL),
-                          numericInput(ns("ss1_var_bg_transp"), "Transparency", value = 0, min = 2,),
-                          div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
-                          div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
-                      )
-                  )
-                ),
-                box_caret(
-                  ns("rbox5"),
-                  title = "General options",
-                  color="#c3cc74ff",
-                  div(
-                    numericInput(ns("ss1_base_size"),"Base size",value = 12),
-                    checkboxInput(ns("ss1_theme"),
-                                  label = "show neuron coordinates",
-                                  value=F
-                    ),
-                    textInput(ns("ss1_title"), "Title: ", "")
-                  )
-                )
-              ),
-              column(
-                8,class="mp0",
-                box_caret(
-                  ns('rbox6'),
-                  title="Best-Matching units",
-                  button_title = actionLink(ns('downp_bmu'),"Download",icon("download")),
-                  div(uiOutput(ns("bmu_plot")))
-                )
-              )
-            ),
-            tabPanel("2.4. Network plot", value = "train_tab_net",
-                     column(
-                       6,class="mp0",
-                       box_caret(ns("box_setup5"),
-                                 color="#c3cc74ff",
-                                 title="Snap-Based Model Retraining",
-                                 tip=tipright("The panel enables users to recreate the model at pre-determined snaps. The snap parameter determines the iterations at which the model will be recreated. For example, if a model with 500 iterations is saved, setting snap to 250 will recreate the model at the 250th and 500th iterations."),
-                                 div(class="inline_pickers",
-                                     numericInput(ns("rlen_snap2"), span(tipright("Number of snapshots or intermediate models to generate"), "snap"), 3),
-                                     div(actionButton(ns("run_play2"), "Run >>",style="height: 30px;padding: 5px")),
 
-                                     hidden(div(style="padding-top: 10px",
-                                                class="anim_opt2",
-                                                div(strong('Animation options')),
-                                                numericInput(ns("play_interval2"), span(tipright("Interval between each training iteration in milliseconds."), "interval"), 100),
-                                                checkboxInput(ns("loop2"), "Loop", FALSE)
-                                     ))
-                                 )),
-
-                       box_caret(ns("box_setup7"),
-                                 title="Plot options",
-                                 color="#c3cc74ff",
-                                 div(checkboxInput(ns("gwnp_show_labels"),"Show Neuron Labels",T),
-                                     checkboxInput(ns("gwnp_show_points"),"Show Observations",F)),
 
                        )
-
-
-                     ),
-                     column(6,box_caret(ns("box_setup6"),
-                                        inline=F,
-                                        button_title = actionLink(ns("download_gwnp"),
-                                                                  "Download",icon("download")),
-                                        title="Grid-Weighted Neuron Plot",
-                                        div(uiOutput(ns("play_out2")),
-                                            uiOutput(ns("plot_animation2")))
-                     ))
-
-            )
-
-
-
-          )
-
-        )
-
+             )
       ),
-      tabPanel(
-        value = "som_tab3",style="background: white",
-        strong("3. Predict"),
-        div(
+      column(6,
+             box_caret(
+               ns("box_setup4"),
+               color="#c3cc74ff",
+               inline=F,
+               title="1.2. Set the training parameters",
+               tip=span(actionLink(ns("supersomhelp"), tipify(
+                 icon("fas fa-question-circle"), "Click for more details"
+               )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+               div(
+                 div(class="inline_pickers2",
+                     pickerInput(ns("distmethod"),strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
+                                 choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
+                     pickerInput(ns("normalizeDataLayers"),"normalizeDataLayers",
+                                 choices = c("TRUE","FALSE")),
+                     numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
+                     numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
+                 ),
+                 div(align = "center",
+                     br(),
+                     actionButton(
+                       ns("trainSOM"),
+                       h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
+                 ),
 
-          column(8,
+                 div(
+                   span(class="finesom_btn",
+                        tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
+                   )),
+                 div(id=ns("finetuning_som"),
+                     div(id="finesom_out",class="map_control_style2",
 
-                 div(class="inline_pickers well3 color_box",
-                     div(style="display: flex",
-                         div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
-                         div(class="radio_search radio_yellow",
-                             radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c("Partition","Training","Datalist"))
+
+                         div(style="display: flex",
+                             numericInput(ns("a1"),
+                                          label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
+                             numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
                          ),
 
-                         div(class="inline_pickers",style=" margin-left: 10px",
-                             div(id=ns('sompred_type_datalist'),
-
-                                 pickerInput(ns("predsom_new"),"Datalist:",choices=NULL),
-
-                                 pickerInput(ns("whatmap"),"Layer:",choices=NULL)
-
-                             )
-
-                         )),
-                     div(style="display: flex",
-                         div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
-
+                         div(style="display: flex",
+                             numericInput(ns("r1"),
+                                          label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
+                             numericInput(ns("r2"),
+                                          label = NULL,value = 0,step = 0.01 )
+                         ),
+                         pickerInput(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
+                         numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
                      )
+
                  )
-          ),
-          column(4,class="well3",
-                 uiOutput(ns("newdata_info"))
-          ),
-          tabsetPanel(
-            id=ns("predsom_tab"),
-            tabPanel(
-              strong("3.1. Results"),style="background: white",
-              value = "predsom_tab01",
-              uiOutput(ns("pred_som_eval"))
+               )
+
+             )
+      ),
+      bsTooltip(ns('resettopo'),"Reset parameters"),
+      bsTooltip(ns('resetsom'),"Reset parameters")
+    )
+
+  ),
+  tabPanel(
+    value = "som_tab2",
+    strong("2. Results"),
+    div(
+      style = "background: WhiteSmoke;",
+      tabsetPanel(
+        id=ns("som_res"),
+
+
+        tabPanel(
+          value= 'train_tab1',
+          "2.1. Parameters",
+          column(
+            6,class="mp0",
+            box_caret(
+              ns("tbox1"),
+              title="Quality Measures",
+              tip=actionLink(ns("som_quality_help"),icon("fas fa-question-circle")),
+              uiOutput(ns("som_errors"))
             ),
-            tabPanel(
-              strong("3.2. Performace"),style="background: white",
-              value = "predsom_tab01b",
-              uiOutput(ns("pred_performace"))
+            box_caret(
+              ns("tbox1"),
+              title="Downloads",
+              color="#c3cc74ff",
+              div(
+                div(div(tipify(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
+                div(tipify(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
+                div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
+                div(tipify(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components")))
+            )
+          ),
+          column(
+            6,class="mp0",
+            box_caret(
+              ns("tbox2"),
+              title="Training Parameters",
+              tableOutput(ns("train.summary"))
+            )
+          )
+        ),
+        tabPanel(
+          "2.2. Changes & Counting",value = "train_tab2",
+          column(6,class="mp0",box_caret(
+            ns("ccbox1"),
+            title="Changes",
+            button_title = actionLink(ns("downp_pchanges"),"Download",icon('download')),
+            plotOutput(ns("pchanges"))
+          )),
+          column(6,class="mp0",box_caret(
+            ns("ccbox2"),
+            title="Couting",
+            button_title = actionLink(ns("downp_pcounts"),"Download",icon('download')),
+            plotOutput(ns("pcounts"))
+          ))
+
+        ),
+        tabPanel(
+
+          "2.3. BMUs", value = "train_tab5",
+          column(
+            4,class="mp0",
+            box_caret(
+              ns("rbox1"),
+              color="#c3cc74ff",
+              title="Background",
+              div(
+                div(class="radio_search radio_yellow",
+                    radioGroupButtons(ns("ss1_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
+                ),
+
+                pickerInput(ns("ss1_property_layer"),label = "Layer:",choices = NULL),
+                div(id=ns('ss1_var_pproperty'),style="display: flex",
+                    actionButton(ns("ss1_prev_property"),"<<"),
+                    pickerInput(ns("ss1_variable_pproperty"),label = "Variable:",choices = NULL),
+                    actionButton(ns("ss1_next_property"),">>")
+
+                ),
+
+                pickerInput(inputId = ns("ss1_bg_palette"),"Palette",NULL),
+                numericInput(ns("ss1_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
+                pickerInput(ns("ss1_pclus_border"),label ='Border:',NULL)
+              )
             ),
-            tabPanel(
-              strong("3.3. BMUs"),style="background: white",
-              value = "predsom_tab01c",
-              column(
-                4,class="mp0",
-                box_caret(
-                  ns("pbox1"),
-                  color="#c3cc74ff",
-                  title="Background",
-                  div(
-                    div(class="radio_search radio_yellow",
-                        radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
-                    ),
-
-                    pickerInput(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
-                    div(id=ns('ss2_var_pproperty'),style="display: flex",
-                        actionButton(ns("ss2_prev_property"),"<<"),
-                        pickerInput(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
-                        actionButton(ns("ss2_next_property"),">>")
-
-                    ),
-
-                    pickerInput(inputId = ns("ss2_bg_palette"),"Palette",NULL),
-                    numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-                    pickerInput(ns("ss2_pclus_border"),label ='Border:',NULL)
-                  )
-                ),
-                box_caret(
-                  ns("pbox2"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
-                  ),
-                  div(
-                    div(id=ns("ss2_pclus_points_inputs"),
-                        pickerInput(inputId = ns("ss2_pclus_points_palette"),
-                                    label ="Palette",
-                                    choices = NULL),
-                        pickerInput(ns("ss2_pclus_points_factor"),"Factor",
-                                    choices = NULL),
-                        pickerInput(inputId = ns("ss2_pclus_symbol"),
-                                    label = "Shape",
-                                    choices = NULL),
-                        numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                    )
-                  )
-                ),
-                box_caret(
-                  ns("pbox3"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
-                  ),
-                  div(id=ns('ss2_pclus_text_inputs'),
-                      pickerInput(inputId = ns("ss2_pclus_text_palette"),
-                                  label ="Palette",
-                                  choices =  NULL),
-                      pickerInput(ns("ss2_pclus_text_factor"),"Factor",
-                                  choices = NULL),
-                      numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                  )
-                ),
-                box_caret(
-                  ns("pbox4"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="150px")
-                  ),
-                  tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
-                  div(id=ns('ss2_varfac_out'),
-                      pickerInput(ns("ss2_vfm_type"),"Show correlation:",
-                                  choices =list("Highest"='var', "Clockwise"="cor")
-
-                      ),
-
-                      div(id=ns('ss2_vfm_out'),
-                          div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
-                          numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
-                          pickerInput(inputId = ns("ss2_p.clus.col.text"),
-                                      label = "Color",
-                                      NULL
-                          ),
-                          pickerInput(inputId = ns("ss2_var_bg"),
-                                      label = "Background",
-                                      choices =NULL),
-                          numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
-                          div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
-                          div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
-                      )
-                  )
-                ),
-                box_caret(
-                  ns("pbox5"),
-                  title = "General options",
-                  color="#c3cc74ff",
-                  div(
-                    numericInput(ns("ss2_base_size"),"Base size",value = 12),
-                    checkboxInput(ns("ss2_theme"),
-                                  label = "show neuron coordinates",
-                                  value=F
-                    ),
-                    textInput(ns("ss2_title"), "Title: ", "")
-                  )
-                )
+            box_caret(
+              ns("rbox2"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss1_pclus_addpoints"),strong("Points"),value=T,width="80px")
               ),
-              column(
-                8,class="mp0",
-                box_caret(
-                  ns('pbox6'),
-                  title="BMU plot",
-                  button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
-                  div(uiOutput(ns("predbmu_plot")))
+              div(
+                div(id=ns("ss1_pclus_points_inputs"),
+                    pickerInput(inputId = ns("ss1_pclus_points_palette"),
+                                label ="Palette",
+                                choices = NULL),
+                    pickerInput(ns("ss1_pclus_points_factor"),"Factor",
+                                choices = NULL),
+                    pickerInput(inputId = ns("ss1_pclus_symbol"),
+                                label = "Shape",
+                                choices = NULL),
+                    numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
                 )
               )
+            ),
+            box_caret(
+              ns("rbox3"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss1_pclus_addtext"),strong("Labels"),value=F,width="80px")
+              ),
+              div(id=ns('ss1_pclus_text_inputs'),
+                  pickerInput(inputId = ns("ss1_pclus_text_palette"),
+                              label ="Palette",
+                              choices =  NULL),
+                  pickerInput(ns("ss1_pclus_text_factor"),"Factor",
+                              choices = NULL),
+                  numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+              )
+            ),
+            box_caret(
+              ns("rbox4"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss1_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
+              ),
+              tip = actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
+              div(id=ns('ss1_varfac_out'),
+                  pickerInput(ns("ss1_vfm_type"),"Show correlation:",
+                              choices =list("Highest"='var', "Chull"="cor")
+
+                  ),
+
+                  div(id=ns('ss1_vfm_out'),
+                      div(tipify(numericInput(ns("ss1_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                      numericInput(ns("ss1_pclus.cex.var"), "Size", value = 1, min = 2),
+                      pickerInput(inputId = ns("ss1_p.clus.col.text"),
+                                  label = "Color",
+                                  NULL
+                      ),
+                      pickerInput(inputId = ns("ss1_var_bg"),
+                                  label = "Background",
+                                  choices =NULL),
+                      numericInput(ns("ss1_var_bg_transp"), "Transparency", value = 0, min = 2,),
+                      div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
+                      div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
+                  )
+              )
+            ),
+            box_caret(
+              ns("rbox5"),
+              title = "General options",
+              color="#c3cc74ff",
+              div(
+                numericInput(ns("ss1_base_size"),"Base size",value = 12),
+                checkboxInput(ns("ss1_theme"),
+                              label = "show neuron coordinates",
+                              value=F
+                ),
+                textInput(ns("ss1_title"), "Title: ", "")
+              )
             )
-
-
           ),
-          div(
-            class="map_control_style",
-
-            uiOutput(ns("newdata_summ"))
-
+          column(
+            8,class="mp0",
+            box_caret(
+              ns('rbox6'),
+              title="Best-Matching units",
+              button_title = actionLink(ns('downp_bmu'),"Download",icon("download")),
+              div(uiOutput(ns("bmu_plot")))
+            )
           )
+        ),
+        tabPanel("2.4. Network plot", value = "train_tab_net",
+                 column(
+                   6,class="mp0",
+                   box_caret(ns("box_setup5"),
+                             color="#c3cc74ff",
+                             title="Snap-Based Model Retraining",
+                             tip=tipright("The panel enables users to recreate the model at pre-determined snaps. The snap parameter determines the iterations at which the model will be recreated. For example, if a model with 500 iterations is saved, setting snap to 250 will recreate the model at the 250th and 500th iterations."),
+                             div(class="inline_pickers",
+                                 numericInput(ns("rlen_snap2"), span(tipright("Number of snapshots or intermediate models to generate"), "snap"), 3),
+                                 div(actionButton(ns("run_play2"), "Run >>",style="height: 30px;padding: 5px")),
+
+                                 hidden(div(style="padding-top: 10px",
+                                            class="anim_opt2",
+                                            div(strong('Animation options')),
+                                            numericInput(ns("play_interval2"), span(tipright("Interval between each training iteration in milliseconds."), "interval"), 100),
+                                            checkboxInput(ns("loop2"), "Loop", FALSE)
+                                 ))
+                             )),
+
+                   box_caret(ns("box_setup7"),
+                             title="Plot options",
+                             color="#c3cc74ff",
+                             div(checkboxInput(ns("gwnp_show_labels"),"Show Neuron Labels",T),
+                                 checkboxInput(ns("gwnp_show_points"),"Show Observations",F)),
+
+                   )
+
+
+                 ),
+                 column(6,box_caret(ns("box_setup6"),
+                                    inline=F,
+                                    button_title = actionLink(ns("download_gwnp"),
+                                                              "Download",icon("download")),
+                                    title="Grid-Weighted Neuron Plot",
+                                    div(uiOutput(ns("play_out2")),
+                                        uiOutput(ns("plot_animation2")))
+                 ))
+
         )
+
+
 
       )
 
-    ))
+    )
+
+  ),
+  tabPanel(
+    value = "som_tab3",style="background: white",
+    strong("3. Predict"),
+    div(
+
+      column(8,
+
+             div(class="inline_pickers well3 color_box",
+                 div(style="display: flex",
+                     div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
+                     div(class="radio_search radio_yellow",
+                         radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c("Partition","Training","Datalist"))
+                     ),
+
+                     div(class="inline_pickers",style=" margin-left: 10px",
+                         div(id=ns('sompred_type_datalist'),
+
+                             pickerInput(ns("predsom_new"),"Datalist:",choices=NULL),
+
+                             pickerInput(ns("whatmap"),"Layer:",choices=NULL)
+
+                         )
+
+                     ),
+                     div(id=ns('run_predSOM_btn'),
+                         align="right",
+                         class="save_changes",
+                         actionButton(ns('run_predSOM'),"RUN >>",style="height: 25px; padding-top: 2px; padding-bottom: 2px;"))
+                 ),
+                 div(style="display: flex",
+                     div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
+
+                 )
+             )
+      ),
+      column(4,class="well3",
+             uiOutput(ns("newdata_info"))
+      ),
+      tabsetPanel(
+        id=ns("predsom_tab"),
+        tabPanel(
+          strong("3.1. Results"),style="background: white",
+          value = "predsom_tab01",
+
+          uiOutput(ns('som_predict_results'))
+
+        ),
+        tabPanel(
+          strong("3.2. Performace"),style="background: white",
+          value = "predsom_tab01b",
+          uiOutput(ns("pred_performace"))
+        ),
+        tabPanel(
+          strong("3.3. BMUs"),style="background: white",
+          value = "predsom_tab01c",
+          column(
+            4,class="mp0",
+            box_caret(
+              ns("pbox1"),
+              color="#c3cc74ff",
+              title="Background",
+              div(
+                div(class="radio_search radio_yellow",
+                    radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
+                ),
+
+                pickerInput(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
+                div(id=ns('ss2_var_pproperty'),style="display: flex",
+                    actionButton(ns("ss2_prev_property"),"<<"),
+                    pickerInput(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
+                    actionButton(ns("ss2_next_property"),">>")
+
+                ),
+
+                pickerInput(inputId = ns("ss2_bg_palette"),"Palette",NULL),
+                numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
+                pickerInput(ns("ss2_pclus_border"),label ='Border:',NULL)
+              )
+            ),
+            box_caret(
+              ns("pbox2"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
+              ),
+              div(
+                div(id=ns("ss2_pclus_points_inputs"),
+                    pickerInput(inputId = ns("ss2_pclus_points_palette"),
+                                label ="Palette",
+                                choices = NULL),
+                    pickerInput(ns("ss2_pclus_points_factor"),"Factor",
+                                choices = NULL),
+                    pickerInput(inputId = ns("ss2_pclus_symbol"),
+                                label = "Shape",
+                                choices = NULL),
+                    numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+                )
+              )
+            ),
+            box_caret(
+              ns("pbox3"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
+              ),
+              div(id=ns('ss2_pclus_text_inputs'),
+                  pickerInput(inputId = ns("ss2_pclus_text_palette"),
+                              label ="Palette",
+                              choices =  NULL),
+                  pickerInput(ns("ss2_pclus_text_factor"),"Factor",
+                              choices = NULL),
+                  numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+              )
+            ),
+            box_caret(
+              ns("pbox4"),
+              color="#c3cc74ff",
+              title=span(style="display: inline-block",
+                         class="checktitle",
+                         checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
+              ),
+              tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
+              div(id=ns('ss2_varfac_out'),
+                  pickerInput(ns("ss2_vfm_type"),"Show correlation:",
+                              choices =list("Highest"='var', "Chull"="cor")
+
+                  ),
+
+                  div(id=ns('ss2_vfm_out'),
+                      div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                      numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
+                      pickerInput(inputId = ns("ss2_p.clus.col.text"),
+                                  label = "Color",
+                                  NULL
+                      ),
+                      pickerInput(inputId = ns("ss2_var_bg"),
+                                  label = "Background",
+                                  choices =NULL),
+                      numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
+                      div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
+                      div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
+                  )
+              )
+            ),
+            box_caret(
+              ns("pbox5"),
+              title = "General options",
+              color="#c3cc74ff",
+              div(
+                numericInput(ns("ss2_base_size"),"Base size",value = 12),
+                checkboxInput(ns("ss2_theme"),
+                              label = "show neuron coordinates",
+                              value=F
+                ),
+                textInput(ns("ss2_title"), "Title: ", "")
+              )
+            )
+          ),
+          column(
+            8,class="mp0",
+            box_caret(
+              ns('pbox6'),
+              title="BMU plot",
+              button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
+              div(uiOutput(ns("predbmu_plot")))
+            )
+          )
+        )
+
+
+      ),
+      div(
+        class="map_control_style",
+
+        uiOutput(ns("newdata_summ"))
+
+      )
+    )
+
+  )
+
+))
 
   )
 
@@ -1018,15 +1061,18 @@ imesc_supersom$server<-function (id,vals ){
 
       newdata
     })
-    get_sompred<-reactive({
+    get_sompred<-eventReactive(list(input$run_predSOM,current_som_model()),ignoreInit = T,{
       req(input$sompred_type)
       m<-current_som_model()
+      req(m)
       newdata<-newdata_som()
 
+      shinyjs::removeClass("run_predSOM_btn","save_changes")
 
       req(length(newdata)>0)
       req(inherits(m,"kohonen"))
       pred<-if(input$sompred_type%in%c("Training","Partition")){
+        req(inherits(newdata,c("matrix","list")))
         pred<-predict(m,newdata,trainingdata =newdata)
         names(pred$predictions)<-names(m$data)
         names(pred$unit.predictions)<-names(m$data)
@@ -1071,15 +1117,15 @@ imesc_supersom$server<-function (id,vals ){
     output$pick_layer_result<-renderUI({
       req(input$sompred_type)
       req(input$sompred_type%in%c("Partition","Training"))
-      req(input$predsom_results)
-      req(input$predsom_results%in%c("predictions","unit.predictions"))
+
+      #req(input$predsom_results%in%c("predictions","unit.predictions"))
       m<-current_som_model()
       req(inherits(m,"kohonen"))
       choices=names(m$data)
 
       div(
-        "Show layer:",
-        pickerInput(ns("layer_result"),NULL,choices=choices, selected=vals$cur_layer_result, width="150px")
+
+        selectInput(ns("layer_result"), "Show layer:",choices=choices, selected=vals$cur_layer_result)
       )
     })
 
@@ -1406,7 +1452,7 @@ imesc_supersom$server<-function (id,vals ){
 
         m<-current_som_model()
 
-        tryco<-try(ss2_copoints_scaled(), silent = T)
+        tryco<-try(ss2_copoints_scaled(), silent = F)
 
         req(!inherits(tryco,"try-error"))
         #savereac()
@@ -1474,30 +1520,56 @@ imesc_supersom$server<-function (id,vals ){
       renderPlot({getbmu_plot()})
 
     })
+
+    observeEvent(input$pred_performace,ignoreInit = T,{
+      updateTabsetPanel(session,'get_predsom_perf',selected=input$pred_performace)
+    })
     output$pred_performace<-renderUI({
       fluidPage(
+        column(4,class="mp0",
+               box_caret(ns("box_pred_perf"),
+                         title="Options",
+                         color="#c3cc74ff",
 
-        column(class="side_results",
-               12, offset = 0,
-               navlistPanel(
-                 header=uiOutput(ns('header_perf')),
-                 id=ns("get_predsom_perf"),
+                         radioGroupButtons(
+                           ns("pred_performace"),
+                           "Show:",
+                           direction="vertical",
+                           choiceNames =c("Overall performace","Performace by observation","Performace by variable"),
+                           choiceValues =c("predsom_perf_overhall",
+                                           "predsom_perf_obs",
+                                           "predsom_perf_var")
+                         )
 
-                 tabPanel(
-                   value="predsom_perf_overhall",
-                   title = "Overall performace",
-                   DT::dataTableOutput(ns("overhall_peform"))),
-                 tabPanel(
-                   value="predsom_perf_obs",
-                   title = "Performace by observation",
-                   DT::dataTableOutput(ns("obs_peform"))
-                 ),
-                 tabPanel(
-                   value="predsom_perf_var",
-                   title = "Performace by variable",
-                   DT::dataTableOutput(ns("var_peform"))
-                 )
-               )
+               )),
+
+        column(
+          8,
+          box_caret(
+            ns("box_pred_perf_out"),
+            title="Table",
+            button_title = uiOutput(ns('header_perf')),
+            tabsetPanel(
+              type="hidden",
+
+              id=ns("get_predsom_perf"),
+
+              tabPanel(
+                value="predsom_perf_overhall",
+                title = "Overall performace",
+                uiOutput(ns("overhall_peform"))),
+              tabPanel(
+                value="predsom_perf_obs",
+                title = "Performace by observation",
+                uiOutput(ns("obs_peform"))
+              ),
+              tabPanel(
+                value="predsom_perf_var",
+                title = "Performace by variable",
+                uiOutput(ns("var_peform"))
+              )
+            )
+          )
 
 
         )
@@ -1506,56 +1578,32 @@ imesc_supersom$server<-function (id,vals ){
 
 
     })
-    output$obs_peform<-DT::renderDataTable({
+    output$obs_peform<-renderUI({
       vals$som_perf_result<-table<-get_obs_peform()
-      DT::datatable(
-
-        table, options = list(
-
-          autoWidth=T,
-          lengthMenu = list(c(15, -1), c( "15","All")),
-          scrollY = "250px",
-          fixedHeader=TRUE,
-          scrollX="300px",
-
-
-          fixedColumns = list(leftColumns = 1, rightColumns = 0)
-        ),
-        extensions = c('FixedColumns',"FixedHeader"),
-        class ='cell-border compact stripe')
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
 
 
 
 
     })
-    output$var_peform<-DT::renderDataTable({
+    output$var_peform<-renderUI({
       vals$som_perf_result<-table<-get_var_peform()
-      DT::datatable(
-
-        table, options = list(
-
-          autoWidth=T,
-          lengthMenu = list(c(15, -1), c( "15","All")),
-          scrollY = "250px",
-          fixedHeader=TRUE,
-          scrollX="300px",
-
-
-          fixedColumns = list(leftColumns = 1, rightColumns = 0)
-        ),
-        extensions = c('FixedColumns',"FixedHeader"),
-        class ='cell-border compact stripe')
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
 
 
 
 
     })
-    output$overhall_peform<-DT::renderDataTable({
+    output$overhall_peform<-renderUI({
       vals$som_perf_result<-table<-get_overhall_peform()
-      DT::datatable(
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='t')
+      )
 
-        table, options = list(dom="t"),
-        class ='cell-border compact stripe')
 
     })
     output$newdata_info<-renderUI({
@@ -1590,31 +1638,26 @@ imesc_supersom$server<-function (id,vals ){
       )
       names(res0[res0==T])
     })
-    output$pred_som_eval<-renderUI({
-      div(
-        uiOutput(ns('som_predict_results'))
-      )
-    })
-    output$result_predictions<-DT::renderDataTable({
+
+    output$result_predictions<-renderUI({
+      req(pic_result())
       req(input$predsom_results)
       res<-get_sompred()
       if(is.null(res$predictions)){
         res$predictions<-res$data
       }
       vals$som_predict_result<-table<-res[["predictions"]][[pic_result()]]
-      DT::datatable(
-        table, options = list(
-          autoWidth=T,
-          lengthMenu = list(c(15, -1), c( "15","All")),
-          scrollY = "250px",
-          fixedHeader=TRUE,
-          scrollX="300px",
-          fixedColumns = list(leftColumns = 1, rightColumns = 0)
-        ),
-        extensions = c('FixedColumns',"FixedHeader"),
-        class ='cell-border compact stripe')
+      div(class="half-drop-inline",
+          fixed_dt_con$ui(ns('pred_results'),table,max_length=100)
+      )
+
     })
-    output$result_bmu<-DT::renderDataTable({
+
+    output$pred_results_cont<-renderUI({
+      fixed_dt_con$server('pred_results',vals$som_predict_result,max_length=100)
+    })
+
+    output$result_bmu<-renderUI({
       req(input$predsom_results)
       res<-get_sompred()
       if(is.null(res$predictions)){
@@ -1624,20 +1667,12 @@ imesc_supersom$server<-function (id,vals ){
       rownames(res_temp)<-rownames(res[["predictions"]][[1]])
       res<-res_temp
       vals$som_predict_result<-table<-res
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
 
-      DT::datatable(
-        table, options = list(
-          autoWidth=T,
-          lengthMenu = list(c(15, -1), c( "15","All")),
-          scrollY = "250px",
-          fixedHeader=TRUE,
-          scrollX="300px",
-          fixedColumns = list(leftColumns = 1, rightColumns = 0)
-        ),
-        extensions = c('FixedColumns',"FixedHeader"),
-        class ='cell-border compact stripe')
     })
-    output$result_codebook<-DT::renderDataTable({
+    output$result_codebook<-renderUI({
       req(input$predsom_results)
       res<-get_sompred()
       if(is.null(res$predictions)){
@@ -1646,38 +1681,19 @@ imesc_supersom$server<-function (id,vals ){
       res<-res[["unit.predictions"]][[pic_result()]]
       rownames(res)<-paste0("neu",1:nrow(res))
       vals$som_predict_result<-table<-res
+      return(NULL)
 
-      DT::datatable(
-        table, options = list(
-          autoWidth=T,
-          lengthMenu = list(c(15, -1), c( "15","All")),
-          scrollY = "250px",
-          fixedHeader=TRUE,
-          scrollX="300px",
-          fixedColumns = list(leftColumns = 1, rightColumns = 0)
-        ),
-        extensions = c('FixedColumns',"FixedHeader"),
-        class ='cell-border compact stripe')
     })
-    output$header_results<-renderUI({
-      div(style="margin-bottom: 15px",
-          inline(uiOutput(ns("pick_layer_result"))),
-          inline(
-            div(
-              div(
-                actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
-              ),
-              uiOutput(ns("link_predsom_newdata")),
-              uiOutput(ns("link_predsom_codebook"))
-            )
-          )
-      )
+
+    output$pred_codebook_cont<-renderUI({
+      fixed_dt_con$server('pred_results',vals$som_predict_result,max_length=100)
     })
+
     output$header_perf<-renderUI({
-      div(style="margin-bottom: 15px",
-          actionLink(ns('downtable_perf_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table")))
-          ),
-          uiOutput(ns("link_predsom_perf_obs"))
+      div(
+        actionLink(ns('downtable_perf_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table")))
+        ),
+        uiOutput(ns("link_predsom_perf_obs"))
 
       )
     })
@@ -1727,30 +1743,64 @@ imesc_supersom$server<-function (id,vals ){
       }
 
     })
+
+    observeEvent(input$pred_results,ignoreInit = T,{
+      updateTabsetPanel(session,'predsom_results',selected =input$pred_results)
+    })
     output$som_predict_results<-renderUI({
 
-      fluidPage(
-        column(
-          class="side_results",
-          12, offset = 0,
-          navlistPanel(
-            header=uiOutput(ns("header_results")),
-            id=ns("predsom_results"),selected=vals$cur_predsom_results,
-            tabPanel(
-              title = "Best-matching units",
-              value="unit.classif",
-              DT::dataTableOutput(ns("result_bmu"))),
-            tabPanel(
-              title = "New Data (X)",
-              value="predictions",
-              DT::dataTableOutput(ns("result_predictions"))
-            ),
-            tabPanel(
-              title = "Codebook",
-              value="unit.predictions",
-              DT::dataTableOutput(ns("result_codebook"))
-            )
-          ))
+      fluidRow(
+        column(4,class="mp0",
+               box_caret(
+                 ns('box_pred_results'),
+                 title="Options",
+                 color="#c3cc74ff",
+                 div(
+                   selectInput(ns('pred_results'),"Show",choices=c(
+                     "Best-matching units"='unit.classif',
+                     "New Data (X)"="predictions",
+                     "Codebook"="unit.predictions"
+                   ),selected=vals$cur_predsom_results),
+                   uiOutput(ns("pick_layer_result")),
+                   uiOutput(ns("result_predictions")),
+                   div(style="padding-top: 5px",
+                       uiOutput(ns("link_predsom_newdata")),
+                       uiOutput(ns("link_predsom_codebook"))
+                   )
+                 )
+
+               )),
+
+        column(8,class="mp0",
+               box_caret(ns("box_pred_results_out"),
+
+                         title="Table",
+                         button_title = div(
+
+                           div(
+                             actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
+                           )
+                         ),
+                         tabsetPanel(
+                           type="hidden",
+                           id=ns("predsom_results"),
+                           tabPanel(
+                             title = "Best-matching units",
+                             value="unit.classif",
+                             uiOutput(ns("result_bmu"))),
+                           tabPanel(
+                             title = "New Data (X)",
+                             value="predictions",
+
+                             uiOutput(ns("pred_results_cont"))
+                           ),
+                           tabPanel(
+                             title = "Codebook",
+                             value="unit.predictions",
+                             uiOutput(ns('result_codebook')),
+                             uiOutput(ns("pred_codebook_cont"))
+                           )
+                         )))
       )
 
     })
@@ -1782,13 +1832,6 @@ imesc_supersom$server<-function (id,vals ){
     re<-reactiveValues(df=NULL)
 
 
-    output$vfm_check<-renderUI({
-      if(is.null(vals$varfacmap_action)){vals$varfacmap_action<-T}
-      div(
-        span("+ ",
-             inline(checkboxInput(ns("varfacmap_action"), span("Variable factor map",actionLink(ns("varfacmap"), tipify(icon("fas fa-question-circle"), "Click for more details"))),value =vals$varfacmap_action, width="100px")))
-      )
-    })
 
     observeEvent(ignoreInit = T,input$downp_pchanges,{
 
@@ -1885,7 +1928,7 @@ imesc_supersom$server<-function (id,vals ){
       column(12,
              h4("Variable factor map"),
              p("The chart is very similar to the variable factor map obtained from the principal component analysis (PCA). It calculates the weighted correlation for each variable using the coordinates (x, y) of the neurons and their weights (number of instances). The codebooks vectors of the cells correspond to an estimation of the conditional averages, calculating their variance for each variable is equivalent to estimating the between-node variance of the variable, and hence their relevance."),
-             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("clock-wise correlations")," returns",code("npic")," variables with the highest correlation considering along the different directions of the codebook")
+             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("Chull correlations")," returns",code("npic")," variables with the highest correlation considering the convex hull, while also ensuring that the points are ordered by their proximity to codebook center")
       )
 
     )
@@ -2056,16 +2099,20 @@ imesc_supersom$server<-function (id,vals ){
       newdata<-newdata_som()
       names<-if(is.data.frame(newdata)){ input$predsom_new} else{  names(newdata)    }
       req(length(newdata)>0)
+      res<-get_sompred()
+      #saveRDS(newdata,'newdata.rds')
+      # saveRDS(res,'res.rds')
+      # newdata<-readRDS('newdata.rds')
+      #res<-readRDS('res.rds')
+
       if(!is.data.frame(newdata)){
-        res<-get_sompred()
+
         if(is.null(res$predictions)){
           res$predictions<-res$data
         }
 
         pred<-res$predictions
       } else{
-        res<-get_sompred()
-
         if(is.null(res$data)){
           res$data<-res$predictions
         }
@@ -2081,6 +2128,7 @@ imesc_supersom$server<-function (id,vals ){
 
       req(length(pred)>0)
       if(is.list(pred)){
+        if(!inherits(newdata,'list')){newdata<-list(newdata)}
         lis<-mapply(list,pred,newdata,SIMPLIFY=F)
         res<-data.frame(do.call(rbind,lapply(lis,function (x){
           postResample(x[[1]],x[[2]])
@@ -2096,18 +2144,21 @@ imesc_supersom$server<-function (id,vals ){
       res
     })
     get_obs_peform<-reactive({
+      #newdata<-readRDS("newdata.rds")
+      #res<-readRDS("res.rds")
       newdata<-newdata_som()
       names<-if(is.data.frame(newdata)){ input$predsom_new} else{  names(newdata)    }
       req(length(newdata)>0)
+      res<-get_sompred()
       if(!is.data.frame(newdata)){
-        res<-get_sompred()
+
         if(is.null(res$predictions)){
           res$predictions<-res$data
         }
 
         pred<-res$predictions
       } else{
-        res<-get_sompred()
+
 
         if(is.null(res$data)){
           res$data<-res$predictions
@@ -2122,6 +2173,7 @@ imesc_supersom$server<-function (id,vals ){
 
       req(length(pred)>0)
       if(is.list(pred)){
+        if(!inherits(newdata,'list')){newdata<-list(newdata)}
         lis<-mapply(list,pred,newdata,SIMPLIFY=F)
         x<-lis[[1]]
 
@@ -2171,6 +2223,11 @@ imesc_supersom$server<-function (id,vals ){
 
       req(length(pred)>0)
       if(is.list(pred)){
+        m<-current_som_model()
+        if(length(m$data)==1){
+          if(!inherits(newdata,'list')){newdata<-list(newdata)}
+        }
+
         lis<-mapply(list,pred,newdata,SIMPLIFY=F)
         x<-lis[[1]]
 
@@ -2289,15 +2346,15 @@ imesc_supersom$server<-function (id,vals ){
     })
 
 
-      observeEvent(ignoreInit = T,input$down_pcodes_results,{
-        vals$hand_down<-"generic"
+    observeEvent(ignoreInit = T,input$down_pcodes_results,{
+      vals$hand_down<-"generic"
 
 
-        module_ui_downcenter("downcenter")
-        name<-"Codebook results"
-        data<- data.frame( kohonen::getCodes(current_som_model()))
-        mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Codebook results",data=data, name=name)
-      })
+      module_ui_downcenter("downcenter")
+      name<-"Codebook results"
+      data<- data.frame( kohonen::getCodes(current_som_model()))
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Codebook results",data=data, name=name)
+    })
 
     output$down_kohonen_results<-{
       downloadHandler(
@@ -3134,7 +3191,16 @@ imesc_supersom$server<-function (id,vals ){
         getHelp('kohonen')
       })
     })
-    observeEvent(ignoreInit = T,input$varfacmap, {
+    observeEvent(ignoreInit = T,input$ss1_varfacmap, {
+      showModal(modalDialog(
+        uiOutput(ns("textvarfacmap")),
+        title = h4(strong("Variable factor map")),
+        footer = modalButton("close"),
+        size = "m",
+        easyClose = TRUE
+      ))
+    })
+    observeEvent(ignoreInit = T,input$ss2_varfacmap, {
       showModal(modalDialog(
         uiOutput(ns("textvarfacmap")),
         title = h4(strong("Variable factor map")),
@@ -3169,8 +3235,8 @@ imesc_supersom$server<-function (id,vals ){
     observeEvent(ignoreInit = T,input$partition_ref,{
       vals$cur_partition_ref<-input$partition_ref
     })
-    observeEvent(ignoreInit = T,input$predsom_results,{
-      vals$cur_predsom_results<-input$predsom_results
+    observeEvent(ignoreInit = T,input$pred_results,{
+      vals$cur_predsom_results<-input$pred_results
     })
     observeEvent(ignoreInit = T,input$layer_result,{
       vals$cur_layer_result<-input$layer_result
@@ -3785,4 +3851,3 @@ imesc_supersom$server<-function (id,vals ){
 
   })
 }
-

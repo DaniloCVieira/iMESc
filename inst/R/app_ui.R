@@ -21,20 +21,10 @@ app_ui<-function(request) {
     includeCSS("inst/www/styles.css"),
     includeCSS("inst/www/styles2.css"),
     includeCSS("inst/www/styles3.css"),
-    tags$header(tags$style(HTML(
-      "
-
-
-
-
-      "
-    ))),
 
 
     shinydashboardPlus::dashboardPage(
-      scrollToTop=T,
       skin = "blue",
-
       shinydashboardPlus::dashboardHeader(),
       dashboardSidebar(
         shinyjs::useShinyjs(),

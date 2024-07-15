@@ -1,8 +1,14 @@
 #' @export
 ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
                 cex.main=1,xlab=colnames(res)[1],ylab=colnames(res)[2],main="",
-                box_linecol="firebrick",box_alpha=0.7,newcolhabs,cex.label_panel=10,varwidth=F, linewidth=.8, theme='theme_bw', grid=T, background="white",xlab_rotate=0,ylab_rotate=0){
+                box_linecol="firebrick",box_alpha=0.7,newcolhabs,cex.label_panel=10,varwidth=F, linewidth=.8, theme='theme_bw', grid=T, background="white",xlab_rotate=0,ylab_rotate=0,nrow=NULL,ncol=2,box_title_font="italic"){
   wrap=F
+  if(is.na(nrow)){
+    nrow=NULL
+  }
+  if(is.na(ncol)){
+    ncol=NULL
+  }
   if(ncol(res)>2){
     res2<-res
     colnames(res2)[1]<-c("x")
@@ -52,11 +58,11 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
       legend.position="none",
 
       #panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
-      strip.text.x = element_text(size = cex.label_panel),
+      strip.text.x = element_text(size = cex.label_panel,face=box_title_font),
       axis.line=element_line(),
       axis.text=element_text(size=cex.axes),
       axis.title=element_text(size=cex.lab),
-      plot.title=element_text(size=cex.main,face="bold"),
+      plot.title=element_text(size=cex.main,face=box_title_font),
       axis.text.x = element_text(angle = xlab_rotate,vjust = .5, hjust = .5),
       axis.text.y = element_text(angle = ylab_rotate,vjust = .5, hjust = .5)
 
@@ -69,7 +75,7 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
 
   if(isTRUE(wrap)){
 
-    p<-p+facet_wrap(~variable, scales = "free_y")
+    p<-p+facet_wrap(~variable, scales = "free_y",nrow=nrow,ncol=ncol)
   }
   p
 }

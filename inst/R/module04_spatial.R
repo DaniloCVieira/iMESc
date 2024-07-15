@@ -8,6 +8,7 @@
 #' @importFrom scatterpie geom_scatterpie
 #' @importFrom raster crs rasterToPoints coordinates extent ratify raster rasterize `crs<-` values `values<-` `extent<-`
 #' @importFrom sp spsample `coordinates<-` CRS `proj4string<-` `gridded<-` `fullgrid<-` proj4string SpatialGridDataFrame zerodist
+
 plotly_download<-list()
 
 plotly_download$ui<-function(id){
@@ -453,7 +454,7 @@ ll_shapes$ui<-function(id,sf_in,base_on=T, surface=F,stack=F){
 }
 
 map_labels<-map_coords<-map_ggoptions<-list()
-map_labels$ui<-function(id, surface=F,stack=F){
+map_labels$ui<-function(id, surface=F,stack=F,scatter3d=F){
   ns<-NS(id)
 
   div(
@@ -467,7 +468,7 @@ map_labels$ui<-function(id, surface=F,stack=F){
         ),
       textInput(ns("xlab"),label="x-label", "Longitude"),
       textInput(ns("ylab"),label="y-label","Latitude"),
-      if(isTRUE(any(surface,stack)))
+      if(isTRUE(any(surface,stack,scatter3d)))
         textInput(ns("zlab"),label="z-label"),
       numericInput(ns("axis.title_size"),label="Label Size",value=11),
       numericInput(ns("axis.text_size"),label="Axis Size",value=11)
@@ -499,10 +500,15 @@ map_ggoptions$ui<-function(id){
     numericInput(ns("cex_scabar"),label="Size Scalebar",value=0.7)
   )
 }
-map_labels$server_update<-function(id,vals){
+map_labels$server_update<-function(id,vals,scatter3d=F){
   moduleServer(id,function(input,output,session){
 
-    updateTextInput(session,'zlab',value=attr(vals$cur_rst,"z_name"))
+    if(isTRUE(scatter3d)){
+      updateTextInput(session,'zlab',value=colnames(vals$data_map))
+    } else{
+      updateTextInput(session,'zlab',value=attr(vals$cur_rst,"z_name"))
+    }
+
 
     updateTextInput(session,'main',value=attr(vals$cur_rst,"z_name"))
     return(NULL)
@@ -835,7 +841,7 @@ ll_down_plot<-list()
 ll_down_plot$ui<-function(id){
   ns<-NS(id)
   div(
-    actionButton(ns("download_ll"),span(icon("download")))
+    actionLink(ns("download_ll"),"Download",icon("download"))
   )
 
 }
@@ -1040,7 +1046,7 @@ shapes_extra$ui<-function(id,data_map=NULL){
                 title=span(style="display: inline-block",
                            class="checktitle",
                            checkboxInput(ns(paste0("map_extra_layer",i)),
-                                         paste("Extra-Shapes",i), F,width="120px")
+                                         paste("Extra-Shapes",i), F,width="180px")
                 ),
                 tags$div(
                   tags$div(id=ns(paste0("eshape_id",i)),
@@ -1297,83 +1303,46 @@ ll_vgm$ui<-function(id){
   ns<-NS(id)
   tags$div(
     div(
-      tags$style(HTML(
-        ".switch_box {
-
-          margin: 0px;
-        padding: 0px;
-        }
-
-        .checktitle .checkbox {
-
-
-        margin-top: -1px
-        }
-
-        .checktitle .shiny-input-container{
-  background: transparent;
-        margin-left: -30px;
-        padding-left: 10px
-        }
-
-        .checktitle .checkbox input[type=checkbox] {
-        margin-left: -22px;
-
-        }
-        .checktitle .checkbox span {
-             mdargin-left: -15px;
-        }
-
-
-        .switch_box .shiny-input-container:not(.shiny-input-container-inline) {
-
-        margin: 0px;
-        padding: 0px;
-  max-width: 180px;
-        }
-
-        "
-      )),
-  div(
-    pickerInput(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
-  ),
-  class="gstat",
-  div(style="font-size: 12px; ",
       div(
-        div(
-          class="side_vgm",
-          div(style="display: flex",
-              div(class="switch_box",switchInput(ns("vgm_autofit"),"Variogram autofit",value=T,size="mini",labelWidth="100px")),
-              actionLink(ns("run_vgm_autofit"),">>RUN>>",style="margin-top: 5px; margin-left: -20px")
-          ),
+        pickerInput(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
+      ),
+      class="gstat",
+      div(style="font-size: 12px; ",
           div(
-
-            numericInput(ns("spsample"),span(
-              "Subsample",tipright("Specify the number of spatial sample points. Leave empty to bypass subsampling. Note: Autofitting the variogram may be computationally intensive for large datasets, making subsampling advisable.")
-            ),NA)
-          ),
-          div(
-            id=ns("vgm_fine_btn"),class="save_changes",style="padding-top: 0px;",
             div(
-              style="padding-left: 0px",
-              actionLink(ns("vgm_fine"),tags$label("+ Show Variogram tuning", style="cursor: pointer;"))
+              class="side_vgm",
+              div(style="display: flex",
+                  div(class="switch_box",switchInput(ns("vgm_autofit"),"Variogram autofit",value=T,size="mini",labelWidth="100px")),
+                  actionLink(ns("run_vgm_autofit"),">>RUN>>",style="margin-top: 5px; margin-left: -20px")
+              ),
+              div(
+
+                numericInput(ns("spsample"),span(
+                  "Subsample",tipright("Specify the number of spatial sample points. Leave empty to bypass subsampling. Note: Autofitting the variogram may be computationally intensive for large datasets, making subsampling advisable.")
+                ),NA)
+              ),
+              div(
+                id=ns("vgm_fine_btn"),class="save_changes",style="padding-top: 0px;",
+                div(
+                  style="padding-left: 0px",
+                  actionLink(ns("vgm_fine"),tags$label("+ Show Variogram tuning", style="cursor: pointer;"))
 
 
+                )
+              ),
+              tags$div(
+                style="margin-left: 50px",
+                id=ns("vgm_fine_params"),
+
+                numericInput(ns("nugget"), "nugget",5),
+                numericInput(ns("psill"), "psill",5, step=0.01),
+                numericInput(ns("range"), "range",5),
+                numericInput(ns("kappa"), span("kappa", tiphelp("smoothness parameter for the Matern class of variogram models")),.5)
+              )
             )
-          ),
-          tags$div(
-            style="margin-left: 50px",
-            id=ns("vgm_fine_params"),
-
-            numericInput(ns("nugget"), "nugget",5),
-            numericInput(ns("psill"), "psill",5, step=0.01),
-            numericInput(ns("range"), "range",5),
-            numericInput(ns("kappa"), span("kappa", tiphelp("smoothness parameter for the Matern class of variogram models")),.5)
           )
-        )
-      )
 
-  )
+      )
     )
   )
 }
@@ -1681,7 +1650,7 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
                 color="#c3cc74ff",
                 title="Title and Labels",
                 hide_content=T,
-                div(map_labels$ui(ns("map_labelss"), surface,stack))
+                div(map_labels$ui(ns("map_labelss"), surface,stack,scatter3d))
 
               )
           ),
@@ -1717,78 +1686,108 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
       column(
         8,class="mp0",
         div(style="position: absolute; right:0px; top: 30px ",
-            div(id=ns("down_btn_ll"),
-                ll_down_plot$ui(ns("save_png"))),
-            hidden(div(id=ns("down_btn_plotly"),
-                       actionButton(ns("down_plotly"),icon("download")))),
-
-            hidden(div(id=ns("down_btn_gg"),
-                       actionButton(ns("down_ggplot"), icon("download")))),
-            hidden(div(id=ns("down_btn_generic"),
-                       actionButton(ns("down_plot3D_btn"), icon("download"))))
         ),
-        div(
-          div(
-            class="navmap2",
-            navbarPage(
-              id=ns("mode_plot"),
+        box_caret(ns("boxmap"),
+                  title="Plot Engenier:",
+                  button_title=div(
+                    div(id=ns("down_btn_ll"),
+                        ll_down_plot$ui(ns("save_png"))),
+                    hidden(div(id=ns("down_btn_plotly"),
+                               actionLink(ns("down_plotly"),"Download",icon("download")))),
 
-              header=div(
-                div( style="display: flex;",
-                     div(
-                       class="save_changes",
+                    hidden(div(id=ns("down_btn_gg"),
+                               actionLink(ns("down_ggplot"), "Download",icon("download")))),
+                    hidden(div(id=ns("down_btn_generic"),
+                               tipify(actionLink(ns("down_plot3D_btn"), "Download",icon("download")),"Download")
+                    ))
 
-                       id=ns("run_map_btn"),
-                       actionButton(ns("run_map"),
-                                    span(icon("angles-right"),icon("map")))
-                     ),
-                     div(style="position: absolute; right: 50px",
-                         tipify(uiOutput(ns("save_map_btn")),"Save the Raster for using in Surface and Stack plots")
-                     )
+                  ),
+                  fluidRow(div(style="margin-top:-30px;margin-left: 130px",
+                               tags$style(HTML(
+                                 "
+                .navmap2 .navbar{
+
+                width: fit-content
+                }
+                .navmap2 .container-fluid {
+
+                margin-left: -130px;
+                width: 120vh
+                }
+
+                .navmap2 .navbar, .navmap2  .navbar li,.navmap2  .navbar li a,.navmap2 ul {
+            height: 26px;
+            min-height: 26px;
+            max-height: 26px;
+
+            }"
+                               )),
+            div(
+              class="navmap2",
+              navbarPage(
+                id=ns("mode_plot"),
+
+                header=div(
+                  div( style="display: flex;",
+                       div(
+                         class="save_changes",
+
+                         id=ns("run_map_btn"),
+                         actionButton(ns("run_map"),
+                                      span(icon("angles-right"),icon("map")))
+                       ),
+                       div(style="padding: 10px",
+                           emgray(icon("fas fa-hand-point-right"),"Click to Create the map")
+                       ),
+                       div(style="position: absolute; right: 2px",
+                           tipify(uiOutput(ns("save_map_btn")),"Save the Raster for using in Surface and Stack plots"),
+                           uiOutput(ns("save_geotiff"))
+                       )
+
+                  ),
+                  uiOutput(ns("vgm_error"))
                 ),
-                uiOutput(ns("vgm_error"))
-              ),
 
-              title="Plot Engenier:",
-              if(isFALSE(any(surface,stack,scatter3d)))
-                tabPanel("Leaflet",value="leaflet",
+                title=NULL,
+                if(isFALSE(any(surface,stack,scatter3d)))
+                  tabPanel("Leaflet",value="leaflet",
 
-                         span(id=ns("zoom_leaflet_btn"),style="display: none",
-                              inline(ll_options$ui(ns("options1"))),
-                              actionButton(ns("zoom_leaflet"),icon("magnifying-glass-plus"))
-                         ),
-                         bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
+                           span(id=ns("zoom_leaflet_btn"),style="display: none",
+                                inline(ll_options$ui(ns("options1"))),
+                                actionButton(ns("zoom_leaflet"),icon("magnifying-glass-plus"))
+                           ),
+                           bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
 
-                         leaflet::leafletOutput(ns("plot_from_leaflet"))),
-              if(isFALSE(any(surface,stack,scatter3d)))
-                tabPanel(
-                  "GGplot",value="ggplot",
-                  div( plotOutput(ns("plot_from_ggplot")))
+                           leaflet::leafletOutput(ns("plot_from_leaflet"))),
+                if(isFALSE(any(surface,stack,scatter3d)))
+                  tabPanel(
+                    "GGplot",value="ggplot",
+                    div( plotOutput(ns("plot_from_ggplot")))
 
-                ),
+                  ),
 
-              if(isTRUE(any(surface,stack,scatter3d)))
-                tabPanel("plotly",value="plotly",
-                         div(id=ns("plotly_page"),
-                             uiOutput(ns('plotly_validate')),
-                             uiOutput(ns('plotly_surface')),
-                             uiOutput(ns('plotly_stack')),
-                             uiOutput(ns('plotly_scatter3d'))
-                         )
-                ),
-              if(isTRUE(any(surface,stack)))
-                tabPanel("plot3D",value="plot3D",
-                         uiOutput(ns('plot3D_validate')),
-                         uiOutput(ns('plot3D_surface')),
-                         uiOutput(ns('plot3D_stack'))
+                if(isTRUE(any(surface,stack,scatter3d)))
+                  tabPanel("plotly",value="plotly",
+                           div(id=ns("plotly_page"),
+                               uiOutput(ns('plotly_validate')),
+                               uiOutput(ns('plotly_surface')),
+                               uiOutput(ns('plotly_stack')),
+                               uiOutput(ns('plotly_scatter3d'))
+                           )
+                  ),
+                if(isTRUE(any(surface,stack)))
+                  tabPanel("plot3D",value="plot3D",
+                           uiOutput(ns('plot3D_validate')),
+                           uiOutput(ns('plot3D_surface')),
+                           uiOutput(ns('plot3D_stack'))
 
-                ),
+                  ),
+              )
             )
-          )
 
 
 
-        )
+                  )))
 
       )
     )
@@ -1802,8 +1801,17 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
     plot3D_installed<-reactiveVal(is_installed("plot3D"))
 
 
+    output$save_geotiff<-renderUI({
+      req(rst())
+      tipify(downloadLink(session$ns("down_geotif"), span(icon("download"),"GeoTiff")),"Download the GeoTiff file with georeferenced raster data for GIS applications")
+    })
 
-
+    output$down_geotif<-downloadHandler(
+      filename = "raster.tif",
+      content = function(file) {
+        raster::writeRaster(rst(), file,format="GTiff")
+      }
+    )
     output$plotly_validate<-renderUI({
       req(!plotly_installed())
       div(
@@ -1889,6 +1897,9 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       vals$cur_s3d_points_zdatalist<-input$s3d_points_zdatalist
     })
 
+    observeEvent(input$s3d_zvariable,{
+      vals$cur_s3d_zvariable<-input$s3d_zvariable
+    })
     output$s3d_points_zcolor<-renderUI({
       req(input$s3d_zvariable!="Z-Value")
       req(input$s3d_points_zdatalist)
@@ -2071,14 +2082,12 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
     ##
 
-    scatter_3dplotly<-function(points,text,shape_args=NULL){
+    scatter_3dplotly<-function(points,text,shape_args=NULL,xlab="x",ylab="y",zlab="z
+",plot.title_size=12,axis.text_size=12,axis.title_size=12,main="",...){
 
       p <- plotly::plot_ly( points,    showlegend = T)
       lpoints<-split(points,points$col_factor)
       p1<-p
-
-      pts$color_var
-
 
 
       for(i in seq_along(lpoints)) {
@@ -2112,6 +2121,8 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
 
         )
+
+
         #shape_args$base_shape_args$z<-min(pts$z)
         # shape_args$layer_shape_args$z<-min(pts$z)
         # p1<-add_shape_plotly(p1,vals$data_map,shape_args$base_shape_args,which_shape="base_shape")
@@ -2137,6 +2148,52 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
         )
       }
+      p1<-plotly::layout(
+        p1,
+        title = list(
+          text=main,
+          font=list(
+            size=plot.title_size
+          )
+        ),
+
+        scene = list(
+          zaxis = list(
+            title=list(
+              text=zlab,
+              font=list(
+                size=axis.title_size
+              )
+            ),
+            tickfont=list(
+              size=axis.text_size
+            )
+
+          ),
+          xaxis=list(
+            title=list(
+              text=xlab,
+              font=list(
+                size=axis.title_size
+              )
+            ),
+            tickfont=list(
+              size=axis.text_size
+            )
+          ),
+          yaxis=list(
+            title=list(
+              text=ylab,
+              font=list(
+                size=axis.title_size
+              )
+            ),
+            tickfont=list(
+              size=axis.text_size
+            )
+          )
+        )
+      )
       p1
 
     }
@@ -2146,6 +2203,8 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       text<-get_plot3Dtext()
       shape_args<-get_shapes()
       args=list(points=points,text=text,shape_args=NULL)
+      label_args<-map_labels$server("map_labelss")
+      args<-c(args,label_args)
       args
     })
     run_map_scatter3d_plotly<-eventReactive(input$run_map,ignoreInit = T,{
@@ -2258,7 +2317,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       req(length(rst())>0)
 
 
-      actionButton(ns("save_map"),icon("fas fa-save"))
+      actionLink(ns("save_map"),"Save map",icon("fas fa-save"))
     })
     observe({
       if(is.null(vals$saved_maps)){
@@ -3871,6 +3930,13 @@ div(style="display: flex",
       }
       args<-c(list(data = vals$data_map, pal = pal, fillOpacity = fillOpacity, rst = rst()), circle_args1(), radius_args1(), breaks_args1(), leaflet_opts1(), args_pie1(), shape_args)
       args$args_extra_shape<-extra_shapes()$args_extra
+      if(isTRUE(pie)){
+        args$addCircles<-F
+      }
+      if(isTRUE(circles)){
+        args$addCircles<-T
+      }
+
       args$palette<-palette
       args$newcolhabs<-vals$newcolhabs
       args$data_depth<-extra_shapes()$data_depth
@@ -3957,7 +4023,7 @@ div(style="display: flex",
 
     observeEvent(vals$data_map,{
       #req(vals$data_map)
-      map_labels$server_update("map_labelss",vals)
+      map_labels$server_update("map_labelss",vals,scatter3d)
     })
 
 
@@ -4240,60 +4306,101 @@ llet<-list()
 llet$ui<-function(id){
   ns<-NS(id)
   div(    # actionButton(ns("savebug"),"save bug"),
-    tags$div(
-      hidden(uiOutput(ns('coordinates_message'))),
-      class='nav_map',
-      div(id=ns("map_tabs"),
-          navbarPage(
-            NULL,id=ns("mode"),
-            tabPanel("Circles",value="circles",
-                     ll_map$ui(ns("circles"), circles=T,radius=T),
-                     uiOutput(ns("map_circles"))
-            ),
-            tabPanel("Pies",value="pies",
-                     ll_map$ui(ns("pie"), pie=T,radius=T),
-                     uiOutput(ns("map_pie"))
-            ),
-            tabPanel("Interpolation",value="interp",
-                     ll_map$ui(ns("interp"), interp=T),
-                     uiOutput(ns("map_interp"))
-            ),
-
-            tabPanel("Raster",value="raster",
-                     ll_map$ui(ns("raster"), raster=T),
-                     uiOutput(ns("map_raster"))
-            ),
-            tabPanel("Surface",value="surface",
-                     uiOutput(ns("map_surface_validate")),
-                     div(
-                       id=ns("surface_page"),
-                       ll_map$ui(ns("surface"), surface=T),
-                       uiOutput(ns("map_surface"))
-                     )
-            ),
-            tabPanel("Stack",value="stack",
-                     uiOutput(ns("map_stack_validate")),
-                     div(
-                       id=ns("stack_page"),
-                       ll_map$ui(ns("stack"), stack=T),
-                       uiOutput(ns("map_stack"))
-                     )
-            ),
-            tabPanel("Scatter3D",value="scatter3d",
-                     div(
-                       ll_map$ui(ns("scatter3d"), scatter3d=T),
-                       uiOutput(ns("map_scatter3d"))
-                     )
-            )
+    tags$style(HTML(
+      "
 
 
 
-          ))
+      .switch_box {
+
+          margin: 0px;
+        padding: 0px;
+        }
+
+        .checktitle .checkbox {
+
+
+        margin-top: -1px
+        }
+
+        .checktitle .shiny-input-container{
+  background: transparent;
+        margin-left: -30px;
+        padding-left: 10px
+        }
+
+        .checktitle .checkbox input[type=checkbox] {
+        margin-left: -22px;
+
+        }
+        .checktitle .checkbox span {
+             mdargin-left: -15px;
+        }
+
+
+        .switch_box .shiny-input-container:not(.shiny-input-container-inline) {
+
+        margin: 0px;
+        padding: 0px;
+  max-width: 180px;
+        }
+
+        "
+    )),
+  tags$div(
+    hidden(uiOutput(ns('coordinates_message'))),
+    class='nav_map',
+    div(id=ns("map_tabs"),
+        navbarPage(
+          NULL,id=ns("mode"),
+          tabPanel("Circles",value="circles",
+                   ll_map$ui(ns("circles"), circles=T,radius=T),
+                   uiOutput(ns("map_circles"))
+          ),
+          tabPanel("Pies",value="pies",
+                   ll_map$ui(ns("pie"), pie=T,radius=T),
+                   uiOutput(ns("map_pie"))
+          ),
+          tabPanel("Scatter3D",value="scatter3d",
+                   div(
+                     ll_map$ui(ns("scatter3d"), scatter3d=T),
+                     uiOutput(ns("map_scatter3d"))
+                   )
+          ),
+
+          tabPanel("Raster",value="raster",
+                   ll_map$ui(ns("raster"), raster=T),
+                   uiOutput(ns("map_raster"))
+          ),
+          tabPanel("Interpolation",value="interp",
+                   ll_map$ui(ns("interp"), interp=T),
+                   uiOutput(ns("map_interp"))
+          ),
+          tabPanel("Surface (3D)",value="surface",
+                   uiOutput(ns("map_surface_validate")),
+                   div(
+                     id=ns("surface_page"),
+                     ll_map$ui(ns("surface"), surface=T),
+                     uiOutput(ns("map_surface"))
+                   )
+          ),
+          tabPanel("Stack (3D)",value="stack",
+                   uiOutput(ns("map_stack_validate")),
+                   div(
+                     id=ns("stack_page"),
+                     ll_map$ui(ns("stack"), stack=T),
+                     uiOutput(ns("map_stack"))
+                   )
+          )
+
+
+
+        ))
 
 
 
 
-    )
+  )
 
 
 
@@ -4423,7 +4530,6 @@ llet$server<-function(id,vals){
 
   })
 }
-
 
 
 

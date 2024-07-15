@@ -235,13 +235,15 @@ hc_module$ui<-function(id){
                      box_caret(
                        ns("box4_vfm"),
                        color="#c3cc74ff",
+                       button_title=tipify(actionLink(ns("varfacmap"), icon("fas fa-question-circle")),"Click for details","right"),
                        title=span(style="display: inline-block",
                                   class="checktitle",
-                                  tip=actionLink(ns("varfacmap"), tipright("Click for more details")),
-                                  checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="150px")
+
+                                  checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="210px"),
+
                        ),
                        div(id=ns('varfac_out'),
-                           pickerInput(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Clockwise"="cor","Cluster"="cor_hc")),
+                           pickerInput(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Chull"="cor","Cluster"="cor_hc")),
 
                            numericInput(ns("npic"), span(tiphelp("Number of variables to display"),"Number"), value = 10, min = 2),
                            numericInput(ns("pclus.cex.var"), "Var size", value = 1, min = 2),
@@ -268,7 +270,7 @@ hc_module$ui<-function(id){
                        tip=tiphelp("Check to add new data points to the trained SOM", "right"),
                        title=span(style="display: inline-block",
                                   class="checktitle",
-                                  checkboxInput(ns("hcsom_newdata") ,label =strong(span("Map new data")),F,width="120px")
+                                  checkboxInput(ns("hcsom_newdata") ,label =strong(span("Map new data")),F,width="210px")
                        ),
                        div(
                          uiOutput(ns("hc_save_tab4")),
@@ -1814,6 +1816,48 @@ hc_module$server<-function(id, vals){
     observe({
       shinyjs::toggle("varfac_out",condition = isTRUE(input$varfacmap_action))
     })
+
+    observeEvent(input$varfacmap, {
+      showModal(modalDialog(
+        uiOutput(ns("textvarfacmap")),
+        title = h4(strong("Variable factor map")),
+        footer = modalButton("close"),
+        size = "m",
+        easyClose = TRUE
+      ))
+    })
+    output$textvarfacmap<-renderUI({
+
+      div(
+
+        tags$style(HTML("
+       h2 {
+      font-size: 20px;
+      font-weight: bold;
+      }
+      h3 {
+      font-size: 20px;
+      font-weight: lighter;
+      }
+      code {
+      color: blue;
+      }
+
+    ")),
+
+    div(
+      column(12,
+             h4("Variable factor map"),
+             p("The chart is very similar to the variable factor map obtained from the principal component analysis (PCA). It calculates the weighted correlation for each variable using the coordinates (x, y) of the neurons and their weights (number of instances). The codebooks vectors of the cells correspond to an estimation of the conditional averages, calculating their variance for each variable is equivalent to estimating the between-node variance of the variable, and hence their relevance."),
+             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("Chull correlations")," returns",code("npic")," variables with the highest correlation considering the convex hull, while also ensuring that the points are ordered by their proximity to codebook center")
+      )
+
+    )
+      )
+
+    })
+
+
     observe({
       shinyjs::toggle("hc_tab4_out",condition=input$model_or_data == "som codebook")
     })

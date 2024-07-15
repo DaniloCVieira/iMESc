@@ -37,7 +37,7 @@ databank_module$ui<-function(id){
               )
           )),
 
-      div(
+      div(class="half-drop-inline",
           div(style="margin-top: -10px;padding-left: 20px;padding-top: 5px",
               tabsetPanel(
                 id=ns("tab_bank"),
@@ -107,16 +107,17 @@ databank_module$server<-function(id, vals){
 
 
     observeEvent(input$data_bank,{
+
       choices0=choices<-c(paste0("tab",1:7))
 
       choices_names<-list(
-        div(id = ns("tab1"), tipify(icon("fas fa-archive"),"Numeric-Attribute")),
-        div(id = ns("tab2"), icon("fas fa-boxes")),
-        div(id = ns("tab3"), icon("fas fa-map-marker-alt")),
-        div(id = ns("tab4"), icon("far fa-map")),
-        div(id = ns("tab5"), icon("fas fa-braille")),
-        div(id = ns("tab6"), img(src = sup_icon2, height = '17', width = '20')),
-        div(id = ns("tab7"), icon("fas fa-comment"))
+        div(id = ns("tab1"), icon("fas fa-archive"),cogs_title="Numeric-Attribute"),
+        div(id = ns("tab2"), icon("fas fa-boxes"),cogs_title="Factor-Attribute"),
+        div(id = ns("tab3"), icon("fas fa-map-marker-alt"),cogs_title="Coords-Attribute"),
+        div(id = ns("tab4"), icon("far fa-map"),cogs_title="Shapes-Attribute"),
+        div(id = ns("tab5"), icon("fas fa-braille"),cogs_title="SOM-Attribute"),
+        div(id = ns("tab6"), img(src = sup_icon2, height = '17', width = '20'),cogs_title="Supervised Models"),
+        div(id = ns("tab7"), icon("fas fa-comment"),cogs_title="Comments")
       )
 
       somyes<-length(attr(getdata_bank(), "som")) > 0
@@ -138,6 +139,12 @@ databank_module$server<-function(id, vals){
 
       updateRadioGroupButtons(session,'view_datalist',choiceValues =choices,choiceNames =choices_names,selected=selected)
       shinyBS::addPopover(session,'tab1', NULL,"Numeric-Attribute")
+      shinyBS::addPopover(session,'tab2', NULL,"Factor-Attribute")
+      shinyBS::addPopover(session,'tab3', NULL,"Coords-Attribute")
+      shinyBS::addPopover(session,'tab4', NULL,"Shapes-Attribute")
+      shinyBS::addPopover(session,'tab5', NULL,"SOM-Attribute")
+      shinyBS::addPopover(session,'tab6', NULL,"Supervised Models")
+      shinyBS::addPopover(session,'tab7', NULL,"Comments")
 
     })
 
@@ -528,7 +535,7 @@ databank_module$server<-function(id, vals){
           lengthMenu = list(c(15, -1), c( "15","All")),
           autoWidth=F,
           scrollX = TRUE,
-          scrollY = "400px",
+          scrollY = '280px',
           fixedHeader=TRUE,
           fixedColumns = list(leftColumns = 1, rightColumns = 0)),
         rownames = TRUE,
@@ -537,9 +544,9 @@ databank_module$server<-function(id, vals){
     output$DT_factors<-{DT::renderDataTable({
       validate(need(ncol(attr(getdata_bank(), "factors")) < 1000, "Preview not available for data with more than 1000 columns"))
       attr(getdata_bank(),"factors")},
-      options = list(pageLength = 15,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=F,scrollX = TRUE, scrollY = "400px"), rownames = TRUE,class ='cell-border compact stripe', editable=T)}
+      options = list(pageLength = 15,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=F,scrollX = TRUE, scrollY = "280px"), rownames = TRUE,class ='cell-border compact stripe', editable=T)}
     output$DTcoords<-{DT::renderDataTable(data.frame(attr(getdata_bank(),"coords")),options = list(
-      pageLength = 15, info = FALSE,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=T,dom = 'lt',scrollX = TRUE, scrollY = "400px"), rownames = TRUE,class ='cell-border compact stripe')}
+      pageLength = 15, info = FALSE,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=T,dom = 'lt',scrollX = TRUE, scrollY = "280px"), rownames = TRUE,class ='cell-border compact stripe')}
 
 
     removechange<-reactive({

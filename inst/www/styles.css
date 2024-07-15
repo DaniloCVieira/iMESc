@@ -1741,10 +1741,10 @@ font-weight: bold;
 }
 .navmap2  .navbar>.container-fluid .navbar-brand  {
 padding-top: 5px;
-width: 70px;
+width: 0px;
 font-style: italic;
-margin-left: 20px;
-margin-right: 10px;
+margin-left: 0px;
+margin-right: 0px;
 font-size: 11px;
 }
 
@@ -2195,7 +2195,7 @@ width: 100%;
 background-color: transparent
 }
 .skin-blue .wrapper .imesc-main{
-overflow-y: scroll; height: calc(100vh - 50px);
+overflow-y: scroll; height: calc(100vh - 60px);
  width: calc(100vw - 17%);
 border-right: 5px solid #05668D
 }
@@ -2206,4 +2206,8 @@ border-right: 5px solid #05668D
 
 .disabled_toolbar .container-fluid {
 display: none
+}
+div.dtfc-left-top-blocker, div.dtfc-right-top-blocker {
+  display: none;
+  background: transparent;
 }

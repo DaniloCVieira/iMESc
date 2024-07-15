@@ -1313,11 +1313,13 @@ msp_xyf$ui<-function(id,vals){
              title="Variable Factor Options",
              div(
                div(
-                 checkboxInput(ns("xyf_varfacmap_action"), span("Variable factor map",actionLink(ns("xyf_varfacmap"), tipright('Click for more details'))),value =T),
+
+
+                 checkboxInput(ns("xyf_varfacmap_action"), span("Variable factor map",actionLink(ns("xyf_varfacmap"), tipify(icon("fas fa-question-circle"),'Click for more details',placement ="right"))),value =T),
                  div(style="padding-left: 20px",
                      id=ns('xyf_varfac_out'),
                      pickerInput(ns("xyf_vfm_type"),"Show correlation:",
-                                 choices =list("Highest"='var', "Clockwise"="cor"),
+                                 choices =list("Highest"='var', "Chull"="cor"),
                                  options=shinyWidgets::pickerOptions(windowPadding="top")
                      ),
 
@@ -1359,6 +1361,7 @@ msp_xyf$ui<-function(id,vals){
 msp_xyf$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
 
+    ns<-session$ns
     box_caret_server("box_a")
     box_caret_server("box_b")
     box_caret_server("box_c")
@@ -1467,6 +1470,50 @@ msp_xyf$server<-function(id,model,vals){
     observe({
       shinyjs::toggle('xyf_varfac_out',condition=isTRUE(input$xyf_varfacmap_action))
     })
+
+
+    output$textvarfacmap<-renderUI({
+
+      div(
+
+        tags$style(HTML("
+       h2 {
+      font-size: 20px;
+      font-weight: bold;
+      }
+      h3 {
+      font-size: 20px;
+      font-weight: lighter;
+      }
+      code {
+      color: blue;
+      }
+
+    ")),
+
+    div(
+      column(12,
+             h4("Variable factor map"),
+             p("The chart is very similar to the variable factor map obtained from the principal component analysis (PCA). It calculates the weighted correlation for each variable using the coordinates (x, y) of the neurons and their weights (number of instances). The codebooks vectors of the cells correspond to an estimation of the conditional averages, calculating their variance for each variable is equivalent to estimating the between-node variance of the variable, and hence their relevance."),
+             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("Chull correlations")," returns",code("npic")," variables with the highest correlation considering the convex hull, while also ensuring that the points are ordered by their proximity to codebook center")
+      )
+
+    )
+      )
+
+    })
+
+    observeEvent(ignoreInit = T,input$xyf_varfacmap, {
+      showModal(modalDialog(
+        uiOutput(ns("textvarfacmap")),
+        title = h4(strong("Variable factor map")),
+        footer = modalButton("close"),
+        size = "m",
+        easyClose = TRUE
+      ))
+    })
+
+
     observeEvent(vals$newcolhabs,{
       choices<-getsolid_col()
       updatePickerInput(session,'xyf_pclus_border',
@@ -3538,6 +3585,7 @@ confusion_module$ui<-function(id){
                        pickerInput(inputId = ns("caretpalette"),
                                    label = "+ Palette",NULL,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
+                       textInput(ns('cm_title'),"Title","Training"),
 
                        div(
                          popify(actionLink(ns("downtable_cm_train"),span("+ Download",icon("fas fa-download"),icon("fas fa-table")),style  = "button_active"),NULL,"download CM table")
@@ -3605,10 +3653,10 @@ confusion_module$server<-function(id, vals){
       if(input$caret_cm_type=="Resampling"){
         cm<-table(m$pred$pred,m$pred$obs)
 
-        res<-plotCM(m, input$caretpalette,  newcolhabs=vals$newcolhabs)
+        res<-plotCM(m, input$caretpalette,  newcolhabs=vals$newcolhabs,title=input$cm_title)
       } else{
         cm<-table(predict(model),model$trainingData[,'.outcome'])
-        res<-plotCM(cm,input$caretpalette,vals$newcolhabs)
+        res<-plotCM(cm,input$caretpalette,vals$newcolhabs,title=input$cm_title)
       }
       vals$caret_cm_train_plot<-res
       res
@@ -5379,8 +5427,9 @@ caret_models$server<-function(id,vals){
       req(x)
       req(y)
       req(model)
-      req(vals$box_caret2_args)
+
       if(vals$cur_caret_search=="custom-grid"){
+        req(vals$box_caret2_args)
         param<-expand.grid(vals$box_caret2_args)
       } else{
         req(vals$box_caret1_args$tuneLength)
@@ -5765,7 +5814,7 @@ caret_models$server<-function(id,vals){
 
             vals$model_error<-m<-try(suppressWarnings({
               set.seed(seed)
-              args_train$ntree<-50
+
               do.call(caret::train,args_train)}))
             time1<-Sys.time()
             req(!inherits(m,"try-error"))

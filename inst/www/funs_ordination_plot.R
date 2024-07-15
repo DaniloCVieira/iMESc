@@ -1,3 +1,4 @@
+
 ## Copyright © 2023 [Danilo Candido Vieira]
 ## Licensed under the CC BY-NC-ND 4.0 license.
 
@@ -27,7 +28,7 @@ getbp_som2<-function(m,indicate,npic,hc){
   sigma2<-sigma2[rownames(scores)]
 
   if(indicate=="cor"){
-    indicadores<-get_maxdistances_quadrants(coord_vars,npic)
+    indicadores<-rownames(biplot_chull(coord_vars,apply(grid,2,mean),biplot_n=npic))
   } else if(indicate=="var") {
     indicadores<-na.omit(names(sort(sigma2,decreasing=T))[1:npic])
   } else if(indicate=="cor_hc"){
@@ -193,7 +194,44 @@ switch_theme<-function(p,theme, base_size){
   p
 }
 #' @export
-ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal component analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=F, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5, biplot_type=c("clockwise_quadrants","clockwise_distance"), biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", loading_axis=T, lo_x.text="PC1 loadings",lo_y.text="PC2 loadings", lo_axis_color=T,expandX =0.1, expandY=0.1,scale_shape=T){
+biplot_chull<-function(biplot_coords,center=c(0,0),biplot_n=10){
+  biplot_coords0<-biplot_coords
+
+
+  borders<-chull(biplot_coords)
+  center=data.frame(x=center[1],y=center[2])
+  rownames(center)<-"center"
+  result<-list()
+  repeat({
+    borders<-unique(borders)
+    binew<-biplot_coords[ borders,]
+    biplot_coords<-biplot_coords[-borders,]
+    borders<-chull(biplot_coords)
+    bires<-binew
+    bires$chull<-length(result)+1
+    result[[length(result)+1]]<-bires
+    if(nrow(do.call(rbind,result))>=biplot_n){
+
+
+      break()
+    }
+  })
+
+  result_chull<-do.call(rbind,result)
+  result_chull$dist<-as.matrix(dist(rbind(center,result_chull[,1:2])))[1,-1]
+
+  result_chull$chull<--result_chull$chull
+
+
+  order_biplot<-order(result_chull$chull,result_chull$dist,decreasing = T)[1:biplot_n]
+
+
+  binew<-result_chull[rownames(result_chull)[order_biplot],colnames(biplot_coords0)]
+  binew
+
+}
+#' @export
+ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal component analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=F, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5,  biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", loading_axis=T, lo_x.text="PC1 loadings",lo_y.text="PC2 loadings", lo_axis_color=T,expandX =0.1, expandY=0.1,scale_shape=T){
   {
 
     comps<-summary(model)
@@ -289,14 +327,7 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
   }
 
   if(isTRUE(biplot)) {
-    biplot_type=match.arg(biplot_type,c("clockwise_quadrants","clockwise_distance"))
-
-
-    if(biplot_type=="clockwise_distance"){
-      df2<-df2[get_maxdistances(df2,biplot_n),]
-    } else{
-      df2[get_maxdistances_quadrants(df2,biplot_n),]
-    }
+    df2<-biplot_chull(df2,biplot_n=biplot_n)
     p<-p+geom_segment(data = df2,
                       aes(x = 0, y = 0, xend = x, yend = y),
                       arrow = arrow(type = "closed", length = unit(8, "pt")),
@@ -338,7 +369,7 @@ clockvar<-function(df3,species_n,species_type){
   }
 }
 #' @export
-ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=T, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5, biplot_type=c("clockwise_quadrants","clockwise_distance"), biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", species=T, species_n=5, species_type=c("clockwise_quadrants","clockwise_distance"), species_plot="text", species_size=4, species_shape=3, species_color="red",scale_shape=F,expandX=0.1,expandY=0.1){
+ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=T, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5,  biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", species=T, species_n=5,  species_plot="text", species_size=4, species_shape=3, species_color="red",scale_shape=F,expandX=0.1,expandY=0.1){
 
   {
 
@@ -403,9 +434,9 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
   p0<-p
   if(isTRUE(species)){
     species_plot<-match.arg(species_plot,c("points","text"))
-    species_type=match.arg(species_type,c("clockwise_quadrants","clockwise_distance"))
 
-    df3<-clockvar(df3,species_n,species_type)
+
+    df3<-biplot_chull(df3,biplot_n=species_n)
     df3$points_factor<-factor("Response variables")
     if(species_plot=="points"){
       p<-p+geom_point(aes(x,y, shape=shape, color=points_factor),data=df3, color=species_color, size=species_size, fill = 'red')+ scale_shape_identity(name="",guide="legend", labels="Response") +  guides(
@@ -443,8 +474,7 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
     if(biplot_n>nrow(df2)){
       biplot_n<-nrow(df2)
     }
-    biplot_type=match.arg(biplot_type,c("clockwise_quadrants","clockwise_distance"))
-    df2<-clockvar(df2,biplot_n,biplot_type)
+    df2<-biplot_chull(df2,biplot_n=biplot_n)
 
     p<-p+
       geom_segment(data=df2, aes(x=0, xend=x, y=0, yend=y),

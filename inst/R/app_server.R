@@ -853,7 +853,7 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observe({
+  observeEvent(input$savepoint_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

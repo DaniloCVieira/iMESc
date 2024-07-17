@@ -189,6 +189,19 @@ hc_module$ui<-function(id){
                  4,class="mp0",style="margin-left: -1px; padding-right: 3px",
                  div(style="overflow-y: auto;height: calc(100vh - 200px); padding-left: 1px",
                      box_caret(
+                       ns("box_4mapping"),
+                       color="#c3cc74ff",
+                       tip=tiphelp("Add predictions from new data to the trained SOM", "bottom"),
+                       title=span(style="display: inline-block",
+                                  class="checktitle",
+                                  checkboxInput(ns("hcsom_newdata") ,label =strong(span("Predict")),F,width="80px")
+                       ),
+                       div(
+                         uiOutput(ns("hc_save_tab4")),
+                         uiOutput(ns("hcsom_newdata_mess")),
+                         uiOutput(ns("out_hcsom_whatmap")))
+                     ),
+                     box_caret(
                        ns("box4_a"),
                        title="Background",
                        color="#c3cc74ff",
@@ -263,20 +276,8 @@ hc_module$ui<-function(id){
                          div(actionLink(ns('create_codebook'),"Create Datalist with the Codebook and HC class")),
                          div(tipify(downloadLink(ns('down_hc_model'),"Download HC model", style="button_active"),"Download file as .rds"))
                        )
-                     ),
-                     box_caret(
-                       ns("box_4mapping"),
-                       color="#c3cc74ff",
-                       tip=tiphelp("Check to add new data points to the trained SOM", "right"),
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-                                  checkboxInput(ns("hcsom_newdata") ,label =strong(span("Map new data")),F,width="210px")
-                       ),
-                       div(
-                         uiOutput(ns("hc_save_tab4")),
-                         uiOutput(ns("hcsom_newdata_mess")),
-                         uiOutput(ns("out_hcsom_whatmap")))
                      )
+
                  )),
                column(
                  8,class="mp0",style="position: absolute; right: 12px; padding-left: 15px",
@@ -392,11 +393,17 @@ hc_module$server<-function(id, vals){
       req(input$model_or_data == "som codebook")
       layers<-getsom_layers()
       div(style = "margin-left: 20px;",
-          strong("Layers:"),
+          tags$style(HTML(
+            ".label_none label{display: none}"
+          )),
+          strong("New Data:"),
           lapply(layers, function(x) {
             div(class = "map_control_style2", style = "color: #05668D",
-                inline(checkboxInput(ns(paste0("hcsom_layer", x)), x, TRUE)),
-                inline(uiOutput(ns(paste0("hcsom_piclayer", x))))
+                checkboxInput(ns(paste0("hcsom_layer", x)), div(
+                  style="display: flex; align-items:center;margin-top: -8px;height: 30px",
+                  x,uiOutput(ns(paste0("hcsom_piclayer", x)))
+                ), TRUE),
+
             )
           })
       )
@@ -530,10 +537,22 @@ hc_module$server<-function(id, vals){
           ns("dot_label_clus"), NULL, choices = c("labels", "symbols"), inline = TRUE, width = "100px", selected = vals$dot_label_clus)
       )))
     })
+
+
+    observeEvent(input$hcsom_newdata,{
+      if(isTRUE(input$hcsom_newdata)){
+        cols<-vals$newcolhabs[[input$pclus_points_palette]](100)[1:2]
+        if(cols[1]==cols[2])
+          updateTabsetPanel(session,"pclus_points_palette",selected="turbo")
+      }
+
+    })
+
     output$hc_save_tab4<-renderUI({
+      req(hcplot4())
       req(isTRUE(input$hcsom_newdata))
       div(class = "save_changes",
-          bsButton(ns("savemapcode"), icon(verify_fa = FALSE, name = NULL, class = "fas fa-save"), style = "button_active", type = "action", value = FALSE), span(style = "font-size: 12px", icon(verify_fa = FALSE, name = NULL, class = "fas fa-hand-point-left"), "Create Datalist")
+          tipify(bsButton(ns("savemapcode"), icon(verify_fa = FALSE, name = NULL, class = "fas fa-save"), style = "button_active", type = "action", value = FALSE),"Create Datalist with prediction results","right"), span(style = "font-size: 12px", icon(verify_fa = FALSE, name = NULL, class = "fas fa-hand-point-left"), "Create Datalist")
       )
     })
     output$saveHC<-renderUI({
@@ -552,7 +571,7 @@ hc_module$server<-function(id, vals){
       div(style="display: flex",
           div(style="display: flex",
               div(class = class1,style="padding-right: 5px",
-                  actionButton(ns("tools_savehc"), icon("fas fa-save"),  type = "action", value = FALSE),), span(style = "font-size: 12px", icon("fas fa-hand-point-left"), "Save Clusters in Datalist ", strong("X"), class = class3)
+                  actionButton(ns("tools_savehc"), icon("fas fa-save"),  type = "action", value = FALSE)), span(style = "font-size: 12px", icon("fas fa-hand-point-left"), "Save Clusters in Datalist ", strong("X"), class = class3)
           )
           ,
           div(style = "margin-bottom: 5px", class = class2,style="text-direction: normal",em(paste0("The current clustering is saved in the Factor-Attribute as '", paste0(clu_al, collapse = "; "), "'"))))
@@ -1192,7 +1211,8 @@ hc_module$server<-function(id, vals){
       newcoords<-newcoords[!duplicated(newcoords$id),1:2]
       rownames(newcoords)<-unique(ids_coords)
 
-      args<-args_bmu()
+      args<-argsplot_somplot()
+      req(args)
       newdata<-args$points_tomap[  args$points_tomap$point=="New data",]
       new1<-newdata["hc"]
       rownames(new1)<-newdata$label
@@ -1875,7 +1895,8 @@ hc_module$server<-function(id, vals){
               identical(sort(colnames(xx)),
                         sort(colnames(m$data[[x]])))
             })))
-            pickerInput(ns(paste0("hcsom_newdata_layer",x)), NULL, choices_temp)
+            div(class="label_none",style="max-width: 200px",
+                pickerInput(ns(paste0("hcsom_newdata_layer",x)), "", choices_temp))
           }
         })
       })

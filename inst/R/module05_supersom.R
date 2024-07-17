@@ -62,6 +62,8 @@ padding-left: 3px;
     }"
     )),
 div(
+  #actionLink(ns("save_bug"),"save bug",style="font-size:10px"),
+
   column(8,class="mp0",
          box_caret(ns("box_setup1"),
                    color="#374061ff",
@@ -108,15 +110,15 @@ div(
 
 
                    div(id=ns("partition_on"),class="inline_pickers",
-                       uiOutput(ns("data_somY_out")),
-                       pickerInput(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), NULL),
-                       pickerInput(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=NULL)
+                       uiOutput(ns("data_somY_out"))
 
                    )))
 )),
 
 column(12,class="mp0",tabsetPanel(
   id = ns("som_tab"),
+
+  #selected='som_tab3',
 
   tabPanel(
     value = "som_tab1",
@@ -436,182 +438,175 @@ column(12,class="mp0",tabsetPanel(
   tabPanel(
     value = "som_tab3",style="background: white",
     strong("3. Predict"),
-    div(
+    column(
+      4,class="mp0",
+      box_caret(
+        ns("pred_header"),
+        color="#c3cc74ff",
+        title="New Data",
+        div(
+          div(class="radio_search radio_yellow",
+              radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c("Partition","Training","Datalist"))
+          ),
+          div(id=ns('sompred_type_datalist'),
+              style="padding-left: 10px",
+              div(strong("New data layers:")),
+              uiOutput(ns("whatmap_newdata"))
 
-      column(8,
+          ),
+          div(id=ns('run_predSOM_btn'),
+              align="right",
+              class="save_changes",
+              actionButton(ns('run_predSOM'),"RUN >>",style="height: 25px; padding-top: 2px; padding-bottom: 2px;"))
+        )
 
-             div(class="inline_pickers well3 color_box",
-                 div(style="display: flex",
-                     div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
-                     div(class="radio_search radio_yellow",
-                         radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c("Partition","Training","Datalist"))
-                     ),
-
-                     div(class="inline_pickers",style=" margin-left: 10px",
-                         div(id=ns('sompred_type_datalist'),
-
-                             pickerInput(ns("predsom_new"),"Datalist:",choices=NULL),
-
-                             pickerInput(ns("whatmap"),"Layer:",choices=NULL)
-
-                         )
-
-                     ),
-                     div(id=ns('run_predSOM_btn'),
-                         align="right",
-                         class="save_changes",
-                         actionButton(ns('run_predSOM'),"RUN >>",style="height: 25px; padding-top: 2px; padding-bottom: 2px;"))
-                 ),
-                 div(style="display: flex",
-                     div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
-
-                 )
-             )
       ),
-      column(4,class="well3",
-             uiOutput(ns("newdata_info"))
-      ),
-      tabsetPanel(
-        id=ns("predsom_tab"),
-        tabPanel(
-          strong("3.1. Results"),style="background: white",
-          value = "predsom_tab01",
-
-          uiOutput(ns('som_predict_results'))
-
-        ),
-        tabPanel(
-          strong("3.2. Performace"),style="background: white",
-          value = "predsom_tab01b",
-          uiOutput(ns("pred_performace"))
-        ),
-        tabPanel(
-          strong("3.3. BMUs"),style="background: white",
-          value = "predsom_tab01c",
-          column(
-            4,class="mp0",
-            box_caret(
-              ns("pbox1"),
-              color="#c3cc74ff",
-              title="Background",
-              div(
-                div(class="radio_search radio_yellow",
-                    radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
-                ),
-
-                pickerInput(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
-                div(id=ns('ss2_var_pproperty'),style="display: flex",
-                    actionButton(ns("ss2_prev_property"),"<<"),
-                    pickerInput(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
-                    actionButton(ns("ss2_next_property"),">>")
-
-                ),
-
-                pickerInput(inputId = ns("ss2_bg_palette"),"Palette",NULL),
-                numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-                pickerInput(ns("ss2_pclus_border"),label ='Border:',NULL)
-              )
-            ),
-            box_caret(
-              ns("pbox2"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
+      div(
+        uiOutput(ns("pred_result_options")),
+        uiOutput(ns("pred_perf_options")),
+        div(
+          id=ns('pred_bmu_options'),
+          box_caret(
+            ns("pbox1"),
+            color="#c3cc74ff",
+            title="Background",
+            div(
+              div(class="radio_search radio_yellow",
+                  radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
               ),
-              div(
-                div(id=ns("ss2_pclus_points_inputs"),
-                    pickerInput(inputId = ns("ss2_pclus_points_palette"),
-                                label ="Palette",
-                                choices = NULL),
-                    pickerInput(ns("ss2_pclus_points_factor"),"Factor",
-                                choices = NULL),
-                    pickerInput(inputId = ns("ss2_pclus_symbol"),
-                                label = "Shape",
-                                choices = NULL),
-                    numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                )
-              )
-            ),
-            box_caret(
-              ns("pbox3"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
+
+              pickerInput(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
+              div(id=ns('ss2_var_pproperty'),style="display: flex",
+                  actionButton(ns("ss2_prev_property"),"<<"),
+                  pickerInput(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
+                  actionButton(ns("ss2_next_property"),">>")
+
               ),
-              div(id=ns('ss2_pclus_text_inputs'),
-                  pickerInput(inputId = ns("ss2_pclus_text_palette"),
+
+              pickerInput(inputId = ns("ss2_bg_palette"),"Palette",NULL),
+              numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
+              pickerInput(ns("ss2_pclus_border"),label ='Border:',NULL)
+            )
+          ),
+          box_caret(
+            ns("pbox2"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
+            ),
+            div(
+              div(id=ns("ss2_pclus_points_inputs"),
+                  pickerInput(inputId = ns("ss2_pclus_points_palette"),
                               label ="Palette",
-                              choices =  NULL),
-                  pickerInput(ns("ss2_pclus_text_factor"),"Factor",
                               choices = NULL),
-                  numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-              )
-            ),
-            box_caret(
-              ns("pbox4"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
-              ),
-              tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
-              div(id=ns('ss2_varfac_out'),
-                  pickerInput(ns("ss2_vfm_type"),"Show correlation:",
-                              choices =list("Highest"='var', "Chull"="cor")
-
-                  ),
-
-                  div(id=ns('ss2_vfm_out'),
-                      div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
-                      numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
-                      pickerInput(inputId = ns("ss2_p.clus.col.text"),
-                                  label = "Color",
-                                  NULL
-                      ),
-                      pickerInput(inputId = ns("ss2_var_bg"),
-                                  label = "Background",
-                                  choices =NULL),
-                      numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
-                      div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
-                      div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
-                  )
-              )
-            ),
-            box_caret(
-              ns("pbox5"),
-              title = "General options",
-              color="#c3cc74ff",
-              div(
-                numericInput(ns("ss2_base_size"),"Base size",value = 12),
-                checkboxInput(ns("ss2_theme"),
-                              label = "show neuron coordinates",
-                              value=F
-                ),
-                textInput(ns("ss2_title"), "Title: ", "")
+                  pickerInput(ns("ss2_pclus_points_factor"),"Factor",
+                              choices = NULL),
+                  pickerInput(inputId = ns("ss2_pclus_symbol"),
+                              label = "Shape",
+                              choices = NULL),
+                  numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
               )
             )
           ),
-          column(
-            8,class="mp0",
-            box_caret(
-              ns('pbox6'),
-              title="BMU plot",
-              button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
-              div(uiOutput(ns("predbmu_plot")))
+          box_caret(
+            ns("pbox3"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
+            ),
+            div(id=ns('ss2_pclus_text_inputs'),
+                pickerInput(inputId = ns("ss2_pclus_text_palette"),
+                            label ="Palette",
+                            choices =  NULL),
+                pickerInput(ns("ss2_pclus_text_factor"),"Factor",
+                            choices = NULL),
+                numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+            )
+          ),
+          box_caret(
+            ns("pbox4"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
+            ),
+            tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
+            div(id=ns('ss2_varfac_out'),
+                pickerInput(ns("ss2_vfm_type"),"Show correlation:",
+                            choices =list("Highest"='var', "Chull"="cor")
+
+                ),
+
+                div(id=ns('ss2_vfm_out'),
+                    div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                    numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
+                    pickerInput(inputId = ns("ss2_p.clus.col.text"),
+                                label = "Color",
+                                NULL
+                    ),
+                    pickerInput(inputId = ns("ss2_var_bg"),
+                                label = "Background",
+                                choices =NULL),
+                    numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
+                    div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
+                    div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
+                )
+            )
+          ),
+          box_caret(
+            ns("pbox5"),
+            title = "General options",
+            color="#c3cc74ff",
+            div(
+              numericInput(ns("ss2_base_size"),"Base size",value = 12),
+              checkboxInput(ns("ss2_theme"),
+                            label = "show neuron coordinates",
+                            value=F
+              ),
+              textInput(ns("ss2_title"), "Title: ", "")
             )
           )
         )
 
-
-      ),
-      div(
-        class="map_control_style",
-
-        uiOutput(ns("newdata_summ"))
-
       )
+    ),
+    column(8,class="mp0",
+           uiOutput(ns("teste")),
+           tabsetPanel(
+             id=ns("predsom_tab"),
+             tabPanel(
+               strong("3.1. Results"),style="background: white",
+               value = "predsom_tab01",
+
+               uiOutput(ns('som_predict_results'))
+
+             ),
+             tabPanel(
+               strong("3.2. Performace"),style="background: white",
+               value = "predsom_tab01b",
+               uiOutput(ns("pred_performace"))
+             ),
+             tabPanel(
+               strong("3.3. BMUs"),style="background: white",
+               value = "predsom_tab01c",
+               box_caret(
+                 ns('pbox6'),
+                 title="BMU plot",
+                 button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
+                 div(uiOutput(ns("predbmu_plot")))
+               )
+             )
+
+
+           ),
+           div(
+             class="map_control_style",
+
+             uiOutput(ns("newdata_summ"))
+
+           )
     )
 
   )
@@ -655,12 +650,340 @@ imesc_supersom$server<-function (id,vals ){
     box_caret_server("pbox6")
     ns<-session$ns
 
+    output$pred_result_options<-renderUI({
+      box_caret(
+        ns('box_pred_results'),
+        title="Options",
+        color="#c3cc74ff",
+        div(
+          selectInput(ns('pred_results'),"Prediction results:",choices=c(
+            "Best-matching units"='unit.classif',
+            "Data"="predictions",
+            "Codebook"="unit.predictions"
+          ),selected=vals$cur_tab_pred_result),
+          uiOutput(ns("pick_layer_result")),
+          uiOutput(ns("ui_pred_result_newdata")),
+          div(style="padding-top: 5px",
+              uiOutput(ns("link_predsom_newdata")),
+              uiOutput(ns("link_predsom_codebook"))
+          )
+        )
+
+      )
+    })
+    output$pred_perf_options<-renderUI({})
+
+
+
+    observe(shinyjs::toggle('pred_bmu_options',condition=input$predsom_tab=='predsom_tab01c'))
+
+
+    observe(shinyjs::toggle('pred_result_options',condition=input$predsom_tab=='predsom_tab01'))
+
+
+
+
+    output$whatmap_newdata<-renderUI({
+      m<-current_som_model()
+      datas<-attr(m,"Datalist")
+      lapply(m$whatmap,function(w){
+        choices<-names(which(sapply(vals$saved_data,function(x){
+          all(colnames(x)%in%colnames(m$data[[w]]))
+        })))
+        if(w>1){
+          choices=c("None",choices)
+        }
+        pickerInput(ns(paste0("newdata_w",w)),datas[[w]],choices)
+      })
+    })
+
+    get_newdata<-reactive({
+      req(input$sompred_type)
+      req(input$sompred_type=="Datalist")
+      m<-current_som_model()
+      datas<-attr(m,"Datalist")
+      newdata_names<-sapply(m$whatmap,function(w){
+        req(input[[paste0("newdata_w",w)]])
+        input[[paste0("newdata_w",w)]]
+      })
+      #newdata_names<-readRDS("newdata_names.rds")
+      #newdata_names<-unlist(newdata_names)
+      newdata_names<-newdata_names[which(newdata_names!="None")]
+      news<-vals$saved_data[newdata_names]
+      res<-lapply(news,as.matrix)
+      names(res)<-names(m$data)[which(newdata_names!="None")]
+      res
+    })
+
+    supersom_newdata<-reactive({
+      req(input$sompred_type)
+      m<-current_som_model()
+      if(input$sompred_type%in%"Partition"){
+        return(attr(m,"test"))
+      }  else if(input$sompred_type%in%'Training'){
+        return(current_som_model()$data)
+      } else if(input$sompred_type%in%'Datalist'){
+        return(get_newdata())
+      }
+
+    })
+    get_sompred<-reactiveVal()
+
+
+    observeEvent(current_som_model(),{
+      get_sompred(NULL)
+      shinyjs::addClass('run_predSOM_btn',"save_changes")
+    })
+
+
+    observeEvent(supersom_newdata(),{
+      get_sompred(NULL)
+      shinyjs::addClass('run_predSOM_btn',"save_changes")
+    })
+
+
+    observeEvent(input$run_predSOM,ignoreInit = T,{
+      m<-current_som_model()
+      req(m)
+      newdata<-supersom_newdata()
+
+      if(length(m$data)==1){
+        names(newdata)<-NULL
+      }
+      whatmap<-NULL
+      if(input$sompred_type%in%'Datalist'){
+        newdata_names<-sapply(m$whatmap,function(w){
+          req(input[[paste0("newdata_w",w)]])
+          input[[paste0("newdata_w",w)]]
+        })
+        whatmap<-which(newdata_names!="None")
+      }
+
+      pred1<-predict(m,newdata,trainingdata = newdata,
+                     whatmap = whatmap)
+      pred<-predict(m,newdata,
+                    #trainingdata = newdata,
+                    whatmap = NULL)
+
+
+
+      if(!is.null(whatmap)){
+        pred$predictions[[whatmap]]<-pred1$predictions[[whatmap]]
+        #names(pred$predictions)<-names(m$data)[whatmap]
+        # names(pred$unit.predictions)<-names(m$data)[whatmap]
+      } else{
+        pred$predictions<-pred1$predictions
+        names(pred$predictions)<-names(m$data)
+        names(pred$unit.predictions)<-names(m$data)
+      }
+      get_sompred(pred)
+      shinyjs::removeClass('run_predSOM_btn',"save_changes")
+    })
+
+
+
+
+
+
+    output$teste<-renderUI({
+      # div("teste",style="height: 100px;overflow-y: auto",renderPrint(names(get_sompred()$predictions))     )
+    })
+
+
+
+    get_overhall_peform<-reactive({
+      newdata<-supersom_newdata()
+      pred<-get_sompred()$predictions
+      m<-current_som_model()
+
+
+      res<-lapply(names(newdata),function(i){
+        postResample(pred[[i]],newdata[[i]])
+      })
+      names(res)<-names(newdata)
+
+      do.call(rbind,res)
+    })
+    get_obs_peform<-reactive({
+      #newdata<-readRDS("newdata.rds")
+      #res<-readRDS("res.rds")
+      newdata<-do.call(cbind,supersom_newdata())
+      pred<-do.call(cbind,get_sompred()$predictions)
+
+
+      obs_mean=apply(newdata,1,function(x) mean(x,na.rm=T))
+      pred_mean= apply(pred,1,function(x) mean(x,na.rm=T))
+
+      res<-data.frame(
+        obs_mean=obs_mean,
+        pred_mean=pred_mean,
+        do.call(rbind,lapply(1:nrow(newdata),function(i){
+          postResample(pred[i,],newdata[i,])
+        }))
+      )
+      rownames(res)<-rownames(get_sompred()$predictions[[1]])
+      res
+
+    })
+    get_var_peform<-reactive({
+      #newdata<-readRDS("newdata.rds")
+      #res<-readRDS("res.rds")
+      newdata_list<-supersom_newdata()
+      pred_list<-get_sompred()$predictions
+      #saveRDS(newdata_list,'newdata.rds')
+      #saveRDS(get_sompred(),'pred.rds')
+
+      result<-lapply(seq_along(get_sompred()$predictions),function(layer){
+        newdata<-newdata_list[[layer]]
+        pred<-pred_list[[layer]]
+        res<-data.frame(layer=names(get_sompred()$predictions)[layer],
+                        variable=colnames(pred),
+                        obs_mean=sapply(data.frame(newdata),function(x) mean(x,na.rm=T)),
+                        pred_mean=sapply(data.frame(pred),function(x) mean(x,na.rm=T)),
+                        do.call(rbind,
+                                lapply(1:ncol(newdata),function(i){
+                                  pr<-pred[,i]
+                                  ob<-newdata[,i]
+
+                                  data.frame(
+                                    #rmse_means=RMSE(mean(pr,na.rm=T),mean(ob,na.rm=T)),
+
+                                    as.list(postResample(pr,ob)))
+                                })))
+        #unlist(sapply(get_sompred()$predictions,colnames)) |>  print()
+
+
+
+        res
+      })
+      do.call(rbind,result)
+
+
+
+
+
+
+    })
+
+    get_pred_newdata<-reactive({
+      req(input$layer_result)
+      req(input$layer_result%in%names(get_sompred()$predictions))
+      get_sompred()$predictions[[input$layer_result]]
+    })
+
+    output$ui_pred_result_newdata<-renderUI({
+      req(input$layer_result)
+      req(input$tab_pred_result)
+      table<-get_pred_newdata()
+      div(class="half-drop-inline",
+          fixed_dt_con$ui(ns('pred_results'),table,max_length=100)
+      )
+
+    })
+
+
+    output$out_pred_result_newdata<-renderUI({
+      table<-get_pred_newdata()
+      fixed_dt_con$server('pred_results',table,max_length=100)
+    })
+
+    get_pred_bmu<-reactive({
+      res<-get_sompred()
+      res_temp<-data.frame(bmu=res[['unit.classif']])
+      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
+      res_temp
+    })
+
+    output$out_pred_result_bmu<-renderUI({
+      #req(input$tab_pred_result)
+      table<-get_pred_bmu()
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
+
+    })
+    get_pred_codebook<-reactive({
+      req(input$layer_result)
+      res<-get_sompred()
+      if(is.null(res$predictions)){
+        res$predictions<-res$data
+      }
+      req(input$layer_result%in%names(res[["unit.predictions"]]))
+      res<-res[["unit.predictions"]][[input$layer_result]]
+      rownames(res)<-paste0("neu",1:nrow(res))
+      res
+    })
+
+    observeEvent(input$tab_pred_result,{
+      table<-switch(input$tab_pred_result,
+                    "unit.classif"=get_pred_bmu(),
+                    "predictions"=get_pred_newdata(),
+                    "unit.predictions"=get_pred_codebook()
+      )
+      vals$som_predict_result<-table
+
+    })
+    output$out_pred_result_codebook<-renderUI({
+      table<-get_pred_codebook()
+      fixed_dt_con$server('pred_results',table,max_length=100)
+    })
+
     output$data_som_out<-renderUI({
       pickerInput(ns("data_som"),uiOutput(ns('label_data_som')),choices =names(vals$saved_data), selected=vals$cur_data)
     })
 
     output$data_somY_out<-renderUI({
-      pickerInput(ns("data_somY"),"Datalist:",choices = names(vals$saved_data))
+      div(
+        pickerInput(ns("data_somY"),"Datalist:",choices = get_match_datalists()),
+        uiOutput(ns("partition_column"))
+      )
+    })
+
+
+
+    get_datalist_for_som<-reactive({
+      if(isTRUE(input$mysupersom)){
+        get_training_list()[[1]]
+      } else{
+        req(input$data_som)
+        vals$saved_data[[input$data_som]]
+      }
+    })
+
+
+    get_match_datalists<-reactive({
+      data<-get_datalist_for_som()
+
+      truedatalists<-sapply(vals$saved_data,function(x){
+        all(rownames(x)%in%rownames(data))
+      })
+      names(vals$saved_data)[truedatalists]
+    })
+
+
+
+
+
+    output$partition_column<-renderUI({
+      req(input$data_somY)
+      choices=c(colnames(attr(vals$saved_data[[input$data_somY]],"factors")))
+      selected=vals$cur_partition_column
+      selected<-get_selected_from_choices(selected,choices)
+      div(
+        pickerInput(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), choices,selected=selected),
+        uiOutput(ns("partition_test"))
+
+      )
+    })
+
+    output$partition_test<-renderUI({
+      req(input$data_somY)
+      req(input$partition_column)
+      fac<-attr(vals$saved_data[[input$data_somY]],"factors")[,input$partition_column]
+      choices<-levels(fac)
+      selected=vals$cur_partition_ref
+      selected<-get_selected_from_choices(selected,choices)
+      pickerInput(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=choices,selected=selected)
     })
 
     box_caret_server("box_setup1")
@@ -1031,16 +1354,7 @@ imesc_supersom$server<-function (id,vals ){
       df_symbol$img[i]<- sprintf(paste0(img(src = symbol1, width = '10')))}
 
 
-    test_som<-reactive({
-      req(input$sompred_type)
 
-      pred_tab<-switch(input$sompred_type,
-                       "Partition"={
-                         attr(current_som_model(),"test")},
-                       "Datalist"={vals$saved_data[[input$predsom_new]]},
-                       "Training"={current_som_model()$data})
-
-    })
     newdata_som<-reactive({
       req(input$sompred_type)
       m<-current_som_model()
@@ -1061,72 +1375,33 @@ imesc_supersom$server<-function (id,vals ){
 
       newdata
     })
-    get_sompred<-eventReactive(list(input$run_predSOM,current_som_model()),ignoreInit = T,{
-      req(input$sompred_type)
-      m<-current_som_model()
-      req(m)
-      newdata<-newdata_som()
 
-      shinyjs::removeClass("run_predSOM_btn","save_changes")
-
-      req(length(newdata)>0)
-      req(inherits(m,"kohonen"))
-      pred<-if(input$sompred_type%in%c("Training","Partition")){
-        req(inherits(newdata,c("matrix","list")))
-        pred<-predict(m,newdata,trainingdata =newdata)
-        names(pred$predictions)<-names(m$data)
-        names(pred$unit.predictions)<-names(m$data)
-
-        pred
-      } else{
-        req(input$whatmap)
-        req(input$whatmap%in%names(m$data))
-        mtemp<-m
-        newdata_m<-as.matrix(newdata)
-
-        names(newdata_m)<-input$whatmap
-        reord<-names(mtemp$codes)==input$whatmap
-        mtemp$codes<-mtemp$codes[c(names(mtemp$codes)[reord], names(mtemp$codes)[-reord])]
-        mtemp$data<-mtemp$data[c(names(mtemp$data)[reord], names(mtemp$data)[-reord])]
-
-
-
-        whatmap=if(length(m$data)==1){NULL} else{input$whatmap}
-        pred<-predict(mtemp,newdata_m,trainingdata =newdata_m,
-                      whatmap=whatmap)
-
-        names(pred$predictions)<-input$whatmap
-        names(pred$unit.predictions)<-input$whatmap
-
-        pred
-
-      }
-
-      if(is.null(input$whatmap)){
-        pred$whatmap<-input$layer_result
-      } else{
-        pred$whatmap<-input$whatmap
-      }
-
-      pred
-    })
 
 
 
 
     output$pick_layer_result<-renderUI({
       req(input$sompred_type)
-      req(input$sompred_type%in%c("Partition","Training"))
+      #req(input$sompred_type%in%c("Partition","Training"))
 
-      #req(input$predsom_results%in%c("predictions","unit.predictions"))
+      #req(input$tab_pred_result%in%c("predictions","unit.predictions"))
       m<-current_som_model()
       req(inherits(m,"kohonen"))
-      choices=names(m$data)
+
+      req(get_sompred())
+      pred<-get_sompred()
+      choices=names(pred$predictions)
 
       div(
 
         selectInput(ns("layer_result"), "Show layer:",choices=choices, selected=vals$cur_layer_result)
       )
+    })
+
+    observe({
+
+      shinyjs::toggle('ui_pred_result_newdata',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
+      shinyjs::toggle('pick_layer_result',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
     })
 
 
@@ -1525,55 +1800,28 @@ imesc_supersom$server<-function (id,vals ){
       updateTabsetPanel(session,'get_predsom_perf',selected=input$pred_performace)
     })
     output$pred_performace<-renderUI({
-      fluidPage(
-        column(4,class="mp0",
-               box_caret(ns("box_pred_perf"),
-                         title="Options",
-                         color="#c3cc74ff",
+      box_caret(
+        ns("box_pred_perf_out"),
+        title="Table",
+        button_title = uiOutput(ns('header_perf')),
+        tabsetPanel(
+          id=ns("get_predsom_perf"),
 
-                         radioGroupButtons(
-                           ns("pred_performace"),
-                           "Show:",
-                           direction="vertical",
-                           choiceNames =c("Overall performace","Performace by observation","Performace by variable"),
-                           choiceValues =c("predsom_perf_overhall",
-                                           "predsom_perf_obs",
-                                           "predsom_perf_var")
-                         )
-
-               )),
-
-        column(
-          8,
-          box_caret(
-            ns("box_pred_perf_out"),
-            title="Table",
-            button_title = uiOutput(ns('header_perf')),
-            tabsetPanel(
-              type="hidden",
-
-              id=ns("get_predsom_perf"),
-
-              tabPanel(
-                value="predsom_perf_overhall",
-                title = "Overall performace",
-                uiOutput(ns("overhall_peform"))),
-              tabPanel(
-                value="predsom_perf_obs",
-                title = "Performace by observation",
-                uiOutput(ns("obs_peform"))
-              ),
-              tabPanel(
-                value="predsom_perf_var",
-                title = "Performace by variable",
-                uiOutput(ns("var_peform"))
-              )
-            )
+          tabPanel(
+            value="predsom_perf_overhall",
+            title = "Overall performace",
+            uiOutput(ns("overhall_peform"))),
+          tabPanel(
+            value="predsom_perf_obs",
+            title = "Performace by observation",
+            uiOutput(ns("obs_peform"))
+          ),
+          tabPanel(
+            value="predsom_perf_var",
+            title = "Performace by variable",
+            uiOutput(ns("var_peform"))
           )
-
-
         )
-
       )
 
 
@@ -1606,88 +1854,14 @@ imesc_supersom$server<-function (id,vals ){
 
 
     })
-    output$newdata_info<-renderUI({
-
-
-      resM<-get_newdata_infto()
-      req(is.data.frame(resM))
-      div(
-        div(em("new data:"),resM[1,1]),
-        div(em("nrows:"),resM[3,1]),
-        div(em("ncols:"),resM[2,1])
-      )
 
 
 
 
-    })
-    getobs_whatmap<-reactive({
-      req(input$sompred_type)
-      req(input$sompred_type=="Datalist")
-      m<-current_som_model()
-      newdata<-newdata_som()
 
-      datalist<-m$data
-      j=1
-      x<-datalist[[1]]
-      res0<-unlist(
-        lapply(datalist, function (x){
-          res<-colnames(x)%in%colnames(newdata)
-          sum(res)==ncol(newdata)
-        })
-      )
-      names(res0[res0==T])
-    })
 
-    output$result_predictions<-renderUI({
-      req(pic_result())
-      req(input$predsom_results)
-      res<-get_sompred()
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-      vals$som_predict_result<-table<-res[["predictions"]][[pic_result()]]
-      div(class="half-drop-inline",
-          fixed_dt_con$ui(ns('pred_results'),table,max_length=100)
-      )
 
-    })
 
-    output$pred_results_cont<-renderUI({
-      fixed_dt_con$server('pred_results',vals$som_predict_result,max_length=100)
-    })
-
-    output$result_bmu<-renderUI({
-      req(input$predsom_results)
-      res<-get_sompred()
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-      res_temp<-data.frame(bmu=res[['unit.classif']])
-      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
-      res<-res_temp
-      vals$som_predict_result<-table<-res
-      div(class="half-drop-inline",
-          fixed_dt(table,dom='lt',pageLength=20)
-      )
-
-    })
-    output$result_codebook<-renderUI({
-      req(input$predsom_results)
-      res<-get_sompred()
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-      res<-res[["unit.predictions"]][[pic_result()]]
-      rownames(res)<-paste0("neu",1:nrow(res))
-      vals$som_predict_result<-table<-res
-      return(NULL)
-
-    })
-
-    output$pred_codebook_cont<-renderUI({
-      fixed_dt_con$server('pred_results',vals$som_predict_result,max_length=100)
-    })
 
     output$header_perf<-renderUI({
       div(
@@ -1702,11 +1876,11 @@ imesc_supersom$server<-function (id,vals ){
       actionLink(ns('link_predsom_perf_obs_create'),span("+ Create a Datalist"))
     })
     output$link_predsom_newdata<-renderUI({
-      req(input$predsom_results=="predictions")
+      req(input$tab_pred_result=="predictions")
       actionLink(ns('link_predsom_newdata_create'),span("+ Create a Datalist"))
     })
     output$link_predsom_codebook<-renderUI({
-      req(input$predsom_results=="unit.predictions")
+      req(input$tab_pred_result=="unit.predictions")
       actionLink(ns('link_predsom_codebook_create'),span("+ Create a Datalist"))
     })
     create_predsom_codebook<-reactive({
@@ -1745,75 +1919,43 @@ imesc_supersom$server<-function (id,vals ){
     })
 
     observeEvent(input$pred_results,ignoreInit = T,{
-      updateTabsetPanel(session,'predsom_results',selected =input$pred_results)
+      updateTabsetPanel(session,'tab_pred_result',selected =input$pred_results)
     })
     output$som_predict_results<-renderUI({
+      #req(get_sompred())
+      box_caret(ns("box_pred_results_out"),
 
-      fluidRow(
-        column(4,class="mp0",
-               box_caret(
-                 ns('box_pred_results'),
-                 title="Options",
-                 color="#c3cc74ff",
-                 div(
-                   selectInput(ns('pred_results'),"Show",choices=c(
-                     "Best-matching units"='unit.classif',
-                     "New Data (X)"="predictions",
-                     "Codebook"="unit.predictions"
-                   ),selected=vals$cur_predsom_results),
-                   uiOutput(ns("pick_layer_result")),
-                   uiOutput(ns("result_predictions")),
-                   div(style="padding-top: 5px",
-                       uiOutput(ns("link_predsom_newdata")),
-                       uiOutput(ns("link_predsom_codebook"))
-                   )
-                 )
+                title="Table",
+                button_title = div(
 
-               )),
+                  div(
+                    actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
+                  )
+                ),
+                tabsetPanel(
+                  type="hidden",
+                  id=ns("tab_pred_result"),
+                  tabPanel(
+                    title = "Best-matching units",
+                    value="unit.classif",
+                    uiOutput(ns("out_pred_result_bmu"))
+                  ),
+                  tabPanel(
+                    title = "New Data (X)",
+                    value="predictions",
 
-        column(8,class="mp0",
-               box_caret(ns("box_pred_results_out"),
-
-                         title="Table",
-                         button_title = div(
-
-                           div(
-                             actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
-                           )
-                         ),
-                         tabsetPanel(
-                           type="hidden",
-                           id=ns("predsom_results"),
-                           tabPanel(
-                             title = "Best-matching units",
-                             value="unit.classif",
-                             uiOutput(ns("result_bmu"))),
-                           tabPanel(
-                             title = "New Data (X)",
-                             value="predictions",
-
-                             uiOutput(ns("pred_results_cont"))
-                           ),
-                           tabPanel(
-                             title = "Codebook",
-                             value="unit.predictions",
-                             uiOutput(ns('result_codebook')),
-                             uiOutput(ns("pred_codebook_cont"))
-                           )
-                         )))
-      )
+                    uiOutput(ns("out_pred_result_newdata"))
+                  ),
+                  tabPanel(
+                    title = "Codebook",
+                    value="unit.predictions",
+                    uiOutput(ns('ui_pred_result_codebook')),
+                    uiOutput(ns("out_pred_result_codebook"))
+                  )
+                ))
 
     })
-    pic_result<-reactive({
-      req(input$sompred_type)
-      if(input$sompred_type=="Datalist"){
-        req(input$whatmap)
-        input$whatmap
-      } else{
-        req(input$layer_result)
-        input$layer_result
-      }
-    })
+
 
 
 
@@ -2013,9 +2155,7 @@ imesc_supersom$server<-function (id,vals ){
 
     })
 
-    output$predsom_var<-renderUI({
-      selectInput(ns("predsom_var"),"variable",colnames(test_som()))
-    })
+
     output$train_som_button<-renderUI({
       if(input$distmethod=="BrayCurtis"){
         validate(need(anyNA(getdata_som())==F, "Missing values are not allowed in the Bray method. Change the distance or use the preprocessing tools to impute or remove the missing values"))
@@ -2077,185 +2217,15 @@ imesc_supersom$server<-function (id,vals ){
       )
       names(res0[res0==T])
     })
-    correctsom<-reactive({
-      som_pred<-pred_som()
-      m<-current_som_model()
-      newdata=as.matrix(newdata_som())
-      pred_som<-predict(m,newdata=newdata, whatmap = 1)
-
-      res<-get_correct_predsom(m,pred_som,newdata)
-      res
-    })
-    pred_som<-reactive({
-      validate(need(!anyNA(newdata_som()),"NAs not allowed in the prediction Datalist"))
-      m<-current_som_model()
-      som_pred<-predict(m,newdata = as.matrix(newdata_som()), whatmap = 1)
-      #names(som_pred$predictions)<-c("X","Y")
-      #names(som_pred$unit.classif)<-rownames(som_pred$predictions[[1]])
-      attr(som_pred,"coords")<-attr(m,"coords")
-      som_pred
-    })
-    get_overhall_peform<-reactive({
-      newdata<-newdata_som()
-      names<-if(is.data.frame(newdata)){ input$predsom_new} else{  names(newdata)    }
-      req(length(newdata)>0)
-      res<-get_sompred()
-      #saveRDS(newdata,'newdata.rds')
-      # saveRDS(res,'res.rds')
-      # newdata<-readRDS('newdata.rds')
-      #res<-readRDS('res.rds')
-
-      if(!is.data.frame(newdata)){
-
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-
-        pred<-res$predictions
-      } else{
-        if(is.null(res$data)){
-          res$data<-res$predictions
-        }
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-        pred<-res$predictions[[res$whatmap]]
-
-
-      }
 
 
 
-      req(length(pred)>0)
-      if(is.list(pred)){
-        if(!inherits(newdata,'list')){newdata<-list(newdata)}
-        lis<-mapply(list,pred,newdata,SIMPLIFY=F)
-        res<-data.frame(do.call(rbind,lapply(lis,function (x){
-          postResample(x[[1]],x[[2]])
-        })))
 
-      } else{
-        peformace<-postResample(pred,newdata)
-        res<-data.frame(as.list(peformace))
-        colnames(res)<-names(peformace)
-        rownames(res)<-names
-      }
-
-      res
-    })
-    get_obs_peform<-reactive({
-      #newdata<-readRDS("newdata.rds")
-      #res<-readRDS("res.rds")
-      newdata<-newdata_som()
-      names<-if(is.data.frame(newdata)){ input$predsom_new} else{  names(newdata)    }
-      req(length(newdata)>0)
-      res<-get_sompred()
-      if(!is.data.frame(newdata)){
-
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-
-        pred<-res$predictions
-      } else{
-
-
-        if(is.null(res$data)){
-          res$data<-res$predictions
-        }
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-        pred<-res$predictions[[res$whatmap]]
-
-
-      }
-
-      req(length(pred)>0)
-      if(is.list(pred)){
-        if(!inherits(newdata,'list')){newdata<-list(newdata)}
-        lis<-mapply(list,pred,newdata,SIMPLIFY=F)
-        x<-lis[[1]]
-
-        res<-data.frame(do.call(data.frame,lapply(lis,function (x){
-          do.call(rbind,lapply(rownames(x[[1]]),function(i){
-            postResample(x[[1]][i,],x[[2]][i,])
-          }))
-
-        })))
-        rownames(res)<-rownames(newdata[[1]])
-        res
-      } else{
-        i=1
-        res<-do.call(rbind,lapply(rownames(newdata),function(i){
-          postResample(pred[i,],unlist(newdata[i,]))
-        }))
-        rownames(res)<-rownames(newdata)
-
-      }
-
-      res
-    })
-    get_var_peform<-reactive({
-      newdata<-newdata_som()
-      names<-if(is.data.frame(newdata)){ input$predsom_new} else{  names(newdata)    }
-      req(length(newdata)>0)
-      if(!is.data.frame(newdata)){
-        res<-get_sompred()
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-
-        pred<-res$predictions
-      } else{
-        res<-get_sompred()
-
-        if(is.null(res$data)){
-          res$data<-res$predictions
-        }
-        if(is.null(res$predictions)){
-          res$predictions<-res$data
-        }
-        pred<-res$predictions[[res$whatmap]]
-
-
-      }
-
-      req(length(pred)>0)
-      if(is.list(pred)){
-        m<-current_som_model()
-        if(length(m$data)==1){
-          if(!inherits(newdata,'list')){newdata<-list(newdata)}
-        }
-
-        lis<-mapply(list,pred,newdata,SIMPLIFY=F)
-        x<-lis[[1]]
-
-        res<-data.frame(do.call(rbind,lapply(lis,function (x){
-          res<-do.call(rbind,lapply(colnames(x[[1]]),function(i){
-            postResample(x[[1]][,i],x[[2]][,i])
-          }))
-          rownames(res)<-colnames(x[[1]])
-          res
-
-        })))
-
-        res
-      } else{
-        i=1
-        res<-do.call(rbind,lapply(colnames(newdata),function(i){
-          postResample(pred[,i],unlist(newdata[,i]))
-        }))
-        rownames(res)<-colnames(newdata)
-
-      }
-
-      res
-    })
     getpred_model<-reactive({
 
       res0<-res<-get_sompred()
-      pic_result<-res0$whatmap
+
+      pic_result<-input$ss2_property_layer
 
       res$predictions
       res<-res[["unit.predictions"]][[pic_result]]
@@ -2279,11 +2249,13 @@ imesc_supersom$server<-function (id,vals ){
 
 
     })
+
     get_som_model_pred<-reactive({
       m_pred<-current_som_model()
       req(inherits(m_pred,'kohonen'))
 
       res<-getpred_model()
+      #res$pic_result<-input$ss2_property_layer
       unit.classif<-res$unit.classif[,1]
       names(unit.classif)<-rownames(res$unit.classif)
 
@@ -2368,21 +2340,8 @@ imesc_supersom$server<-function (id,vals ){
     getdata_som<-reactive({
       req(input$data_som)
       data_o<-data<-vals$saved_data[[input$data_som]]
-      factors<-attr(data,"factors")
 
       data
-    })
-    getobs_som<-reactive({
-      datalist<-vals$saved_data
-      datalist=lapply(datalist,function(x) attr(x,"factors"))
-
-      res0<-unlist(
-        lapply(datalist, function (x){
-          res<-any(colnames(x)%in%names(pred_som()$predictions[-1]))
-
-        })
-      )
-      names(res0[res0==T])
     })
 
     bmu_pred_points<-reactive({
@@ -2465,11 +2424,11 @@ imesc_supersom$server<-function (id,vals ){
         vals$hand_save,
         ##RF,
         "Create Datalist  - Variables from VFM"=bag_vfm(),
-        "Create Datalist  - SOM predictions for New Data (X)"=bag_predsom_results(),
-        "Create Datalist  - SOM codebook predictions"=bag_predsom_results(),
+        "Create Datalist  - SOM predictions for New Data (X)"=bag_tab_pred_result(),
+        "Create Datalist  - SOM codebook predictions"=bag_tab_pred_result(),
         "Create Datalist  - SOM performace"=bag_predsom_errors(),
         "Save new som in"=bag_somname(),
-        "Save som predictions"=predsom_name(),
+
         "Save errors from som predictions (X)"=bag_sompred_eX(),
         "Save errors from som predictions (Y)"=bag_sompred_eY(),
         "Create Datalist with Codebooks"=coodebook_name()
@@ -2479,8 +2438,8 @@ imesc_supersom$server<-function (id,vals ){
       name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
       name1[length(vals$saved_data)+1]
     })
-    bag_predsom_results<-reactive({
-      name0<-paste(input$data_som,input$predsom_results,input$layer_result, sep="_")
+    bag_tab_pred_result<-reactive({
+      name0<-paste(input$data_som,input$tab_pred_result,input$layer_result, sep="_")
       name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
       name1[length(vals$saved_data)+1]
     })
@@ -2634,44 +2593,7 @@ imesc_supersom$server<-function (id,vals ){
 
     })
 
-    savesompred<-reactive({
-      data=vals$saved_data[[input$data_som]]
-      som_pred<-pred_som()
-      predX<- correctsom()$predX
-      predX<-data_migrate(data,predX,input$newdatalist)
-      factors<-attr(data,"factors")[rownames(predX),]
-      coords<-attr(som_pred,"coords")[rownames(predX),]
-      attr(predX,"factors")<-factors
-      attr(predX,"coords")<-coords
-      newsaveX<-paste0(input$newdatalist,"_X")
-      saved_sompred$df[[newsaveX]]<-1
-      vals$saved_data[[newsaveX]]<-predX
 
-      if(input$hand_save=="create"){
-        if(attr(current_som_model(),"Method")!="Unsupervised"){
-          predY<- correctsom()$predY
-          if(attr(current_som_model(),"som_type2")=="Numeric"){
-            newsave<-paste(input$newdatalist,"_Y")
-            predY<-data_migrate(data,predY,newsave)
-            vals$saved_data[[newsave]]<-predY
-          } else{
-
-            attr(vals$saved_data[[newsaveX]],"factors")<-predY
-
-          }
-        }
-      } else {
-        pred_data<-data.frame(pred_data)
-        pred_data<-data_migrate(data,pred_data,input$over_datalist)
-        factors<-attr(pred_data,"factors")[rownames(pred_data),]
-        factors[,input$over_datalist]<-pred_factors
-        coords<-attr(test_data,"coords")[rownames(pred_data),]
-        attr(pred_data,"factors")<-factors
-        attr(pred_data,"coords")<-coords
-        attr(pred_data,"transf")<-attr(data,"transf")
-        vals$saved_data[[input$over_datalist]]<-pred_data}
-      updateTabsetPanel(session,'som_tab','som_tab3')
-    })
     savebmu<-reactive({
       temp<-current_som_model()
       bmu<-temp$unit.classif
@@ -2702,33 +2624,7 @@ imesc_supersom$server<-function (id,vals ){
         vals$saved_data[[input$over_datalist]]<-temp
       }
     })
-    get_newdata_infto<-reactive({
 
-      newdata<-newdata_som()
-      if(is.data.frame(newdata)){
-        ncols=ncol(newdata)
-        nrows=nrow(newdata)
-        nlayers=input$whatmap
-
-
-      } else{
-        nlayers=names(newdata)
-        ncols=unlist(lapply(newdata,ncol))
-        nrows=unlist(lapply(newdata,nrow))
-      }
-
-      res<-data.frame(
-        do.call(rbind,list(
-          layers=nlayers,
-          ncols=ncols,
-          nrows=nrows
-        ))
-      )
-      colnames(res)<-NULL
-      res
-
-
-    })
 
 
     validate_supersom<-reactive({
@@ -2877,6 +2773,22 @@ imesc_supersom$server<-function (id,vals ){
       res
     })
 
+    get_partition<-reactive({
+      if(isFALSE(input$usepartition)){
+        data<-getdata_som()
+        return(list(train=rownames(data),test=NULL))
+      }
+
+      data<-vals$saved_data[[input$data_somY]]
+
+
+      factors<-attr(data,"factors")
+      partition_column<-factors[input$partition_column]
+      test_ids<-which(partition_column[,1]%in%input$partition_ref)
+      train_ids<-rownames(data)[-test_ids]
+      test_ids<-rownames(data)[test_ids]
+      return(list(train=train_ids,test=test_ids))
+    })
 
 
 
@@ -2985,8 +2897,10 @@ imesc_supersom$server<-function (id,vals ){
       attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL
 
 
-      data=data_o<-data.frame(vals$saved_data[[input$data_som]])
-      test<-which(!rownames(data_o)%in%rownames(data))
+      traindat=data=data_o<-data.frame(vals$saved_data[[input$data_som]])
+      traindat=data[get_partition()$train,]
+
+
       withProgress(
         message = "Running som... the time taken will depend on the size of the data and the training.",
         min = 1,
@@ -2995,7 +2909,7 @@ imesc_supersom$server<-function (id,vals ){
 
 
         {
-          datalist<-list(as.matrix(data))
+          datalist<-list(as.matrix(traindat))
           names(datalist)<-input$data_som
           seed<-input$seed
           if(is.na(seed)){
@@ -3038,14 +2952,18 @@ imesc_supersom$server<-function (id,vals ){
           m$init<-init
           names(m$unit.classif)<-rownames(m$data[[1]])
           attr(m,"test_partition")<-"None"
+          test_list<-list(as.matrix(data[get_partition()$test,]))
+          names(test_list)<-input$data_som
+          attr(m,"test")<-test_list
           attr(m,"Method")<-"Unsupervised"
           attr(m,"Datalist")<-input$data_som
           attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
-          attr(m,"coords")<-attr(data,"coords")
+          attr(m,"coords")<-attr(data,"coords")[rownames(traindat),]
           vals$som_unsaved<-m
           newmodesl<-c(list(m),attr(vals$saved_data[[input$data_som]],"som"))
           names(newmodesl)[1]<-"new som (unsaved)"
           attr(vals$saved_data[[input$data_som]],"som")<-newmodesl
+
 
 
 
@@ -3067,11 +2985,7 @@ imesc_supersom$server<-function (id,vals ){
 
 
 
-    observeEvent(getobs_whatmap(),{
-      m<-current_som_model()
-      choices=names(m$data[getobs_whatmap()])
-      updatePickerInput(session,'whatmap',choices=choices)
-    })
+
     observeEvent(current_som_model(),{
       m<-current_som_model()
       test<-attr(m,"test")
@@ -3079,7 +2993,14 @@ imesc_supersom$server<-function (id,vals ){
       if(inherits(test,"list")){
         choices=c("Partition","Training","Datalist")
       }
-      updateRadioGroupButtons(session,'sompred_type',choices=choices)
+      selected=vals$cur_sompred_type
+      selected<-get_selected_from_choices(selected,choices)
+
+      updateRadioGroupButtons(session,'sompred_type',choices=choices,selected=selected)
+    })
+
+    observeEvent(input$sompred_type,{
+      vals$cur_sompred_type<-input$sompred_type
     })
     observeEvent(list(input$xdim,input$ydim),{
       req(input$xdim)
@@ -3236,7 +3157,7 @@ imesc_supersom$server<-function (id,vals ){
       vals$cur_partition_ref<-input$partition_ref
     })
     observeEvent(ignoreInit = T,input$pred_results,{
-      vals$cur_predsom_results<-input$pred_results
+      vals$cur_tab_pred_result<-input$pred_results
     })
     observeEvent(ignoreInit = T,input$layer_result,{
       vals$cur_layer_result<-input$layer_result
@@ -3260,9 +3181,10 @@ imesc_supersom$server<-function (id,vals ){
 
     })
     observeEvent(ignoreInit = T,input$downtable_predict_result,{
+      req(input$layer_result)
       vals$hand_down<-"som_predict_result"
       module_ui_downcenter("downcenter")
-      mod_downcenter<-callModule(module_server_downcenter, "downcenter",  vals=vals, name=paste(input$data_som,input$predsom_results,input$layer_result, sep="_"))
+      mod_downcenter<-callModule(module_server_downcenter, "downcenter",  vals=vals, name=paste(input$data_som,input$tab_pred_result,input$layer_result, sep="_"))
 
     })
     observeEvent(ignoreInit = T,input$link_predsom_perf_obs_create,{
@@ -3647,7 +3569,7 @@ imesc_supersom$server<-function (id,vals ){
         "Create Datalist  - SOM performace"=create_predsom_errors(),
         "Create Datalist with Codebooks"=savecoodebok(),
         "Save new som in"=savesom(),
-        "Save som predictions"=savesompred(),
+
         "Save errors from som predictions (X)"=datalist_som_errorsX(),
         "Save errors from som predictions (Y)"=datalist_som_errorsY()
       )
@@ -3705,21 +3627,7 @@ imesc_supersom$server<-function (id,vals ){
 
 
 
-    observeEvent(getobs_somX(),{
-      choices=names(vals$saved_data[getobs_somX()])
-      updatePickerInput(session,'predsom_new',choices=choices)
-    })
-    observeEvent(input$data_somY,{
-      choices=c(colnames(attr(vals$saved_data[[input$data_somY]],"factors")))
-      selected=vals$cur_partition_column
-      updatePickerInput(session,'partition_column',choices= choices,selected=selected)
-    })
-    observeEvent(input$partition_column,{
-      fac<-attr(vals$saved_data[[input$data_somY]],"factors")[,input$partition_column]
-      choices<-levels(fac)
-      selected=vals$cur_partition_ref
-      updatePickerInput(session,'partition_ref',choices= choices,selected=selected)
-    })
+
 
 
     observeEvent(input$data_som,ignoreInit = T,{
@@ -3848,6 +3756,21 @@ imesc_supersom$server<-function (id,vals ){
     observeEvent(input$ss2_varfacmap_action,{
       shinyjs::toggle("ss2_varfac_out",condition=isTRUE(input$ss2_varfacmap_action))
     })
+    observeEvent(input$save_bug,{
+
+
+
+
+
+      saveRDS(reactiveValuesToList(vals),"savepoint.rds")
+      saveRDS(reactiveValuesToList(input),"input.rds")
+      #saveRDS(vals$cur_caret_model,"m.rds")
+
+      beep(10)
+    })
 
   })
+
+
+
 }

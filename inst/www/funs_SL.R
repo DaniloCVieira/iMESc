@@ -1001,7 +1001,10 @@ table_test_datalist<-function(saved_data,data_x){
       if(inherits(m,"train")){
         if(inherits(attr( m,"test"),"data.frame")){
 
-          pred<-suppressWarnings(predict(m,as.matrix(attr(m,"test"))))
+
+          test_data<-as.matrix(attr(m,"test"))
+          colnames(test_data)<-colnames(getdata_model(m))
+          pred<-suppressWarnings(predict(m,))
           if(inherits(attr(m,"sup_test"),"data.frame")){
             obs<-attr(m,"sup_test")[,1]
           } else{

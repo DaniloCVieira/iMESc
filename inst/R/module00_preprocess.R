@@ -551,7 +551,7 @@ tool1$server<-function(id,vals){
     })
     read_base<-reactive({
       if (input$up_or_ex=="example") {
-        get(gsub(" ","",capture.output(load("inst/www/base_shape_araca",verbose=T))[2]))
+        readRDS("inst/www/base_shape_araca.rds")
       } else {
         if(length(file_base())>0){
           t<-try({get(gsub(" ", "", capture.output(
@@ -567,7 +567,7 @@ tool1$server<-function(id,vals){
     read_layer<-reactive({
 
       if (input$up_or_ex=="example"){
-        get(gsub(" ","",capture.output(load("inst/www/layer_shape_araca",verbose=T))[2]))
+        readRDS("inst/www/layer_shape_araca.rds")
         #get(gsub(" ","",capture.output(load("0006_layer_shape",verbose=T))[2]))
       } else {
         if(length(file_layer())>0){
@@ -902,7 +902,7 @@ tool2_tab2$server<-function(id,vals){
       withProgress({
         df<-do.call(imesc_merge,merge_args())
         df_coords<-do.call(imesc_merge,merge_args_coords())[rownames(df),1:2]
-        df_factors<-do.call(imesc_merge,merge_args_factors())[rownames(df),]
+        df_factors<-do.call(imesc_merge,merge_args_factors())[rownames(df),,drop=F]
         df<-data_migrate(merge_args()$to_merge[[1]],df)
         attr(df,"factors")<-df_factors
         attr(df,"coords")<-df_coords
@@ -1579,84 +1579,507 @@ tool2_tab7$server<-function(id,vals){
 
   })
 }
+
 tool2_tab8<-list()
 tool2_tab8$ui<-function(id){
   ns<-NS(id)
-  div(class="p10",
-      div(strong("SHP toolbox")),
-      tabsetPanel(
-        selected="tab_create",
-        tabPanel(
-          "View and download",value="tab_view",
-          div(em(icon("fas fa-lightbulb"),"Optimize your datalist creation speed by downloading shapes as an .rds file. This file format loads quickly and avoids the need to create the shape from scratch each time you need it."),
-
-              div(style="display: flex",class="half-drop",
-                  uiOutput(ns("shp_data_view_down")),
-
-
-
-                  selectInput(ns("shp_attr_view_down"),
-                              "2. Select the Attribute:",
-                              choices=list(
-                                "Base-Shape"="base_shape",
-                                "Layer-Shape"="layer_shape",
-                                "Extra-Shape"="extra_shape"
-                              )
-                  )
-              ),
-              downloadButton(ns("download_shape"),"Download"),
-              uiOutput(ns("shape_view"))
-
-          )
+  div(class="tool_box8",
+      # actionLink(ns("save_bug"),"save bug"),
+      div(
+        div(class="needed",id="fade",
+            div(
+              div(style="position: fixed; right: 80vw;top: 50px ",
+                  actionButton(ns("exit_tool8"), label = NULL, icon = icon("times"), style = "padding: 0px; font-size: 15px; width: 20px; height: 20px;background: Brown; color: white; border: 0px;"))
+            )
         ),
-        tabPanel(
-          "Create Shape",value="tab_create",
-          div(style="display: flex;",
-              div(
-                div(style="",
-                    class="pp_input-inline large-input",
+        class="tool8",
+        div(strong("SHP toolbox")),
+
+        tabsetPanel(
+          selected="tab_create",
+          tabPanel(
+            "View and download",value="tab_view",
+            div(
+              div(style="max-width: 400px",em(icon("fas fa-lightbulb"),"Optimize your datalist creation speed by downloading shapes as an .rds file. This file format loads quickly and avoids the need to create the shape from scratch each time you need it.")),
+              column(12,class="mp0",
+                     column(4,class='mp0',
+
+                            box_caret(
+                              ns('box_shp_tab1_1'),
+                              title="Options",
+                              color="#c3cc74ff",
+                              uiOutput(ns("shp_data_view_down")),
+                              pickerInput_fromtop(ns("shp_attr_view_down"),
+                                                  "2. Select the Attribute:",
+                                                  choices=list("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
+                              )
+
+                            )
+                     ),
+                     column(
+                       8,class="mp0",
+                       box_caret(
+                         ns('box_shp_tab1_2'),
+                         title="Plot",
+                         button_title = downloadLink(ns("download_shape"),"Download",icon("download")),
+                         div(
+
+                           uiOutput(ns("shape_view"))
+
+                         )
+                       )
+                     ))
+            )
+          ),
+          tabPanel(
+            "Create Shape",value="tab_create",
+            tags$style(HTML(".shp_box .train_box label{
+                        color: #05668D;
+                        font-weight: bold
+                        }
+                        .inline_pickers .large-input .form-control {
+                        height: 60px;
+                        }
+                        .inline_pickers .large-input >div  {
+                        display: block;
+
+                        padding: 0px;
+                        margin: 0px;
+                        margin-top: -20px;
+                        margin-bottom: -10px
+
+                        }
+                        ")),
+
+            div(class="shp_box",
+                column(
+                  4,class='mp0',
+                  box_caret(
+                    ns("box_shp1"),
+                    title="Setup",
+                    color="#c3cc74ff",
                     div(
-                      fileInput(inputId = ns("shp"),span( "1. Upload the shapefiles at once:",actionLink(ns("shp_help"),icon("fas fa-question-circle"))), multiple = TRUE, accept = c('.shp', '.dbf','.sbn', '.sbx', '.shx', '.prj'))
-                    ),
-                    hidden(
-                      div(class="file_ok",
-                          tags$label("2. Filter the features"),
-                          selectInput(ns('shp_feature1'),div("feature 1:",style="margin-left: 30px"),NULL),
-                          selectInput(ns('shp_feature2'),div("feature 2:",style="margin-left: 30px"),choices=NULL),
-                          selectInput(ns("shp_datalist"),"3. Target Datalist:",choices=NULL),
-                          selectInput(ns("shp_include"),"4. Include shape as:", c("Base-Shape","Layer-Shape","Extra-Shape"))
+
+                      div(align="right",
+                          actionLink(ns('reset'),"reset",icon('undo'))),
+                      div(
+
+                        uiOutput(ns("out_shp_datalist")),
+                        column(
+                          12,class="mp0",
+                          column(10,class="mp0",pickerInput_fromtop(
+                            ns("shp_include"),
+                            "2. Target Attribute:",
+                            c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
+                          )),
+                          column(2,class="mp0",div(style="margin-top: 8px; margin-left: -10px",actionButton(ns("trash_open"),icon('trash'))))
+                        ),
+                        div(
+                          style="padding-left: 15px",
+                          textInput(ns("extra_layer_newname"), "Extra-Layer name:",NULL)
+                        )
+
+                      ),
+
+                      div(
+
+                        div(
+                          tags$label( "3. Upload the shapefiles at once:",actionLink(ns("shp_help"),icon("fas fa-question-circle"))),
+                          div(class="large-input",fileInput(inputId = ns("shp"),"", multiple = TRUE, accept = c('.shp', '.dbf','.sbn', '.sbx', '.shx', '.prj'))),
+                          div(
+                            class="save_changes",id=ns('read_shp_btn'),style='display: none',
+                            span(tags$label("4. Click to read the shapes"),icon("fas fa-hand-point-right"),actionButton(ns('read_shp'),"Read",style="height: 24px;width: 50px; padding: 3px"))
+                          )
+                        ),
+
+                        div(class="half-drop half-drop-inline",
+                            numericInput(ns("st_simplify"),span("Simplify",tipright('Specify a tolerance (in meters) to simplify geometries for faster visualization')),value=NA,step=0.01),
+                            uiOutput(ns('filter_features'))
+
+                        )
+
+
                       )
-                    ),
 
 
+
+                    )
+                  )
                 ),
-                hidden(
-                  div(
-                    class="pp_input pp_input-inline file_ok",
-                    textInput(ns("extra_layer_newname"), "5. Name the layer",NULL)
+                column(
+                  8,class='mp0',
+                  box_caret(
+                    ns("box_shp2"),
+                    title="Shape",
+                    div(
+                      uiOutput(ns("plot_layers")),
+                      uiOutput(ns('shp_out'))
+                    )
                   )
                 )
-              ),
-              div(style="width: 50%; padding-top: 100px",
-                  uiOutput(ns("SHP_plot")))
-          ),
+            ))
+        ))
 
-
-          hidden(div(class="file_ok",
-                     tags$label("6. Add the Shape:"),
-                     tipify(bsButton(ns("add_shape"),span(icon(verify_fa = FALSE,name=NULL,class="fas fa-map"),icon(verify_fa = FALSE,name=NULL,class="fas fa-arrow-circle-right")), style='button_active'),"Click to add the Shape into the selected Datalist"),
-
-
-                     tipify(downloadButton(ns("save_feature"),label =NULL),"Save shape as a single object. This file can be uploaded when creating a Datalist as base_shape or layer_shape.")
-          ))
-        )
-      )
 
   )
 }
 tool2_tab8$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
+    ns<-session$ns
 
+
+    observeEvent(input$exit_tool8,{
+      vals$exit_tool8<-input$exit_tool8
+
+    })
+
+    observeEvent(input$shp,{
+      shinyjs::show('read_shp_btn')
+    })
+
+    shape1_raw<-reactiveVal(NULL)
+    shape2_prep<-reactiveVal(NULL)
+    shape3_filtered<-reactiveVal(NULL)
+    shape4_final<-reactiveVal(NULL)
+
+    observe({
+      shinyjs::toggle("st_simplify",condition=!is.null(shape1_raw()))
+    })
+
+    shp_step<-reactiveVal(0)
+    shp_start<-reactive({
+      list(input$shp,data_shp())
+    })
+    observeEvent(input$reset,{
+
+      shp_step(1)
+      shape1_raw(NULL)
+      shape2_prep(NULL)
+      shape3_filtered(NULL)
+      shape4_final(NULL)
+      plot_step1(NULL)
+      plot1_prepare(NULL)
+      shinyjs::reset('shp')
+      shinyjs::hide('read_shp_btn')
+    })
+    observeEvent(shp_start(),{
+      shp_step(0)
+      shape1_raw(NULL)
+      shape2_prep(NULL)
+      shape3_filtered(NULL)
+      shape4_final(NULL)
+      plot1_prepare(NULL)
+      plot_step1(NULL)
+
+      shinyjs::addClass('read_shp_btn',"save_changes")
+    })
+    observeEvent(input$shp,ignoreInit = T,{
+      shinyjs::show('read_shp_btn')
+      shinyjs::addClass('read_shp_btn',"save_changes")
+    })
+    shp_files<-reactiveVal()
+    observeEvent(input$shp,ignoreInit = T,{
+      sf<-Read_Shapefile(input$shp)
+      shp_files(sf)
+      updateNumericInput(session,'st_simplify',value= as.numeric(round(get_tolerance(sf),3)))
+    })
+    observeEvent(shp_rows(),ignoreInit = T,{
+      shp<-shape1_raw()
+      if(length(shp_rows())<nrow(shp)){
+        shp<-shp[shp_rows(),,drop=F]
+        updateNumericInput(session,'st_simplify',value= as.numeric(round(get_tolerance(shp),3)))
+      }
+    })
+    observeEvent(input$read_shp,ignoreInit = T,{
+
+      req(shp_files())
+      user_shp<-shp_files()
+      user_shp<-st_transform(user_shp,"+proj=longlat +datum=WGS84 +no_defs")
+
+
+      user_shp$shape<-"selected"
+      shape1_raw(NULL)
+      shape2_prep(user_shp)
+      shape3_filtered(NULL)
+      shape4_final(NULL)
+      shape1_raw(user_shp)
+      shp_step(2)
+      shinyjs::removeClass('read_shp_btn',"save_changes")
+
+    })
+    observeEvent(input$shp_feature1,ignoreInit = T,{
+
+      shinyjs::toggle("feature2",condition = input$shp_feature1!="None")
+    })
+    #step2
+    observeEvent(input$prepare,ignoreInit = T,{
+
+
+      #saveRDS(reactiveValuesToList(vals),"vals.rds")
+
+      bacias<-    shape1_raw()
+      req(bacias)
+      req(input$shp_feature1)
+
+      if(all(c(input$shp_feature1)=="None")){
+
+
+        shape3_filtered(shape1_raw())
+        #shape2_prep(shape1_raw())
+        shape4_final(shape1_raw())
+
+      } else     {
+        req(input$shp_feature2)
+        bacias<-filtered_shp()
+        shape2_prep(bacias)
+        shape3_filtered(bacias)
+      }
+      shinyjs::removeClass("prepare_btn","save_changes")
+      new_shape<-shape3_filtered()
+      req(new_shape)
+      req(input$shp_datalist%in%names(vals$saved_data))
+      data<-vals$saved_data[[input$shp_datalist]]
+      base_shape<-attr(data,"base_shape")
+
+      withProgress(min=NA,max=NA,message="Cropping shape to base_shape",{
+        lims1<-rect_coords()
+        lims1<-unlist(lims1)
+        new_shape<-sf::st_crop(new_shape, lims1)
+      })
+
+      shape4_final(new_shape)
+      shinyjs::show('add_shape_btn_out')
+
+    })
+    #step3
+    output$shp_out<-renderUI({
+      div(
+        div(style="display: flex",
+            uiOutput(ns("cur_shape_plot")),
+            uiOutput(ns('shp_warning'))
+        ),
+        fluidRow(
+          column(
+            12,class="mp0",
+            column(6,class="mp0",
+                   plotly::plotlyOutput(ns("full_shape_plot"),height = "300px")
+            ),
+            column(6,class="mp0",
+                   uiOutput(ns("final_shape_plot"))
+            )
+          )
+        )
+
+      )
+    })
+    rect_coords <- reactiveVal(NULL)
+    observeEvent(input$trash_open,ignoreInit = T,{
+      showModal(
+        modalDialog(
+          title="Confirm Shape exclusion",
+          div(embrown("Are you sure?")),
+          footer=div(actionButton(ns("trash_confirm"),"Confirm"),modalButton("Dimiss"))
+        )
+      )
+    })
+    observeEvent(input$trash_confirm,ignoreInit = T,{
+      attr(vals$saved_data[[input$shp_datalist]],input$shp_include)<-NULL
+      removeModal()
+    })
+    output$add_shape_btn_out<-renderUI({
+      req(!is.null(shape4_final()))
+      disabled=F
+      class="save_changes"
+      tip<-"Click to add the Shape into the selected Datalist"
+      cond<-!nrow(shape4_final())>0
+      if(cond){
+        disabled=T
+        class="div"
+        tip="No features remain in the New Shape"
+      }
+      div(
+
+        div(
+          id=ns("add_shape_btn"),
+          class=class,
+          style="display: flex",
+          tags$label(paste0("8. Save the ",title_shape(),": "),style="margin-right: 5px"),
+          tipify(bsButton(ns("add_shape"),icon("fas fa-save"), style='button_active',disabled=disabled),tip,"right")
+        ),
+        if(!disabled){
+          tipify(actionLink(ns("save_feature"),"Download",icon =icon('download')),"Save shape as a single object. This file can be uploaded when creating a Datalist as base_shape or layer_shape.","right")}
+
+
+      )
+    })
+    output$feature1<-renderUI({
+      atributos_shp<-attributes(shape1_raw())$names
+      atributos_shp<-atributos_shp[!atributos_shp%in%"geometry"]
+      pickerInput_fromtop(ns('shp_feature1'),"5. Filter the features:",choices=c("None",atributos_shp))
+    })
+    output$feature2<-renderUI({
+      req(shape1_raw())
+      req(input$shp_feature1)
+      lev_attrs<-unique(shape1_raw()[[input$shp_feature1]])
+
+
+      pickerInput_fromtop(
+        ns('shp_feature2'),
+        icon("filter"),choices=c(lev_attrs),
+        options=shinyWidgets::pickerOptions(liveSearch =T)
+
+      )
+    })
+    output$crop_feature<-renderUI({
+
+      div(style="margin-left:-5px",
+          pickerInput(
+            ns("crop_shapes"),
+            span("6. Crop limits:",tipright("<p>Select the shape to crop the area of the new shape.</p><p>If custom is selected, the area will be cropped according to the area of the plot being displayed. Use Plotly interactive features to zoom and specify the crop area precisely.</p>")
+
+            ),
+            choices=c(names(current_shapes_list()),"Custom"),
+            options = list(`selected-text-format` = "count > 3"),
+            multiple =T,selected=names(current_shapes_list())[1]
+          )
+      )
+
+
+    })
+    observeEvent(input$crop_shapes,ignoreInit = T,{
+      if ("Custom" %in% input$crop_shapes) {
+        updatePickerInput(
+          session,
+          "crop_shapes",
+          selected = "Custom",
+          options = list(`selected-text-format` = "count > 3")
+        )
+      }
+    })
+    output$filter_features<-renderUI({
+      req(!is.null(shape1_raw()))
+      div(
+        uiOutput(ns('feature1')),
+        uiOutput(ns('feature2')),
+        uiOutput(ns('crop_feature')),
+        div(
+          div(
+            class="save_changes",
+            style="margin-bottom: 10px;margin-top: 10px",
+            id=ns('prepare_btn'),
+            tags$label("7. Prepare Shape:"),
+            actionButton(ns('prepare'),icon(verify_fa = FALSE,name=NULL,class="fas fa-map"),icon(verify_fa = FALSE,name=NULL,class="fas fa-arrow-circle-right"))
+          )
+
+        ),
+        uiOutput(ns('add_shape_btn_out'))
+
+
+
+      )
+    })
+    current_shapes<-reactive({
+      data<-data_shp()
+      base<-!is.null(attr(data,"base_shape"))
+      layer<-!is.null(attr(data,"layer_shape"))
+      extra<-!is.null(attr(data,"extra_shape"))
+      choices<-c(base,layer,layer)
+      pic<-which(choices)
+      pic
+    })
+    observeEvent(input$save_bug,{
+      saveRDS(reactiveValuesToList(input),'input.rds')
+      saveRDS(reactiveValuesToList(vals),'vals.rds')
+
+    })
+    go_prepare<-reactiveVal(1)
+    filtered_shp<-reactive({
+      bacias<-shape1_raw()
+
+      if(input$shp_feature1=="None"){
+        return(bacias)
+      } else{
+        req(input$shp_feature2)
+      }
+
+      #input$shp_feature2<-c('Bacia de Santos')
+      bacias$shape<-"unselected"
+      req(input$shp_feature1)
+      req(input$shp_feature1%in%names(bacias))
+      rows=bacias[[input$shp_feature1]]
+      req(input$shp_feature2%in%rows)
+      bacias$shape[rows==input$shp_feature2]<-"selected"
+      bacias<-bacias[rows==input$shp_feature2,,drop=F]
+      bacias
+    })
+    shp_rows<-reactive({
+      req(input$shp_feature1)
+      bacias<-shape1_raw()
+      req(bacias)
+
+      selected_rows<-1:nrow(bacias)
+
+      if(input$shp_feature1!="None"){
+        bacias$shape<-"unselected"
+        req(input$shp_feature1)
+        req(input$shp_feature1%in%names(bacias))
+        rows=bacias[[input$shp_feature1]]
+        req(input$shp_feature2%in%rows)
+        bacias$shape[rows==input$shp_feature2]<-"selected"
+        selected_rows<-which(rows==input$shp_feature2)
+        selected_rows
+      }
+      selected_rows
+      #input$shp_feature2<-c('Bacia de Santos')
+
+    })
+    observeEvent(input$shp_feature2,ignoreInit = T,{
+      shinyjs::addClass("prepare_btn","save_changes")
+      shinyjs::hide('add_shape_btn_out')
+    })
+    shape5_to_add<-reactiveVal(NULL)
+    confirm_shp<-reactiveVal(F)
+    observeEvent(input$add_shape,ignoreInit = T,{
+      cur_shape<-attr(data_shp(),input$shp_include)
+      if(is.null(cur_shape)){
+        confirm_shp(T)
+      } else{
+        confirm_modal(session$ns,action=h4("Are you sure?"),
+                      data1=NULL,
+                      data2= NULL,
+                      arrow=F,
+                      left=paste("Replace",input$shp_include, 'with the New Shape?'),
+                      right="",
+                      from='',
+                      to='')
+      }
+
+      #shape1_raw()
+
+      #saveRDS(reactiveValuesToList(vals),'vals.rds')
+    })
+    observeEvent(input$confirm,ignoreInit = T,{
+      removeModal()
+      confirm_shp(T)
+    })
+    observeEvent(confirm_shp(),{
+      req(isTRUE(confirm_shp()))
+      confirm_shp(F)
+      shape<-shape4_final()
+      req(shape)
+      res<-switch(input$shp_include,
+                  "base_shape"={attr(vals$saved_data[[input$shp_datalist]],"base_shape")<-shape},
+                  "layer_shape"={attr(vals$saved_data[[input$shp_datalist]],"layer_shape")<-shape},
+                  'extra_shape'={
+                    attr(vals$saved_data[[input$shp_datalist]],"extra_shape")[[input$extra_layer_newname]]<-shape
+                  }
+      )
+      shinyjs::reset("shp")
+      shape2_prep(NULL)
+      shape3_filtered(NULL)
+      shape4_final(NULL)
+      shinyjs::removeClass("add_shape_btn","save_changes")
+    })
     observeEvent(input$shp_help,{
       showModal(
         modalDialog(
@@ -1666,12 +2089,32 @@ tool2_tab8$server<-function(id,vals){
         )
       )
     })
-
     data_shp<-reactive({
-
+      req(input$shp_datalist)
+      req(input$shp_datalist%in%names(vals$saved_data))
       vals$saved_data[[input$shp_datalist]]
     })
+    observeEvent(data_shp(),ignoreInit = T,{
+      data<-data_shp()
+      base_shape<-attr(data,"base_shape")
+      layer_shape<-attr(data,"layer_shape")
+      shapes<-c(base_shape,layer_shape)
+      if(length(shapes)==0){
+        updatePickerInput(session,"shp_include",selected="base_shape")
+      }
+      if(length(shapes)==2){
+        updatePickerInput(session,"shp_include",selected="extra_shape")
+        return(NULL)
+      }
+      if(!is.null(base_shape)&is.null(layer_shape)){
+        updatePickerInput(session,"shp_include",selected="layer_shape")
 
+      } else if(is.null(base_shape)&!is.null(layer_shape)){
+        updatePickerInput(session,"shp_include",selected="base_shape")
+      }
+
+
+    })
     layers_choices2<-reactive({
       base_shape<-attr(data_shp(),"base_shape")
       layer_shape<-attr(data_shp(),"layer_shape")
@@ -1686,37 +2129,13 @@ tool2_tab8$server<-function(id,vals){
       new<-make.unique(c(names(attr(data_shp(),"extra_shape")),name0))
       new[length(new)]
     })
-    uploadShpfile<-eventReactive(input$shp, {
-      user_shp<-Read_Shapefile(input$shp)
-      vals$bagshp<-T
-      user_shp
-    })
-
-    observe({
-      req(length(input$shp$datapath)>=3)
-      infiles <- input$shp$datapath
-      required<-c("\\.shp","\\.dbf","\\.shx")
-      val<-sapply(required,function(x) grepl(x,infiles))
-      if(nrow(val)>0){
-        val<-sum(rowSums(val))==3
-        if(val){
-          shinyjs::show(selector=".file_ok")
-        } else{
-          shinyjs::hide(selector=".file_ok")
-        }
-      } else{
-        shinyjs::hide(selector=".file_ok")
-      }
-
-
-
-    })
     output$save_feature<-{
       downloadHandler(
         filename = function() {
           paste0("feature_shape","_", Sys.Date())
         }, content = function(file) {
-          saveRDS(filtershp(),file)
+          req(shape4_final())
+          saveRDS(shape4_final(),file)
         })
 
     }
@@ -1750,35 +2169,33 @@ tool2_tab8$server<-function(id,vals){
       new=c(eshape)
       new
     })
-    observeEvent(input$add_shape,{
-      shape<-filtershp()
-      res<-switch(input$shp_include,
-                  "Base-Shape"={attr(vals$saved_data[[input$shp_datalist]],"base_shape")<-shape},
-                  "Layer-Shape"={attr(vals$saved_data[[input$shp_datalist]],"layer_shape")<-shape},
-                  'Extra-Shape'={
-                    attr(vals$saved_data[[input$shp_datalist]],"extra_shape")[[input$extra_layer_newname]]<-shape
-                  }
-      )
-
-      res
-
-    })
-
     observeEvent(input$close_shp,{
       removeModal()
     })
-    filtershp<-reactive({
-      bacias<-    uploadShpfile()
-      req(isTRUE(vals$bagshp))
-      req(input$shp_feature1)
-      req(input$shp_feature2)
-      if(input$shp_feature1!="None"&input$shp_feature2!="None")
-      {
-        bacias<-uploadShpfile()
-        bacias<-bacias[bacias[[input$shp_feature1]]==input$shp_feature2,]
 
-      }
-      bacias
+    observe({
+      shinyjs::toggle('plot_layers',condition=!is.null(shape2_prep()))
+    })
+    output$plot_layers<-renderUI({
+      #input<-list()
+      req(input$shp_include)
+      #input$shp_include="extra_shape"
+      choices<-c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
+      names(choices)<-choices
+      choices<-choices[sapply(choices,function(x) length(attr(data_shp(),x))>0)]
+      choices=c(choices,input$shp_include)
+      names(choices)[length(choices)]<-input$shp_include
+      choices<-choices[!duplicated(choices)]
+      include<-which(choices%in%input$shp_include)
+      names(choices)[include]<-paste0("New:",names(choices)[include])
+      choices<-c(choices[include],choices[-include])
+      selected=choices[1]
+
+      div(
+        checkboxGroupInput(ns("show_layers"),"Show:",choices,
+                           inline =T,
+                           selected=selected)
+      )
     })
     output$shape_view<-renderUI({
       req(input$shp_data_view_down)
@@ -1787,56 +2204,406 @@ tool2_tab8$server<-function(id,vals){
       req(length(shape)>0)
       renderPlot({ggplot(st_as_sf(shape)) + geom_sf()+
           theme(panel.background = element_rect(fill = "white"),
-                panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))}, height=250)
+                panel.border = element_rect(fill=NA,color="black", linewidth=0.5, linetype="solid"))}, height=250)
     })
-    output$shp_feature1<-renderUI({
-
-      req(isTRUE(vals$bagshp))
-
-
+    output$out_shp_datalist<-renderUI({
+      choices=names(vals$saved_data)
+      req(length(choices)>0)
+      selected=get_selected_from_choices(vals$cur_data,choices)
+      pickerInput_fromtop(ns("shp_datalist"),"1. Target Datalist:",choices=choices,selected=selected)
     })
-    observeEvent(uploadShpfile(),{
-      atributos_shp<-attributes(uploadShpfile())$names
-      updateSelectInput(session,'shp_feature1',choices=c("None",atributos_shp))
-
+    observeEvent(input$shp_datalist,ignoreInit = T,{
+      vals$cur_data<-input$shp_datalist
     })
-    observeEvent(input$shp_feature1,{
-      lev_attrs<-unique(uploadShpfile()[[input$shp_feature1]])
-      updateSelectInput(session,'shp_feature2',choices=c("None",lev_attrs))
-    })
-    observeEvent(vals$saved_data,{
-      updateSelectInput(session,'shp_datalist',choices=names(vals$saved_data))
-
-    })
-
-    output$shp_datalist<-renderUI({
-      selectInput(session$ns("shp_datalist"),"3. Target Datalist:",choices=names(vals$saved_data))
-    })
-
     output$shp_data_view_down<-renderUI({
-      selectInput(session$ns("shp_data_view_down"),"1. Select the Datalist:",choices=names(vals$saved_data))
+      pickerInput_fromtop(session$ns("shp_data_view_down"),"1. Select the Datalist:",choices=names(vals$saved_data))
     })
-
-    observeEvent(input$shp_include,{
-      if(input$shp_include=='Extra-Shape'){
-        shinyjs::show('extra_layer_newname')
-      } else{
-        shinyjs::show('hide')
-      }
+    observe({
+      shinyjs::toggle('extra_layer_newname',condition=input$shp_include%in%'extra_shape')
     })
     observeEvent(bag_extralayer(),{
       updateTextInput(session,'extra_layer_newname',value=bag_extralayer())
     })
     # choices<-layers_choices2()
-    output$SHP_plot<-renderUI({
-      req(length(filtershp())>0)
-      renderPlot({
-        ggplot(st_as_sf(filtershp())) + geom_sf()+
-          theme(panel.background = element_rect(fill = "white"),
-                panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+    plot_shape<-function(nw_shp){
+      req(!is.null(nw_shp))
+
+      fill=if(length(unique(nw_shp$shape))==1){
+        p<-ggplot(st_as_sf(nw_shp))+ geom_sf(fill="gray")+theme_void()
+      } else{
+        p<-ggplot(st_as_sf(nw_shp))+ geom_sf(aes(fill=shape))+theme_void()
+      }
+
+      p
+    }
+    output$cur_shape_plot<-renderUI({
+      req(input$shp_include)
+      shp<-attr(data_shp(),input$shp_include)
+      req(shp)
+      shp<-st_as_sf(shp)
+
+      shp$shape<-"current"
+
+      div(class="plot200 shp_p0",
+          strong("Current",title_shape()),
+          renderPlot(
+            plot_shape(shp),height= 100,width=100,
+          )
+      )
+    })
+    plot_shp_function<-function(shp,data,shp_include,show_shapes=c("base_shape","layer_shape","extra_shape")){
+
+      attr(data,shp_include)<-shp
+      if(shp_include=="extra_shape"){
+        attr(data,"extra_shape")<-list()
+        attr(data,"extra_shape")[["new extra-shape"]]<-shp
+      }
+      base_shape<-attr(data,"base_shape")
+      layer_shape<-attr(data,"layer_shape")
+      extra_shape<-attr(data,"extra_shape")
+
+      p<-ggplot()+theme_void()
+
+      if('base_shape'%in%show_shapes){
+        if(!is.null(base_shape)) {
+          base_shape$shape<-"base_shape"
+          if(shp_include=="base_shape"){
+            base_shape$shape<-paste0("new_shape: base_shape")
+          }
+          p<-p+geom_sf(data=st_as_sf(base_shape),
+                       aes(fill=shape),
+                       show.legend=T)
+        }
+      }
+      if('layer_shape'%in%show_shapes){
+        if(!is.null(layer_shape)) {
+
+          layer_shape$shape<-"layer_shape"
+          if(shp_include=="layer_shape"){
+            layer_shape$shape<-paste0("new_shape: layer_shape")
+          }
+          p<-p+geom_sf(data=st_as_sf(layer_shape),aes(fill=shape),show.legend=T)
+        }
+      }
 
 
-      },height =200)
+      if('extra_shape'%in%show_shapes){
+        if(!is.null(extra_shape)) {
+          if(is.list(extra_shape))
+            for(i in 1:length(extra_shape)){
+              extra<-extra_shape[[i]]
+              if(inherits(extra,c('sfc','sf'))){
+                if(!is.null(extra)) {
+                  extra<-st_as_sf(extra)
+                  extra$shape<-paste0("extra_shape",i)
+                  if(shp_include=="extra_shape"){
+                    extra$shape<-paste0("new_shape:",paste0("extra_shape",i))
+                  }
+                  p<-p+geom_sf(data=extra,aes(fill=shape),show.legend=T)
+                }
+              }
+
+            }}
+      }
+
+
+
+      true_layers<-which(sapply(list(base_shape,layer_shape,extra_shape),length)>0)
+
+      colors<-c(base_shape="gray",layer_shape="DarkBlue",extra_shape="Brown")
+      colors[shp_include]<-"Green"
+      colors<-colors[true_layers]
+      colors<-adjustcolor(colors,0.3)
+
+      p<-p+scale_fill_manual(name="",values=as.character(colors))+theme(
+        legend.margin=margin(0,0,0,0),
+        legend.key.size=unit(9,"pt"),
+        legend.position="bottom"
+      )
+      p
+    }
+    once<-reactiveVal(F)
+    plot1_prepare<-reactiveVal()
+    observe({
+      req(input$st_simplify)
+      req(!is.na(input$st_simplify))
+      data<-data_shp()
+      req(data)
+      shp<-shape1_raw()
+      if(length(shp_rows())<nrow(shp)){
+        shp<-shp[shp_rows(),,drop=F]
+      }
+      req(shp)
+
+
+      shp<-st_simplify(shp, dTolerance = input$st_simplify)
+      args<-list(shp=shp,data=data, shp_include=input$shp_include, show_shapes=input$show_layers)
+
+
+      p<-do.call(plot_shp_function,args)
+      plot1_prepare(p)
+    })
+    get_tolerance <- function(shp, fraction = 50) {
+      # Verificar se a unidade do sistema de coordenadas é adequada
+
+
+      # Obter as dimensões do bounding box do shapefile em metros
+      bbox <- st_bbox(shp)
+      width <- bbox$xmax - bbox$xmin
+      height <- bbox$ymax - bbox$ymin
+
+      # Calcular a área do bounding box
+      area <- width * height
+
+      # Calcular a tolerância como uma fração da área
+      tolerance <- sqrt(area) * fraction
+
+      return(tolerance)
+    }
+    plot_shp_rect<-function(p,data,lims){
+
+      coords<-attr(data,"coords")
+      if(!is.null(coords)){
+        colnames(coords)[1:2]<-c("x","y")
+      }
+
+
+      if(!is.null(coords)){
+        # p<-p+geom_point(data=coords,aes(x,y))
+      }
+
+      x<-lims$xmax
+      y<-mean(c(lims$ymin,lims$ymax))
+      label="Current crop"
+      if(!"Custom"%in%input$crop_shapes){
+        p<-p+geom_rect(aes(xmin=lims$xmin,xmax=lims$xmax,ymin=lims$ymin,ymax=lims$ymax),color="red", fill=NA,linetype="dashed")
+      }
+      p
+      #+
+      #geom_text(data=data.frame(x,y,label),aes(x,y,label=label), hjust = 0)+
+      #coord_sf(crs ="+proj=longlat +datum=WGS84 +no_defs")
+    }
+    observeEvent(get_shape_lims(),{
+      rect_coords(list(xmin=get_shape_lims()[['xmin']],
+                       xmax=get_shape_lims()[['xmax']],
+                       ymin=get_shape_lims()[['ymin']],
+                       ymax=get_shape_lims()[['ymax']]))
+    })
+    plot_step1<-reactiveVal()
+    observe({
+      p<-plot1_prepare()
+      req(p)
+      lims<-get_shape_lims()
+
+
+      args<-list(p=p,lims=lims,data=data)
+      p<-do.call(plot_shp_rect,args)
+      plot_step1(p)
+    })
+    plot_ready<-reactiveVal(F)
+    simplity_sf_gg<-function(p){
+      pic<-which(sapply(p$layers,function(x) inherits(x,"LayerSf")))
+      for(i in pic){
+        sf1<-p$layers[[i]]$data$shape
+        if(nrow(p$layers[[i]]$data)>1){
+          new_sf<- st_simplify(p$layers[[i]]$data)
+          new_sf$shape<-sf1
+          p$layers[[i]]$data<- new_sf
+        }}
+      p
+    }
+    output$full_shape_plot<-plotly::renderPlotly({
+      p<- plot_step1()
+      req(p)
+      p<-simplity_sf_gg(p)
+
+      p<-plotly::ggplotly( p, source = "A") %>%
+        plotly::layout(legend = list(x = 0, y = 0))%>%
+        plotly::config(scrollZoom = TRUE)
+      plotly::event_register(p,'plotly_relayout')
+      plot_ready(T)
+      p <- plotly::style(p, hoverinfo = "skip", traces = seq_along(p$x$data))
+      #p<-readRDS("p.rds")
+      i=2
+
+      long<-round(p$x$data[[i]]$x,4)
+      lat<-round(p$x$data[[i]]$y,4)
+      p$x$data[[2]]$hoverinfo <- 'text'
+      p$x$data[[2]]$text <- paste0("long: ",long , "<br>lat: ", lat)
+
+
+      p
+
+    })
+    observe({
+      req(isTRUE(plot_ready()))
+      observeEvent(plotly::event_data("plotly_relayout", source = "A"),ignoreInit = T,{
+        req("Custom"%in%input$crop_shapes)
+        d <- plotly::event_data("plotly_relayout", source = "A")
+
+
+        if (!is.null(d)) {
+          req(length(d)==4)
+
+          #shape<-saveRDS(shape,'shape.rds')
+          # shape<-readRDS("shape.rds")
+
+          xmin <- d[[1]]
+          req(is.numeric(xmin))
+          xmax <- d[[2]]
+          req(is.numeric(xmax))
+          ymin <- d[[3]]
+          req(is.numeric(ymin))
+          ymax <- d[[4]]
+          req(is.numeric(ymax))
+          rect_coords(list(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax))
+
+          if("Custom"%in%input$crop_shapes)
+            plotly::plotlyProxy("full_shape_plot") %>%
+            plotly::plotlyProxyInvoke("relayout", list(
+
+              shapes = list(
+                list(
+                  type = "rect",
+                  x0 = xmin,
+                  x1 = xmax,
+                  y0 = ymin,
+                  y1 = ymax,
+                  line = list(color = "red",dash ="dash",width =4)
+                )
+              )
+            ))
+
+        }
+
+
+      })
+    })
+
+    output$shp_warning<-renderUI({
+      req(shape4_final())
+      req(!is.null(shape4_final()))
+      req(length(shape4_final())>0)
+      shp<-shape4_final()
+      req(!nrow(shp)>0)
+      div(
+        render_warning(list(
+          span(strong("New-Shape"),strong(embrown("is empty"))),
+          span(emgray("No features remain in the New Shape within the",embrown(paste(input$crop_shapes,collapse=", ")),emgray("limits."))),
+          span(emgray('Consider expanding your crop area to New Shape or use the Custom crop option'))
+        ))
+      )
+    })
+    output$final_shape_plot<-renderUI({
+      req(shape4_final())
+      req(!is.null(shape4_final()))
+      req(length(shape4_final())>0)
+      shp<-shape4_final()
+      req(shp)
+      #req(!identical(shp,shape2_prep()))
+      if(!nrow(shp)>0){
+        return(
+          emgray("Final Shape is empty")
+        )
+      }
+      div(class="plot200 shp_p2",
+          div(strong("New-Shape:"),emgreen(title_shape())),
+          renderPlot({
+            plot_shape(shp)
+          },width =300, height=150)
+      )
+    })
+    observeEvent(list(input$shp_feature1,input$shp_feature2,input$crop_shapes,rect_coords()),{
+      shape4_final(NULL)
+      shinyjs::addClass("prepare_btn","save_changes")
+    })
+    current_shapes_list<-reactive({
+      shp<-shape2_prep()
+      data<-data_shp()
+      req(input$shp_feature1)
+      if(c(input$shp_feature1)!="None"){
+        req(input$shp_feature2)
+        shp<-filtered_shp()
+
+      }
+      # attr(data,input$shp_include)<-shp
+      base_shape<-attr(data,"base_shape")
+      layer_shape<-attr(data,"layer_shape")
+      extra_shape<-attr(data,"extra_shape")
+      result<-list(base_shape=base_shape,layer_shape=layer_shape,extra_shape=extra_shape,"New Shape"=shp)
+      pic<-which(sapply(result,length)>0)
+      shape_list<-result[pic]
+      req(length(shape_list)>0)
+      shape_list
+    })
+    get_limits_shapes<-reactive({
+      shape_list<-current_shapes_list()
+      res<-data.frame(t(sapply(shape_list, function(x){
+        req(x)
+        data.frame(as.list(st_bbox(x)))
+      })))
+      shp1_cutted<-shape3_filtered()
+      if(is.null(shp1_cutted)){
+        shp1_cutted<-shape2_prep()
+      }
+      req(shp1_cutted)
+      new_shape_limts<-data.frame(as.list(st_bbox(shp1_cutted)))
+      rownames(new_shape_limts)<-'New Shape'
+      res<-rbind(res,new_shape_limts)
+      res
+    })
+    get_shape_lims<-reactive({
+
+      lims<-get_limits_shapes()
+      req(lims)
+      req(nrow(lims)>0)
+
+
+      if("Custom"%in%input$crop_shapes){
+        req(length(input$crop_shapes)==1)
+        {
+          lims<-lims['New Shape',,drop=F]
+        }
+      } else{
+        lims<-lims[input$crop_shapes,,drop=F]
+      }
+
+      req(nrow(lims)>0)
+      lims_result<-try({
+        if(nrow(lims)==1){
+          lims
+        } else{
+          apply(lims,2,range, na.rm=T)
+        }
+      },silent = T)
+      req(!inherits(lims_result,"try-error"))
+
+
+      lims_result<-as.matrix(lims_result)
+      req(is.matrix(lims_result))
+
+
+      xmin=min(as.numeric(unlist(lims_result[,1])))
+      xmax=max(as.numeric(unlist(lims_result[,3])))
+      ymin=min(as.numeric(unlist(lims_result[,2])))
+      ymax=max(as.numeric(unlist(lims_result[,4])))
+      lims<-list(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax)
+
+
+      return(lims)
+
+    })
+    title_shape<-reactive({
+      req(input$shp_include)
+
+      switch(input$shp_include,
+             "base_shape"="Base-Shape",
+             "layer_shape"="Layer-Shape",
+             "extra_shape"="Extra-Shape")
+    })
+    observe({
+      current_shape<-attr(data_shp(),input$shp_include)
+      shinyjs::toggle("trash_open",condition=!is.null(current_shape))
     })
 
   })
@@ -3442,9 +4209,14 @@ tool6$server<-function(id,vals){
         min=NA,
         max=NA,
         message="Imputing...",{
-          newdata<-nadata(data(),na_method,k,attr=attr)
+          newdata0<-newdata<-nadata(data(),na_method,k,attr=attr)
           attr(newdata,"bag")<-bag_name()
           newdata<-data_migrate(data(),newdata)
+          if(input$na_targ=="Factor-Attribute"){
+            data_o<-data()
+            attr(data_o,"factors")<-newdata0
+            newdata<-data_o
+          }
           #result_v6
           vals$r_imputed<-newdata
         })
@@ -3606,7 +4378,9 @@ tool6$server<-function(id,vals){
 
     observe({
       if(isTRUE(vals$done_impute)){
-        vals$vtools$tool6<-vals$r_imputed
+        res<-vals$r_imputed
+        attr(res,"na_target")<-"factors"
+        vals$vtools$tool6<-res
         vals$r_impute<-T
       }
     })
@@ -3718,7 +4492,7 @@ tool7$server<-function(id,vals=NULL){
       ns<-session$ns
       req(data())
       choices<-c("Classification","Regression")
-     # selected<-get_selected_from_choices(vals$cur_partition,choices)
+      # selected<-get_selected_from_choices(vals$cur_partition,choices)
       selectInput(
         ns("split_t"),
         span(pophelp(
@@ -3754,7 +4528,7 @@ tool7$server<-function(id,vals=NULL){
         choices_factors<-colnames(data())
       }
 
-     # selected<-get_selected_from_choices(vals$cur_split_y,choices_factors)
+      # selected<-get_selected_from_choices(vals$cur_split_y,choices_factors)
       #selectInput(session$ns("split_y"),SelectedText="Columns selected", label=span(tiphelp("Select the target variable",'left'),'Y:'),choices=choices_factors,selected=vals$cur_split_y)
 
       pickerInput(session$ns("split_y"),tags$label(span(tiphelp("Select the target variable. Choose multiple variables for creating multiple partition columns",'left'),'Y:'),style=""),choices_factors,selected=choices_factors[1],multiple =T)
@@ -3861,7 +4635,7 @@ tool7$server<-function(id,vals=NULL){
 
 
 
-     # part<-do.call(generate_partiton,args)
+      # part<-do.call(generate_partiton,args)
       r_partition(part)
 
 
@@ -3899,7 +4673,7 @@ tool7$server<-function(id,vals=NULL){
       data<-data()
       factors<-attr(data,"factors")
       factors<-cbind(factors,r_partition())
-     # factors["New partition"]<-r_partition()
+      # factors["New partition"]<-r_partition()
       attr(data,"factors")<-factors
       if(input$part_type=="Balanced"){
         attr(data,"bag")<-paste0("Partition_",input$split_y)
@@ -4687,10 +5461,23 @@ tool2$server<-function(id,vals){
 
   })
 }
+
 tool2_tab3<-list()
 tool2_tab3$ui<-function(id){
   ns<-NS(id)
   div(style="height: calc(100vh - 100px);",
+
+      div(style="position: fixed; top: 60px;right: 0px",
+
+          div(
+            style="display: flex; gap:10px",
+            bsButton(ns("prev_import"), "< Previous",width='100px'),
+            bsButton(ns("next_import"), "Next >",width='100px'))
+
+      ),
+
+      hidden(bsButton(ns("cancel_import"), "Cancel")),
+
       div(strong("Exchange Factors/Variables")),
 
       div(id = ns('step1'),
@@ -4705,7 +5492,7 @@ tool2_tab3$ui<-function(id){
                  column(4,style="margin:0px;padding: 0px",
                         uiOutput(ns("import_from_data")),
 
-                        pickerInput(ns("import_from_attr"), NULL ,choices=c("Factor-Attribute"="factor","Numeric-Attribute"="numeric")),
+                        pickerInput(ns("import_from_attr"), NULL ,choices=c("Factor-Attribute"="factor","Numeric-Attribute"="numeric"),selected="factor"),
                  ),
 
                  column(1,style="margin:0px;padding: 0px; width: 30px",align="center",
@@ -4717,7 +5504,7 @@ tool2_tab3$ui<-function(id){
 
                  column(4,style="margin:0px;padding: 0px",
                         uiOutput(ns("import_to_data")),
-                        pickerInput(ns("import_to_attr"), NULL, choices=c("Numeric-Attribute"="numeric","Factor-Attribute"="factor"))
+                        pickerInput(ns("import_to_attr"), NULL, choices=c("Numeric-Attribute"="numeric","Factor-Attribute"="factor"),selected="numeric")
                  )
           ),
           column(12,  class="mp0",
@@ -4743,10 +5530,12 @@ tool2_tab3$ui<-function(id){
 
       div(
         id = ns('step2'),
+        uiOutput(ns("from_to")),
 
         div(style="height:450px;overflow-y: scroll;overflow-x: scroll",
             div(
-              checkboxInput(ns("cutfacs"),span("Cut into intervals",tiphelp("divides the range of x into intervals and codes the values in x according to which interval they fall (cut function from R base).", "right")), T),
+              checkboxInput(ns("cutfacs"),span("Cut into intervals",tiphelp("divides the range of x into intervals and codes the values in x according to which interval they fall (cut function from R base).", "right")), F),
+              uiOutput(ns("cut_fac_method")),
               div(
 
                 div(uiOutput(ns("tofactor")),style="font-size: 11px;"),
@@ -4764,76 +5553,106 @@ tool2_tab3$ui<-function(id){
       div(id = ns('step3'),
           uiOutput(ns("page3")),
 
-      ),
-      div(
-        column(12,style="position: absolute; bottom: 0px;",
-               column(6,
-
-                      align="right",div(
-                        style="width: 150px",
-                        bsButton(ns("prev_import"), "< Previous")
-                      )),
-               column(6,
-                      div(
-                        style="width: 150px",
-                        bsButton(ns("next_import"), "Next >")
-                      ))),
-
-        hidden(bsButton(ns("cancel_import"), "Cancel")),
       )
 
   )
 }
 tool2_tab3$update_server<-function(id,vals){
-
   moduleServer(id,function(input,output,session){
-
-
-
-
-
-
     observeEvent(input$rev_attr,{
       a=input$import_from_attr
+      req(a)
       b=input$import_to_attr
+      req(b)
       updatePickerInput(session,'import_from_attr',selected=b)
       updatePickerInput(session,'import_to_attr',selected=a)
     })
     observe({
 
-      shinyjs::toggle("rev_attr",condition=input$import_from_attr!=input$import_to_attr)
+      #shinyjs::toggle("rev_attr",condition=input$import_from_attr!=input$import_to_attr)
       shinyjs::toggle("rev_datalist",condition=input$import_from_data!=input$import_to_data)
     })
-
     observeEvent(input$rev_datalist,{
       a=input$import_from_data
       b=input$import_to_data
       updatePickerInput(session,'import_from_data',selected=b)
       updatePickerInput(session,'import_to_data',selected=a)
     })
-
-
   })
 }
 tool2_tab3$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
 
+    ns<-session$ns
+
+    output$cut_fac_method<-renderUI({
+      req(isTRUE(input$cutfacs))
+      div(class="half-drop half-drop-inline",
+          selectInput(
+            ns("bin_method"),
+            label = span("Bin method",tipify(actionLink(ns("bin_method_help"), icon("fas fa-question-circle")), "Click for details")
+            ),
+            choices = c("Sturges" = "sturge", "Scott" = "scott", "Freedman-Diaconis" = "freedman")
+          )
+      )
+    })
+
+    observeEvent(input$bin_method_help, {
+
+      showModal(
+        modalDialog(
+          title = "Methods to initial guess of the number of cuts (or bins)",
+          easyClose = TRUE,
+          fluidRow(class='mp0',
+                   tags$style(HTML(".formulas div.MathJax_Display{text-align: left !important;color: gray;white-space:normal;font-size: 11px}")),
+                   div(class="formulas",
+                       column(6,
+                              strong("Sturges' Rule"),
+                              div(withMathJax("$$\\text{Number of bins} = \\lceil \\log_2(n) + 1 \\rceil$$")),
+                              hr(),
+                              strong("Scott's Rule"),
+                              div(withMathJax(helpText("$$\\text{Bin width} = \\frac{3.5 \\cdot \\sigma}{n^{1/3}}$$"))),
+                              div(withMathJax(helpText("$$\\text{Number of bins} = \\left\\lceil \\frac{\\text{Range of data}}{\\text{Bin width}} \\right\\rceil$$"))),
+                              hr(),
+                              strong("Freedman-Diaconis Rule"),
+                              div(withMathJax(helpText("$$\\text{Bin width} = 2 \\cdot \\frac{\\text{IQR}}{n^{1/3}}$$"))),
+                              div(withMathJax(helpText("$$\\text{Number of bins} = \\left\\lceil \\frac{\\text{Range of data}}{\\text{Bin width}} \\right\\rceil$$"))),
+                       ),
+                       column(6,
+                              div("Where:"),
+                              div(withMathJax(helpText("$$n=\\text{number of observations}$$"))),
+                              div(withMathJax(helpText("$$\\sigma=\\text{the standard deviation of the data}$$"))),
+
+                              div(withMathJax(helpText("$$\\text{IQR}=\\text{the interquartile range of the data}$$")))
+                       )
+
+
+
+
+
+
+                   ))
+        )
+      )
+    })
+
+
+    output$from_to<-renderUI({
+      div("from",strong(embrown(convert()[1])),"to",strong(emgreen(convert()[2])))
+    })
 
     output$import_to_data<-renderUI({
       pickerInput(session$ns("import_to_data"), "To:", choices=names(vals$saved_data),selected=vals$cur_import_to_data)
     })
-
     output$import_from_data<-renderUI({
-      pickerInput(session$ns("import_from_data"),  "From:", choices=names(vals$saved_data),selected=vals$cur_import_from_data)
+      pickerInput(session$ns("import_from_data"),  "From:", choices=names(vals$saved_data),
+                  selected=vals$cur_import_from_data,
+                  #selected=names(vals$saved_data)[5]
+      )
     })
-
-
-
-
     observeEvent(input$import_from_data,{
       vals$cur_import_from_data<-input$import_from_data
     })
-
     observeEvent(input$import_to_data,{
       vals$cur_import_to_data<-input$import_to_data
     })
@@ -4846,11 +5665,11 @@ tool2_tab3$server<-function(id,vals){
         data<-attr(data,"factors")
       }
 
-      shinyWidgets::updateVirtualSelect("importvar",choices=colnames(data), selected=colnames(data)[1:4])
+      shinyWidgets::updateVirtualSelect("importvar",choices=colnames(data), selected=colnames(data)[1])
     })
-
     gdata_from<-reactive({
       req(input$import_from_data)
+      req(input$import_from_attr)
       data<-vals$saved_data[[input$import_from_data]]
       attr(data,"attr")<-"Numeric-Attribute"
       afrom<-input$import_from_attr
@@ -4861,8 +5680,6 @@ tool2_tab3$server<-function(id,vals){
       attr(data,"name")<-input$import_from_data
       data
     })
-
-
     gdata_to<-reactive({
       req(input$import_to_data)
       data<-vals$saved_data[[input$import_to_data]]
@@ -4875,16 +5692,18 @@ tool2_tab3$server<-function(id,vals){
       attr(data,"name")<-input$import_to_data
       data
     })
-
-
-
     val_transf<-reactive({
-      dfrom<-gdata_from()
-      dto<-gdata_to()
-      result<-validate_transf(dfrom,dto)
-      result
-    })
+      try({
 
+        dfrom<-gdata_from()
+        req(dfrom)
+        dto<-gdata_to()
+        req(dto)
+        result<-validate_transf(dfrom,dto)
+        result
+
+      },silent=T)
+    })
     output$error_transf0<-renderUI({
       result<-val_transf()
       message<-attr(result,"logs")
@@ -4894,8 +5713,6 @@ tool2_tab3$server<-function(id,vals){
       )
 
     })
-
-
     output$error_transf<-renderUI({
       render_message(vals$error_transf)
     })
@@ -4928,10 +5745,12 @@ tool2_tab3$server<-function(id,vals){
     })
     rank_dfs<-reactive({
 
-      data<-get_data_from()
+      data<-get_data_cutted()
 
       vars<-colnames(data)
+
       result<-lapply(seq_along(vars),function(i){
+
         rank_lev<-input[[paste("rank_lev",vars[i],sep="_")]]
 
         req(rank_lev)
@@ -4945,13 +5764,49 @@ tool2_tab3$server<-function(id,vals){
         data.frame(level,label)
       })
       names(result)<-vars
+
       result
 
     })
-    tofactor<-reactive({
+    go_exchange<-reactive({
+
+      req(page()>2)
+
+      if(all(convert()==c("numeric","numeric"))){
+
+        numeric2numeric()
+      }   else if(all(convert()==c("numeric","factor"))){
+
+        numeric2factor()
+      } else if(all(convert()==c("factor","numeric"))){
+        if(input$hand_facs=="Ordinal"){
+
+          factor2numeric_ordinal()
+        } else if (input$hand_facs=="Binary"){
+
+          factor2numeric_binary()
+        }
+      } else if(all(convert()==c("factor","factor"))){
+
+        factor2factor()
+      }
+    })
+    numeric2numeric<-reactive({
       data<-get_data_cutted()
+      newnames<-sapply(colnames(data),function(var){
+        input[[paste("newbin",var, sep="_")]]
+      })
+      colnames(data)<-newnames
+      data
+    })
+    factor2factor<-reactive({
+      data<-get_data_cutted()
+
       vars<-colnames(data)
+
+
       rd<-rank_dfs()
+
       resdf<-data.frame(lapply(names(rd),function(var){
         levels<-levels(data[,var])
         numfac<-as.factor(as.numeric(data[,var]))
@@ -4967,19 +5822,43 @@ tool2_tab3$server<-function(id,vals){
 
       resdf
     })
-
-    numeric2numeric<-reactive({
-      data<-get_data_cutted()
-      newnames<-sapply(colnames(data),function(var){
-        input[[paste("newbin",var, sep="_")]]
-      })
-      colnames(data)<-newnames
-      data
+    numeric2factor<-reactive({
+      factor2factor()
     })
+    factor2numeric_binary<-reactive({
 
 
+      data<-get_data_cutted()
+      result<-capture_log2(factor2numeric_fun)(data,input)
+
+      req(!inherits(result,"error"))
+      result
+
+
+    })
+    factor2numeric_ordinal<-reactive({
+      data<-get_data_cutted()
+      vars<-colnames(data)
+      result<-lapply(seq_along(vars),function(i){
+        num_values<-sapply(seq_along(levels(data[,vars[i]])),function(x){
+          input[[paste0("fac2num_value",x)]]
+        })
+
+
+        rank_lev<-input[[paste("rank_lev",vars[i],sep="_")]]
+        level_labels= gsub("*.\\\n","",rank_lev)
+        res<-as.numeric(as.character(factor(data[,vars[i]],levels=level_labels,labels = num_values)))
+        print(res)
+
+        res
+      })
+      names(result)<-vars
+      result<-data.frame(result)
+      rownames(result)<-rownames(gdata_from())
+      result
+    })
     factor2numeric_fun<-function(data, input){
-      print("factor_to_numeric")
+
       vars<-colnames(data)
       df<-data.frame(do.call(cbind,lapply(data,function(x) classvec2classmat(x))))
       cols<-colnames(getclassmat(data))
@@ -4990,35 +5869,11 @@ tool2_tab3$server<-function(id,vals){
       colnames(df)<-newnames
       df
     }
-
-    factor2numeric<-reactive({
-
-      data<-get_data_cutted()
-      result<-capture_log2(factor2numeric_fun)(data,input)
-      print(attr(result,"logs"))
-      req(!inherits(result,"error"))
-      result
-
-
-    })
-    go_exchange<-reactive({
-      req(page()>2)
-      if(all(convert()==c("numeric","numeric"))){
-        numeric2numeric()
-      } else if(all(convert()[2]=="factor")){
-        tofactor()
-      } else if(all(convert()==c("factor","numeric"))){
-        factor2numeric()
-      }
-    })
     r_exchange<-reactiveVal()
     observeEvent(go_exchange(),{
       new<-go_exchange()
       r_exchange(new)
     })
-
-
-
     ##### page2
     action<-reactive({
 
@@ -5058,21 +5913,25 @@ tool2_tab3$server<-function(id,vals){
 
         ))
     })
-
     observeEvent(page(),{
+      try({
+        if(page()==3){
+          prep_exchange()
+          page(2)
+          if(!is.null(data2())){
 
-      if(page()==3){
-        page(2)
+            req(nrow(data2())==nrow(get_data_from()))
+            confirm_modal(session$ns,action=action(),
+                          data1=get_data_from(),
+                          data2= data2(),
+                          left='Original Data:',right="New Data:",
+                          from='',
+                          to=''
+            )
+          }
+        }
 
-        prep_exchange()
-        if(!is.null(data2()))
-          confirm_modal(session$ns,action=action(),
-                        data1=get_data_from(),
-                        data2= data2(),
-                        left='Original Data:',right="New Data:",
-                        from='',
-                        to='')
-      }
+      })
     })
     observeEvent(input$confirm,ignoreInit = T,{
       req(data2())
@@ -5081,7 +5940,6 @@ tool2_tab3$server<-function(id,vals){
       page(1)
       success_modal()
     })
-
     data_from0<-reactive({
       req(input$import_from_data)
       if(input$import_from_attr=="factor"){
@@ -5091,13 +5949,12 @@ tool2_tab3$server<-function(id,vals){
       }
       data
     })
-
     data2<-reactiveVal()
     success_modal<-reactive({
       req(input$import_from_data)
       req(input$import_to_data)
       req(is.data.frame(data2()))
-      print("success_modal")
+
 
       data1=data_from0()
       data2=vals$saved_data[[input$import_to_data]]
@@ -5110,8 +5967,6 @@ tool2_tab3$server<-function(id,vals){
         )
       )
     })
-
-
     prep_exchange_fun<-function(from,to,afrom,ato,saved_data,r_exchange){
 
       if(ato=="factor"){
@@ -5128,12 +5983,17 @@ tool2_tab3$server<-function(id,vals){
         return(newdat)
       }
     }
-
     prep_exchange<-reactive({
-      result<-capture_log2(prep_exchange_fun)(from=input$import_from_data,to=input$import_to_data,afrom=input$import_from_attr,ato=input$import_to_attr,saved_data=vals$saved_data,r_exchange=r_exchange())
-      vals$error_transf<-attr(result,"logs")
-      if(!inherits(result,"error"))
-        data2(result)
+      try({
+
+        datalist_name<-input$import_to_data
+        result<-capture_log2(prep_exchange_fun)(from=input$import_from_data,to=input$import_to_data,afrom=input$import_from_attr,ato=input$import_to_attr,saved_data=vals$saved_data,r_exchange=r_exchange())
+        vals$error_transf<-attr(result,"logs")
+        if(!inherits(result,"error")){
+          attr(result,"datalist")<-datalist_name
+          data2(result)
+        }
+      })
     })
     run_exchange<-reactive({
       from<-input$import_from_data
@@ -5166,21 +6026,25 @@ tool2_tab3$server<-function(id,vals){
       req(input$import_from_attr)
       req(input$importvar)
       req(input$import_from_attr)
+      data<-vals$saved_data[[input$import_from_data]]
+      datalist_name<-input$import_from_data
+
       if(input$import_from_attr=="factor"){
         data<- attr(vals$saved_data[[input$import_from_data]],"factors")
-      } else{
-        data<-vals$saved_data[[input$import_from_data]]
+
       }
       if(all(convert()==c("numeric","factor"))){
         res<-do.call(data.frame,lapply(data,function(x) as.factor(x)))
         rownames(res)<-rownames(data)
         data<-res
       }
+
+      attr(data,"datalist")<-datalist_name
       vars<-as.list(input$importvar)
       req(vars%in%colnames(data))
-      return(list(data,vars))
-    })
 
+      result<-list(data,vars)
+    })
     observeEvent(convert(),{
       if(all(convert()[2]==c("factor"))){
         shinyjs::hide('hand_facs')
@@ -5195,7 +6059,13 @@ tool2_tab3$server<-function(id,vals){
         updateCheckboxInput(session,'cutfacs',value=F)
         shinyjs::hide('cutfacs')
       } else{
-        shinyjs::show('cutfacs')
+        if(all(convert()==c("factor","factor"))){
+          updateCheckboxInput(session,'cutfacs',value=F)
+          shinyjs::hide('cutfacs')
+        } else{
+          shinyjs::show('cutfacs')
+        }
+
       }
     })
     output$tofactor<-renderUI({
@@ -5206,49 +6076,63 @@ tool2_tab3$server<-function(id,vals){
         req(all(convert()[2]==c("factor")))
       }
       div(
-        div("Drag and drop the levels (green blocks) to define their values",style='white-space: normal;'),
+
+        div(icon("hand-point-right"),"Drag and drop the levels (green blocks) to define their values",style='white-space: normal;'),
+        if(all(convert()[2]==c("factor")))
+          div(icon("hand-point-right"),"Edit label names (blue blocks)"),
+        if(all(convert()==c("factor","numeric")))
+          div(icon("hand-point-right"),"Edit numeric values (blue blocks)"),
         div(uiOutput(ns("dropLevelsEdit_a")),
             style="font-size: 11px;"),
         div(uiOutput(ns('dropLevelsEdit_b'))),
       )
     })
+
+
     dropLevelsEdit<-reactive({
       ns<-session$ns
       data<-get_data_cutted()
       vars<-getconvert_datavars()[[2]]
       vars<-unlist(vars)
-
       l1<-lapply(seq_along(vars),function(i){
         output[[paste0('facord_level',vars[i])]]<-renderUI({i})
         output[[paste0('facord_outl',vars[i])]]<-renderUI({
           valid<-input[[paste0("cutfacs_breaks_",vars[i])]]
-          div(
-            column(4,class="mp0",
-                   lapply(seq_along(levels(data[,vars[i]])),function(x){
-                     div(x,style="border-top:1px solid; border-bottom:1px solid; height: 24px;margin: 0px;")
-                   })),
-            column(8,class="mp0",{
+          col1<-column(4,class="mp0",
+                       lapply(seq_along(levels(data[,vars[i]])),function(x){
+                         if(convert()[2]=="numeric"){
+                           column(12,class="mp0 ord_label",
+                                  div(class="num_label",
+                                      numericInput(ns(paste0("fac2num_value",x)),NULL,x,width= '75px')
+                                  ))
+                         }else{div(x,style="border-top:1px solid; border-bottom:1px solid; height: 24px;margin: 0px;text-align: center")}
 
-              sortable:: rank_list(
-                labels = lapply(1:nlevels(data[,vars[i]]),function(x){
-                  lev<-levels(data[,vars[i]])[x]
-                  div(class="ord_label",x,
-                      textInput(ns(paste("ordrank_label",vars[i],lev,sep="_")),NULL,lev, width= "95px")
-                  )
-                }),
-                input_id = ns(paste("rank_lev",vars[i],sep="_")),
-                class="rankcol sortable"
-              )
-            })
-          )
+                       }))
+          col2<-column(8,class="mp0",{
+
+            sortable:: rank_list(
+              labels = lapply(1:nlevels(data[,vars[i]]),function(x){
+                lev<-levels(data[,vars[i]])[x]
+                div(class="ord_label factor_label",x,
+                    if(convert()[2]=="factor"){
+                      div(textInput(ns(paste("ordrank_label",vars[i],lev,sep="_")),NULL,lev, width= "95px"))
+                    } else {div(lev,class='form form-group form-control shiny-input-container',style="padding-top: 5px; ;padding-left: 5px;position: absolute;left: 0px;background: #D0F0C0;")}
+                )
+              }),
+              input_id = ns(paste("rank_lev",vars[i],sep="_")),
+              class="rankcol sortable"
+            )
+          })
+          if(convert()[2]=="numeric"){
+            div(col2,col1)
+          } else{
+            div(col1,col2)
+          }
+
+
         })
       })
-
-
       NULL
-
-
-
     })
     output$dropLevelsEdit_a<-renderUI({
       ns<-session$ns
@@ -5256,49 +6140,70 @@ tool2_tab3$server<-function(id,vals){
       vars<-getconvert_datavars()[[2]]
       vars<-unlist(vars)
       getl1<-function(id_text,text_value,div2_before="",div1="Value",div2="Label",class_1="form-control", class_2="form-control", style_1="",style_2="",div1_out="",div2_out=""){
+        col1<-column(4,class="mp0",
+                     div(div(div1,style="text-align: center"),
+                         class="half-drop rankcol",
+                         style=style_1),
+                     div1_out
+
+        )
+        col2<-column(8,class="half-drop rankcol",
+                     #column(3,class="mp0",div2_before),
+                     column(12,class="mp0",div2,style="text-align: center"))
         column(4,style="padding-right: 5px;",
                column(12,
                       class="half-drop rankcol",
                       textInput(id_text,NULL,text_value)),
                column(12,class="mp0",
-                      column(4,class="mp0",
-                             div(div1,
-                                 class="half-drop rankcol",
-                                 style=style_1),
-                             div1_out
-
-                      ),
-                      column(8,class="half-drop rankcol",
-                             column(3,class="mp0",div2_before),
-                             column(9,class="mp0",div2)),
+                      if(convert()[2]=="numeric"){
+                        div(col2,col1)
+                      } else{
+                        div(col1,col2)
+                      },
                       column(12, div2_out,class="mp0")
                )
 
         )
       }
       data<-get_data_from()
-      div1="Level"
+      data_o<-vals$saved_data[[input$import_from_data]]
+
+      div1="Levels"
+      col2_name<-"Label"
+      if(convert()[2]=="numeric"){
+        div1="Level"
+        col2_name="Numeric-Value"
+      }
       vars<-colnames(data)
       if(isTRUE(input$cutfacs)){
         div2_before="Cut"
         div2=function(data=NULL,var=NULL){
+          fun<-switch(input$bin_method,
+                      'sturge'=bin_Sturges,
+                      'scott'=bin_Scott,
+                      'freedman'=bin_Freedman
+          )
+
           div(class="rankcol",
               numericInput(ns(paste0("cutfacs_breaks_",var)),
                            NULL,
-                           value =nlevels(data[,var])))
+                           value =fun(data_o[,var])
+              ))
         }
       } else{
         div2_before=""
-        div2=function(data=NULL,var=NULL){div(class="rankcol","Label")}
+        div2=function(data=NULL,var=NULL){div(col2_name)}
       }
 
       l1<-lapply(vars,function(var){
         div(style="margin-top: 5px;margin-bottom: 15px",
             getl1(id_text=ns(paste0("newcol",var,sep="_")),
                   var,
-                  div1=div1,
-                  div2_before=div2_before,
-                  div2=div2(data,var),
+                  div1=div(if(convert()[2]=="numeric"){div2(data,var)}else{div1},style=""),
+                  #div2_before=div(div2_before,style="border: 1px solid blue"),
+                  div2=div(
+                    if(convert()[2]=="numeric"){div1}else{div2(data,var)},style=""
+                  ),
                   div2_out= div(style="padding-bottom: 30px",
                                 uiOutput(ns(paste0('facord_outl',var)))
                   )
@@ -5313,8 +6218,6 @@ tool2_tab3$server<-function(id,vals){
         l1)
     })
     output$dropLevelsEdit_b<-renderUI({
-
-
       dropLevelsEdit()
     })
     get_factor_cuts<-function(l1){
@@ -5327,24 +6230,34 @@ tool2_tab3$server<-function(id,vals){
       data<-getconvert_datavars()[[1]]
       vars<-getconvert_datavars()[[2]]
       data<-data[,unlist(vars),drop=F]
+      datalist_name<-input$import_from_data
       if(convert()[[2]]=="factor"){
         data<-data.frame(lapply(data,as.factor))
       }
+
       colnames(data)<-vars
+      attr(data,"datalist")<-datalist_name
       data
     })
     get_data_cutted<-reactive({
       data<-get_data_from()
+      datalist_name<-attr(data,"datalist")
       vars<-colnames(data)
       if(isTRUE(input$cutfacs)){
         res<-lapply(vars, function(var) {
           cut=input[[paste0("cutfacs_breaks_",var)]]
+          req(cut)
           cut(as.numeric(as.character(data[,var])),cut)
         })
         res<-data.frame(res)
         colnames(res)<-colnames(data)
         data<-res
+      } else{
+        if(convert()[2]=="factor"){
+          data<-data.frame(lapply(data,as.factor))
+        }
       }
+      attr(data,"datalist")<-datalist_name
       data
     })
     output$binary_page<-renderUI({
@@ -5364,14 +6277,12 @@ tool2_tab3$server<-function(id,vals){
       }
 
       lbin<-lapply(cols,function(x){
-        inline(
-          div(style="width: 150px",
-              div(class="cutfacs_breaks_form0",textInput(ns(paste("newbin",x, sep="_")), NULL, value=x)))
-        )
+        div(class="new_colnames",textInput(ns(paste("newbin",x, sep="_")), NULL, value=x))
       })
 
-      div(style="overflow-y: auto; max-height: calc(100vh - 200px)",
-          h5(strong("New columns")),
+      div(style="overflow-y: auto; max-height: calc(100vh - 200px);margin-top: 20px",
+          div(icon("hand-point-right"),"Edit column names",style='white-space: normal;font-size: 11px'),
+          h5(strong("New column names:")),
           lbin)
     })
   })
@@ -5556,6 +6467,8 @@ toolbar$server<-function(id, vals=NULL){
     })
     observe({
       vals$tosave<-vals$vtools[[input$radio_cogs]]
+
+
     })
 
 
@@ -5740,7 +6653,7 @@ pre_process$server<-function(id, vals){
         "Create/Replace Nmeric-Attribute Column"
       }
     })
-    output$newdata<-renderUI(basic_summary2(vals$tosave))
+    output$newdata<-renderUI(basic_summary2(get_tosave()))
     r_choices_over<-reactive({
       action=r_action()
       if(action=="datalist"){
@@ -5806,6 +6719,26 @@ pre_process$server<-function(id, vals){
       }
       radioButtons(ns("create_replace"),NULL,choices)
     })
+    new_datalist_name<-reactive({
+      req(input$create_replace)
+      if(input$create_replace=="Create"){
+          req(input$newdatalit)
+          input$newdatalit
+      } else {
+        req(input$overdatalist)
+        input$overdatalist
+      }
+
+    })
+    observeEvent(new_datalist_name(),{
+      if(r_action()%in%"datalist"){
+        attr(vals$tosave,"new_datalist")<-new_datalist_name()
+      } else{
+        attr(vals$tosave,"new_datalist")<-attr(vals$pp_data,'datalist_root')
+      }
+    })
+
+
     output$out_newdatalit<-renderUI({
       req(input$create_replace=="Create")
       ns<-session$ns
@@ -5840,17 +6773,23 @@ pre_process$server<-function(id, vals){
         input$overdatalist
       }
     })
+    get_tosave<-reactive({
+      tosave<-vals$tosave
+      attr(tosave,"datalist")<-attr(tosave,"new_datalist")
+      attr(tosave,"new_datalist")<-NULL
+      tosave
+    })
     observeEvent(input$data_confirm,ignoreInit = T,{
-
+      tosave<-get_tosave()
       req(input$data_confirm%%2)
       if(r_action()=="datalist"){
-        vals$saved_data[[datalistnew()]]<-vals$tosave
+        vals$saved_data[[datalistnew()]]<-tosave
       } else if(r_action()=="factor-column"){
-        datalist_root<-attr(vals$tosave,"datalist_root")
-        factors<-attr(vals$tosave,"factors")
+        datalist_root<-attr(tosave,"datalist_root")
+        factors<-attr(tosave,"factors")
         if(input$create_replace=="Create"){
           if(ncol(vals$vtools$tool7_partition)==1){
-          colnames(factors)[ncol(factors)]<-datalistnew()}
+            colnames(factors)[ncol(factors)]<-datalistnew()}
         } else {
           if(ncol(vals$vtools$tool7_partition)==1){
             req(input$overdatalist%in%colnames(factors))
@@ -5864,7 +6803,7 @@ pre_process$server<-function(id, vals){
       }
 
 
-      vals$tosave<-NULL
+      tosave<-NULL
       removeModal()
       done_modal()
     })
@@ -5911,6 +6850,12 @@ pre_process$server<-function(id, vals){
       }
 
     })
+
+    observeEvent(vals$exit_tool8,{
+      updateNavbarPage(session,"toolbar-radio_cogs", selected="tool_close")
+      shinyjs::hide(selector=".fade_pp")
+    })
+
     observeEvent(input$save_bug,{
       saveRDS(reactiveValuesToList(input),"input.rds")
 

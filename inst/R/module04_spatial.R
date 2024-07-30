@@ -81,13 +81,13 @@ ll_data$ui<-function(id){
               div(
 
                 div(class="inline_pickers2",
-                    pickerInput(ns("data_map"),"Datalist:",
+                    pickerInput_fromtop(ns("data_map"),"Datalist:",
                                 choices =NULL,inline=T),
-                    pickerInput(ns("choices_map"),"Attribute:",
+                    pickerInput_fromtop(ns("choices_map"),"Attribute:",
                                 choices = c("Numeric-Attribute","Factor-Attribute"),inline=T),
-                    pickerInput(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
-                    pickerInput(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
-                    pickerInput(ns("level_filter"),label = "Level",choices = NULL,inline=T)
+                    pickerInput_fromtop(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
+                    pickerInput_fromtop(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
+                    pickerInput_fromtop(ns("level_filter"),label = "Level",choices = NULL,inline=T)
 
                 )
 
@@ -113,6 +113,7 @@ ll_data$server<-function(id,vals){
           selected<-vals$cur_data
         }
       }
+
       updatePickerInput(session,"data_map",choices=names(vals$saved_data), selected=selected)
     })
 
@@ -125,7 +126,7 @@ ll_data$server<-function(id,vals){
           selected<-vals$cur_factor_filter
         }
       }
-      updatePickerInput(session,"factor_filter",choices=c("None",choices),selected=selected)
+      updatePickerInput(session,"factor_filter",choices=c("None",choices),selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
     observeEvent(data0(),{
 
@@ -136,7 +137,7 @@ ll_data$server<-function(id,vals){
           selected<-vals$cur_var_map
         }
       }
-      updatePickerInput(session,"var_map",choices=choices, selected=selected)
+      updatePickerInput(session,"var_map",choices=choices, selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
 
     })
     observeEvent(input$factor_filter,{
@@ -202,22 +203,26 @@ ll_data$server<-function(id,vals){
       toggle('level_filter',condition=input$factor_filter!="None")
     })
     data_inputs<-reactive({
+
       list(
         name=input$data_map,
         attr=input$choices_map,
         var=input$var_map,
         filter=input$factor_filter,
-        filter_level=input$level_filter
+        filter_level=input$level_filter,
+        saved_data=vals$saved_data
       )
     })
     observeEvent(input$choices_map,ignoreInit = T,{
       vals$cur_choices_map<-input$choices_map
     })
+
+
     observeEvent(data_inputs(),{
-      req(input$data_map%in%names(vals$saved_data))
+      saved_data<-vals$saved_data
+      req(input$data_map%in%names(saved_data))
       req(input$var_map%in%colnames(data0()))
       args<-data_inputs()
-      args$saved_data<-vals$saved_data
       res<-do.call(get_data_map,args)
       req(nrow(res)>0)
       vals$data_map<-res
@@ -234,10 +239,11 @@ ll_colors$ui<-function(id){
 
     div(
       tags$div(
-        pickerInput(inputId = ns("palette"),
+        pickerInput_fromtop(inputId = ns("palette"),
                     label ="Palette",
                     NULL),
-        numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1)
+        numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1),
+        numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1)
 
       ),
       div(
@@ -262,7 +268,7 @@ ll_colors$server<-function(id,vals){
 
     return(
       reactive({
-        list(pal=input$palette,fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette)
+        list(pal=input$palette,fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light)
       })
     )
   })
@@ -344,7 +350,7 @@ ll_pie$ui<-function(id){
                             label =span("buffer (km)",tiphelp("Must be higher than 0")),
                             0.001)
              ),
-             div(pickerInput(ns("factor_chart") ,
+             div(pickerInput_fromtop(ns("factor_chart") ,
                              label ="factor",
                              NULL))
 
@@ -386,69 +392,73 @@ ll_shapes$ui<-function(id,sf_in,base_on=T, surface=F,stack=F){
   ns<-NS(id)
   div(
     if(isFALSE(stack))
-      box_caret(ns("box_base"),
+      div(id=ns("show_base"),
+        box_caret(ns("box_base"),
+                  color="#c3cc74ff",
+                  title=span(style="display: inline-block",
+                             class="checktitle",
+                             checkboxInput(ns("base_shape") ,label =strong("Base Shape"),base_on,width="150px")
+                  ),
+                  div(
+                    id=ns("base_options"),
+
+                    if(isTRUE(surface))
+                      uiOutput(ns("base_z_out")),
+
+                    colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
+
+                    div(style="display: flex; align-items:  baseline ;  justify-content:flex-start",
+                        checkboxInput(ns("base_fill") ,"Fill",T,width="40px"),
+                        numericInput(ns("base_fillOpacity") ,label ="Opacity",1, min=0,max=1)
+
+
+                    ),
+                    div(id=ns('base_border'),
+                        checkboxInput(ns("base_stroke") ,label ="Border",T,width="65px"),
+                        div(style="padding-left: 20px",
+
+
+                            colourpicker::colourInput(ns("base_border_color"),"Color","darkgray")
+                            ,
+                            numericInput(ns("base_weight"),'Width',min=0,0.5,step=.5)
+
+
+                        )),
+                  )
+        )
+      ),
+
+    div(id=ns("show_layer"),
+      box_caret(ns("box_layer"),
                 color="#c3cc74ff",
                 title=span(style="display: inline-block",
                            class="checktitle",
-                           checkboxInput(ns("base_shape") ,label =strong("Base Shape"),base_on,width="150px")
+                           checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),base_on,width="150px")
                 ),
                 div(
-                  id=ns("base_options"),
-
+                  id=ns("layer_options"),
                   if(isTRUE(surface))
-                    uiOutput(ns("base_z_out")),
+                    uiOutput(ns('layer_z_out')),
 
-                  colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
-
-                  div(style="display: flex; align-items:  baseline ;  justify-content:flex-start",
-                      checkboxInput(ns("base_fill") ,"Fill",T,width="40px"),
-                      numericInput(ns("base_fillOpacity") ,label ="Opacity",1, min=0,max=1)
-
+                  colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
+                  div(style="display: flex; align-items:  baseline; ",
+                      checkboxInput(ns("layer_fill") ,label ="Fill",T,width="40px"),
+                      numericInput(ns("layer_fillOpacity") ,label ="Opacity",1, min=0,max=1)
 
                   ),
-                  div(id=ns('base_border'),
-                      checkboxInput(ns("base_stroke") ,label ="Border",T,width="65px"),
+                  div(id=ns('layer_border'),
+                      checkboxInput(ns("layer_stroke") ,label ="Border",T,width="65px"),
                       div(style="padding-left: 20px",
 
 
-                          colourpicker::colourInput(ns("base_border_color"),"Color","darkgray")
+                          colourpicker::colourInput(ns("layer_border_color"),"Color","gray20")
                           ,
-                          numericInput(ns("base_weight"),'Width',min=0,0.5,step=.5)
+                          numericInput(ns("layer_weight"),'Width',min=0,0.5,step=.5)
 
 
-                      )),
+                      ))
                 )
-      ),
-
-    box_caret(ns("box_layer"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),base_on,width="150px")
-              ),
-              div(
-                id=ns("layer_options"),
-                if(isTRUE(surface))
-                  uiOutput(ns('layer_z_out')),
-
-                colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
-                div(style="display: flex; align-items:  baseline; ",
-                    checkboxInput(ns("layer_fill") ,label ="Fill",T,width="40px"),
-                    numericInput(ns("layer_fillOpacity") ,label ="Opacity",1, min=0,max=1)
-
-                ),
-                div(id=ns('layer_border'),
-                    checkboxInput(ns("layer_stroke") ,label ="Border",T,width="65px"),
-                    div(style="padding-left: 20px",
-
-
-                        colourpicker::colourInput(ns("layer_border_color"),"Color","gray")
-                        ,
-                        numericInput(ns("layer_weight"),'Width',min=0,0.5,step=.5)
-
-
-                    ))
-              )
+      )
     )
   )
 }
@@ -615,6 +625,7 @@ ll_shapes$server_update1<-function(id, data,sf_in,vals){
   moduleServer(id,function(input, output, session) {
     ns<-session$ns
 
+
     observe({
       shinyjs::toggle("layer_border",condition= !vals$cur_modeplot%in%"plotly")
       shinyjs::toggle("base_border",condition= !vals$cur_modeplot%in%"plotly")
@@ -699,6 +710,14 @@ ll_shapes$server_update1<-function(id, data,sf_in,vals){
 ll_shapes$server<-function(id,vals=NULL){
   moduleServer(id,function(input, output, session) {
 
+
+    observe({
+      data<-vals$data_map
+      cond_base<-length(attr(data,"base_shape"))>0
+      cond_layer<-length(attr(data,"layer_shape"))>0
+      shinyjs::toggle('show_base',condition = cond_base)
+      shinyjs::toggle('show_layer',condition = cond_layer)
+    })
 
     ns<-session$ns
 
@@ -907,8 +926,8 @@ ll_interp$ui<-function(id, coki=F){
   div(class="radio_interp",style="padding: 5px;",
 
       div(style="display: flex",
-          pickerInput(ns("radio_interp_num"),"Method",choices, width="200px"),
-          pickerInput(ns("radio_interp_fac"),"Method",choices[-c(1:2)], width="200px"),
+          pickerInput_fromtop(ns("radio_interp_num"),"Method",choices, width="200px"),
+          pickerInput_fromtop(ns("radio_interp_fac"),"Method",choices[-c(1:2)], width="200px"),
           uiOutput(ns("interp_help"))
       )
       ,
@@ -933,7 +952,7 @@ ll_interp$ui<-function(id, coki=F){
 
       tags$div(id=ns('cv_inputs'),
                numericInput(ns("cv"), 'K-Folds', 5, min = 0),
-               numericInput(ns("seed_caret"),span("Seed",tiphelp(textseed())),NA)),
+               numericInput(ns("seed_caret"),span("Seed",tiphelp(textseed(),"right")),NA)),
       div(
         numericInput(ns("resolution"), lab_resolution, 5000, min = 20)
       ),
@@ -1046,14 +1065,14 @@ shapes_extra$ui<-function(id,data_map=NULL){
                 title=span(style="display: inline-block",
                            class="checktitle",
                            checkboxInput(ns(paste0("map_extra_layer",i)),
-                                         paste("Extra-Shapes",i), F,width="180px")
+                                         paste("Extra-Shapes",i), T,width="180px")
                 ),
                 tags$div(
                   tags$div(id=ns(paste0("eshape_id",i)),
-                           colourpicker::colourInput(ns(paste0("ssextra_layer_col",i)),label="Color",value="#2E8B5740"),
+                           colourpicker::colourInput(ns(paste0("ssextra_layer_col",i)),label="Color",value="gray40"),
                            numericInput(ns(paste0("ssextra_layer_lighten",i)),
                                         'Transp',value=0.6,  min=0, max=1,step=0.1),
-                           pickerInput(ns(paste0("feat_extra",i)),
+                           pickerInput_fromtop(ns(paste0("feat_extra",i)),
                                        paste("Label",i),choices=c("None",atributos_shp)),
                            numericInput(ns(paste0("feat_extra_size",i)),
                                         'size',value=2,  min=0, max=1, step=0.1),
@@ -1174,14 +1193,14 @@ showlabels$ui<-function(id,surface=F){
                        if(isTRUE(surface)){
                          div(
 
-                           pickerInput(ns("datalist"),"Datalist:",
+                           pickerInput_fromtop(ns("datalist"),"Datalist:",
                                        choices =NULL),
                            uiOutput(ns("z_label_value"))
 
                          )
                        },
                        div(
-                         pickerInput(ns("labels"),label="Use factor",choices=c(NULL))
+                         pickerInput_fromtop(ns("labels"),label="Use factor",choices=c(NULL))
                        ),
                        div(
                          numericInput(ns("cex.fac"),label="Size",value=5)
@@ -1208,8 +1227,8 @@ showlabels$server_update<-function(id,vals,selected_labels=NULL,surface=F){
       selected=vals$cur_surf_ap_vars
       selected=get_selected_from_choices(selected,choices)
 
-      pickerInput(ns("z_label_value"),"Z-Value:",
-                  choices =choices,selected=selected)
+      pickerInput_fromtop(ns("z_label_value"),"Z-Value:",
+                  choices =choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     observeEvent(vals$saved_data,{
@@ -1240,7 +1259,7 @@ showlabels$server_update<-function(id,vals,selected_labels=NULL,surface=F){
           selected<-NULL
         }}
       }
-      updatePickerInput(session,'labels',choices=colnames(factors),selected=selected)
+      updatePickerInput(session,'labels',choices=colnames(factors),selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
 
     })
 
@@ -1268,7 +1287,7 @@ showlabels$server<-function(id,vals){
       choices=colnames(factors)
       selected=vals$cur_surf_ap_vars
       selected=get_selected_from_choices(selected,choices)
-      updatePickerInput(session,'labels',choices=choices,selected=selected)
+      updatePickerInput(session,'labels',choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     return(
@@ -1304,7 +1323,7 @@ ll_vgm$ui<-function(id){
   tags$div(
     div(
       div(
-        pickerInput(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
+        pickerInput_fromtop(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
       ),
       class="gstat",
       div(style="font-size: 12px; ",
@@ -1910,7 +1929,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       choices2<-colnames(data)
       selected2=vals$cur_s3d_points_zcolor
       selected2=get_selected_from_choices(selected2,choices2)
-      selectInput(ns("s3d_points_zcolor"),"Variable", choices2,selected=selected2 )
+      selectInput(ns("s3d_points_zcolor"),"Variable", choices2,selected=selected2,options=shinyWidgets::pickerOptions(liveSearch=T) )
     })
 
 
@@ -1948,7 +1967,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       choices3<-choices3[pic]
       selected3=vals$cur_s3d_points_z_scale_datalist
       selected3=get_selected_from_choices(selected3,choices3)
-      pickerInput(ns("s3d_points_z_scale_datalist"),"Datalist", choices3,selected=selected3)
+      pickerInput_fromtop(ns("s3d_points_z_scale_datalist"),"Datalist", choices3,selected=selected3)
     })
 
 
@@ -2001,7 +2020,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       selected=vals$cur_s3d_points_z_scale_vars
       selected=get_selected_from_choices(selected,choices)
 
-      pickerInput(ns("s3d_points_z_scale_vars"),"Z-Value", choices,selected=selected )
+      pickerInput_fromtop(ns("s3d_points_z_scale_vars"),"Z-Value", choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T) )
     })
 
     get_plot3Dpoints<-reactive({
@@ -2016,7 +2035,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       req(color_args1()$pal)
       pal<-vals$newcolhabs[[color_args1()$pal]]
       fillOpacity<-color_args1()$fillOpacity
-
+      light<-color_args1()$light
       col_zvalue<-col_fac<-z
       points$color_var<-colnames(vals$data_map)
       if(input$s3d_zvariable!="Z-Value"){
@@ -2032,6 +2051,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       if(isTRUE(reverse_palette)){
         colors<-rev(colors)
       }
+      colors<-lighten(colors,light)
       col_poins<-colors[col_fac]
       points$color<-col_poins
       points$col_factor<-col_fac
@@ -2261,7 +2281,13 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
                      hide_content=T)
 
 
+    current_datalist<-reactiveVal()
     observeEvent(vals$data_map,{
+      data_list_name<-attr(vals$data_map,"args")$name
+      current_datalist(data_list_name)
+    })
+
+    observeEvent(current_datalist(),{
       data<-vals$data_map
       res<-get_mean_resolution(data)
       updateNumericInput(session,"raster_resolution",value=res)
@@ -2430,12 +2456,12 @@ min-height:24px
           )),
 div(style="display: flex",
     div(paste0(i,"break-stk-ord"),style="width: 0px; height: 0px;color: transparent"),
-    pickerInput(ns(paste0('stack_layer',i)),NULL,choices=names(vals$saved_maps),selected=names(vals$saved_maps)[i],
+    pickerInput_fromtop(ns(paste0('stack_layer',i)),NULL,choices=names(vals$saved_maps),selected=names(vals$saved_maps)[i],
                 options=list(container="body"),
                 width="80%"
 
     ),
-    pickerInput(ns(paste0("stack_pal",i)),NULL, choices =  vals$colors_img$val,   options=list(container="body"),
+    pickerInput_fromtop(ns(paste0("stack_pal",i)),NULL, choices =  vals$colors_img$val,   options=list(container="body"),
                 selected=vals$colors_img$val[-2][i],
                 choicesOpt = list(
                   content =  vals$colors_img$img ),width="30px"
@@ -2572,10 +2598,10 @@ div(style="display: flex",
 
       div(
 
-        pickerInput(ns("surf_ap_vars"),"Z-Value", choices,selected=selected ),
+        pickerInput_fromtop(ns("surf_ap_vars"),"Z-Value", choices,selected=selected ,options=shinyWidgets::pickerOptions(liveSearch=T)),
         selectInput(ns("surf_ap_colfac"),"Z-Color", choices2,selected=selected2 ),
 
-        pickerInput(ns("surf_ap_palette"), "Palette",choices =  vals$colors_img$val,
+        pickerInput_fromtop(ns("surf_ap_palette"), "Palette",choices =  vals$colors_img$val,
                     choicesOpt = list(
                       content =  vals$colors_img$img )
         ),
@@ -2622,7 +2648,7 @@ div(style="display: flex",
       selected=vals$cur_surf_ap_z_scale_vars
       selected=get_selected_from_choices(selected,choices)
 
-      pickerInput(ns("surf_ap_z_scale_vars"),"Z-Value", choices,selected=selected )
+      pickerInput_fromtop(ns("surf_ap_z_scale_vars"),"Z-Value", choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T) )
     })
 
 
@@ -2760,7 +2786,7 @@ div(style="display: flex",
 
             numericInput(ns("surf_r"),span('+ Eye point:',tipright("rhe distance of the eyepoint from the centre of the plotting box")), 1.73),
             if(!vals$cur_modeplot%in%"plotly")
-              pickerInput(ns("surf_tick"),span('+ ticktype',tipright("simple - draws just an arrow parallel to the axis to indicate direction of increase; detailed - draws normal ticks as per 2D plots.")), c("simple","detailed")),
+              pickerInput_fromtop(ns("surf_tick"),span('+ ticktype',tipright("simple - draws just an arrow parallel to the axis to indicate direction of increase; detailed - draws normal ticks as per 2D plots.")), c("simple","detailed")),
             numericInput(ns("surf_d"),span('+ persp strength:',tipright("a value which can be used to vary the strength of the perspective transformation. Values of d greater than 1 will lessen the perspective effect and values less and 1 will exaggerate it")), 1)
 
 
@@ -3205,6 +3231,7 @@ div(style="display: flex",
 
       p2<-vals$saved_maps[[input$saved_maps2]]
       palette<-color_args1()$pal
+      light<-color_args1()$light
 
 
       my_rst<-p1
@@ -3216,6 +3243,7 @@ div(style="display: flex",
       } else {
         colors<- vals$newcolhabs[[palette]](length(my_rst@data@values))
       }
+      colors<-lighten(colors,light)
 
       my_rst2=p2
       args<-list(
@@ -3919,6 +3947,7 @@ div(style="display: flex",
       palette<-color_args1()$pal
       fillOpacity<-color_args1()$fillOpacity
       reverse_palette<-color_args1()$reverse_palette
+      light=color_args1()$light
       req(palette %in% names(vals$newcolhabs))
       pal<-vals$newcolhabs[[palette]](n)
       if (isTRUE(reverse_palette)) {
@@ -3928,7 +3957,7 @@ div(style="display: flex",
       if (isTRUE(raster)) {
         req(rst())
       }
-      args<-c(list(data = vals$data_map, pal = pal, fillOpacity = fillOpacity, rst = rst()), circle_args1(), radius_args1(), breaks_args1(), leaflet_opts1(), args_pie1(), shape_args)
+      args<-c(list(data = vals$data_map, pal = pal, fillOpacity = fillOpacity, rst = rst()), circle_args1(), radius_args1(), breaks_args1(), leaflet_opts1(), args_pie1(), shape_args,light=light)
       args$args_extra_shape<-extra_shapes()$args_extra
       if(isTRUE(pie)){
         args$addCircles<-F
@@ -4275,12 +4304,14 @@ div(style="display: flex",
       pal<-color_args1()$pal
       fillOpacity<-color_args1()$fillOpacity
       reverse_palette<-color_args1()$reverse_palette
+      light<-color_args1()$light
       newcolhabs<-vals$newcolhabs
       list(
         pal=pal,
         fillOpacity=fillOpacity,
         reverse_palette=reverse_palette,
-        newcolhabs=vals$newcolhabs
+        newcolhabs=vals$newcolhabs,
+        light=light
       )})
     selected_gglabel<-reactiveVal()
 
@@ -4492,7 +4523,7 @@ llet$server<-function(id,vals){
           selected<-NULL
         }}
       }
-      updatePickerInput(session,'pie-pie1-factor_chart',choices=colnames(factors),selected=selected)
+      updatePickerInput(session,'pie-pie1-factor_chart',choices=colnames(factors),selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
     observeEvent(list(input[['pie-pie1-factor_chart']], vals$data_map),{
       update_factor_chart()

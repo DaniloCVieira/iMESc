@@ -17,8 +17,7 @@ k_means_module$ui<-function(id){
                     selectInput(ns("data_kmeans"),span("~ Training Datalist",tiphelp("Choose the Datalist containing your variables (X).")),choices =NULL),
                 )
             ),
-
-            radioButtons(ns("model_or_data"), "Clustering target:", choices="Numeric-Attribute",width="150px"),
+            uiOutput(ns('model_or_data')),
             selectInput(ns("som_kmeans"),"Som codebook:",NULL),
             numericInput(ns('km_centers'),span("centers",tiphelp("the number of clusters: a random set of (distinct) rows in data is chosen as the initial centres")), value=5, step=1,width="100px"),
             numericInput(ns('km_itermax'),span("iter.max",tiphelp("the maximum number of iterations allowed")),  value=10,step=1,width="100px"),
@@ -29,7 +28,7 @@ k_means_module$ui<-function(id){
             numericInput(ns("kmeans_seed"),"Seed",value=NA,width="100px"),
             div(style="margin-top:20px",
                 actionButton(ns("kmeans_run"),"RUN >>")),
-            selectInput(ns("kmeans_models"),"Saved models",NULL),
+            uiOutput(ns("kmeans_models_out")),
             div(style="margin-top:20px",
               actionButton(ns("trash_kmeans"),icon("far fa-trash-alt"))
             ),
@@ -52,39 +51,42 @@ k_means_module$ui<-function(id){
           column(
             4,class='mp0',style="overflow: auto; height: calc(100vc - 200px)",
 
-            div(id=ns("options_plotdata"),
+            div(
                 box_caret(ns("box_a"),
                           title="Options",
                           color="#c3cc74ff",
                           div(
-                            div(id="save_kmeansbtn",class="save_changes",
+                            div(id="save_kmeansbtn",
                                 uiOutput(ns("save_kmeans"))
                             ),
-                            radioButtons(ns("dot_label_clus"), 'Display', choices=c("symbols","labels"), inline=T),
-                            checkboxInput(ns("hc_sort"),span("Sort clusters",tiphelp("Sort clusters by a  variable")),value=F),
-                            div(style="margin-left: 15px",
-                                pickerInput(ns("hc_ord_datalist"),div("Datalist:"),NULL) ,
-                                pickerInput(ns("hc_ord_factor"),div("Variable:"),choices=NULL)),
-                            pickerInput(ns("psom_data_palette"),label='Palette',choices=NULL),
+                            div(id=ns("options_plotdata"),
 
-                            pickerInput(ns("psom_factors"),'Labels',choices=NULL),
-                            pickerInput(inputId=ns("psom_facpalette"),
-                                        label =span(tiphelp('Symbol colors. Choose a gradient to color observations by a factor'),"Obs color"),
-                                        choices=NULL),
-                            numericInput(ns("psom_bgalpha"),span(tiphelp("Transparency"),"Alpha"),value =0.5,min=0,max=1,step=.1),
-                            numericInput(ns("psom_symbol_size"),span(tiphelp("symbol shape"),"symbol size"),value=1,min=0.1,max=3,step=.1),
-                            pickerInput(inputId=ns("psom_symbol"),label=span(tiphelp("symbol shape"),"Shape"),NULL),
-                            div(id=ns('psom_legcontrol'),
-                                numericInput(ns("psom_insertx"),span(tiphelp("legend position relative to the x location"),"+ leg x:"),value=0,step=0.05),
-                                numericInput(ns("psom_inserty"),span(tiphelp("legend position relative to the y location"),"+ leg y:"),value=0.4,step=0.05),
-                                numericInput(ns("psom_ncol"),span(tiphelp("the number of columns in which to set the legend items"),"+ ncol leg:"),value=1,step=1),
-                                numericInput(ns("psom_bgleg"),span(tiphelp("Legend background transparency"),"+ bg leg:"),value=0.85,step=0.05, max=1)
+                              radioButtons(ns("dot_label_clus"), 'Display', choices=c("symbols","labels"), inline=T),
+                              checkboxInput(ns("hc_sort"),span("Sort clusters",tiphelp("Sort clusters by a  variable")),value=F),
+                              div(style="margin-left: 15px",
+                                  pickerInput(ns("hc_ord_datalist"),div("Datalist:"),NULL) ,
+                                  pickerInput(ns("hc_ord_factor"),div("Variable:"),choices=NULL)),
+                              pickerInput(ns("psom_data_palette"),label='Palette',choices=NULL),
+
+                              pickerInput(ns("psom_factors"),'Labels',choices=NULL),
+                              pickerInput(inputId=ns("psom_facpalette"),
+                                          label =span(tiphelp('Symbol colors. Choose a gradient to color observations by a factor'),"Obs color"),
+                                          choices=NULL),
+                              numericInput(ns("psom_bgalpha"),span(tiphelp("Transparency"),"Alpha"),value =0.5,min=0,max=1,step=.1),
+                              numericInput(ns("psom_symbol_size"),span(tiphelp("symbol shape"),"symbol size"),value=1,min=0.1,max=3,step=.1),
+                              pickerInput(inputId=ns("psom_symbol"),label=span(tiphelp("symbol shape"),"Shape"),NULL),
+                              div(id=ns('psom_legcontrol'),
+                                  numericInput(ns("psom_insertx"),span(tiphelp("legend position relative to the x location"),"+ leg x:"),value=0,step=0.05),
+                                  numericInput(ns("psom_inserty"),span(tiphelp("legend position relative to the y location"),"+ leg y:"),value=0.4,step=0.05),
+                                  numericInput(ns("psom_ncol"),span(tiphelp("the number of columns in which to set the legend items"),"+ ncol leg:"),value=1,step=1),
+                                  numericInput(ns("psom_bgleg"),span(tiphelp("Legend background transparency"),"+ bg leg:"),value=0.85,step=0.05, max=1)
+                              )
+
+
                             ),
                             actionLink(ns('psom_create_codebook'),"+ Create Datalist with the Codebook and kmeans class"),
                             #  uiOutput(ns('side_som')),
-                            uiOutput(ns("kmeans_down_model"))
-
-                          )
+                            uiOutput(ns("kmeans_down_model")))
                 )
             ),
             div(id=ns("options_plotsom"),
@@ -533,7 +535,7 @@ k_means_module$server<-function (id,vals){
       req(input$kmeans_models)
       models<-attr(vals$saved_data[[input$data_kmeans]],"kmeans")
       kmodel<- models[[input$kmeans_models]]
-      updateRadioButtons(session,"model_or_data",selected=attr(kmodel,"target"))
+
       kmodel
     })
     get_hc<-reactive({
@@ -617,21 +619,16 @@ k_means_module$server<-function (id,vals){
       tagList(module_ui_somplot(ns("kmeans")))
     })
 
-    observeEvent(vals$k_means_results,{
-      req(!is.null(vals$k_means_results))
-      req(input$kmeans_models)
-      req(input$kmeans_models!="new kmeans (unsaved)")
-      m<-getkmodel()
-      if(attr(m,"target")!=input$model_or_data){
-        updateRadioButtons(session,"model_or_data",selected=attr(m,"target"))
 
-      }
+
+    output$model_or_data<-renderUI({
+      ns<-session$ns
+      choices =choices_kmeans()
+      selected<-get_selected_from_choices(vals$model_or_data,choices)
+      radioButtons(ns("model_or_data"), "Clustering target:", choices=choices,selected=selected,width="150px")
     })
 
 
-    observeEvent(choices_kmeans(),{
-      updateRadioButtons(session,'model_or_data',choiceValues =choices_kmeans(), choiceNames=choices_kmeans_names(),selected=vals$model_or_data)
-    })
 
 
     observeEvent(ignoreInit=T,input$model_or_data,{
@@ -653,18 +650,15 @@ k_means_module$server<-function (id,vals){
     })
     choices_kmeans<-reactive({
       req(input$data_kmeans)
-      a<-if (length(   names(vals$saved_data) > 0)) {
-        "data"
-      } else {
-        NULL
-      }
+      choices=c('Numeric-Attribute'="data",'SOM codebook'='som codebook')
+      if(!length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){
 
-      b<-   if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"som codebook"}else{
-        vals$model_or_data<-"data"
-        NULL}
-      res<-c(a, b)
-      res
-    })
+        choices<-choices[1]
+      }
+      choices
+        })
+
+
 
     observe({
       req(input$data_kmeans)
@@ -689,11 +683,13 @@ k_means_module$server<-function (id,vals){
       }
     })
 
-    observeEvent(vals$saved_data,{
+    output$kmeans_models_out<-renderUI({
+      ns<-session$ns
       data<-vals$saved_data[[input$data_kmeans]]
       choices<-names(attr(data,"kmeans"))
-      updateSelectInput(session,"kmeans_models",choices=choices,selected=vals$kmeans_models)
+      selectInput(ns("kmeans_models"),"Saved models",choices=choices,selected=vals$kmeans_models)
     })
+
     observe({
       req(input$data_kmeans)
       data<-vals$saved_data[[input$data_kmeans]]
@@ -707,7 +703,7 @@ k_means_module$server<-function (id,vals){
 
 
     observe({
-      shinyjs::toggle('save_kmeans_models',condition=input$kmeans_models=="new kmeans (unsaved)")
+      shinyjs::toggle('save_kmeans_models',condition=input$kmeans_models%in%"new kmeans (unsaved)")
     })
 
 
@@ -733,8 +729,7 @@ k_means_module$server<-function (id,vals){
         attr(vals$saved_data[[input$data_kmeans]],"kmeans")[[input$over_datalist]]<-vals$k_means_results
         cur_kmeans_models<-input$over_datalist
       }
-
-      updatePickerInput(session,"kmeans_models",selected=cur_kmeans_models)
+      vals$kmeans_models<-cur_kmeans_models
 
 
     })
@@ -1147,13 +1142,41 @@ k_means_module$server<-function (id,vals){
 
     })
 
+    cluster_already<-reactive({
+
+      req(input$data_kmeans)
+      datao<-vals$saved_data[[input$data_kmeans]]
+      factors<-attr(datao,"factors")
+      hc<-as.factor(vals$kmeans_clusters)
+      fac<-as.list(factors)
+      fac<-lapply(fac,function(x) as.character(x))
+
+      cluster_already<-which(sapply(fac, function(x) identical(as.character(x), as.character(hc))))
+      names(cluster_already)
+    })
 
     output$save_kmeans<-renderUI({
 
       req(class(vals$k_means_results)=="ikmeans")
-      tipify(div(class="save_changes",
-                 actionButton(ns("tools_savekmeans"), icon("fas fa-save"),style ="button_active")
-      ),"Save K-Means clusters in the Factor-Attribute","right")
+
+      clu_al<-cluster_already()
+      if (length(cluster_already()) > 0) {
+        class1<-"button_normal"
+        class2<-"div"
+        class3<-'divnull'
+      } else {
+        class1<-"save_changes"
+        class2<-"divnull"
+        class3<-'div'
+      }
+      div(style="display: flex",
+          div(style="display: flex",
+              div(class = class1,style="padding-right: 5px",
+                  actionButton(ns("tools_savekmeans"), icon("fas fa-save"),  type = "action", value = FALSE)), span(style = "font-size: 12px", icon("fas fa-hand-point-left"), "Save Clusters in Datalist ", strong("X"), class = class3)
+          )
+          ,
+          div(style = "margin-bottom: 5px", class = class2,style="text-direction: normal",em(paste0("The current clustering is saved in the Factor-Attribute as '", paste0(clu_al, collapse = "; "), "'"))))
+
 
     })
 
@@ -1188,6 +1211,7 @@ k_means_module$server<-function (id,vals){
 
 
     observeEvent(ignoreInit=T,input$kmeans_run,{
+
 
       req(input$data_kmeans)
       updatePickerInput(session,"kmeans_models",choices=c("new kmeans (unsaved)",names(attr(vals$saved_data[[input$data_kmeans]],"kmeans"))), selected='new kmeans (unsaved)')
@@ -1262,6 +1286,7 @@ k_means_module$server<-function (id,vals){
       req(input$data_kmeans)
       data=vals$saved_data[[input$data_kmeans]]
       #validate(need(length(data)>0,"no data found"))
+      req(input$model_or_data)
       res<-if(input$model_or_data=="data"){
         data
       } else{
@@ -1283,6 +1308,7 @@ k_means_module$server<-function (id,vals){
         attr(vals$saved_data[[input$data_kmeans]],"factors")[input$over_datalist]<-as.factor(temp)
       }
       removeClass('save_kmeansbtn','save_changes')
+      #shinyjs::hide('save_kmeans')
     })
 
     observeEvent(ignoreInit=T,input$kmeans_run,{
@@ -1325,19 +1351,11 @@ k_means_module$server<-function (id,vals){
     name_kmeans_clusters<-reactive({
       centers<-input$km_centers
       if(length(centers)==1){bag0=centers}else{bag0=length(centers)}
-      name0<-"kmeans"
-      name0<-paste(name0,bag0)
-      bag=1
-      name1<-paste0(name0," (",bag,")")
-      if(name1%in%colnames(attr(vals$saved_data[[input$data_kmeans]],"factors")))
-      {
-        repeat{
-          bag<-bag+1
-          name1<-paste0(name0," (",bag,")")
-          if(!name1%in%colnames(attr(vals$saved_data[[input$data_kmeans]],"factors"))) break
-        }
-      }
-      paste0(name0," (",bag,")")
+      name0<-paste0("kmeans_",gsub(" codebook","",input$model_or_data),"_",bag0)
+      newnames<-make.unique(c(colnames(attr(vals$saved_data[[input$data_kmeans]],"factors")),name0))
+      newnames[length(newnames)]
+
+
     })
     name_kmeans_codebook<-reactive({
       name0<-paste0("Coodebook+Kmeans:",input$km_centers)

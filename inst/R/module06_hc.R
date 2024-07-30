@@ -1,5 +1,4 @@
 
-#' @export
 hc_module<-list()
 #' @export
 hc_module$ui<-function(id){
@@ -11,22 +10,23 @@ hc_module$ui<-function(id){
               inline=F,
               div(
                 div(style="display: flex; gap: 10px",
-                    pickerInput(ns("data_hc"),
-                                strong("Datalist:"),
-                                choices = NULL),
+                    pickerInput_fromtop(ns("data_hc"),
+                                        strong("Datalist:"),
+                                        choices = NULL),
                     radioButtons(ns("model_or_data"), strong("Clustering target:"), choiceValues = c("data", "som codebook"), choiceNames = c("Numeric-Attribute", "SOM-codebook")),
                     uiOutput(ns('som_model_name_out')),
-                    pickerInput(ns("hc_fun"), strong("HC function:", actionLink(ns("help_hc_fun"), icon("fas fa-question-circle"))), choices = list("Hierarchical Clustering" = "hclust", "Agglomerative Nesting" = "agnes", "Divisive hierarchical clustering" = "diana")),
+                    pickerInput_fromtop(ns("hc_fun"), strong("HC function:", actionLink(ns("help_hc_fun"), icon("fas fa-question-circle"))), choices = list("Hierarchical Clustering" = "hclust", "Agglomerative Nesting" = "agnes", "Divisive hierarchical clustering" = "diana")),
                     div(id=ns("disthc_id"),
-                        pickerInput(ns("disthc"), strong("Distance:"), choices = c('bray', "euclidean", 'jaccard'))
+                        pickerInput_fromtop(ns("disthc"), strong("Distance:"), choices = c('bray', "euclidean", 'jaccard'))
                     ),
-                    pickerInput(ns("method.hc0"),strong( "Method:"), choices = c("ward.D2", "ward.D", "single", "complete", "average", "mcquitty", "median", "centroid"))
+                    pickerInput_fromtop(ns("method.hc0"),strong( "Method:"), choices = c("ward.D2", "ward.D", "single", "complete", "average", "mcquitty", "median", "centroid"))
                 )
               )
     ),
     uiOutput(ns('teste')),
     uiOutput(ns('hc_error')),
     tabsetPanel(id=ns("tabs_view"),title=NULL,
+                #selected="tab4",
                 tabPanel("1. Dendrogram",value="tab1"),
                 tabPanel("2. Scree Plot",value="tab2"),
                 tabPanel("3. Cut Dendrogram",value="tab3")),
@@ -34,6 +34,8 @@ hc_module$ui<-function(id){
     tabsetPanel(
       id=ns("tabs"),
       type="hidden",
+      #selected="tab4",
+
       header=column(12,class="mp0",id=ns("Kcustom"),
                     column(
                       4,class="mp0",
@@ -150,10 +152,10 @@ hc_module$ui<-function(id){
 
                         )
                     ),
-                    pickerInput(inputId = ns("hcdata_palette"),label = "HC Palette:",NULL),
-                    pickerInput(ns("hcut_labels"),"Factor",NULL),
+                    pickerInput_fromtop(inputId = ns("hcdata_palette"),label = "HC Palette:",NULL),
+                    pickerInput_fromtop(ns("hcut_labels"),"Factor",NULL),
                     div(
-                      pickerInput(ns("hcut_theme"),"Theme:",c('theme_minimal','theme_grey','theme_linedraw','theme_light','theme_bw','theme_classic')),
+                      pickerInput_fromtop(ns("hcut_theme"),"Theme:",c('theme_minimal','theme_grey','theme_linedraw','theme_light','theme_bw','theme_classic')),
                       numericInput(ns("hcut_cex"),"Size",value = 12,step = 1),
                       numericInput(ns("hcut_lwd"),"Line width",value = .5,step = .5),
                       textInput(ns("hcut_main"),"Title","Cluster Dendrogram"),
@@ -203,13 +205,20 @@ hc_module$ui<-function(id){
                      ),
                      box_caret(
                        ns("box4_a"),
-                       title="Background",
+                       title="Neurons",
                        color="#c3cc74ff",
                        div(
 
-                         pickerInput(ns("bg_palette"),label ="Background palette",NULL),
-                         numericInput(ns("pcodes_bgalpha"),"Background lightness",value = 0,min = 0,max = 1,step = .1),
-                         pickerInput(ns("pclus_border"),label ='Border:',choices = NULL),
+                         checkboxInput(ns("fill_neurons"),"Fill",T),
+                         pickerInput_fromtop(ns("bg_palette"),label ="Palette",NULL),
+                         div(id=ns("neu_options"),
+
+
+                             numericInput(ns("pcodes_bgalpha"),"Lightness",value = 0,min = 0,max = 1,step = .1),
+                             pickerInput_fromtop(ns("pclus_border"),label ='Border:',choices = NULL),
+                         ),
+                         numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1)
+
                        )),
                      box_caret(
                        ns("box4_points"),
@@ -219,19 +228,22 @@ hc_module$ui<-function(id){
                                   checkboxInput(ns("pclus_addpoints"),"Points",value=T,width="80px")
                        ),
                        div(id=ns("pclus_points_inputs"),
-                           pickerInput(inputId = ns("pclus_points_palette"),label ="Palette",choices =NULL),
-                           pickerInput(ns("pclus_points_factor"),"Factor",
-                                       choices = NULL),
-                           tags$div(id=ns("color_factor"),
-                                    class="form-group shiny-input-container",
-                                    tags$label(class = "control-label", " + Factor"),
-                                    tags$div(class="dummy-input",
-                                             "Choose a gradient palette for adding a factor",style="color: gray"
-                                    )
-                           ),
+                           pickerInput_fromtop(inputId = ns("pclus_points_palette"),label ="Palette",choices =NULL),
+                           div(
+                             id=ns("options_points_factor"),
+                             pickerInput_fromtop(ns("pclus_points_factor"),"Factor",
+                                                 choices = NULL),
+                             tags$div(id=ns("color_factor"),
+                                      class="form-group shiny-input-container",
+                                      tags$label(class = "control-label", " + Factor"),
+                                      tags$div(class="dummy-input",
+                                               "Choose a gradient palette for adding a factor",style="color: gray"
+                                      )
+                             ),
 
-                           pickerInput(inputId = ns("pclus_symbol"),label = "Shape",choices=NULL),
-                           numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1))
+                             pickerInput_fromtop(inputId = ns("pclus_symbol"),label = "Shape",choices=NULL),
+                             numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+                           ))
                      ),
                      box_caret(
                        ns("box4_text"),
@@ -241,8 +253,8 @@ hc_module$ui<-function(id){
                                   checkboxInput(ns("pclus_addtext"),"Labels",value=F,width="80px")
                        ),
                        div(id=ns('pclus_addtext_out'),
-                           pickerInput(ns("pclus_text_palette"),label ="Palette",NULL),
-                           pickerInput(ns("pclus_text_factor"),"Factor",choices = NULL),
+                           pickerInput_fromtop(ns("pclus_text_palette"),label ="Palette",NULL),
+                           pickerInput_fromtop(ns("pclus_text_factor"),"Factor",choices = NULL),
                            numericInput(ns("pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
                        )),
                      box_caret(
@@ -256,15 +268,39 @@ hc_module$ui<-function(id){
 
                        ),
                        div(id=ns('varfac_out'),
-                           pickerInput(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Chull"="cor","Cluster"="cor_hc")),
+                           pickerInput_fromtop(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Chull"="cor","Cluster"="cor_hc")),
 
                            numericInput(ns("npic"), span(tiphelp("Number of variables to display"),"Number"), value = 10, min = 2),
                            numericInput(ns("pclus.cex.var"), "Var size", value = 1, min = 2),
                            div(class="palette",
-                               pickerInput(ns("p.clus.col.text"),label = "Var text color",choices =NULL )),
-                           pickerInput(ns("var_bg"),label = "Var background",choices = NULL),
+                               pickerInput_fromtop(ns("p.clus.col.text"),label = "Var text color",choices =NULL )),
+                           pickerInput_fromtop(ns("var_bg"),label = "Var background",choices = NULL),
                            numericInput(ns("var_bg_transp"), "Var transparency", value = 0, min = 2))
                      ),
+                     box_caret(
+                       ns("box_var_pie"),
+                       color="#c3cc74ff",
+                       button_title=tipify(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right"),
+                       title=span(style="display: inline-block",
+                                  class="checktitle",
+
+                                  checkboxInput(ns("var_pie"),strong("Variable pies"),value =F,width="210px"),
+
+                       ),
+
+                       div(id=ns('var_pie_out'),
+                           pickerInput_fromtop(ns("var_pie_type"),"Show:",choices =list("Top importance by cluster"='top_hc', "Top importance"="top","Top weight"="top_w","Manual"="manual")),
+                           pickerInput_fromtop(ns("var_pie_layer"),"Layer",NULL),
+                           div(class="virtual-130",
+                               virtualPicker(ns("var_pie_manual"),"variables selected")
+                           ),
+
+                           numericInput(ns("var_pie_n"), span(tipright("Number of variables to display"),"Number"), value = 10, min = 2),
+                           pickerInput_fromtop(ns("var_pie_bg"),label = "Palette",choices = NULL),
+                           numericInput(ns("var_pie_transp"), "Transparency", value = 0, min = 2))
+                     ),
+
+
                      box_caret(
                        ns("box4_more"),
                        title = "General options",
@@ -280,17 +316,30 @@ hc_module$ui<-function(id){
 
                  )),
                column(
-                 8,class="mp0",style="position: absolute; right: 12px; padding-left: 15px",
-                 box_caret(ns("box4_b"),
-                           title="Plot",
-                           button_title=actionLink(ns("download_plot4"),"Download",icon("download")),
-                           div(id=ns("hc_tab4_out"),
-                               div(id=ns("run_bmu_btn"),
-                                   actionButton(ns("run_bmu"),"RUN >>")
-                               ),
-                               plotOutput(ns("BMU_PLOT")),
+                 8,class="mp0",style="right: 12px;margin-top: -80px; padding-left: 15px",
+                 box_caret(
+                   ns("box4_b"),
+                   title="Plot",
+                   button_title=actionLink(ns("download_plot4"),"Download",icon("download")),
+                   div(
+                     id=ns("hc_tab4_out"),
+                     div(
+                       div(id=ns("run_bmu_btn"),
+                           actionButton(ns("run_bmu"),"RUN >>")
+                       ),
+                       div(
+                         style="position: absolute;top: 25px; right: 0px",
+                         uiOutput(ns("importance_results")),
+                         uiOutput(ns("create_importance_results"))
 
-                           )
+
+                       )
+                     ),
+                     plotOutput(ns("BMU_PLOT")),
+
+
+                   )
+
                  )
                )
 
@@ -311,7 +360,7 @@ hc_module$ui<-function(id){
               checkboxGroupInput(ns("show_mapcode_errors"), 'Show error: ',
                                  choices = c("Within Sum of Squares", "Dendrogram Height"), selected=c("Within Sum of Squares", "Dendrogram Height")),
               textInput(ns('code_screeplot_title'), "Title", ""),
-              pickerInput(ns('code_screeplot_agg'), "Aggregate Errors", c("Mean", "Median", "Sum"))
+              pickerInput_fromtop(ns('code_screeplot_agg'), "Aggregate Errors", c("Mean", "Median", "Sum"))
 
             )
 
@@ -339,20 +388,168 @@ hc_module$server<-function(id, vals){
   moduleServer(id,function(input, output, session) {
     ns<-session$ns
 
+    output$importance_results<-renderUI({
+      imp_results<-attr(hcplot4(),"imp_results")
+      req(imp_results)
+      actionLink(ns("show_hc_imp"),"Importance results",icon("expand"))
+    })
+    output$create_importance_results<-renderUI({
+      p<-hcplot4()
+      imp_results<-attr(p,"imp_results")
+      imp_layer<-attr(p,"imp_layer")
+      req(imp_layer%in%names(vals$saved_data))
+      req(imp_results)
+      div(actionLink(ns("create_hc_imp"),span("Create Datalist",tiphelp("Create Datalist with selected variables for pies")),icon("creative-commons-share")))
+    })
 
+    observeEvent(input$create_hc_imp,{
+
+      p<-hcplot4()
+      imp_results<-attr(p,"imp_results")
+      imp_layer<-attr(p,"imp_layer")
+      imp_vars<-attr(p,"imp_vars")
+      req(imp_layer)
+      req(imp_vars)
+      req(imp_layer%in%names(vals$saved_data))
+
+      data_o<-vals$saved_data[[imp_layer]]
+      req(data_o)
+      req(imp_vars%in%colnames(data_o))
+      data<-data_o[,imp_vars,drop=F]
+      req(data)
+      data<-data_migrate(data_o,data)
+
+      bag<-paste0(imp_layer,"_som_top_vars")
+      newnames<-make.unique(c(names(vals$saved_data),bag))
+      bag<-newnames[length(newnames)]
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("som-imp-create"), vals)
+
+    })
+    module_save_changes$server("som-imp-create", vals)
+    observeEvent(input$show_hc_imp,{
+      data<-attr(hcplot4(),"imp_results")
+      req(data)
+      showModal(
+        modalDialog(
+          title="SOM Variable Importance Results",
+          easyClose = T,
+          div(class="half-drop-inline",
+              div(actionLink(ns("download_hc_imp"),"Download",icon("download"))),
+
+              fixed_dt(data,dom = 'lt',
+                       pageLength=20,
+                       lengthMenu = list(c(20, -1), c( "20","All")))
+          )
+
+
+        )
+      )
+    })
+    observeEvent(input$download_hc_imp,{
+      data<-attr(hcplot4(),"imp_results")
+      req(data)
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      name<-"som_imp_results"
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Permutation Importance Results",data=data, name=name)
+
+    })
+    observeEvent(input$var_pie_layer,{
+      m<-getmodel_hc()
+
+      choices<-colnames(m$data[[input$var_pie_layer]])
+
+      shinyWidgets::updateVirtualSelect(
+        "var_pie_manual",
+        choices=choices,
+        selected=choices[1:4]
+      )
+    })
+    observe({
+      shinyjs::toggle('var_pie_manual',condition=input$var_pie_type%in%"manual")
+      shinyjs::toggle('var_pie_n',condition=!input$var_pie_type%in%"manual")
+    })
+    observeEvent(input$var_pie_help,{
+      showModal(
+        modalDialog(
+          title = "Variable Pies in SOM codebook",
+          easyClose = TRUE,
+          div(
+            p("The variables to display through pies can be selected though four options:"),
+            tags$ul(
+              tags$li(strong("Top importance by cluster"),
+                      p("The groups based on the hierarchical clustering (HC) results assigned to neurons are used to split the codebook. For each group, the sum of the codebook weights for each variable is calculated, providing a measure of the absolute importance of each variable within each group. These importance scores are normalized by the total importance of each variable across all groups, resulting in a relative importance score for each variable within each group. The top variables with the highest relative importance scores for each group are identified and plotted using pies of their weights in the codebook.")
+              ),
+              tags$li(strong("Top importance"),
+                      p("The importance of each variable is determined based on the codebook weights for each neuron. The relative importance scores for each variable are calculated by normalizing the codebook weights by the sum of weights for each neuron. The top variables with the highest sum of relative importance scores across all neurons are identified and plotted using pies representing their weights in the codebook.")
+              ),
+              tags$li(strong("Top weight"),
+                      p("The absolute importance of each variable is determined based on the sum of codebook weights for each variable across all neurons. The top variables with the highest absolute weights are identified and plotted using pies representing their weights in the codebook.")
+              ),
+              tags$li(strong("Manual"),
+                      p("Select manually the variables to display.")
+              )
+            )
+          )
+        )
+      )
+    })
+    observeEvent(getmodel_hc(),{
+      updatePickerInput(session,'var_pie_layer',choices=names(getmodel_hc()$data))
+
+    })
+    observe({
+      shinyjs::toggle('var_pie_layer',condition=length(getmodel_hc()$data)>1)
+    })
+    observeEvent(input$var_pie,{
+      if(isTRUE(input$var_pie)){
+        lapply(c('fill_neurons','pclus_addpoints','varfacmap_action'),function(x){
+          updateCheckboxInput(session,x,value=F)
+        })
+
+
+      }
+    })
+    observe({
+      shinyjs::toggle('neu_options',condition=isTRUE(input$fill_neurons))
+    })
+    observeEvent(input$fill_neurons,ignoreInit = T,{
+      if(isFALSE(input$fill_neurons)){
+        updatePickerInput(session,"pclus_points_palette",
+                          selected="black",
+                          choices =  vals$colors_img$val[getsolid_col()],
+                          choicesOpt = list(content =  vals$colors_img$img[getsolid_col()] ))
+      } else{
+        updatePickerInput(session,"pclus_points_palette",
+                          choices =  vals$colors_img$val,
+                          choicesOpt = list(content =  vals$colors_img$img ),selected=vals$pclus_points_palette)
+      }
+    })
+    observe({
+      req(is.null(vals$pclus_points_palette))
+
+      vals$pclus_points_palette<-"black"
+
+    })
+    observe({
+      shinyjs::toggle("options_points_factor",condition = isTRUE(input$fill_neurons))
+
+    })
+    observe({
+      toggle("var_pie_out",condition=isTRUE(input$var_pie))
+    })
+    observe({
+      updatePickerInput(session,'var_pie_bg',choices = vals$colors_img$val[getgrad_col()],selected="viridis",choicesOpt = list(content =  vals$colors_img$img[getgrad_col()]))
+
+    })
+    box_caret_server("box_var_pie")
 
     output$hc_error<-renderUI({
-
       req(vals$hc_messages)
       messages<-vals$hc_messages
-
       render_message(messages)
-
-
-
-
-
-
     })
     observeEvent(input$tabs_view,{
       updateTabsetPanel(session,"tabs",selected=input$tabs_view)
@@ -362,7 +559,7 @@ hc_module$server<-function(id, vals){
         removeTab("tabs_view","tab4")
         removeTab("tabs_view","tab5")
       } else{
-        insertTab("tabs_view",tabPanel('4. Codebook clusters',value="tab4"))
+        insertTab("tabs_view",tabPanel('4. Codebook clusters',value="tab4",selected=T))
         insertTab("tabs_view",tabPanel('5. Codebook screeplot',value='tab5')
         )
       }
@@ -481,11 +678,14 @@ hc_module$server<-function(id, vals){
 
       )
     })
+    observeEvent(input$hc_ord_datalist,{
+      vals$cur_hc_ord_datalist<-input$hc_ord_datalist
+    })
     output$hc_sort_datalist<-renderUI({
       req(isTRUE(input$hc_sort))
       div(
 
-        pickerInput(ns("hc_ord_datalist"),"Datalist:",choices = c(names(vals$saved_data[getdata_for_hc()])),selected=vals$hc_ord_datalist,width="200px"))
+        pickerInput_fromtop(ns("hc_ord_datalist"),"Datalist:",choices = c(names(vals$saved_data[getdata_for_hc()])),selected=vals$cur_hc_ord_datalist,width="200px"))
     })
     output$hc_ord_factor<-renderUI({
       req(isTRUE(input$hc_sort))
@@ -496,10 +696,13 @@ hc_module$server<-function(id, vals){
 
       div(
 
-        pickerInput(ns("hc_ord_factor"),"Variable:",
-                    choices = choices,selected=vals$hc_ord_factor)
+        pickerInput_fromtop(ns("hc_ord_factor"),"Variable:",
+                            choices = choices,selected=vals$cur_hc_ord_factor,options=shinyWidgets::pickerOptions(liveSearch=T))
       )
 
+    })
+    observeEvent(input$hc_ord_factor,{
+      vals$cur_hc_ord_factor<-input$hc_ord_factor
     })
     args_bmu<-reactiveVal()
     args_bmu_inputs<-reactive({
@@ -794,11 +997,11 @@ hc_module$server<-function(id, vals){
       req(input$hc_ord_datalist%in%names(vals$saved_data))
 
       data_o<-getdata_hc()
-      data<-vals$saved_data[[input$hc_ord_datalist]][rownames(data_o),]
+      data<-vals$saved_data[[input$hc_ord_datalist]][rownames(data_o),,drop=F]
       hc<-get_hc()
 
       validate(need(sum(rownames(data_o)%in%rownames(data))==nrow(data_o),"The IDs of the sorted data chosen do not match those of the training data."))
-      data<-data[rownames(data_o),]
+      data<-data[rownames(data_o),,drop=F]
       req(input$hc_ord_factor%in%names(data))
       fac<-data[names(hc$somC),input$hc_ord_factor,drop=F]
       clusters<-hc$somC
@@ -973,7 +1176,16 @@ hc_module$server<-function(id, vals){
                  show_neucoords=input$hcs_theme,
                  newdata=input$newdata_hc,
                  title=input$hcs_title,
-                 hc=phc()$som.hc
+                 hc=phc()$som.hc,
+                 var_pie=input$var_pie,
+                 var_pie_type=input$var_pie_type,
+                 n_var_pie=input$var_pie_n,
+                 Y_palette=input$var_pie_bg,
+                 var_pie_transp=input$var_pie_transp,
+                 var_pie_layer=input$var_pie_layer,
+                 pie_variables=input$var_pie_manual,
+                 border_width=input$border_width,
+                 fill_neurons=input$fill_neurons
       )
 
       args
@@ -1231,13 +1443,15 @@ hc_module$server<-function(id, vals){
 
     })
     status_changes<-reactiveValues(df=F)
+
     savecodebook<-reactive({
       req(input$hand_save)
       data<-getdata_hc()
       m<-getmodel_hc()
       codes<-data.frame(do.call(cbind,m$codes))
-      somC<-cutsom.reactive()
+      somC<-phc()
       factors<-data.frame(somC$som.hc)
+
       rownames(factors)<-rownames(codes)<-paste0("unit_",1:nrow(codes))
       colnames(factors)<-paste0("Class",input$customKdata)
 
@@ -1316,13 +1530,14 @@ hc_module$server<-function(id, vals){
       vals$hc_messages<-NULL
       shinyjs::addClass("run_bmu_btn","save_changes")
     })
-    hcplot4<-eventReactive(input$run_bmu,ignoreInit = T,{
+    hcplot4<-reactiveVal()
+    observeEvent(input$run_bmu,ignoreInit = T,{
       shinyjs::removeClass("run_bmu_btn","save_changes")
       m<-getmodel_hc()
       somC<-phc()
       args<-argsplot_somplot()
       args$hc<-phc()$som.hc
-      do.call(bmu_plot_hc,args)
+      hcplot4(do.call(bmu_plot_hc,args))
     })
 
     args_hc2<-reactive({
@@ -1404,7 +1619,6 @@ hc_module$server<-function(id, vals){
 
 
 
-
     observeEvent(vals$saved_data,{
       updatePickerInput(session,"data_hc",choices=names(vals$saved_data), selected=vals$cur_data)
     })
@@ -1436,7 +1650,7 @@ hc_module$server<-function(id, vals){
     output$som_model_name_out<-renderUI({
       choices= names(attr(getdata_hc(), "som"))
 
-      pickerInput(ns("som_model_name"), strong("Som model:"), choices=choices, selected=vals$cur_som_model_name)
+      pickerInput_fromtop(ns("som_model_name"), strong("Som model:"), choices=choices, selected=vals$cur_som_model_name)
     })
 
     observeEvent(ignoreInit = T,input$download_plot3,{
@@ -1545,20 +1759,9 @@ hc_module$server<-function(id, vals){
       #savereac()
 
     })
-    observeEvent(ignoreInit = T,input$next_property,{
-      data = data.frame(vals$saved_data[[input$data_hc]],"factors")
-      pnext<-colnames(data)[which(colnames(data)==input$variable_pproperty)+1]
-      updateSelectInput(session,'variable_pproperty',selected=pnext)
 
-    })
-    observeEvent(ignoreInit = T,input$prev_property,{
-      data = data.frame(vals$saved_data[[input$data_hc]],"factors")
-      pprev<-colnames(data)[which(colnames(data)==input$variable_pproperty)-1]
-      updateSelectInput(session,'variable_pproperty',selected=pprev)
-    })
-    observeEvent(ignoreInit = T,input$variable_pproperty,{
-      vals$variable_pproperty<-input$variable_pproperty
-    })
+
+
     observeEvent(ignoreInit = T,input$round_error,{
       vals$round_error<-input$round_error
     })
@@ -1896,7 +2099,7 @@ hc_module$server<-function(id, vals){
                         sort(colnames(m$data[[x]])))
             })))
             div(class="label_none",style="max-width: 200px",
-                pickerInput(ns(paste0("hcsom_newdata_layer",x)), "", choices_temp))
+                pickerInput_fromtop(ns(paste0("hcsom_newdata_layer",x)), "", choices_temp))
           }
         })
       })
@@ -1919,7 +2122,7 @@ hc_module$server<-function(id, vals){
 
     output$labhc_out<-renderUI({
       choices = c(colnames(attr(getdata_hc(),"factors")))
-      pickerInput(
+      pickerInput_fromtop(
         ns("labhc"),
         "Labels",
         choices=choices,selected=vals$labhc)
@@ -1938,7 +2141,7 @@ hc_module$server<-function(id, vals){
       choices<-c(colnames(attr(data,"factors")))
       selected=vals$hcut_labels
       choices = c("rownames",choices)
-      updatePickerInput(session,'hcut_labels',choices=choices,selected=selected)
+      updatePickerInput(session,'hcut_labels',choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     observeEvent(list(getdata_hc(),
@@ -1946,12 +2149,14 @@ hc_module$server<-function(id, vals){
 
                         data<-getdata_hc()
                         choices<-colnames(attr(data,"factors"))
-                        updatePickerInput(session,'pclus_text_factor',choices=choices)
+                        updatePickerInput(session,'pclus_text_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+                        options<-NULL
                         if(isTRUE(input$hcsom_newdata)){
                           choices<-c("Training/New data","Training")
+                          options=shinyWidgets::pickerOptions(liveSearch=T)
                         }
 
-                        updatePickerInput(session,'pclus_points_factor',choices=choices)
+                        updatePickerInput(session,'pclus_points_factor',choices=choices,options=options)
                       })
     observeEvent(list(input$screeplot_hc_k,getmodel_hc()),ignoreInit = T,{
       req(input$run_screeplot_hc)
@@ -1983,3 +2188,4 @@ hc_module$server<-function(id, vals){
 
   })
 }
+

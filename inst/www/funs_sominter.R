@@ -438,6 +438,20 @@ render_message<-function(messages){
 }
 
 
+render_warning<-function(...,title="Warning:",point_icon=T){
+  div(style="padding: 10px",
+      class = "alert_warning",
+      strong(icon("triangle-exclamation",style="color: Dark yellow3"),title),
+      if(isTRUE(point_icon)){
+
+        lapply(...,function(x) div(span(icon("hand-point-right",style="color: gray30"),x)))
+      } else{
+        emgray(...)
+      }
+
+  )
+}
+
 
 
 imesc_hclutering<-function(data, k,hc_fun,hc_method,distance_metric=NULL, target="som codebook", model_name=1){

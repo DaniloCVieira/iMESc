@@ -225,21 +225,101 @@ box-shadow: inset 0px 1px 5px #797979ff;
 color: red;
 border: 1px solid blue;
 }
+.ord_label{
+          border: 0px solid gray;
+          display: flex;
+align-items: center;
+height: 24px;
+background: #D0F0C0;
+
+          }
+
 .ord_label .form,.ord_label .form-group,.ord_label .form-control,.ord_label .shiny-input-container {
 left: 0px;
 margin: 0px;
-margin-top: -20px;
+
+transition: none;
 padding: 0px;
 font-size:11px;
 border-radius: 0px;
 height: 24px;
-box-sizing:border-box;
-background: #c7d3d4;
-color:black
+min-height: 24px;
+max-height: 24px;
+background: white;
+color:black;
+border: 0px solid;
+padding-left: 5px;
+margin-left: -5px;
+
 }
-.ord_label{
-background: #c7d3d4;
+.ord_label .form-control{
+border-top: 1px solid gray;
+
+max-height: 24px;
+
 }
+.num_label   div {
+position: absolute;
+bottom: 0px;
+top: 0px;
+
+}
+ .ord_label .num_label .shiny-bound-input {
+min-width: 95px;
+box-sizing: revert-layer
+
+ }
+ .ord_label .factor_label .shiny-bound-input {
+max-height: 24px;
+box-sizing: revert-layer
+
+ }
+
+
+.new_colnames .shiny-bound-input {
+border: 1px solid #7CB9E8;
+border-radius: 0px;
+max-width: 150px;
+max-height: 24px;
+}
+.ord_label .shiny-bound-input{
+border: 1px solid #7CB9E8;
+
+position: absolute;
+left: 0px;
+max-width: 130px;
+padding: 0px;
+max-height: 24px;
+heigth: 24px
+}
+
+.rankcol {
+margin: 0px;
+padding: 0px;
+
+}
+.rankcol .rank-list-item {
+
+margin: 0px;
+padding: 0px;
+padding: 0px;
+height: 24px;
+border: 1px solid;
+}
+.rankcol .value{
+ background: white
+}
+.rankcol .rank-list-item{
+color: transparent;
+border-top: 1px solid;
+border-bottom: 1px solid;
+margin: 0px;
+padding: 0px;
+border: 1px solid gray;
+
+}
+
+
 .p10{
 padding: 10px;
 }
@@ -306,28 +386,7 @@ border-bottom: 1px solid #05668D;
 }
 
 
-.rankcol {
-margin: 0px;
-padding: 0px;
-}
-.rankcol .rank-list-item {
-background: #c7d3d4;
-margin: 0px;
-padding: 0px;
-padding: 0px;
-height: 24px;
-border: 1px solid;
-}
-.rankcol .value{
- background: white
-}
-.rankcol .rank-list-item{
-color: transparent;
-border-top: 1px solid;
-border-bottom: 1px solid;
-margin: 0px;
-padding: 0px;
-}
+
 .saved_data_rename .rank-list-item {
 margin: 0px;padding: 0px;
 box-sizing: content-box;
@@ -462,6 +521,9 @@ background: #f7f7f7ff;
 }
 .tools_page .form-group {
  margin-bottom: 0px;
+}
+.virtual-130 .virtual-select .vscomp-options-container {
+  height: 130px;
 }
 .virtual-180 .virtual-select .vscomp-options-container {
   height: 180px;
@@ -754,4 +816,42 @@ padding: 4px
 .half-drop-inline table.dataTable thead>tr>th.sorting{
 padding-right: 20px;
 padding-left: 5px
+}
+.half-drop-inline .bootstrap-select>.dropdown-toggle{
+white-space: normal;
+height: fit-content
+           }
+
+
+
+
+
+
+.half-drop .bootstrap-select.form-control {
+padding: 0px
+}
+.half-drop .bootstrap-select.form-control .btn{
+background: white;
+}
+.shp_box .half-drop-inline .form-group{
+margin: 0px
+}
+.shp_box, .shp_box .btn,.shp_box .form-control{font-size: 12px}
+
+.tool_page .tool8 {
+width: 80vw;
+background: #e3e3e3;
+margin-top: 40px;
+flex-direction: column;
+height: 100vh;
+border: 0px;
+box-shadow: 0px 0px 2px #797979ff;
+position: absolute;
+top: -43px;
+padding: 20px;
+right: 0px;
+}
+.tool_box8 .toolbar .nav>li a {
+padding-left: 5px;
+padding-right: 5px;
 }

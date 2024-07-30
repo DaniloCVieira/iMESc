@@ -729,32 +729,32 @@ rf_explainer$server<-function(id,vals){
       choices2<-do.call(rbind,md)$variable
 
       div(
-        pickerInput(session$ns("sankey_values"),"End Value",choices),
-        pickerInput(session$ns("sankey_values2"),"Middle value",c("None",choices)),
+        pickerInput_fromtop(session$ns("sankey_values"),"End Value",choices),
+        pickerInput_fromtop(session$ns("sankey_values2"),"Middle value",c("None",choices)),
         checkboxInput(ns('sankey_cuton'),"Cut middle values"),
         numericInput(session$ns("sankey_cut"),"Middle breaks",10),
 
 
-        pickerInput(
+        pickerInput_fromtop(
           inputId = ns("sankey_paletteY"),
           label = "Palette Y:",
           selected="Blues",
           choices =vals$colors_img$val,
           choicesOpt = list(content =vals$colors_img$img)),
-        pickerInput(
+        pickerInput_fromtop(
           inputId = ns("sankey_var2"),
           label = "Palette Middle:",
           choices =vals$colors_img$val,
           selected="gray",
           choicesOpt = list(content =vals$colors_img$img)),
-        pickerInput(
+        pickerInput_fromtop(
           inputId = ns("sankey_palette_links"),
           label = "Palette link:",
           selected="Grays",
           choices =vals$colors_img$val,
           choicesOpt = list(content =vals$colors_img$img)),
         uiOutput(ns("sankey_factor_link")),
-        pickerInput(
+        pickerInput_fromtop(
           inputId = ns("sankey_palette"),
           label = "Palette end:",
           choices =vals$colors_img$val,
@@ -767,7 +767,7 @@ rf_explainer$server<-function(id,vals){
             numericInput(ns("sankey_size"),"Text size",3),
             checkboxInput(ns("sankey_showlegend"),"Show legend",T),
             numericInput(ns("sankey_legsize"),"Legend size",3)),
-        pickerInput(session$ns("sankey_variable"),"Value",choices2)
+        pickerInput_fromtop(session$ns("sankey_variable"),"Value",choices2)
 
 
 
@@ -778,7 +778,7 @@ rf_explainer$server<-function(id,vals){
 
 
     output$sankey_factor_link<-renderUI({
-      pickerInput(ns('sankey_factor_link'),"color link by",c("Y",get_sakey_values()))
+      pickerInput_fromtop(ns('sankey_factor_link'),"color link by",c("Y",get_sakey_values()))
     })
 
     observe({
@@ -936,7 +936,7 @@ rf_explainer$server<-function(id,vals){
     })
 
     output$mdd_palette<-renderUI({
-      pickerInput(
+      pickerInput_fromtop(
         inputId = ns("mdd_palette"),
         label = "Palette:",
         choices =vals$colors_img$val,
@@ -944,7 +944,7 @@ rf_explainer$server<-function(id,vals){
     })
 
     output$inter_palette<-renderUI({
-      pickerInput(
+      pickerInput_fromtop(
         inputId = ns("inter_palette"),
         label = "Palette:",
         choices =vals$colors_img$val,
@@ -988,7 +988,7 @@ rf_explainer$server<-function(id,vals){
       } else{
         pic<-getgrad_col()
       }
-      pickerInput(
+      pickerInput_fromtop(
         inputId = ns("interframe_palette"),
         label = "Palette:",
         choices =vals$colors_img$val[pic],
@@ -1138,10 +1138,14 @@ rf_explainer$server<-function(id,vals){
     })
 
     observeEvent(input$create_rf,ignoreInit = T,{
+      m<-model()
       data<-get_measure_table()
       data_x<-attr( model(),"Datalist")
       req(data_x)
-      data<-data_migrate(vals$saved_data[[data_x]],data)
+      data_o<-vals$saved_data[[data_x]]
+      data<-data_o[,vals$rf_sigs$variable,drop=F]
+      data<-data_migrate(data_o,data)
+
       module_save_changes$ui(ns("explainer-create"))
       bag<-attr(m,'model_name')
       if(is.null(bag)){
@@ -1150,7 +1154,10 @@ rf_explainer$server<-function(id,vals){
       bag<-paste0(bag,"_sig_vars")
       newnames<-make.unique(c(names(vals$saved_data),bag))
       bag<-newnames[length(newnames)]
-      module_save_changes$server("explainer-create",vals, bag,newdata=data)
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+
+      module_save_changes$server("explainer-create",vals)
     })
 
     observeEvent(rf_inputsmeasure(),{
@@ -1331,7 +1338,8 @@ rf_explainer$server<-function(id,vals){
       bag<-paste0(bag,"_frequent_inters")
       newnames<-make.unique(c(names(vals$saved_data),bag))
       bag<-newnames[length(newnames)]
-      module_save_changes$server("explainer-create-inter",vals, bag,newdata=data)
+      vals$newdatalist<-data
+      module_save_changes$server("explainer-create-inter",vals)
     })
 
 

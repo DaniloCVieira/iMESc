@@ -1,5 +1,5 @@
 #' @noRd
-#' @export
+
 fixed_dt_con<-list()
 #' @export
 fixed_dt_con$ui<-function(id,data,max_length=100){
@@ -12,7 +12,7 @@ fixed_dt_con$ui<-function(id,data,max_length=100){
   names(choices_names)<-choices_containers
   ns<-NS(id)
   div(
-    pickerInput(ns("data_container"),"Show columns" , choices_names)
+    pickerInput_fromtop(ns("data_container"),"Show columns" , choices_names)
 
   )
 }
@@ -37,6 +37,2463 @@ fixed_dt_con$server<-function(id,data,max_length=100){
 split_vector_max_elements <- function(vec, max_length) {
   split(vec, ceiling(seq_along(vec) / max_length))
 }
+scatter_hexagon<-function(x, y, radius = 0.1, fill="gray") {
+  # Create a scatter plot
+
+  # Draw hexagons around each point
+  for(i in 1:length(x)) {
+    draw_hexagon(x[i], y[i], radius, fill[i])
+  }
+}
+# Define draw_hexagon function
+draw_hexagon<-function(x, y, radius,fill) {
+  angles<-seq(0, 2*pi, length.out = 7) + pi/6  # Rotated by 90 degrees
+  x_hex<-x + radius * cos(angles)
+  y_hex<-y + radius * sin(angles)
+
+  polygon(x_hex, y_hex,col=fill, border=fill)
+}
+plotnetwork_list2<-function(m,label=T, main="", show_points=T){
+  col<-"Gray"
+  mds<-lapply(m$codes,function(x){
+    x<-sqrt(x^2)
+    res<-m$grid$pts*apply(x,1,mean)
+    # res<-m$grid$pts*apply(x,1,sum)
+    res[,1]<-scales::rescale(res[,1],range(m$grid$pts[,1]))
+    res[,2]<-scales::rescale(res[,2],range(m$grid$pts[,2]))
+    res
+  })
+  matdis2<-matdis<-unit.distances(m$grid)
+  dec<-decimalplaces(max(matdis2))
+  matdis2<-round(matdis2,dec)
+  neighs<-lapply(1:nrow(matdis2),function(i){
+    which(matdis2[i,]==1)
+  })
+
+
+  dist<-data.frame(as.matrix(object.distances(m)))
+  dist$unit<-m$unit.classif
+  splited<-split(dist,dist$unit)
+
+  mean_diss<-sapply(as.character(1:nrow(m$grid$pts)),function(i){
+    x<-  splited[[i]]
+    suppressWarnings(mean(unlist(x)))
+  })
+
+
+
+  cut<-cut(mean_diss,breaks=nrow(m$grid$pts))
+  cols<-viridis(nlevels(cut))[cut]
+
+  cols[   which(is.na(mean_diss))]<-"darkgray"
+
+  res<-data.frame(do.call(rbind,mds))
+  som_qualist<-errors_som(m)
+
+  plot(res,type="n", ann=F,axes=F        )
+  title(main= paste0("Interaction: ",nrow(m$changes)),"\n",
+        paste("err.quant:",round(as.numeric(unlist(som_qualist$som_quality[1,1])),3)))
+
+  for(j in 1:length(mds)){
+    for(i in 1:length(neighs)) {
+      nei<-neighs[[i]]
+      p0<-mds[[j]][i,]
+      p1<-mds[[j]][nei,]
+      # points(p0[1],p0[2], pch=16, col=col[j],cex=2)
+      segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
+
+
+    }
+
+
+  }
+
+  kohonen:::plot.kohmapping
+
+  res$unit<-NA
+  res$unit[m$unit.classif]<-m$unit.classif
+
+  points<-do.call(rbind,lapply(1:nrow(res),function(i){
+    x<-res[i,]
+    n<-sum(m$unit.classif%in%i)
+    data.frame(x=x$x+ rnorm(n,0,0.06),
+               y=x$y+ rnorm(n,0,0.06))
+
+
+  }))
+
+
+  if(m$grid$topo=="rectangular"){
+    points(res, xlab="Distance", ylab="Distance",
+           pch=15,main=main,col=cols,cex=3)
+  } else{
+    scatter_hexagon(res$x, res$y, radius = 0.2, fill=cols)
+
+  }
+
+
+  if(isTRUE(show_points)){
+    points(points[1:2],pch=16,cex=.8)
+  }
+  if(isTRUE(label)){
+    text(res$x,res$y, labels=1:nrow(res), col="white")
+  }
+}
+#' @export
+training_som<-list()
+#' @export
+
+
+training_som$server<-function(id,vals,datalist_name,mysupersom,usepartition,partition_column,partition_ref){
+  moduleServer(id,function(input,output,session){})
+}
+
+table_results_som<-list()
+table_results_tab1<-list()
+table_results_tab2<-list()
+table_results_tab3<-list()
+table_results_tab4<-list()
+table_results_som$ui<-function(id){
+  ns<-NS(id)
+  div(
+
+    style = "background: WhiteSmoke;",
+    tabsetPanel(
+      id=ns("som_res"),
+      tabPanel(
+        value= 'train_tab1',
+        "2.1. Parameters",
+        table_results_tab1$ui(ns("som-tab1")),
+        uiOutput(ns("out_tab1"))),
+      tabPanel(
+        "2.2. Changes & Counting",value = "train_tab2",
+        table_results_tab2$ui(ns("som-tab2")),
+        uiOutput(ns("out_tab2"))
+      ),
+      tabPanel(
+        "2.3. BMUs", value = "train_tab5",
+        table_results_tab3$ui(ns("som-tab3")),
+        uiOutput(ns('out_tab3'))
+      ),
+      tabPanel("2.4. Network plot", value = "train_tab_net",
+               table_results_tab4$ui(ns("som-tab4")),
+               uiOutput(ns('out_tab4'))
+      )
+
+
+
+
+    )
+  )
+}
+table_results_tab1$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+
+    column(
+      6,class="mp0",
+      box_caret(
+        ns("tbox1"),
+        title="Quality Measures",
+        tip=actionLink(ns("som_quality_help"),icon("fas fa-question-circle")),
+        uiOutput(ns("som_errors"))
+      ),
+      box_caret(
+        ns("tbox1"),
+        title="Downloads",
+        color="#c3cc74ff",
+        div(
+          div(div(tipify(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
+          div(tipify(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
+          div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
+          div(tipify(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components")))
+      )
+    ),
+    column(
+      6,class="mp0",
+      box_caret(
+        ns("tbox2"),
+        title="Training Parameters",
+        tableOutput(ns("out_train.summary"))
+      )
+    )
+
+  )
+}
+table_results_tab2$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+    column(6,class="mp0",box_caret(
+      ns("ccbox1"),
+      title="Changes",
+      button_title = actionLink(ns("downp_pchanges"),"Download",icon('download')),
+      plotOutput(ns("pchanges"))
+    )),
+    column(6,class="mp0",box_caret(
+      ns("ccbox2"),
+      title="Couting",
+      button_title = actionLink(ns("downp_pcounts"),"Download",icon('download')),
+      plotOutput(ns("pcounts"))
+    ))
+
+
+  )
+}
+table_results_tab3$ui<-function(id){
+  ns<-NS(id)
+  div(
+    column(
+      4,class="mp0",
+      box_caret(
+        ns("rbox1"),
+        color="#c3cc74ff",
+        title="Neurons",
+        div(
+          div(class="radio_search radio_yellow",
+              radioGroupButtons(ns("ss1_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
+          ),
+
+          pickerInput_fromtop(ns("ss1_property_layer"),label = "Layer:",choices = NULL),
+          div(id=ns('ss1_var_pproperty'),style="display: flex",
+              actionButton(ns("ss1_prev_property"),"<<"),
+              pickerInput_fromtop(ns("ss1_variable_pproperty"),label = "Variable:",choices = NULL),
+              actionButton(ns("ss1_next_property"),">>")
+
+          ),
+
+          pickerInput_fromtop(inputId = ns("ss1_bg_palette"),"Palette",NULL),
+          numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1),
+          numericInput(ns("ss1_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
+          pickerInput_fromtop(ns("ss1_pclus_border"),label ='Border:',NULL)
+        )
+      ),
+      box_caret(
+        ns("rbox2"),
+        color="#c3cc74ff",
+        title=span(style="display: inline-block",
+                   class="checktitle",
+                   checkboxInput(ns("ss1_pclus_addpoints"),strong("Points"),value=T,width="80px")
+        ),
+        div(
+          div(id=ns("ss1_pclus_points_inputs"),
+              pickerInput_fromtop(inputId = ns("ss1_pclus_points_palette"),
+                          label ="Palette",
+                          choices = NULL),
+              pickerInput_fromtop(ns("ss1_pclus_points_factor"),"Factor",
+                          choices = NULL),
+              pickerInput_fromtop(inputId = ns("ss1_pclus_symbol"),
+                          label = "Shape",
+                          choices = NULL),
+              numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+          )
+        )
+      ),
+      box_caret(
+        ns("rbox3"),
+        color="#c3cc74ff",
+        title=span(style="display: inline-block",
+                   class="checktitle",
+                   checkboxInput(ns("ss1_pclus_addtext"),strong("Labels"),value=F,width="80px")
+        ),
+        div(id=ns('ss1_pclus_text_inputs'),
+            pickerInput_fromtop(inputId = ns("ss1_pclus_text_palette"),
+                        label ="Palette",
+                        choices =  NULL),
+            pickerInput_fromtop(ns("ss1_pclus_text_factor"),"Factor",
+                        choices = NULL),
+            numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+        )
+      ),
+      box_caret(
+        ns("rbox4"),
+        color="#c3cc74ff",
+        title=span(style="display: inline-block",
+                   class="checktitle",
+                   checkboxInput(ns("ss1_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
+        ),
+        tip = actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
+        div(id=ns('ss1_varfac_out'),
+            pickerInput_fromtop(ns("ss1_vfm_type"),"Show correlation:",
+                        choices =list("Highest"='var', "Chull"="cor")
+
+            ),
+
+            div(id=ns('ss1_vfm_out'),
+                div(tipify(numericInput(ns("ss1_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                numericInput(ns("ss1_pclus.cex.var"), "Size", value = 1, min = 2),
+                pickerInput_fromtop(inputId = ns("ss1_p.clus.col.text"),
+                            label = "Color",
+                            NULL
+                ),
+                pickerInput_fromtop(inputId = ns("ss1_var_bg"),
+                            label = "Background",
+                            choices =NULL),
+                numericInput(ns("ss1_var_bg_transp"), "Transparency", value = 0, min = 2,),
+                div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
+                div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
+            )
+        )
+      ),
+
+      div(id=ns("show_box_var_pie"),
+          box_caret(
+            ns("box_var_pie"),
+            color="#c3cc74ff",
+            button_title=tipify(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right"),
+            title=span(style="display: inline-block",
+                       class="checktitle",
+
+                       checkboxInput(ns("var_pie"),strong("Variable pies"),value =F,width="160px"),
+
+            ),
+
+            div(id=ns('var_pie_out'),
+                pickerInput_fromtop(ns("var_pie_type"),"Show:",choices =list("Top importance"="top","Top weight"="top_w","Manual"="manual")),
+                pickerInput_fromtop(ns("var_pie_layer"),"Layer",NULL),
+                div(class="virtual-130",
+                    virtualPicker(ns("var_pie_manual"),"variables selected")
+                ),
+
+                numericInput(ns("var_pie_n"), span(tipright("Number of variables to display"),"Number"), value = 10, min = 2),
+                pickerInput_fromtop(ns("var_pie_bg"),label = "Palette",choices = NULL),
+                numericInput(ns("var_pie_transp"), "Transparency", value = 0, min = 2))
+          )
+      ),
+      box_caret(
+        ns("rbox5"),
+        title = "General options",
+        color="#c3cc74ff",
+        div(
+          numericInput(ns("ss1_base_size"),"Base size",value = 12),
+          checkboxInput(ns("ss1_theme"),
+                        label = "show neuron coordinates",
+                        value=F
+          ),
+          textInput(ns("ss1_title"), "Title: ", "")
+        )
+      )
+    ),
+    column(
+      8,class="mp0",
+      box_caret(
+        ns('rbox6'),
+        title="Best-Matching units",
+        button_title = actionLink(ns('downp_bmu'),"Download",icon("download")),
+        div(uiOutput(ns("bmu_plot")))
+      )
+    )
+
+  )
+}
+table_results_tab4$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+    column(
+      6,class="mp0",
+      box_caret(ns("box_setup5"),
+                color="#c3cc74ff",
+                title="Snap-Based Model Retraining",
+                tip=tipright("The panel enables users to recreate the model at pre-determined snaps. The snap parameter determines the iterations at which the model will be recreated. For example, if a model with 500 iterations is saved, setting snap to 250 will recreate the model at the 250th and 500th iterations."),
+                div(class="inline_pickers",
+                    numericInput(ns("rlen_snap2"), span(tipright("Number of snapshots or intermediate models to generate"), "snap"), 3),
+                    div(actionButton(ns("run_play2"), "Run >>",style="height: 30px;padding: 5px")),
+
+                    hidden(div(style="padding-top: 10px",
+                               class="anim_opt2",
+                               div(strong('Animation options')),
+                               numericInput(ns("play_interval2"), span(tipright("Interval between each training iteration in milliseconds."), "interval"), 100),
+                               checkboxInput(ns("loop2"), "Loop", FALSE)
+                    ))
+                )),
+
+      box_caret(ns("box_setup7"),
+                title="Plot options",
+                color="#c3cc74ff",
+                div(checkboxInput(ns("gwnp_show_labels"),"Show Neuron Labels",T),
+                    checkboxInput(ns("gwnp_show_points"),"Show Observations",F)),
+
+      )
+
+
+    ),
+    column(6,box_caret(ns("box_setup6"),
+                       inline=F,
+                       button_title = actionLink(ns("download_gwnp"),
+                                                 "Download",icon("download")),
+                       title="Grid-Weighted Neuron Plot",
+                       div(uiOutput(ns("play_out2")),
+                           uiOutput(ns("plot_animation2")))
+    ))
+
+
+  )
+}
+table_results_tab1$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    current_som_model<-reactive({
+      req(inherits(vals$cur_kohonen,"kohonen"))
+      vals$cur_kohonen
+    })
+    data_x<-reactive({
+      attr(current_som_model(),"Datalist")[1]
+    })
+
+
+
+
+    create_coodebok_datalist<-reactive({
+      m<-current_som_model()
+      grid<-m$grid$pts
+      bmus<-m$unit.classif
+      res_fac<-do.call(rbind,lapply(1:nrow(grid),function(i){
+        x<-rep(0,length(bmus))
+        x[which(bmus==i)]<-1
+        factor(x)
+      }))
+      res_fac<-data.frame(res_fac)
+      colnames(res_fac)<-names(bmus)
+      rownames(res_fac)<-paste("unit",1:nrow(grid))
+      res=data.frame(current_som_model()$codes[[1]])
+      rownames(res)<-paste("unit",1:nrow(grid))
+      data=res
+      res_fac<-data.frame(neuron=paste0("unit_",1:nrow(grid)))
+      attr(data,"factors")<-res_fac
+      coords<-data.frame(grid)
+      colnames(coords)<-c("x","y")
+      rownames(coords)<-rownames(data)
+      attr(data,"coords")<-coords
+
+      neu<-do.call(rbind,get_neurons(m))
+      my_df<-neu[,1:3]
+      df<-data.frame(group_by( st_as_sf(my_df,coords = c("x", "y"),crs = 4326),neu))
+      li<-lapply(split(df,df$neu),function(x){
+        x$geometry<-  st_combine(x$geometry)
+        x
+      })
+      base_shape<-st_cast(st_sf(do.call(rbind,li)),"POLYGON")
+
+
+      attr(data,"base_shape")<-base_shape
+      data
+    })
+
+    observeEvent(input$create_codebook,ignoreInit = T,{
+      pd0<-data<-create_coodebok_datalist()
+
+      req(data_x())
+      data<-data_migrate(vals$saved_data[[data_x()]],data)
+      attr(data,"coords")<-NULL
+      attr(data,"factors")<-data.frame(id=factor(rownames(pd0)))
+
+      bag<-attr(m,'model_name')
+      if(is.null(bag)){
+        bag<-attr(m,"model_tag")
+      }
+      bag<-paste0(bag,"_codebook")
+      newnames<-make.unique(c(names(vals$saved_data),bag))
+      bag<-newnames[length(newnames)]
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("codebook-create"), vals)
+    })
+
+    module_save_changes$server(ns("codebook-create"), vals)
+
+    output$som_errors<-renderUI({
+      som_qualist<-errors_som(current_som_model())
+      res<-data.frame(som_qualist$som_quality)
+
+      res$mean=apply(data.frame(lapply(res,function(x)as.numeric(x))),1,mean)
+      neu.uti<-data.frame(som_qualist$neu.uti)
+      rownames(neu.uti)<-"neu.uti"
+      res_names<-rownames(res)
+      div(
+
+
+        renderTable(res,rownames =T),
+        renderTable(neu.uti,rownames =T,colnames =F),
+      )
+    })
+
+
+    observeEvent(ignoreInit = T,input$save_bmu,{
+      savebmu()
+    })
+
+    savebmu<-reactive({
+      temp<-current_som_model()
+
+      bmu<-temp$unit.classif
+      names(bmu)<-rownames(temp$data[[1]])
+      bmu<-data.frame(bmu=as.factor(bmu))
+      factors<-attr(vals$saved_data[[data_x()]],"factors")
+      factors<-data.frame(factors,bmu)
+      attr(vals$saved_data[[data_x()]],"factors")<-factors
+    })
+
+    observeEvent(ignoreInit = T,input$down_pcodes_results,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      name<-"Codebook results"
+      data<- data.frame( kohonen::getCodes(current_som_model()))
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Codebook results",data=data, name=name)
+    })
+    output$down_kohonen_results<-{
+      downloadHandler(
+        filename = function() {
+          paste0("Kohonen","_", Sys.Date(),".rds")
+        }, content = function(file) {
+          saveRDS(current_som_model(),file)
+        })
+    }
+
+
+    output$out_train.summary<-renderTable({
+      train.summary()
+    }, rownames = T, colnames = F,striped=T, spacing ="xs")
+    train.summary<-reactive({
+      m<-current_som_model()
+
+      req(inherits(m,"kohonen"))
+      traindata<-data.frame(m$data[[1]])
+      mean = round(mean(unlist(traindata)), 2)
+      n.obs = nrow(traindata)
+      n.variables = ncol(traindata)
+      summ<-m$grid[-1]
+      summ$neighbourhood.fct<-as.character(summ$neighbourhood.fct)
+      summ<-do.call(rbind, summ)
+      mode<-attr(m,"mode")
+      alpha = paste0(m$alpha, collapse = "; ")
+      radius = paste0(round(m$radius, 3), collapse = "; ")
+      # user.weights = m$user.weights
+      maxNA.fraction = m$maxNA.fraction
+      dist.fcts =   paste0(m$dist.fcts,collapse="; ")
+      user.weights =   paste0(round(m$user.weights,4),collapse="; ")
+      Layers =   paste0(names(m$data),collapse="; ")
+      normalizeDataLayers<-attr(m,"normalizeDataLayers")
+
+
+
+
+
+      Parameters<-
+        rbind(
+          Layers,
+          dist.fcts,
+          user.weights,
+          n.obs,
+          n.variables,
+          summ,
+          alpha,
+          radius,
+          #user.weights,
+          maxNA.fraction,
+          normalizeDataLayers=normalizeDataLayers,
+
+          mode
+        )
+      result<-data.frame(Parameters)
+
+
+      result
+    })
+
+    observeEvent(ignoreInit = T,input$som_quality_help, {
+
+      pkgs<-'aweSOM'
+      citations<-do.call('c',lapply(pkgs, citation))
+      citations<- lapply(citations,function(x){
+        format(x, style = "html")
+      })
+
+      showModal(
+        modalDialog(
+          title = "Quality Measures",
+          easyClose = TRUE,
+          size = "l",
+          column(12,class="modal_indent",
+                 hr(),
+                 p(
+
+                   p("Quality measures computed using the aweSOM package (Boelaert, 2022). For multiple layers trained, iMESc implements these measures individually by data layer, except for Neuron utilization."),
+                   p(h4("Quantization error:"),
+                     div(
+                       "This measure calculates the average squared distance between the data points and the map prototypes to which they are mapped. A lower value indicates better quality."
+                     )),
+                   p(h4("Percentage of explained variance:"),
+                     div(
+                       "Similar to other clustering methods, this measure represents the share of total variance that is explained by the clustering. It is calculated as 1 minus the ratio of quantization error to total variance. Higher values indicate better quality."
+                     )),
+                   p(h4("Topographic error:"),
+                     div(
+                       "This measure evaluates how well the topographic structure of the data is preserved on the map. It measures the proportion of observations for which the best-matching node is not a neighbor of the second-best matching node on the map. A lower value indicates better topographic representation. A value of 0 indicates excellent topographic representation, where all best and second-best matching nodes are neighbors, while a value of 1 represents the maximum error, where the best and second-best nodes are never neighbors."
+                     )),
+                   p(h4("Kaski-Lagus error:"),
+                     div(
+                       "The Kaski-Lagus error combines aspects of quantization and topographic error. It is computed as the sum of the mean distance between points and their best-matching prototypes, and the mean geodesic distance (pairwise prototype distances following the SOM grid) between the points and their second-best matching prototype."
+                     )),
+                   p(h4("Neuron Utilization error:"),
+                     div(
+                       "Neuron Utilization represents the percentage of neurons that are not the Best Matching Unit (BMU) of any observation. It provides insight into the utilization of neurons in the SOM."
+                     )),
+                   hr(),
+                   h4("Reference:"),
+                   p(HTML(paste0(citations)))
+                 )
+          )
+        )
+      )
+    })
+
+    return(NULL)
+
+  })
+}
+table_results_tab2$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    current_som_model<-reactive({
+      req(inherits(vals$cur_kohonen,"kohonen"))
+      vals$cur_kohonen
+    })
+    data_x<-reactive({
+      attr(current_som_model(),"Datalist")[1]
+    })
+
+    observeEvent(ignoreInit = T,input$downp_pchanges,{
+
+      vals$hand_plot<-"generic_replay"
+      module_ui_figs("downfigs")
+      generic=g_pchanges()
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Changes plot", name_c="som_changes")
+    })
+    g_pchanges<-reactive({
+      pchanges(current_som_model())
+      res<-recordPlot()
+      res
+    })
+    output$pchanges<-renderPlot({
+      req(length(current_som_model())>0)
+      g_pchanges()
+    })
+    output$pcounts<-renderPlot({
+      req(length(current_som_model())>0)
+      g_pcounts()
+    })
+    g_pcounts<-reactive({
+      pcounts(current_som_model())
+      res<-recordPlot()
+      res
+    })
+    observeEvent(ignoreInit = T,input$downp_pcounts,{
+
+      vals$hand_plot<-"generic_replay"
+      module_ui_figs("downfigs")
+      generic=g_pcounts()
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Counting plot", name_c="som_counting")
+    })
+    return(NULL)
+
+  })
+}
+table_results_tab3$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+
+    current_som_model<-reactive({
+      req(inherits(vals$cur_kohonen,"kohonen"))
+      vals$cur_kohonen
+    })
+    data_x<-reactive({
+      attr(current_som_model(),"Datalist")[1]
+    })
+    getsolid_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      solid<-names(res1[res1==T])
+      pic<-which(vals$colors_img$val%in%solid)
+      pic
+    })
+    getgrad_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      grad<-names(res1[res1==F])
+      pic<-which(vals$colors_img$val%in%grad)
+      pic
+    })
+
+    box_caret_server("box_var_pie")
+    box_caret_server("rbox1")
+    box_caret_server("rbox2")
+    box_caret_server("rbox3")
+    box_caret_server("rbox4")
+    box_caret_server("rbox5")
+    box_caret_server("rbox6")
+
+    output$importance_results<-renderUI({
+      imp_results<-attr(hcplot4(),"imp_results")
+      req(imp_results)
+      actionLink(ns("show_hc_imp"),"Importance results",icon("expand"))
+    })
+    output$create_importance_results<-renderUI({
+      p<-hcplot4()
+      imp_results<-attr(p,"imp_results")
+      imp_layer<-attr(p,"imp_layer")
+      req(imp_layer%in%names(vals$saved_data))
+      req(imp_results)
+      div(actionLink(ns("create_hc_imp"),span("Create Datalist",tiphelp("Create Datalist with selected variables for pies")),icon("creative-commons-share")))
+    })
+
+    observeEvent(input$create_hc_imp,{
+
+      p<-hcplot4()
+      imp_results<-attr(p,"imp_results")
+      imp_layer<-attr(p,"imp_layer")
+      imp_vars<-attr(p,"imp_vars")
+      req(imp_layer)
+      req(imp_vars)
+      req(imp_layer%in%names(vals$saved_data))
+
+      data_o<-vals$saved_data[[imp_layer]]
+      req(data_o)
+      req(imp_vars%in%colnames(data_o))
+      data<-data_o[,imp_vars,drop=F]
+      req(data)
+      data<-data_migrate(data_o,data)
+
+      bag<-paste0(imp_layer,"_som_top_vars")
+      newnames<-make.unique(c(names(vals$saved_data),bag))
+      bag<-newnames[length(newnames)]
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("som-imp-create"), vals)
+
+    })
+    module_save_changes$server("som-imp-create", vals)
+    observeEvent(input$show_hc_imp,{
+      data<-attr(hcplot4(),"imp_results")
+      req(data)
+      showModal(
+        modalDialog(
+          title="SOM Variable Importance Results",
+          easyClose = T,
+          div(class="half-drop-inline",
+              div(actionLink(ns("download_hc_imp"),"Download",icon("download"))),
+
+              fixed_dt(data,dom = 'lt',
+                       pageLength=20,
+                       lengthMenu = list(c(20, -1), c( "20","All")))
+          )
+
+
+        )
+      )
+    })
+    observeEvent(input$download_hc_imp,{
+      data<-attr(hcplot4(),"imp_results")
+      req(data)
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      name<-"som_imp_results"
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Permutation Importance Results",data=data, name=name)
+
+    })
+    observeEvent(input$var_pie_layer,{
+      m<-current_som_model()
+
+      choices<-colnames(m$data[[input$var_pie_layer]])
+
+      shinyWidgets::updateVirtualSelect(
+        "var_pie_manual",
+        choices=choices,
+        selected=choices[1:4]
+      )
+    })
+    observe({
+      shinyjs::toggle('var_pie_manual',condition=input$var_pie_type%in%"manual")
+      shinyjs::toggle('var_pie_n',condition=!input$var_pie_type%in%"manual")
+    })
+    observeEvent(input$var_pie_help,{
+      showModal(
+        modalDialog(
+          title = "Variable Pies in SOM codebook",
+          easyClose = TRUE,
+          div(
+            p("The variables to display through pies can be selected though three options:"),
+            tags$ul(
+              tags$li(strong("Top importance"),
+                      p("The importance of each variable is determined based on the codebook weights for each neuron. The relative importance scores for each variable are calculated by normalizing the codebook weights by the sum of weights for each neuron. The top variables with the highest sum of relative importance scores across all neurons are identified and plotted using pies representing their weights in the codebook.")
+              ),
+              tags$li(strong("Top weight"),
+                      p("The absolute importance of each variable is determined based on the sum of codebook weights for each variable across all neurons. The top variables with the highest absolute weights are identified and plotted using pies representing their weights in the codebook.")
+              ),
+              tags$li(strong("Manual"),
+                      p("Select manually the variables to display.")
+              )
+            )
+          )
+        )
+      )
+    })
+    observeEvent(current_som_model(),{
+      updatePickerInput(session,'var_pie_layer',choices=names(current_som_model()$data))
+
+    })
+    observe({
+      shinyjs::toggle('var_pie_layer',condition=length(current_som_model()$data)>1)
+    })
+    observeEvent(input$var_pie,{
+      if(isTRUE(input$var_pie)){
+        lapply(c('ss1_pclus_addpoints','ss1_varfacmap_action'),function(x){
+          updateCheckboxInput(session,x,value=F)
+        })
+
+
+      }
+    })
+
+    observeEvent(input$ss1_somback_value,{
+      if(input$ss1_somback_value%in%c('uMatrix','property')){
+        updateCheckboxInput(session,'var_pie',value=F)
+        updateCheckboxInput(session,'ss1_pclus_addpoints',value=T)
+      }
+    })
+
+    observe({
+      shinyjs::toggle('show_box_var_pie',condition=input$ss1_somback_value=='None')
+    })
+
+    observeEvent(input$var_pie,ignoreInit = T,{
+      if(isTRUE(input$var_pie)){
+        updatePickerInput(session,"ss1_pclus_points_palette",
+                          selected="black",
+                          choices =  vals$colors_img$val[getsolid_col()],
+                          choicesOpt = list(content =  vals$colors_img$img[getsolid_col()] ))
+      } else{
+        updatePickerInput(session,"ss1_pclus_points_palette",
+                          choices =  vals$colors_img$val,
+                          choicesOpt = list(content =  vals$colors_img$img ),selected=vals$pclus_points_palette)
+      }
+    })
+    observe({
+      req(is.null(vals$pclus_points_palette))
+
+      vals$pclus_points_palette<-"black"
+
+    })
+    observe({
+      shinyjs::toggle("ss1_pclus_points_factor",condition = isFALSE(input$var_pie))
+
+    })
+    observe({
+      toggle("var_pie_out",condition=isTRUE(input$var_pie))
+    })
+    observe({
+      updatePickerInput(session,'var_pie_bg',choices = vals$colors_img$val[getgrad_col()],selected="viridis",choicesOpt = list(content =  vals$colors_img$img[getgrad_col()]))
+
+    })
+
+
+
+    output$ss1_plus_umatrix<-renderUI({
+      if(is.null(vals$plus_umatrix)){vals$plus_umatrix<-F}
+      checkboxInput(ns("ss1_plus_umatrix"),strong("+ U-Matrix:"), value=vals$plus_umatrix)
+    })
+    ss1_getdata_layer<-reactive({
+      choices0 = names(current_som_model()$data)
+      if(length(choices0)>0){
+        req(input$ss1_property_layer)
+        current_som_model()$data[[input$ss1_property_layer]]
+      } else{
+        current_som_model()$data[[1]]
+      }
+
+    })
+    ss1_indicate_hc<-reactive({
+      npic<-NULL
+      indicate<-NULL
+      if(isTRUE(input$ss1_varfacmap_action)){
+
+        npic<- input$ss1_npic
+        indicate<- input$ss1_vfm_type
+      }
+      iind=list(indicate=indicate,npic=npic)
+      iind
+    })
+    ss1_bp_som<-reactive({
+      iind=ss1_indicate_hc()
+      m<-current_som_model()
+      bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
+      vals$ss1_bp_som<-bp
+      bp
+    })
+    ss1_get_network<-reactive({
+      req(input$ss1_somback_value)
+      backtype=NULL
+      property=NULL
+      if(input$ss1_somback_value=="property"){
+        req(input$ss1_variable_pproperty)
+        backtype="property"
+        property=input$ss1_variable_pproperty
+      } else if(input$ss1_somback_value=="uMatrix"){
+        backtype="uMatrix"
+      }
+
+
+
+      m<-current_som_model()
+      hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
+      vals$ss1_hc_network<-hexs
+      hexs
+    })
+    ss1_get_copoints<-reactive({
+      m<-current_som_model()
+      copoints<-getcopoints(m)
+      vals$copoints_hc<-copoints
+      copoints
+    })
+    ss1_copoints_scaled<-reactive({
+      ss1_get_network()
+      ss1_get_copoints()
+
+      points_tomap=rescale_copoints(hexs=vals$ss1_hc_network,copoints=vals$copoints_hc)
+      data<-vals$saved_data[[data_x()]]
+
+      factors<-attr(data,"factors")
+      if(length(input$ss1_pclus_text_factor)>0){
+        req(input$ss1_pclus_text_factor%in%colnames(factors))
+        text_factor= factors[rownames(data),input$ss1_pclus_text_factor, drop=F]
+        points_tomap$label<-text_factor[rownames(points_tomap),]
+      }
+      if(length(input$ss1_pclus_points_factor)>0){
+        req(input$ss1_pclus_points_factor%in%colnames(factors))
+        points_factor= factors[rownames(data),input$ss1_pclus_points_factor, drop=F]
+        points_tomap$point<-points_factor[rownames(points_tomap),]
+        attr(points_tomap,"namepoints")<-input$ss1_pclus_points_factor
+      }
+      vals$ss1_hc_mapsom<-points_tomap
+      points_tomap
+    })
+    ss1_argsplot<-reactive({
+
+      req(input$ss1_pcodes_bgalpha)
+      if(isTRUE(input$ss1_pclus_addpoints)){
+        req(input$ss1_pclus_points_factor)
+        points_factor= NULL }
+      if(isTRUE(input$ss1_pclus_addtext)){
+        req(input$ss1_pclus_text_factor)
+        text_factor= NULL }
+
+      indicate=ss1_indicate_hc()
+
+
+      m<-current_som_model()
+
+      tryco<-try(ss1_copoints_scaled(), silent = T)
+
+      req(!inherits(tryco,"try-error"))
+      #savereac()
+      trybp<-try( ss1_bp_som(), silent = T)
+
+      req(!inherits(trybp,"try-error"))
+
+      errors<-NULL
+
+
+
+
+      copoints2<-vals$copoints2
+      copoints3<-copoints2
+      #opoints2$point<-args$points_factor
+      #attach(vals$args)
+
+
+      args<-list(m=m,
+                 hexs=vals$ss1_hc_network,
+                 points_tomap=vals$ss1_hc_mapsom,
+                 bp=vals$ss1_bp_som,
+                 points=input$ss1_pclus_addpoints,
+                 points_size=input$ss1_pclus_points_size,
+                 points_palette=input$ss1_pclus_points_palette,
+                 pch=as.numeric(input$ss1_pclus_symbol),
+                 text=input$ss1_pclus_addtext,
+                 text_size=input$ss1_pclus_text_size,
+                 text_palette=input$ss1_pclus_text_palette,
+                 bg_palette=input$ss1_bg_palette,
+                 newcolhabs=vals$newcolhabs,
+                 bgalpha=input$ss1_pcodes_bgalpha,
+                 border=input$ss1_pclus_border,
+                 indicate=indicate$indicate,
+                 cex.var=as.numeric(input$ss1_pclus.cex.var),
+                 col.text=input$ss1_p.clus.col.text,
+                 col.bg.var=input$ss1_var_bg,
+                 col.bg.var.alpha=1-input$ss1_var_bg_transp,
+                 show_error=errors,
+                 base_size=input$ss1_base_size,
+                 show_neucoords=input$ss1_theme,
+                 newdata=input$ss1_newdata,
+                 title=input$ss1_title,
+                 hc=NULL,
+                 var_pie=input$var_pie,
+                 var_pie_type=input$var_pie_type,
+                 n_var_pie=input$var_pie_n,
+                 Y_palette=input$var_pie_bg,
+                 var_pie_transp=input$var_pie_transp,
+                 var_pie_layer=input$var_pie_layer,
+                 pie_variables=input$var_pie_manual,
+                 border_width=input$border_width,
+                 fill_neurons=input$fill_neurons
+      )
+
+      args
+
+    })
+    output$bmu_plot<-renderUI({
+
+
+      renderPlot({
+
+        args<-ss1_argsplot()
+
+        bp<-args$bp
+        bp$id=NULL
+        vals$biplot_som<-bp
+        args$points_palette
+
+        args
+        vals$bmus_plot<-do.call(bmu_plot,args)
+        vals$bmus_plot
+      })
+
+    })
+    bag_vfm<-reactive({
+
+      name0<-paste0(data_x(),"_",input$ss1_npic,"vars")
+      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
+      name1[length(vals$saved_data)+1]
+    })
+    observeEvent(ignoreInit = T,input$ss1_varfacmap, {
+      showModal(modalDialog(
+        uiOutput(ns("textvarfacmap")),
+        title = h4(strong("Variable factor map")),
+        footer = modalButton("close"),
+        size = "m",
+        easyClose = TRUE
+      ))
+    })
+    observeEvent(vals$newcolhabs,{
+      choices = vals$colors_img$val[getsolid_col()]
+      choicesOpt=list(content=vals$colors_img$img[getsolid_col()])
+
+      updatePickerInput(session,'ss1_p.clus.col.text',
+                        choices=choices,
+                        choicesOpt=choicesOpt,
+                        selected="black"
+      )
+
+      updatePickerInput(session,'ss1_var_bg',
+                        choices=choices,
+                        choicesOpt=choicesOpt,
+                        selected="white"
+      )
+
+
+      updatePickerInput(session,'ss1_pclus_border',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "white")
+
+
+
+      updatePickerInput(session,'ss1_pclus_text_palette',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "black"
+      )
+      updatePickerInput(session,'ss1_pclus_points_palette',
+                        choices = vals$colors_img$val,
+                        choicesOpt = list(content = vals$colors_img$img),
+                        selected="black"
+      )
+    })
+    observeEvent(ss1_getdata_layer(),{
+      updatePickerInput(session,'ss1_variable_pproperty',choices=colnames(ss1_getdata_layer()),options=shinyWidgets::pickerOptions(liveSearch=T))
+    })
+    observeEvent(current_som_model(),{
+      choices = names(current_som_model()$data)
+      updatePickerInput(session,'ss1_property_layer',choices=choices)
+    })
+    df_symbol<-data.frame(
+      val = c(16,15,17,18,8,1,5,3)
+    )
+    for(i in 1:length(symbols))
+    {
+      symbol1<-base64enc::dataURI(file = paste0('inst/www/pch',i,".png"), mime = "image/png")
+
+      df_symbol$img[i]<- sprintf(paste0(img(src = symbol1, width = '10')))}
+    observeEvent(df_symbol$val,{
+      updatePickerInput(session,'ss1_pclus_symbol',
+                        choices = df_symbol$val,
+                        choicesOpt = list(content = df_symbol$img))
+
+    })
+
+
+    observeEvent(data_x(),{
+      choices<-c(colnames(attr(vals$saved_data[[data_x()]],"factors")))
+      updatePickerInput(session,'ss1_pclus_text_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+
+      updatePickerInput(session,'ss1_pclus_points_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+    })
+    observeEvent(input$ss1_varfacmap_action,shinyjs::toggle("ss1_varfac_out",condition=isTRUE(input$ss1_varfacmap_action)))
+    observeEvent(input$ss1_pclus_addtext,{
+      shinyjs::toggle("ss1_pclus_text_inputs",condition=isTRUE(input$ss1_pclus_addtext))
+    })
+    observe({
+      data = ss1_getdata_layer()
+      shinyjs::toggle('ss1_prev_property',condition=which(colnames(data)==input$ss1_variable_pproperty)!=1)
+
+      shinyjs::toggle('ss1_next_property',condition=which(colnames(data)!=input$ss1_variable_pproperty)==ncol(data))
+    })
+    observeEvent(input$ss1_pclus_addpoints,{
+      shinyjs::toggle("ss1_pclus_points_inputs",condition=isTRUE(input$ss1_pclus_addpoints))
+    })
+    observeEvent(input$ss1_somback_value,{
+      shinyjs::toggle("ss1_var_pproperty",condition=input$ss1_somback_value=="property")
+      shinyjs::toggle("ss1_property_layer",condition=input$ss1_somback_value=="property")
+    })
+    observeEvent(input$ss1_somback_value,{
+      if(input$ss1_somback_value=="uMatrix"){
+        updatePickerInput(session,"ss1_bg_palette",selected="viridis")
+      }
+    })
+    ss1_get_choices_pal<-reactive({
+
+      req(input$ss1_somback_value)
+      title="+ Unit palette"
+      if(input$ss1_somback_value=="None"){
+
+        choices=getsolid_col()
+      } else {
+
+
+        choices=getgrad_col()
+
+      }
+
+
+      attr(choices,"title")<-title
+      choices
+    })
+    observeEvent(ss1_get_choices_pal(),{
+      choices<-ss1_get_choices_pal()
+      title<-attr(choices,"title")
+      req(input$ss1_somback_value)
+      selected<-ifelse(input$ss1_somback_value=="None","gray","viridis")
+
+      updatePickerInput(session,'ss1_bg_palette',
+                        choices =  vals$colors_img$val[choices],
+                        selected=selected,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[choices] ))
+    })
+
+    observeEvent(ignoreInit = T,input$down_pcorr_results,{
+      vals$hand_down<-"generic"
+
+
+      module_ui_downcenter("downcenter")
+      name<-"Biplot results"
+      data<- data.frame(vals$biplot_som)
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download VFM results",data=data, name=name)
+    })
+
+    create_som_vfm<-reactive({
+      data_o<-vals$saved_data[[data_x()]]
+      m<-current_som_model()
+      dd<-do.call(cbind,m$data)
+      colnames(dd)<-unlist(sapply(m$data,colnames))
+      temp<-data.frame(dd[,rownames(vals$biplot_som),drop=F])
+      colnames(temp)<-rownames(vals$biplot_som)
+      temp
+    })
+
+    observeEvent(input$create_vfm_results,ignoreInit = T,{
+      m<-current_som_model()
+      pd0<-data<-create_som_vfm()
+
+      req(data_x())
+      data<-data_migrate(vals$saved_data[[data_x()]],data)
+      attr(data,"coords")<-NULL
+      attr(data,"factors")<-data.frame(id=factor(rownames(pd0)))
+
+      bag<-attr(m,'model_name')
+      if(is.null(bag)){
+        bag<-attr(m,"model_tag")
+      }
+      bag<-paste0(bag,"_vars_vfm")
+      newnames<-make.unique(c(names(vals$saved_data),bag))
+      bag<-newnames[length(newnames)]
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+
+
+      module_save_changes$ui(ns("vfm-create"), vals)
+    })
+
+    module_save_changes$server(ns("vfm-create"), vals,message="Note that the trained SOM is composed by multiple layers. Variables from different layers will be merged (cbind) into a single Datalist")
+
+    observeEvent(ignoreInit = T,input$downp_bmu,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic=vals$bmus_plot
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot", name_c="bmu_plot")
+    })
+
+    return(NULL)
+
+  })
+}
+table_results_tab4$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    current_som_model<-reactive({
+      req(inherits(vals$cur_kohonen,"kohonen"))
+      vals$cur_kohonen
+    })
+    data_x<-reactive({
+      attr(current_som_model(),"Datalist")[1]
+    })
+    box_caret_server("box_setup5")
+    box_caret_server("box_setup6")
+    box_caret_server("box_setup7")
+
+    output$play_out2<-renderUI({
+      req(modelplay2())
+
+
+      div(
+        div(sliderInput(session$ns("animation2"), "Animation:",
+                        min = 1, max = length(modelplay2()),
+                        value = 1, step = 1,
+                        animate =
+                          animationOptions(interval = input$play_interval2,
+                                           playButton=tags$div(
+                                             tags$span("Play >> ",style="font-size: 14px;font-weight: bold; background:  #05668D;color: white; padding: 3px;"),style=" margin-top: 5px"
+                                           ),
+                                           loop = input$loop2)))
+      )
+    })
+
+    output$plot_animation2<-renderUI({
+      renderPlot({get_plot_animation2()})
+
+    })
+    observeEvent(input$run_play2,ignoreInit = T,{
+
+      m<-current_som_model()
+      seed<-m$seed
+      ms<-list()
+      rlen=nrow(m$changes)
+
+      seq<-    round(seq(1,rlen,length.out=input$rlen_snap2))
+
+      withProgress(min=1,max=length(seq),message="Running...",{
+        for( i in seq) {
+
+          set.seed(seed)
+          m2<-supersom(m$data,m$grid,
+                       radius = m$radius,
+                       alpha =m$alpha,
+                       whatmap = m$whatmap,
+                       user.weights = m$user.weights,
+                       maxNA.fraction = m$maxNA.fraction,
+                       dist.fcts = m$dist.fcts,
+                       mode = m$mode,
+                       rlen=i,
+                       init=m$init,
+                       normalizeDataLayers = m$normalizeDataLayers)
+
+
+          ms[[length(ms)+1]]<-m2
+          incProgress(1)
+        }
+      })
+
+      modelplay2(ms)
+
+    })
+    modelplay2<-reactiveVal(NULL)
+    get_plot_animation2<-reactive({
+      if(is.null(modelplay2())){
+        plotnetwork_list2(current_som_model(), label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
+      } else {
+
+        plotnetwork_list2(modelplay2()[[input$animation2]], label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
+
+
+      }
+
+    })
+    observeEvent(modelplay2(),{
+      shinyjs::toggle(selector=".anim_opt2",condition=length(modelplay2())>0)
+    })
+
+    observeEvent(ignoreInit = T,input$download_gwnp,{
+      req(get_plot_animation2())
+      vals$hand_plot<-"generic_replay"
+      module_ui_figs("downfigs")
+      generic=get_plot_animation2()
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Grid-Weighted Neuron Plot", name_c="grid_weig_neuronplot")
+    })
+    return(NULL)
+
+  })
+}
+table_results_som$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    output$out_tab1<-renderUI({
+      table_results_tab1$server("som-tab1",vals)
+      NULL
+    })
+    output$out_tab2<-renderUI({
+      table_results_tab2$server("som-tab2",vals)
+      NULL
+    })
+    output$out_tab3<-renderUI({
+      table_results_tab3$server("som-tab3",vals)
+      NULL
+    })
+    output$out_tab4<-renderUI({
+      table_results_tab4$server("som-tab4",vals)
+      NULL
+    })
+
+
+  })
+}
+table_predict_som<-list()
+table_predict_som$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+
+    column(
+      4,class="mp0",
+      box_caret(
+        ns("pred_header"),
+        color="#c3cc74ff",
+        title="New Data",
+        div(
+          div(class="radio_search radio_yellow",
+              uiOutput(ns("out_sompred_type"))
+
+
+          ),
+          div(id=ns('sompred_type_datalist'),
+              style="padding-left: 10px",
+              div(strong("New data layers:")),
+              uiOutput(ns("whatmap_newdata"))
+
+          ),
+          div(id=ns('run_predSOM_btn'),
+              align="right",
+              class="save_changes",
+              actionButton(ns('run_predSOM'),"RUN >>",style="height: 25px; padding-top: 2px; padding-bottom: 2px;"))
+        )
+
+      ),
+      div(
+        uiOutput(ns("pred_result_options")),
+        uiOutput(ns("pred_perf_options")),
+        div(
+          id=ns('pred_bmu_options'),
+          box_caret(
+            ns("pbox1"),
+            color="#c3cc74ff",
+            title="Background",
+            div(
+              div(class="radio_search radio_yellow",
+                  radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
+              ),
+
+              pickerInput_fromtop(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
+              div(id=ns('ss2_var_pproperty'),style="display: flex",
+                  actionButton(ns("ss2_prev_property"),"<<"),
+                  pickerInput_fromtop(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
+                  actionButton(ns("ss2_next_property"),">>")
+
+              ),
+
+              pickerInput_fromtop(inputId = ns("ss2_bg_palette"),"Palette",NULL),
+              numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
+              pickerInput_fromtop(ns("ss2_pclus_border"),label ='Border:',NULL)
+            )
+          ),
+          box_caret(
+            ns("pbox2"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
+            ),
+            div(
+              div(id=ns("ss2_pclus_points_inputs"),
+                  pickerInput_fromtop(inputId = ns("ss2_pclus_points_palette"),
+                              label ="Palette",
+                              choices = NULL),
+                  pickerInput_fromtop(ns("ss2_pclus_points_factor"),"Factor",
+                              choices = NULL),
+                  pickerInput_fromtop(inputId = ns("ss2_pclus_symbol"),
+                              label = "Shape",
+                              choices = NULL),
+                  numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+              )
+            )
+          ),
+          box_caret(
+            ns("pbox3"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
+            ),
+            div(id=ns('ss2_pclus_text_inputs'),
+                pickerInput_fromtop(inputId = ns("ss2_pclus_text_palette"),
+                            label ="Palette",
+                            choices =  NULL),
+                pickerInput_fromtop(ns("ss2_pclus_text_factor"),"Factor",
+                            choices = NULL),
+                numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+            )
+          ),
+          box_caret(
+            ns("pbox4"),
+            color="#c3cc74ff",
+            title=span(style="display: inline-block",
+                       class="checktitle",
+                       checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
+            ),
+            tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
+            div(id=ns('ss2_varfac_out'),
+                pickerInput_fromtop(ns("ss2_vfm_type"),"Show correlation:",
+                            choices =list("Highest"='var', "Chull"="cor")
+
+                ),
+
+                div(id=ns('ss2_vfm_out'),
+                    div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                    numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
+                    pickerInput_fromtop(inputId = ns("ss2_p.clus.col.text"),
+                                label = "Color",
+                                NULL
+                    ),
+                    pickerInput_fromtop(inputId = ns("ss2_var_bg"),
+                                label = "Background",
+                                choices =NULL),
+                    numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
+                    div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
+                    div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
+                )
+            )
+          ),
+          box_caret(
+            ns("pbox5"),
+            title = "General options",
+            color="#c3cc74ff",
+            div(
+              numericInput(ns("ss2_base_size"),"Base size",value = 12),
+              checkboxInput(ns("ss2_theme"),
+                            label = "show neuron coordinates",
+                            value=F
+              ),
+              textInput(ns("ss2_title"), "Title: ", "")
+            )
+          )
+        )
+
+      )
+    ),
+    column(8,class="mp0",
+           uiOutput(ns("teste")),
+           tabsetPanel(
+             id=ns("predsom_tab"),
+             tabPanel(
+               strong("3.1. Results"),style="background: white",
+               value = "predsom_tab01",
+
+               uiOutput(ns('som_predict_results'))
+
+             ),
+             tabPanel(
+               strong("3.2. Performace"),style="background: white",
+               value = "predsom_tab01b",
+               uiOutput(ns("pred_performace"))
+             ),
+             tabPanel(
+               strong("3.3. BMUs"),style="background: white",
+               value = "predsom_tab01c",
+               box_caret(
+                 ns('pbox6'),
+                 title="BMU plot",
+                 button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
+                 div(uiOutput(ns("predbmu_plot")))
+               )
+             )
+
+
+           ),
+           div(
+             class="map_control_style",
+
+             uiOutput(ns("newdata_summ"))
+
+           )
+    )
+
+
+  )
+}
+table_predict_som$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    current_som_model<-reactive({
+      req(inherits(vals$cur_kohonen,"kohonen"))
+      vals$cur_kohonen
+    })
+    data_x<-reactive({
+      attr(current_som_model(),"Datalist")[1]
+    })
+    get_sompred<-reactiveVal()
+    box_caret_server("pred_header")
+    box_caret_server("pbox1")
+    box_caret_server("pbox2")
+    box_caret_server("pbox3")
+    box_caret_server("pbox4")
+    box_caret_server("pbox5")
+    box_caret_server("pbox6")
+    observe({
+      choices = vals$colors_img$val[getsolid_col()]
+      choicesOpt=list(content=vals$colors_img$img[getsolid_col()])
+
+
+
+      updatePickerInput(session,'ss2_pclus_border',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "white"
+      )
+      updatePickerInput(session,'ss2_pclus_text_palette',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "black"
+      )
+
+      updatePickerInput(session,'ss2_pclus_points_palette',
+                        choices = vals$colors_img$val,
+                        choicesOpt = list(content = vals$colors_img$img),
+                        selected="black"
+      )
+
+      updatePickerInput(session,'ss2_p.clus.col.text',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "black"
+      )
+
+      updatePickerInput(session,'ss2_var_bg',
+                        choices =  vals$colors_img$val[getsolid_col()] ,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[getsolid_col()] ),
+                        selected= "white"
+      )
+    })
+
+
+    output$teste<-renderUI({
+      # div("teste",style="height: 100px;overflow-y: auto",renderPrint(names(get_sompred()$predictions))     )
+    })
+    output$ui_pred_result_newdata<-renderUI({
+      req(input$layer_result)
+      req(input$tab_pred_result)
+      table<-get_pred_newdata()
+      div(class="half-drop-inline",
+          fixed_dt_con$ui(ns('pred_results'),table,max_length=100)
+      )
+
+    })
+    output$som_predict_results<-renderUI({
+      #req(get_sompred())
+      box_caret(ns("box_pred_results_out"),
+
+                title="Table",
+                button_title = div(
+
+                  div(
+                    actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
+                  )
+                ),
+                tabsetPanel(
+                  type="hidden",
+                  id=ns("tab_pred_result"),
+                  tabPanel(
+                    title = "Best-matching units",
+                    value="unit.classif",
+                    uiOutput(ns("out_pred_result_bmu"))
+                  ),
+                  tabPanel(
+                    title = "New Data (X)",
+                    value="predictions",
+
+                    uiOutput(ns("out_pred_result_newdata"))
+                  ),
+                  tabPanel(
+                    title = "Codebook",
+                    value="unit.predictions",
+                    uiOutput(ns('ui_pred_result_codebook')),
+                    uiOutput(ns("out_pred_result_codebook"))
+                  )
+                ))
+
+    })
+    output$out_pred_result_newdata<-renderUI({
+      table<-get_pred_newdata()
+      fixed_dt_con$server('pred_results',table,max_length=100)
+    })
+    output$out_pred_result_bmu<-renderUI({
+      #req(input$tab_pred_result)
+      table<-get_pred_bmu()
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
+
+    })
+
+    output$pred_result_options<-renderUI({
+      box_caret(
+        ns('box_pred_results'),
+        title="Options",
+        color="#c3cc74ff",
+        div(
+          selectInput(ns('pred_results'),"Prediction results:",choices=c(
+            "Best-matching units"='unit.classif',
+            "Data"="predictions",
+            "Codebook"="unit.predictions"
+          ),selected=vals$cur_tab_pred_result),
+          uiOutput(ns("pick_layer_result")),
+          uiOutput(ns("ui_pred_result_newdata")),
+          div(style="padding-top: 5px",
+              uiOutput(ns("link_predsom_newdata")),
+              uiOutput(ns("link_predsom_codebook"))
+          )
+        )
+
+      )
+    })
+    output$out_pred_result_codebook<-renderUI({
+      table<-get_pred_codebook()
+      fixed_dt_con$server('pred_results',table,max_length=100)
+    })
+    output$pick_layer_result<-renderUI({
+      req(input$sompred_type)
+      #req(input$sompred_type%in%c("Partition","Training"))
+
+      #req(input$tab_pred_result%in%c("predictions","unit.predictions"))
+      m<-current_som_model()
+      req(inherits(m,"kohonen"))
+
+      req(get_sompred())
+      pred<-get_sompred()
+      choices=names(pred$predictions)
+
+      div(
+
+        selectInput(ns("layer_result"), "Show layer:",choices=choices, selected=vals$cur_layer_result)
+      )
+    })
+    output$pred_performace<-renderUI({
+      box_caret(
+        ns("box_pred_perf_out"),
+        title="Table",
+        button_title = uiOutput(ns('header_perf')),
+        tabsetPanel(
+          id=ns("get_predsom_perf"),
+
+          tabPanel(
+            value="predsom_perf_overhall",
+            title = "Overall performace",
+            uiOutput(ns("overhall_peform"))),
+          tabPanel(
+            value="predsom_perf_obs",
+            title = "Performace by observation",
+            uiOutput(ns("obs_peform"))
+          ),
+          tabPanel(
+            value="predsom_perf_var",
+            title = "Performace by variable",
+            uiOutput(ns("var_peform"))
+          )
+        )
+      )
+
+
+    })
+    output$obs_peform<-renderUI({
+      vals$som_perf_result<-table<-get_obs_peform()
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
+
+
+
+
+    })
+    output$var_peform<-renderUI({
+      vals$som_perf_result<-table<-get_var_peform()
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='lt',pageLength=20)
+      )
+
+
+
+
+    })
+    output$overhall_peform<-renderUI({
+      vals$som_perf_result<-table<-get_overhall_peform()
+      div(class="half-drop-inline",
+          fixed_dt(table,dom='t')
+      )
+
+
+    })
+    output$header_perf<-renderUI({
+      div(
+        actionLink(ns('downtable_perf_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table")))
+        ),
+        uiOutput(ns("link_predsom_perf_obs"))
+
+      )
+    })
+    output$link_predsom_perf_obs<-renderUI({
+      req(input$get_predsom_perf=="predsom_perf_obs")
+      actionLink(ns('link_predsom_perf_obs_create'),span("+ Create a Datalist"))
+    })
+
+
+    observeEvent(input$link_predsom_perf_obs_create,{
+      temp<-vals$som_perf_result
+      data_o<-vals$saved_data[[data_x()]]
+      data<-data_migrate(data_o,temp)
+      attr(data,"bag")<-paste0('som_',data_x(),'perf_pred_obs')
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("pred-obs"), vals)
+
+    })
+    module_save_changes$server("pred-obs", vals)
+    output$link_predsom_newdata<-renderUI({
+      req(input$tab_pred_result=="predictions")
+      actionLink(ns('link_predsom_newdata_create'),span("+ Create a Datalist"))
+    })
+
+    observeEvent(input$link_predsom_codebook_create,ignoreInit = T,{
+      data<-get_pred_codebook()
+      #showModal(module_som())
+      req(data_x())
+      attr(data,"factors")<-data.frame(id=rownames(data))
+      coords<-data.frame(current_som_model()$grid$pts)
+      colnames(coords)<-c("x","y")
+      rownames(coords)<-rownames(data)
+      attr(data,"coords")<-coords
+      attr(data,"bag")<-paste0('som_',data_x(),'codebook_pred')
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("pred-codebook"), vals)
+    })
+    module_save_changes$server("pred-codebook", vals)
+
+    observeEvent(ignoreInit = T,input$link_predsom_newdata_create,{
+      data<-get_pred_newdata()
+      #showModal(module_som())
+      req(data_x())
+      data<-data_migrate(vals$saved_data[[data_x()]],data)
+      attr(data,"bag")<-paste0('som_',data_x(),'_predictions')
+      vals$newdatalist<-data
+      module_save_changes$ui(ns("pred-data"), vals)
+    })
+    module_save_changes$server("pred-data", vals)
+    output$link_predsom_codebook<-renderUI({
+      req(input$tab_pred_result=="unit.predictions")
+      actionLink(ns('link_predsom_codebook_create'),span("+ Create a Datalist"))
+    })
+    output$predbmu_plot<-renderUI({
+      renderPlot({getbmu_plot()})
+
+    })
+    output$whatmap_newdata<-renderUI({
+      m<-current_som_model()
+      datas<-attr(m,"Datalist")
+      lapply(m$whatmap,function(w){
+        choices<-names(which(sapply(vals$saved_data,function(x){
+          all(colnames(x)%in%colnames(m$data[[w]]))
+        })))
+        if(w>1){
+          choices=c("None",choices)
+        }
+        pickerInput_fromtop(ns(paste0("newdata_w",w)),datas[[w]],choices)
+      })
+    })
+    output$ss2_plus_umatrix<-renderUI({
+      if(is.null(vals$plus_umatrix)){vals$plus_umatrix<-F}
+      checkboxInput(ns("ss2_plus_umatrix"),strong("+ U-Matrix:"), value=vals$plus_umatrix)
+    })
+
+
+    get_newdata<-reactive({
+      req(input$sompred_type)
+      req(input$sompred_type=="Datalist")
+      m<-current_som_model()
+      datas<-attr(m,"Datalist")
+      newdata_names<-sapply(m$whatmap,function(w){
+        req(input[[paste0("newdata_w",w)]])
+        input[[paste0("newdata_w",w)]]
+      })
+      #newdata_names<-readRDS("newdata_names.rds")
+      #newdata_names<-unlist(newdata_names)
+      newdata_names<-newdata_names[which(newdata_names!="None")]
+      news<-vals$saved_data[newdata_names]
+      res<-lapply(news,as.matrix)
+      names(res)<-names(m$data)[which(newdata_names!="None")]
+      res
+    })
+    supersom_newdata<-reactive({
+      req(input$sompred_type)
+      m<-current_som_model()
+      if(input$sompred_type%in%"Partition"){
+        return(attr(m,"test"))
+      }  else if(input$sompred_type%in%'Training'){
+        return(current_som_model()$data)
+      } else if(input$sompred_type%in%'Datalist'){
+        return(get_newdata())
+      }
+
+    })
+    get_overhall_peform<-reactive({
+      newdata<-supersom_newdata()
+      pred<-get_sompred()$predictions
+      m<-current_som_model()
+
+
+      res<-lapply(names(newdata),function(i){
+        postResample(pred[[i]],newdata[[i]])
+      })
+      names(res)<-names(newdata)
+
+      do.call(rbind,res)
+    })
+    get_obs_peform<-reactive({
+      #newdata<-readRDS("newdata.rds")
+      #res<-readRDS("res.rds")
+      newdata<-do.call(cbind,supersom_newdata())
+      req(newdata)
+      req(get_sompred())
+      pred<-do.call(cbind,get_sompred()$predictions)
+      req(pred)
+      obs_mean=apply(newdata,1,function(x) mean(x,na.rm=T))
+      pred_mean= apply(pred,1,function(x) mean(x,na.rm=T))
+
+      res<-data.frame(
+        obs_mean=obs_mean,
+        pred_mean=pred_mean,
+        do.call(rbind,lapply(1:nrow(newdata),function(i){
+          postResample(pred[i,],newdata[i,])
+        }))
+      )
+      rownames(res)<-rownames(get_sompred()$predictions[[1]])
+      res
+
+    })
+    get_var_peform<-reactive({
+      #newdata<-readRDS("newdata.rds")
+      #res<-readRDS("res.rds")
+      newdata_list<-supersom_newdata()
+      pred_list<-get_sompred()$predictions
+      #saveRDS(newdata_list,'newdata.rds')
+      #saveRDS(get_sompred(),'pred.rds')
+
+      result<-lapply(seq_along(get_sompred()$predictions),function(layer){
+        newdata<-newdata_list[[layer]]
+        pred<-pred_list[[layer]]
+        res<-data.frame(layer=names(get_sompred()$predictions)[layer],
+                        variable=colnames(pred),
+                        obs_mean=sapply(data.frame(newdata),function(x) mean(x,na.rm=T)),
+                        pred_mean=sapply(data.frame(pred),function(x) mean(x,na.rm=T)),
+                        do.call(rbind,
+                                lapply(1:ncol(newdata),function(i){
+                                  pr<-pred[,i]
+                                  ob<-newdata[,i]
+
+                                  data.frame(
+                                    #rmse_means=RMSE(mean(pr,na.rm=T),mean(ob,na.rm=T)),
+
+                                    as.list(postResample(pr,ob)))
+                                })))
+        #unlist(sapply(get_sompred()$predictions,colnames)) |>  print()
+
+
+
+        res
+      })
+      do.call(rbind,result)
+
+
+
+
+
+
+    })
+    get_pred_newdata<-reactive({
+      req(input$layer_result)
+      req(input$layer_result%in%names(get_sompred()$predictions))
+      get_sompred()$predictions[[input$layer_result]]
+    })
+    get_pred_bmu<-reactive({
+      res<-get_sompred()
+      res_temp<-data.frame(bmu=res[['unit.classif']])
+      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
+      res_temp
+    })
+    get_pred_codebook<-reactive({
+      req(input$layer_result)
+      res<-get_sompred()
+      if(is.null(res$predictions)){
+        res$predictions<-res$data
+      }
+      req(input$layer_result%in%names(res[["unit.predictions"]]))
+      res<-res[["unit.predictions"]][[input$layer_result]]
+      rownames(res)<-paste0("neu",1:nrow(res))
+      res
+    })
+    bag_tab_pred_result<-reactive({
+      name0<-paste(data_x(),input$tab_pred_result,input$layer_result, sep="_")
+      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
+      name1[length(vals$saved_data)+1]
+    })
+
+    create_predsom_errors<-reactive({
+
+      data_o<-switch(input$sompred_type,
+                     "Partition"={
+                       vals$saved_data[[data_x()]][rownames(attr(current_som_model(),"test")[[1]]),]
+                     },
+                     "Datalist"={vals$saved_data[[input$predsom_new]]},
+                     "Training"={vals$saved_data[[data_x()]]}
+      )
+
+      temp<-vals$som_perf_result
+      if(input$hand_save=="create") {
+        temp<-data_migrate(data_o,temp,input$newdatalist)
+        vals$saved_data[[input$newdatalist]]<-temp
+      } else{
+        temp<-data_migrate(data_o,temp,input$over_datalist)
+        vals$saved_data[[input$over_datalist]]<-temp
+      }
+
+
+
+
+    })
+    ss2_getdata_layer<-reactive({
+      choices0 = names(current_som_model()$data)
+      if(length(choices0)>0){
+        req(input$ss2_property_layer)
+        current_som_model()$data[[input$ss2_property_layer]]
+      } else{
+        current_som_model()$data[[1]]
+      }
+
+    })
+    ss2_indicate_hc<-reactive({
+      npic<-NULL
+      indicate<-NULL
+      if(isTRUE(input$ss2_varfacmap_action)){
+
+        npic<- input$ss2_npic
+        indicate<- input$ss2_vfm_type
+      }
+      iind=list(indicate=indicate,npic=npic)
+      iind
+    })
+    ss2_bp_som<-reactive({
+      iind=ss2_indicate_hc()
+      m<-current_som_model()
+      bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
+      vals$ss2_bp_som<-bp
+      bp
+    })
+    ss2_get_network<-reactive({
+      req(input$ss2_somback_value)
+      backtype=NULL
+      property=NULL
+      if(input$ss2_somback_value=="property"){
+        req(input$ss2_variable_pproperty)
+        backtype="property"
+        property=input$ss2_variable_pproperty
+      } else if(input$ss2_somback_value=="uMatrix"){
+        backtype="uMatrix"
+      }
+
+
+
+      m<-current_som_model()
+      hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
+      vals$ss2_hc_network<-hexs
+      hexs
+    })
+    ss2_get_copoints<-reactive({
+      m<-get_som_model_pred()
+      copoints<-getcopoints(m)
+      vals$copoints_hc2<-copoints
+      copoints
+    })
+    ss2_copoints_scaled<-reactive({
+      ss2_get_network()
+      ss2_get_copoints()
+      points_tomap=rescale_copoints(hexs=vals$ss2_hc_network,copoints=vals$copoints_hc2)
+      data<-vals$saved_data[[data_x()]]
+
+      factors<-attr(data,"factors")
+      if(length(input$ss2_pclus_text_factor)>0){
+        req(input$ss2_pclus_text_factor%in%colnames(factors))
+        text_factor= factors[rownames(data),input$ss2_pclus_text_factor, drop=F]
+        points_tomap$label<-text_factor[rownames(points_tomap),]
+      }
+      if(length(input$ss2_pclus_points_factor)>0){
+        req(input$ss2_pclus_points_factor%in%colnames(factors))
+        points_factor= factors[rownames(data),input$ss2_pclus_points_factor, drop=F]
+        points_tomap$point<-points_factor[rownames(points_tomap),]
+        attr(points_tomap,"namepoints")<-input$ss2_pclus_points_factor
+      }
+      vals$ss2_hc_mapsom<-points_tomap
+      points_tomap
+    })
+    ss2_get_choices_pal<-reactive({
+
+
+      req(length(input$ss2_somback_value)>0)
+      title="+ Unit palette"
+      if(input$ss2_somback_value=="None"){
+        vals$somplot_bg<-"gray"
+        choices=getsolid_col()
+      } else {
+
+        vals$somplot_bg<-"viridis"
+        choices=getgrad_col()
+
+      }
+
+
+      attr(choices,"title")<-title
+      choices
+    })
+    ss2_argsplot<-reactive({
+
+      req(input$ss2_pcodes_bgalpha)
+      if(isTRUE(input$ss2_pclus_addpoints)){
+        req(input$ss2_pclus_points_factor)
+        points_factor= NULL }
+      if(isTRUE(input$ss2_pclus_addtext)){
+        req(input$ss2_pclus_text_factor)
+        text_factor= NULL }
+
+      indicate=ss2_indicate_hc()
+
+
+      m<-current_som_model()
+
+      tryco<-try(ss2_copoints_scaled(), silent = F)
+
+      req(!inherits(tryco,"try-error"))
+      #savereac()
+      trybp<-try( ss2_bp_som(), silent = T)
+
+      req(!inherits(trybp,"try-error"))
+
+      errors<-NULL
+
+
+
+
+      copoints2<-vals$copoints2
+      copoints3<-copoints2
+      #opoints2$point<-args$points_factor
+      #attach(vals$args)
+
+
+      args<-list(m=m,
+                 hexs=vals$ss2_hc_network,
+                 points_tomap=vals$ss2_hc_mapsom,
+                 bp=vals$ss2_bp_som,
+                 points=input$ss2_pclus_addpoints,
+                 points_size=input$ss2_pclus_points_size,
+                 points_palette=input$ss2_pclus_points_palette,
+                 pch=as.numeric(input$ss2_pclus_symbol),
+                 text=input$ss2_pclus_addtext,
+                 text_size=input$ss2_pclus_text_size,
+                 text_palette=input$ss2_pclus_text_palette,
+                 bg_palette=input$ss2_bg_palette,
+                 newcolhabs=vals$newcolhabs,
+                 bgalpha=input$ss2_pcodes_bgalpha,
+                 border=input$ss2_pclus_border,
+                 indicate=indicate$indicate,
+                 cex.var=as.numeric(input$ss2_pclus.cex.var),
+                 col.text=input$ss2_p.clus.col.text,
+                 col.bg.var=input$ss2_var_bg,
+                 col.bg.var.alpha=1-input$ss2_var_bg_transp,
+                 show_error=errors,
+                 base_size=input$ss2_base_size,
+                 show_neucoords=input$ss2_theme,
+                 newdata=input$ss2_newdata,
+                 title=input$ss2_title,
+                 hc=NULL
+      )
+
+      args
+
+    })
+    getbmu_plot<-reactive({
+      args<-ss2_argsplot()
+      #saveRDS(args,"args.rds")
+
+      req(length(args)>0)
+      bp<-args$bp
+      bp$id=NULL
+      vals$biplot_som<-bp
+      do.call(bmu_plot,args)
+    })
+    getpred_model<-reactive({
+
+      res0<-res<-get_sompred()
+
+      pic_result<-input$ss2_property_layer
+
+      res$predictions
+      res<-res[["unit.predictions"]][[pic_result]]
+      rownames(res)<-paste0("neu",1:nrow(res))
+      unit.predictions<-res
+
+      res<-res0
+      res_temp<-data.frame(bmu=res[['unit.classif']])
+      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
+      res<-res_temp
+      unit.classif<-res
+
+      res<-res0
+      if(is.null(res$predictions)){
+        res$predictions<-res$data
+      }
+
+      predictions<-res[["predictions"]][[pic_result]]
+
+      list(predictions=predictions,unit.classif=unit.classif,unit.predictions=unit.predictions,pic_result=pic_result)
+
+
+    })
+    get_som_model_pred<-reactive({
+      m_pred<-current_som_model()
+      req(inherits(m_pred,'kohonen'))
+
+      res<-getpred_model()
+      #res$pic_result<-input$ss2_property_layer
+      unit.classif<-res$unit.classif[,1]
+      names(unit.classif)<-rownames(res$unit.classif)
+
+
+      m_pred$codes<-list(res$unit.predictions)
+      names(m_pred$codes)<-res$pic_result
+
+      m_pred$unit.classif<-unit.classif
+
+      m_pred$data<-list(as.matrix(res$predictions))
+      m_pred$whatmap<-res$pic_result
+      names(m_pred$data)<-res$pic_result
+
+      picmap<-which(names(current_som_model()$data)%in%res$pic_result)
+      m_pred$dist.fcts<- m_pred$dist.fcts[picmap]
+      m_pred$distance.weights<- m_pred$distance.weights[picmap]
+      m_pred$user.weights<-m_pred$user.weights[picmap]
+      m_pred$whatmap=1
+      m_pred
+
+
+
+
+    })
+    getsolid_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      solid<-names(res1[res1==T])
+      pic<-which(vals$colors_img$val%in%solid)
+      pic
+    })
+    getgrad_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      grad<-names(res1[res1==F])
+      pic<-which(vals$colors_img$val%in%grad)
+      pic
+    })
+
+
+    observe({
+
+      shinyjs::toggle('ui_pred_result_newdata',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
+      shinyjs::toggle('pick_layer_result',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
+    })
+    observe(shinyjs::toggle('pred_bmu_options',condition=input$predsom_tab=='predsom_tab01c'))
+    observe(shinyjs::toggle('pred_result_options',condition=input$predsom_tab=='predsom_tab01'))
+    observe({
+      data = ss2_getdata_layer()
+      condition=which(colnames(data)==input$ss2_variable_pproperty)!=1
+      shinyjs::toggle('ss2_prev_property',condition=condition)
+      condition=which(colnames(data)!=input$ss2_variable_pproperty)==ncol(data)
+      shinyjs::toggle('ss2_next_property',condition=condition)
+    })
+
+    output$out_sompred_type<-renderUI({
+      m<-current_som_model()
+      test<-attr(m,"test")
+      choices=c("Training","Datalist")
+      choices=c("Partition","Training","Datalist")
+      if(!is.null(test)){
+        choices<-c("Training","Datalist")
+      }
+      selected=vals$cur_sompred_type
+      selected<-get_selected_from_choices(selected,choices)
+      radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c(choices),selected=selected)
+    })
+
+    observeEvent(input$sompred_type,{
+      vals$cur_sompred_type<-input$sompred_type
+    })
+    observeEvent(input$sompred_type,{
+      shinyjs::toggle("sompred_type_datalist", condition = input$sompred_type =='Datalist')
+    })
+    observeEvent(current_som_model(),{
+      get_sompred(NULL)
+      shinyjs::addClass('run_predSOM_btn',"save_changes")
+    })
+    observeEvent(supersom_newdata(),{
+      get_sompred(NULL)
+      shinyjs::addClass('run_predSOM_btn',"save_changes")
+    })
+    observeEvent(input$run_predSOM,ignoreInit = T,{
+      m<-current_som_model()
+      req(m)
+
+      newdata<-supersom_newdata()
+
+
+      if(length(m$data)==1){
+        names(newdata)<-NULL
+      }
+      whatmap<-NULL
+      if(input$sompred_type%in%'Datalist'){
+        newdata_names<-sapply(m$whatmap,function(w){
+          req(input[[paste0("newdata_w",w)]])
+          input[[paste0("newdata_w",w)]]
+        })
+        whatmap<-which(newdata_names!="None")
+      }
+
+      pred1<-predict(m,newdata,trainingdata = newdata,
+                     whatmap = whatmap)
+      pred<-predict(m,newdata,
+                    #trainingdata = newdata,
+                    whatmap = NULL)
+
+
+
+      if(!is.null(whatmap)){
+        pred$predictions[[whatmap]]<-pred1$predictions[[whatmap]]
+        #names(pred$predictions)<-names(m$data)[whatmap]
+        # names(pred$unit.predictions)<-names(m$data)[whatmap]
+      } else{
+        pred$predictions<-pred1$predictions
+        names(pred$predictions)<-names(m$data)
+        names(pred$unit.predictions)<-names(m$data)
+      }
+      get_sompred(pred)
+      shinyjs::removeClass('run_predSOM_btn',"save_changes")
+    })
+    observeEvent(input$pred_results,ignoreInit = T,{
+      updateTabsetPanel(session,'tab_pred_result',selected =input$pred_results)
+    })
+    observeEvent(input$tab_pred_result,{
+      table<-switch(input$tab_pred_result,
+                    "unit.classif"=get_pred_bmu(),
+                    "predictions"=get_pred_newdata(),
+                    "unit.predictions"=get_pred_codebook()
+      )
+      vals$som_predict_result<-table
+
+    })
+    observeEvent(ignoreInit = T,input$pred_results,{
+      vals$cur_tab_pred_result<-input$pred_results
+    })
+    observeEvent(ignoreInit = T,input$layer_result,{
+      vals$cur_layer_result<-input$layer_result
+    })
+    observeEvent(ignoreInit = T,input$downtable_predict_result,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      name<-"SOM prediction results"
+      data<- data.frame(vals$som_predict_result)
+
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Prediction results",data=data, name=name)
+    })
+    observeEvent(input$pred_performace,ignoreInit = T,{
+      updateTabsetPanel(session,'get_predsom_perf',selected=input$pred_performace)
+    })
+    observeEvent(ignoreInit = T,input$download_pbox6,{
+
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic=getbmu_plot()
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot - predictions", name_c="bmu_pred")
+    })
+
+    message_download_perfomace<-reactive({
+      switch(
+        input$get_predsom_perf,
+        "predsom_perf_overhall"="Overall performace",
+        "predsom_perf_obs"="Performace by observation",
+        "predsom_perf_var"="Performace by variable"
+      )
+    })
+
+    observeEvent(ignoreInit = T,input$downtable_perf_result,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      name<-paste0(input$get_predsom_perf)
+      data<- data.frame(vals$som_perf_result)
+      message<-paste0("Download SOM predictions (",message_download_perfomace(),")")
+
+
+      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message=message,data=data, name=name)
+    })
+
+    output$textvarfacmap<-renderUI({
+      div(
+
+        tags$style(HTML("
+       h2 {
+      font-size: 20px;
+      font-weight: bold;
+      }
+      h3 {
+      font-size: 20px;
+      font-weight: lighter;
+      }
+      code {
+      color: blue;
+      }
+
+    ")),
+
+    div(
+      column(12,
+             h4("Variable factor map"),
+             p("The chart is very similar to the variable factor map obtained from the principal component analysis (PCA). It calculates the weighted correlation for each variable using the coordinates (x, y) of the neurons and their weights (number of instances). The codebooks vectors of the cells correspond to an estimation of the conditional averages, calculating their variance for each variable is equivalent to estimating the between-node variance of the variable, and hence their relevance."),
+             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("Chull correlations")," returns",code("npic")," variables with the highest correlation considering the convex hull, while also ensuring that the points are ordered by their proximity to codebook center")
+      )
+
+    )
+      )
+
+    })
+
+    observeEvent(ignoreInit = T,input$ss2_varfacmap, {
+      showModal(modalDialog(
+        uiOutput(ns("textvarfacmap")),
+        title = h4(strong("Variable factor map")),
+        footer = modalButton("close"),
+        size = "m",
+        easyClose = TRUE
+      ))
+    })
+
+    observeEvent(input$ss2_somback_value,{
+      if(input$ss2_somback_value=="uMatrix"){
+        updatePickerInput(session,"ss2_bg_palette",selected="viridis")
+      }
+    })
+    observeEvent(ss2_get_choices_pal(),{
+      choices<-ss2_get_choices_pal()
+      updatePickerInput(session,'ss2_bg_palette',
+                        choices =  vals$colors_img$val[choices],
+                        choicesOpt = list(
+                          content =  vals$colors_img$img[choices] )
+      )
+    })
+    observeEvent(ss2_getdata_layer(),{
+      choices<-colnames(ss2_getdata_layer())
+      updatePickerInput(session,'ss2_variable_pproperty',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+    })
+    df_symbol<-data.frame(
+      val = c(16,15,17,18,8,1,5,3)
+    )
+    for(i in 1:length(symbols))
+    {
+      symbol1<-base64enc::dataURI(file = paste0('inst/www/pch',i,".png"), mime = "image/png")
+
+      df_symbol$img[i]<- sprintf(paste0(img(src = symbol1, width = '10')))}
+    observeEvent(df_symbol$val,{
+
+      updatePickerInput(session,'ss2_pclus_symbol',
+                        choices = df_symbol$val,
+                        choicesOpt = list(content = df_symbol$img))
+    })
+    observeEvent(data_x(),{
+      choices<-c(colnames(attr(vals$saved_data[[data_x()]],"factors")))
+      updatePickerInput(session,'ss2_pclus_points_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+
+      updatePickerInput(session,'ss2_pclus_text_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+
+    })
+    observeEvent(input$ss2_somback_value,{
+      shinyjs::toggle("ss2_property_layer_out",condition=input$ss2_somback_value=="property")
+    })
+    observeEvent(input$ss2_pclus_addpoints,{
+      shinyjs::toggle("ss2_pclus_points_inputs",condition=isTRUE(input$ss2_pclus_addpoints))
+    })
+    observeEvent(input$ss2_pclus_addtext,{
+      shinyjs::toggle('ss2_pclus_text_inputs',condition=isTRUE(input$ss2_pclus_addtext))
+    })
+    observeEvent(input$ss2_varfacmap_action,{
+      shinyjs::toggle("ss2_varfac_out",condition=isTRUE(input$ss2_varfacmap_action))
+    })
+    observeEvent(current_som_model(),{
+      choices = names(current_som_model()$data)
+      updatePickerInput(session,'ss2_property_layer',choices=choices)
+    })
+
+
+
+
+
+  })
+}
+
+
 #' @export
 imesc_supersom<-list()
 #' @export
@@ -124,491 +2581,109 @@ column(12,class="mp0",tabsetPanel(
     value = "som_tab1",
 
     strong("1. Training"),
-
     div(
-      column(6,class="mp0",
-             box_caret(ns("box_setup4"),inline=F,
-                       color="#c3cc74ff",
-                       title="1.1. Set the grid",
-                       tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
-                                actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
-                       div(
-                         div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
-                         div(id = ns("topocontrol"),
-                             div(style="display: flex;width: 100%",class="inline_pickers2",
+      div(
+        column(6,class="mp0",
+               box_caret(ns("box_setup4"),inline=F,
+                         color="#c3cc74ff",
+                         title="1.1. Set the grid",
+                         tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
+                                  actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+                         div(
+                           div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
+                           div(id = ns("topocontrol"),
+                               div(style="display: flex;width: 100%",class="inline_pickers2",
 
-                                 numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1),
-                                 numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1)
-                                 ,
-                                 pickerInput(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
-                                 pickerInput(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
-                                 pickerInput(ns("toroidal"),label = "toroidal",choices = c(F, T))
-                             ),
-                             div(
-                               style="text-align: center; width: 350px",
-                               uiOutput(ns("showgrid"))
-                             )
+                                   numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1),
+                                   numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1)
+                                   ,
+                                   pickerInput_fromtop(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
+                                   pickerInput_fromtop(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
+                                   pickerInput_fromtop(ns("toroidal"),label = "toroidal",choices = c(F, T))
+                               ),
+                               div(
+                                 style="text-align: center; width: 350px",
+                                 uiOutput(ns("showgrid"))
+                               )
+                           )
+
+
+
                          )
-
-
-
-                       )
-             )
-      ),
-      column(6,
-             box_caret(
-               ns("box_setup4"),
-               color="#c3cc74ff",
-               inline=F,
-               title="1.2. Set the training parameters",
-               tip=span(actionLink(ns("supersomhelp"), tipify(
-                 icon("fas fa-question-circle"), "Click for more details"
-               )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
-               div(
-                 div(class="inline_pickers2",
-                     pickerInput(ns("distmethod"),strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
-                                 choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
-                     pickerInput(ns("normalizeDataLayers"),"normalizeDataLayers",
-                                 choices = c("TRUE","FALSE")),
-                     numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
-                     numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
-                 ),
-                 div(align = "center",
-                     br(),
-                     actionButton(
-                       ns("trainSOM"),
-                       h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
-                 ),
-
-                 div(
-                   span(class="finesom_btn",
-                        tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
-                   )),
-                 div(id=ns("finetuning_som"),
-                     div(id="finesom_out",class="map_control_style2",
-
-
-                         div(style="display: flex",
-                             numericInput(ns("a1"),
-                                          label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
-                             numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
-                         ),
-
-                         div(style="display: flex",
-                             numericInput(ns("r1"),
-                                          label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
-                             numericInput(ns("r2"),
-                                          label = NULL,value = 0,step = 0.01 )
-                         ),
-                         pickerInput(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
-                         numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
-                     )
-
-                 )
                )
+        ),
+        column(6,
+               box_caret(
+                 ns("box_setup5"),
+                 color="#c3cc74ff",
+                 inline=F,
+                 title="1.2. Set the training parameters",
+                 tip=span(actionLink(ns("supersomhelp"), tipify(
+                   icon("fas fa-question-circle"), "Click for more details"
+                 )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+                 div(
+                   div(class="inline_pickers2",
+                       pickerInput_fromtop(ns("distmethod"),strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
+                                   choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
+                       pickerInput_fromtop(ns("normalizeDataLayers"),"normalizeDataLayers",
+                                   choices = c("TRUE","FALSE")),
+                       numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
+                       numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
+                   ),
+                   div(align = "center",
+                       br(),
+                       actionButton(
+                         ns("trainSOM"),
+                         h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
+                   ),
 
-             )
-      ),
-      bsTooltip(ns('resettopo'),"Reset parameters"),
-      bsTooltip(ns('resetsom'),"Reset parameters")
-    )
+                   div(
+                     span(class="finesom_btn",
+                          tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
+                     )),
+                   div(id=ns("finetuning_som"),
+                       div(id="finesom_out",class="map_control_style2",
+
+
+                           div(style="display: flex",
+                               numericInput(ns("a1"),
+                                            label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
+                               numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
+                           ),
+
+                           div(style="display: flex",
+                               numericInput(ns("r1"),
+                                            label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
+                               numericInput(ns("r2"),
+                                            label = NULL,value = 0,step = 0.01 )
+                           ),
+                           pickerInput_fromtop(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
+                           numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
+                       )
+
+                   )
+                 )
+
+               )
+        ),
+        bsTooltip(ns('resettopo'),"Reset parameters"),
+        bsTooltip(ns('resetsom'),"Reset parameters")
+
+      ))
 
   ),
   tabPanel(
     value = "som_tab2",
     strong("2. Results"),
-    div(
-      style = "background: WhiteSmoke;",
-      tabsetPanel(
-        id=ns("som_res"),
-
-
-        tabPanel(
-          value= 'train_tab1',
-          "2.1. Parameters",
-          column(
-            6,class="mp0",
-            box_caret(
-              ns("tbox1"),
-              title="Quality Measures",
-              tip=actionLink(ns("som_quality_help"),icon("fas fa-question-circle")),
-              uiOutput(ns("som_errors"))
-            ),
-            box_caret(
-              ns("tbox1"),
-              title="Downloads",
-              color="#c3cc74ff",
-              div(
-                div(div(tipify(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
-                div(tipify(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
-                div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
-                div(tipify(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components")))
-            )
-          ),
-          column(
-            6,class="mp0",
-            box_caret(
-              ns("tbox2"),
-              title="Training Parameters",
-              tableOutput(ns("train.summary"))
-            )
-          )
-        ),
-        tabPanel(
-          "2.2. Changes & Counting",value = "train_tab2",
-          column(6,class="mp0",box_caret(
-            ns("ccbox1"),
-            title="Changes",
-            button_title = actionLink(ns("downp_pchanges"),"Download",icon('download')),
-            plotOutput(ns("pchanges"))
-          )),
-          column(6,class="mp0",box_caret(
-            ns("ccbox2"),
-            title="Couting",
-            button_title = actionLink(ns("downp_pcounts"),"Download",icon('download')),
-            plotOutput(ns("pcounts"))
-          ))
-
-        ),
-        tabPanel(
-
-          "2.3. BMUs", value = "train_tab5",
-          column(
-            4,class="mp0",
-            box_caret(
-              ns("rbox1"),
-              color="#c3cc74ff",
-              title="Background",
-              div(
-                div(class="radio_search radio_yellow",
-                    radioGroupButtons(ns("ss1_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
-                ),
-
-                pickerInput(ns("ss1_property_layer"),label = "Layer:",choices = NULL),
-                div(id=ns('ss1_var_pproperty'),style="display: flex",
-                    actionButton(ns("ss1_prev_property"),"<<"),
-                    pickerInput(ns("ss1_variable_pproperty"),label = "Variable:",choices = NULL),
-                    actionButton(ns("ss1_next_property"),">>")
-
-                ),
-
-                pickerInput(inputId = ns("ss1_bg_palette"),"Palette",NULL),
-                numericInput(ns("ss1_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-                pickerInput(ns("ss1_pclus_border"),label ='Border:',NULL)
-              )
-            ),
-            box_caret(
-              ns("rbox2"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss1_pclus_addpoints"),strong("Points"),value=T,width="80px")
-              ),
-              div(
-                div(id=ns("ss1_pclus_points_inputs"),
-                    pickerInput(inputId = ns("ss1_pclus_points_palette"),
-                                label ="Palette",
-                                choices = NULL),
-                    pickerInput(ns("ss1_pclus_points_factor"),"Factor",
-                                choices = NULL),
-                    pickerInput(inputId = ns("ss1_pclus_symbol"),
-                                label = "Shape",
-                                choices = NULL),
-                    numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-                )
-              )
-            ),
-            box_caret(
-              ns("rbox3"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss1_pclus_addtext"),strong("Labels"),value=F,width="80px")
-              ),
-              div(id=ns('ss1_pclus_text_inputs'),
-                  pickerInput(inputId = ns("ss1_pclus_text_palette"),
-                              label ="Palette",
-                              choices =  NULL),
-                  pickerInput(ns("ss1_pclus_text_factor"),"Factor",
-                              choices = NULL),
-                  numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-              )
-            ),
-            box_caret(
-              ns("rbox4"),
-              color="#c3cc74ff",
-              title=span(style="display: inline-block",
-                         class="checktitle",
-                         checkboxInput(ns("ss1_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
-              ),
-              tip = actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
-              div(id=ns('ss1_varfac_out'),
-                  pickerInput(ns("ss1_vfm_type"),"Show correlation:",
-                              choices =list("Highest"='var', "Chull"="cor")
-
-                  ),
-
-                  div(id=ns('ss1_vfm_out'),
-                      div(tipify(numericInput(ns("ss1_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
-                      numericInput(ns("ss1_pclus.cex.var"), "Size", value = 1, min = 2),
-                      pickerInput(inputId = ns("ss1_p.clus.col.text"),
-                                  label = "Color",
-                                  NULL
-                      ),
-                      pickerInput(inputId = ns("ss1_var_bg"),
-                                  label = "Background",
-                                  choices =NULL),
-                      numericInput(ns("ss1_var_bg_transp"), "Transparency", value = 0, min = 2,),
-                      div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
-                      div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
-                  )
-              )
-            ),
-            box_caret(
-              ns("rbox5"),
-              title = "General options",
-              color="#c3cc74ff",
-              div(
-                numericInput(ns("ss1_base_size"),"Base size",value = 12),
-                checkboxInput(ns("ss1_theme"),
-                              label = "show neuron coordinates",
-                              value=F
-                ),
-                textInput(ns("ss1_title"), "Title: ", "")
-              )
-            )
-          ),
-          column(
-            8,class="mp0",
-            box_caret(
-              ns('rbox6'),
-              title="Best-Matching units",
-              button_title = actionLink(ns('downp_bmu'),"Download",icon("download")),
-              div(uiOutput(ns("bmu_plot")))
-            )
-          )
-        ),
-        tabPanel("2.4. Network plot", value = "train_tab_net",
-                 column(
-                   6,class="mp0",
-                   box_caret(ns("box_setup5"),
-                             color="#c3cc74ff",
-                             title="Snap-Based Model Retraining",
-                             tip=tipright("The panel enables users to recreate the model at pre-determined snaps. The snap parameter determines the iterations at which the model will be recreated. For example, if a model with 500 iterations is saved, setting snap to 250 will recreate the model at the 250th and 500th iterations."),
-                             div(class="inline_pickers",
-                                 numericInput(ns("rlen_snap2"), span(tipright("Number of snapshots or intermediate models to generate"), "snap"), 3),
-                                 div(actionButton(ns("run_play2"), "Run >>",style="height: 30px;padding: 5px")),
-
-                                 hidden(div(style="padding-top: 10px",
-                                            class="anim_opt2",
-                                            div(strong('Animation options')),
-                                            numericInput(ns("play_interval2"), span(tipright("Interval between each training iteration in milliseconds."), "interval"), 100),
-                                            checkboxInput(ns("loop2"), "Loop", FALSE)
-                                 ))
-                             )),
-
-                   box_caret(ns("box_setup7"),
-                             title="Plot options",
-                             color="#c3cc74ff",
-                             div(checkboxInput(ns("gwnp_show_labels"),"Show Neuron Labels",T),
-                                 checkboxInput(ns("gwnp_show_points"),"Show Observations",F)),
-
-                   )
-
-
-                 ),
-                 column(6,box_caret(ns("box_setup6"),
-                                    inline=F,
-                                    button_title = actionLink(ns("download_gwnp"),
-                                                              "Download",icon("download")),
-                                    title="Grid-Weighted Neuron Plot",
-                                    div(uiOutput(ns("play_out2")),
-                                        uiOutput(ns("plot_animation2")))
-                 ))
-
-        )
-
-
-
-      )
-
-    )
+    div(table_results_som$ui(ns("som-results")),
+        uiOutput(ns('tab_result_out')))
 
   ),
   tabPanel(
     value = "som_tab3",style="background: white",
     strong("3. Predict"),
-    column(
-      4,class="mp0",
-      box_caret(
-        ns("pred_header"),
-        color="#c3cc74ff",
-        title="New Data",
-        div(
-          div(class="radio_search radio_yellow",
-              radioGroupButtons(ns("sompred_type"),"New data (X):",choices=c("Partition","Training","Datalist"))
-          ),
-          div(id=ns('sompred_type_datalist'),
-              style="padding-left: 10px",
-              div(strong("New data layers:")),
-              uiOutput(ns("whatmap_newdata"))
-
-          ),
-          div(id=ns('run_predSOM_btn'),
-              align="right",
-              class="save_changes",
-              actionButton(ns('run_predSOM'),"RUN >>",style="height: 25px; padding-top: 2px; padding-bottom: 2px;"))
-        )
-
-      ),
-      div(
-        uiOutput(ns("pred_result_options")),
-        uiOutput(ns("pred_perf_options")),
-        div(
-          id=ns('pred_bmu_options'),
-          box_caret(
-            ns("pbox1"),
-            color="#c3cc74ff",
-            title="Background",
-            div(
-              div(class="radio_search radio_yellow",
-                  radioGroupButtons(ns("ss2_somback_value"), span("Unit value:"), choices = c("None"="None","U-Matrix"="uMatrix","Property"="property"))
-              ),
-
-              pickerInput(ns("ss2_property_layer"),label = "Layer:",choices = NULL),
-              div(id=ns('ss2_var_pproperty'),style="display: flex",
-                  actionButton(ns("ss2_prev_property"),"<<"),
-                  pickerInput(ns("ss2_variable_pproperty"),label = "Variable:",choices = NULL),
-                  actionButton(ns("ss2_next_property"),">>")
-
-              ),
-
-              pickerInput(inputId = ns("ss2_bg_palette"),"Palette",NULL),
-              numericInput(ns("ss2_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-              pickerInput(ns("ss2_pclus_border"),label ='Border:',NULL)
-            )
-          ),
-          box_caret(
-            ns("pbox2"),
-            color="#c3cc74ff",
-            title=span(style="display: inline-block",
-                       class="checktitle",
-                       checkboxInput(ns("ss2_pclus_addpoints"),strong("Points"),value=T,width="80px")
-            ),
-            div(
-              div(id=ns("ss2_pclus_points_inputs"),
-                  pickerInput(inputId = ns("ss2_pclus_points_palette"),
-                              label ="Palette",
-                              choices = NULL),
-                  pickerInput(ns("ss2_pclus_points_factor"),"Factor",
-                              choices = NULL),
-                  pickerInput(inputId = ns("ss2_pclus_symbol"),
-                              label = "Shape",
-                              choices = NULL),
-                  numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-              )
-            )
-          ),
-          box_caret(
-            ns("pbox3"),
-            color="#c3cc74ff",
-            title=span(style="display: inline-block",
-                       class="checktitle",
-                       checkboxInput(ns("ss2_pclus_addtext"),strong("Labels"),value=F,width="80px")
-            ),
-            div(id=ns('ss2_pclus_text_inputs'),
-                pickerInput(inputId = ns("ss2_pclus_text_palette"),
-                            label ="Palette",
-                            choices =  NULL),
-                pickerInput(ns("ss2_pclus_text_factor"),"Factor",
-                            choices = NULL),
-                numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
-            )
-          ),
-          box_caret(
-            ns("pbox4"),
-            color="#c3cc74ff",
-            title=span(style="display: inline-block",
-                       class="checktitle",
-                       checkboxInput(ns("ss2_varfacmap_action"),strong("Variable factor map"),value=T,width="210px")
-            ),
-            tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
-            div(id=ns('ss2_varfac_out'),
-                pickerInput(ns("ss2_vfm_type"),"Show correlation:",
-                            choices =list("Highest"='var', "Chull"="cor")
-
-                ),
-
-                div(id=ns('ss2_vfm_out'),
-                    div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
-                    numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
-                    pickerInput(inputId = ns("ss2_p.clus.col.text"),
-                                label = "Color",
-                                NULL
-                    ),
-                    pickerInput(inputId = ns("ss2_var_bg"),
-                                label = "Background",
-                                choices =NULL),
-                    numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
-                    div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
-                    div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
-                )
-            )
-          ),
-          box_caret(
-            ns("pbox5"),
-            title = "General options",
-            color="#c3cc74ff",
-            div(
-              numericInput(ns("ss2_base_size"),"Base size",value = 12),
-              checkboxInput(ns("ss2_theme"),
-                            label = "show neuron coordinates",
-                            value=F
-              ),
-              textInput(ns("ss2_title"), "Title: ", "")
-            )
-          )
-        )
-
-      )
-    ),
-    column(8,class="mp0",
-           uiOutput(ns("teste")),
-           tabsetPanel(
-             id=ns("predsom_tab"),
-             tabPanel(
-               strong("3.1. Results"),style="background: white",
-               value = "predsom_tab01",
-
-               uiOutput(ns('som_predict_results'))
-
-             ),
-             tabPanel(
-               strong("3.2. Performace"),style="background: white",
-               value = "predsom_tab01b",
-               uiOutput(ns("pred_performace"))
-             ),
-             tabPanel(
-               strong("3.3. BMUs"),style="background: white",
-               value = "predsom_tab01c",
-               box_caret(
-                 ns('pbox6'),
-                 title="BMU plot",
-                 button_title = actionLink(ns('download_pbox6'),"Download",icon("download")),
-                 div(uiOutput(ns("predbmu_plot")))
-               )
-             )
-
-
-           ),
-           div(
-             class="map_control_style",
-
-             uiOutput(ns("newdata_summ"))
-
-           )
-    )
-
+    div(table_predict_som$ui(ns("som-predict")),
+        uiOutput(ns('tab_predict_out')))
   )
 
 ))
@@ -617,340 +2692,57 @@ column(12,class="mp0",tabsetPanel(
 
 }
 #' @export
+
 imesc_supersom$server<-function (id,vals ){
 
 
 
   moduleServer(id,function(input, output, session){
+    box_caret_server("box_setup1")
+    box_caret_server("box_setup2")
+    box_caret_server("box_setup3")
 
-
-    observeEvent(ignoreInit = T,input$down_pcorr_results,{
-      vals$hand_down<-"generic"
-
-
-      module_ui_downcenter("downcenter")
-      name<-"Biplot results"
-      data<- data.frame(vals$biplot_som)
-      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download VFM results",data=data, name=name)
+    getsolid_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      solid<-names(res1[res1==T])
+      pic<-which(vals$colors_img$val%in%solid)
+      pic
+    })
+    getgrad_col<-reactive({
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      grad<-names(res1[res1==F])
+      pic<-which(vals$colors_img$val%in%grad)
+      pic
+    })
+    output$tab_result_out<-renderUI({
+      table_results_som$server("som-results",vals)
+      NULL
+    })
+    output$tab_predict_out<-renderUI({
+      table_predict_som$server("som-predict",vals)
+      NULL
     })
 
 
+    observeEvent(vals$cur_som_tab,{
+      updateTabsetPanel(session,"som_tab",selected=vals$cur_som_tab)
+    })
 
-    box_caret_server("rbox1")
-    box_caret_server("rbox2")
-    box_caret_server("rbox3")
-    box_caret_server("rbox4")
-    box_caret_server("rbox5")
-    box_caret_server("rbox6")
-    box_caret_server("pbox1")
-    box_caret_server("pbox2")
-    box_caret_server("pbox3")
-    box_caret_server("pbox4")
-    box_caret_server("pbox5")
-    box_caret_server("pbox6")
     ns<-session$ns
 
-    output$pred_result_options<-renderUI({
-      box_caret(
-        ns('box_pred_results'),
-        title="Options",
-        color="#c3cc74ff",
-        div(
-          selectInput(ns('pred_results'),"Prediction results:",choices=c(
-            "Best-matching units"='unit.classif',
-            "Data"="predictions",
-            "Codebook"="unit.predictions"
-          ),selected=vals$cur_tab_pred_result),
-          uiOutput(ns("pick_layer_result")),
-          uiOutput(ns("ui_pred_result_newdata")),
-          div(style="padding-top: 5px",
-              uiOutput(ns("link_predsom_newdata")),
-              uiOutput(ns("link_predsom_codebook"))
-          )
-        )
 
-      )
-    })
-    output$pred_perf_options<-renderUI({})
-
-
-
-    observe(shinyjs::toggle('pred_bmu_options',condition=input$predsom_tab=='predsom_tab01c'))
-
-
-    observe(shinyjs::toggle('pred_result_options',condition=input$predsom_tab=='predsom_tab01'))
-
-
-
-
-    output$whatmap_newdata<-renderUI({
-      m<-current_som_model()
-      datas<-attr(m,"Datalist")
-      lapply(m$whatmap,function(w){
-        choices<-names(which(sapply(vals$saved_data,function(x){
-          all(colnames(x)%in%colnames(m$data[[w]]))
-        })))
-        if(w>1){
-          choices=c("None",choices)
-        }
-        pickerInput(ns(paste0("newdata_w",w)),datas[[w]],choices)
-      })
-    })
-
-    get_newdata<-reactive({
-      req(input$sompred_type)
-      req(input$sompred_type=="Datalist")
-      m<-current_som_model()
-      datas<-attr(m,"Datalist")
-      newdata_names<-sapply(m$whatmap,function(w){
-        req(input[[paste0("newdata_w",w)]])
-        input[[paste0("newdata_w",w)]]
-      })
-      #newdata_names<-readRDS("newdata_names.rds")
-      #newdata_names<-unlist(newdata_names)
-      newdata_names<-newdata_names[which(newdata_names!="None")]
-      news<-vals$saved_data[newdata_names]
-      res<-lapply(news,as.matrix)
-      names(res)<-names(m$data)[which(newdata_names!="None")]
-      res
-    })
-
-    supersom_newdata<-reactive({
-      req(input$sompred_type)
-      m<-current_som_model()
-      if(input$sompred_type%in%"Partition"){
-        return(attr(m,"test"))
-      }  else if(input$sompred_type%in%'Training'){
-        return(current_som_model()$data)
-      } else if(input$sompred_type%in%'Datalist'){
-        return(get_newdata())
-      }
-
-    })
-    get_sompred<-reactiveVal()
-
-
-    observeEvent(current_som_model(),{
-      get_sompred(NULL)
-      shinyjs::addClass('run_predSOM_btn',"save_changes")
-    })
-
-
-    observeEvent(supersom_newdata(),{
-      get_sompred(NULL)
-      shinyjs::addClass('run_predSOM_btn',"save_changes")
-    })
-
-
-    observeEvent(input$run_predSOM,ignoreInit = T,{
-      m<-current_som_model()
-      req(m)
-      newdata<-supersom_newdata()
-
-      if(length(m$data)==1){
-        names(newdata)<-NULL
-      }
-      whatmap<-NULL
-      if(input$sompred_type%in%'Datalist'){
-        newdata_names<-sapply(m$whatmap,function(w){
-          req(input[[paste0("newdata_w",w)]])
-          input[[paste0("newdata_w",w)]]
-        })
-        whatmap<-which(newdata_names!="None")
-      }
-
-      pred1<-predict(m,newdata,trainingdata = newdata,
-                     whatmap = whatmap)
-      pred<-predict(m,newdata,
-                    #trainingdata = newdata,
-                    whatmap = NULL)
-
-
-
-      if(!is.null(whatmap)){
-        pred$predictions[[whatmap]]<-pred1$predictions[[whatmap]]
-        #names(pred$predictions)<-names(m$data)[whatmap]
-        # names(pred$unit.predictions)<-names(m$data)[whatmap]
-      } else{
-        pred$predictions<-pred1$predictions
-        names(pred$predictions)<-names(m$data)
-        names(pred$unit.predictions)<-names(m$data)
-      }
-      get_sompred(pred)
-      shinyjs::removeClass('run_predSOM_btn',"save_changes")
-    })
-
-
-
-
-
-
-    output$teste<-renderUI({
-      # div("teste",style="height: 100px;overflow-y: auto",renderPrint(names(get_sompred()$predictions))     )
-    })
-
-
-
-    get_overhall_peform<-reactive({
-      newdata<-supersom_newdata()
-      pred<-get_sompred()$predictions
-      m<-current_som_model()
-
-
-      res<-lapply(names(newdata),function(i){
-        postResample(pred[[i]],newdata[[i]])
-      })
-      names(res)<-names(newdata)
-
-      do.call(rbind,res)
-    })
-    get_obs_peform<-reactive({
-      #newdata<-readRDS("newdata.rds")
-      #res<-readRDS("res.rds")
-      newdata<-do.call(cbind,supersom_newdata())
-      pred<-do.call(cbind,get_sompred()$predictions)
-
-
-      obs_mean=apply(newdata,1,function(x) mean(x,na.rm=T))
-      pred_mean= apply(pred,1,function(x) mean(x,na.rm=T))
-
-      res<-data.frame(
-        obs_mean=obs_mean,
-        pred_mean=pred_mean,
-        do.call(rbind,lapply(1:nrow(newdata),function(i){
-          postResample(pred[i,],newdata[i,])
-        }))
-      )
-      rownames(res)<-rownames(get_sompred()$predictions[[1]])
-      res
-
-    })
-    get_var_peform<-reactive({
-      #newdata<-readRDS("newdata.rds")
-      #res<-readRDS("res.rds")
-      newdata_list<-supersom_newdata()
-      pred_list<-get_sompred()$predictions
-      #saveRDS(newdata_list,'newdata.rds')
-      #saveRDS(get_sompred(),'pred.rds')
-
-      result<-lapply(seq_along(get_sompred()$predictions),function(layer){
-        newdata<-newdata_list[[layer]]
-        pred<-pred_list[[layer]]
-        res<-data.frame(layer=names(get_sompred()$predictions)[layer],
-                        variable=colnames(pred),
-                        obs_mean=sapply(data.frame(newdata),function(x) mean(x,na.rm=T)),
-                        pred_mean=sapply(data.frame(pred),function(x) mean(x,na.rm=T)),
-                        do.call(rbind,
-                                lapply(1:ncol(newdata),function(i){
-                                  pr<-pred[,i]
-                                  ob<-newdata[,i]
-
-                                  data.frame(
-                                    #rmse_means=RMSE(mean(pr,na.rm=T),mean(ob,na.rm=T)),
-
-                                    as.list(postResample(pr,ob)))
-                                })))
-        #unlist(sapply(get_sompred()$predictions,colnames)) |>  print()
-
-
-
-        res
-      })
-      do.call(rbind,result)
-
-
-
-
-
-
-    })
-
-    get_pred_newdata<-reactive({
-      req(input$layer_result)
-      req(input$layer_result%in%names(get_sompred()$predictions))
-      get_sompred()$predictions[[input$layer_result]]
-    })
-
-    output$ui_pred_result_newdata<-renderUI({
-      req(input$layer_result)
-      req(input$tab_pred_result)
-      table<-get_pred_newdata()
-      div(class="half-drop-inline",
-          fixed_dt_con$ui(ns('pred_results'),table,max_length=100)
-      )
-
-    })
-
-
-    output$out_pred_result_newdata<-renderUI({
-      table<-get_pred_newdata()
-      fixed_dt_con$server('pred_results',table,max_length=100)
-    })
-
-    get_pred_bmu<-reactive({
-      res<-get_sompred()
-      res_temp<-data.frame(bmu=res[['unit.classif']])
-      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
-      res_temp
-    })
-
-    output$out_pred_result_bmu<-renderUI({
-      #req(input$tab_pred_result)
-      table<-get_pred_bmu()
-      div(class="half-drop-inline",
-          fixed_dt(table,dom='lt',pageLength=20)
-      )
-
-    })
-    get_pred_codebook<-reactive({
-      req(input$layer_result)
-      res<-get_sompred()
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-      req(input$layer_result%in%names(res[["unit.predictions"]]))
-      res<-res[["unit.predictions"]][[input$layer_result]]
-      rownames(res)<-paste0("neu",1:nrow(res))
-      res
-    })
-
-    observeEvent(input$tab_pred_result,{
-      table<-switch(input$tab_pred_result,
-                    "unit.classif"=get_pred_bmu(),
-                    "predictions"=get_pred_newdata(),
-                    "unit.predictions"=get_pred_codebook()
-      )
-      vals$som_predict_result<-table
-
-    })
-    output$out_pred_result_codebook<-renderUI({
-      table<-get_pred_codebook()
-      fixed_dt_con$server('pred_results',table,max_length=100)
-    })
 
     output$data_som_out<-renderUI({
-      pickerInput(ns("data_som"),uiOutput(ns('label_data_som')),choices =names(vals$saved_data), selected=vals$cur_data)
+      pickerInput_fromtop(ns("data_som"),uiOutput(ns('label_data_som')),choices =names(vals$saved_data), selected=vals$cur_data)
     })
-
     output$data_somY_out<-renderUI({
       div(
-        pickerInput(ns("data_somY"),"Datalist:",choices = get_match_datalists()),
+        pickerInput_fromtop(ns("data_somY"),"Datalist:",choices = get_match_datalists()),
         uiOutput(ns("partition_column"))
       )
     })
-
-
-
-    get_datalist_for_som<-reactive({
-      if(isTRUE(input$mysupersom)){
-        get_training_list()[[1]]
-      } else{
-        req(input$data_som)
-        vals$saved_data[[input$data_som]]
-      }
-    })
-
-
     get_match_datalists<-reactive({
       data<-get_datalist_for_som()
 
@@ -959,264 +2751,14 @@ imesc_supersom$server<-function (id,vals ){
       })
       names(vals$saved_data)[truedatalists]
     })
-
-
-
-
-
-    output$partition_column<-renderUI({
-      req(input$data_somY)
-      choices=c(colnames(attr(vals$saved_data[[input$data_somY]],"factors")))
-      selected=vals$cur_partition_column
-      selected<-get_selected_from_choices(selected,choices)
-      div(
-        pickerInput(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), choices,selected=selected),
-        uiOutput(ns("partition_test"))
-
-      )
-    })
-
-    output$partition_test<-renderUI({
-      req(input$data_somY)
-      req(input$partition_column)
-      fac<-attr(vals$saved_data[[input$data_somY]],"factors")[,input$partition_column]
-      choices<-levels(fac)
-      selected=vals$cur_partition_ref
-      selected<-get_selected_from_choices(selected,choices)
-      pickerInput(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=choices,selected=selected)
-    })
-
-    box_caret_server("box_setup1")
-    box_caret_server("box_setup2")
-    box_caret_server("box_setup3")
-    box_caret_server("box_setup4")
-    box_caret_server("box_setup5")
-    box_caret_server("box_setup6")
-    box_caret_server("box_setup7")
-    box_caret_server("box_setup8")
-    output$showgrid<-renderUI({
-      dim = try(topo.reactive(),silent=T )
-      if(inherits(dim,"try-error")){updateCheckboxInput(session,"sugtopo",value=F)}
-      validate(need(!inherits(dim,"try-error"),"Error: suggested topology has been disabled; check for inconsistency in data, such as columns with variance 0. "))
-
-      renderPlot({
-        if(isTRUE(input$splitdata_som)){data=training_data$df}else{
-          data = getdata_som()}
-        validate(need(input$xdim!="", ""))
-        validate(need(input$ydim!="", ""))
-        validate(need( (input$xdim*input$ydim)<=nrow(data), "The number of map units must be less than or equal to the number of observations. Please decrease the 'xdim' and/or 'ydim' dimensions"))
-        try({
-          par(mar = c(0, 0, 0, 0))
-
-          grid<-kohonen::somgrid(input$xdim, input$ydim, topo = input$topo, neighbourhood.fct=input$neighbourhood.fct, toroidal=toroidal())
-          plot.som_grid(grid)
-        },silent=T )
-      },
-      width = 200,
-      height = 200)
-    })
-    output$play_out2<-renderUI({
-      req(modelplay2())
-
-
-      div(
-        div(sliderInput(session$ns("animation2"), "Animation:",
-                        min = 1, max = length(modelplay2()),
-                        value = 1, step = 1,
-                        animate =
-                          animationOptions(interval = input$play_interval2,
-                                           playButton=tags$div(
-                                             tags$span("Play >> ",style="font-size: 14px;font-weight: bold; background:  #05668D;color: white; padding: 3px;"),style=" margin-top: 5px"
-                                           ),
-                                           loop = input$loop2)))
-      )
-    })
-    modelplay2<-reactiveVal(NULL)
-    get_plot_animation2<-reactive({
-      if(is.null(modelplay2())){
-        plotnetwork_list2(current_som_model(), label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
-      } else {
-
-        plotnetwork_list2(modelplay2()[[input$animation2]], label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
-
-
-      }
-
-    })
-    output$plot_animation2<-renderUI({
-      renderPlot({get_plot_animation2()})
-
-    })
-    data_example<-reactive({
-      switch(input$data_example,
-             "nema_araca"={
-               as.matrix(data.frame(fread("inst/www/nema_araca.csv"))[-1])
-             },
-             "nema_hellinguer"={
-               data<-data.frame(fread("inst/www/nema_araca.csv"))[-1]
-               as.matrix(decostand(data,"hell"))
-             },
-             "envi_araca"={
-
-               as.matrix(data.frame(fread("inst/www/envi_araca.csv"))[-1])
-
-             },
-             "envi_araca_scaled"={
-
-               data<-data.frame(fread("inst/www/nema_araca.csv"))[-1]
-               scale(data)
-
-             },
-             "user-defined"=as.matrix(getdata_som())
-
-      )
-    })
-    modelplay<-reactiveVal()
-    output$play_out<-renderUI({
-      req(modelplay())
-
-
-      div(
-        div(sliderInput(session$ns("animation"), "Animation:",
-                        min = 1, max = length(modelplay()),
-                        value = 1, step = 1,
-                        animate =
-                          animationOptions(interval = input$play_interval,
-                                           playButton=tags$div(
-                                             tags$span("Play >> ",style="font-size: 14px;font-weight: bold; background:  #05668D;color: white; padding: 3px;"),style=" margin-top: 5px"
-                                           ),
-                                           loop = input$loop))),
-        uiOutput(ns("plot_animation"))
-      )
-    })
-    output$plot_animation<-renderUI({
-      renderPlot({
-        plotnetwork_list2(modelplay()[[input$animation]])
-
-      })
-    })
-    # Define the scatter_hexagon function
-    scatter_hexagon<-function(x, y, radius = 0.1, fill="gray") {
-      # Create a scatter plot
-
-      # Draw hexagons around each point
-      for(i in 1:length(x)) {
-        draw_hexagon(x[i], y[i], radius, fill[i])
-      }
-    }
-    # Define draw_hexagon function
-    draw_hexagon<-function(x, y, radius,fill) {
-      angles<-seq(0, 2*pi, length.out = 7) + pi/6  # Rotated by 90 degrees
-      x_hex<-x + radius * cos(angles)
-      y_hex<-y + radius * sin(angles)
-
-      polygon(x_hex, y_hex,col=fill, border=fill)
-    }
-    plotnetwork_list2<-function(m,label=T, main="", show_points=T){
-      col<-"Gray"
-      mds<-lapply(m$codes,function(x){
-        x<-sqrt(x^2)
-        res<-m$grid$pts*apply(x,1,mean)
-        # res<-m$grid$pts*apply(x,1,sum)
-        res[,1]<-scales::rescale(res[,1],range(m$grid$pts[,1]))
-        res[,2]<-scales::rescale(res[,2],range(m$grid$pts[,2]))
-        res
-      })
-      matdis2<-matdis<-unit.distances(m$grid)
-      dec<-decimalplaces(max(matdis2))
-      matdis2<-round(matdis2,dec)
-      neighs<-lapply(1:nrow(matdis2),function(i){
-        which(matdis2[i,]==1)
-      })
-
-
-      dist<-data.frame(as.matrix(object.distances(m)))
-      dist$unit<-m$unit.classif
-      splited<-split(dist,dist$unit)
-
-      mean_diss<-sapply(as.character(1:nrow(m$grid$pts)),function(i){
-        x<-  splited[[i]]
-        suppressWarnings(mean(unlist(x)))
-      })
-
-
-
-      cut<-cut(mean_diss,breaks=nrow(m$grid$pts))
-      cols<-viridis(nlevels(cut))[cut]
-
-      cols[   which(is.na(mean_diss))]<-"darkgray"
-
-      res<-data.frame(do.call(rbind,mds))
-      som_qualist<-errors_som(m)
-
-      plot(res,type="n", ann=F,axes=F        )
-      title(main= paste0("Interaction: ",nrow(m$changes)),"\n",
-            paste("err.quant:",round(as.numeric(unlist(som_qualist$som_quality[1,1])),3)))
-
-      for(j in 1:length(mds)){
-        for(i in 1:length(neighs)) {
-          nei<-neighs[[i]]
-          p0<-mds[[j]][i,]
-          p1<-mds[[j]][nei,]
-          # points(p0[1],p0[2], pch=16, col=col[j],cex=2)
-          segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
-
-
-        }
-
-
-      }
-
-      kohonen:::plot.kohmapping
-
-      res$unit<-NA
-      res$unit[m$unit.classif]<-m$unit.classif
-
-      points<-do.call(rbind,lapply(1:nrow(res),function(i){
-        x<-res[i,]
-        n<-sum(m$unit.classif%in%i)
-        data.frame(x=x$x+ rnorm(n,0,0.06),
-                   y=x$y+ rnorm(n,0,0.06))
-
-
-      }))
-
-
-      if(m$grid$topo=="rectangular"){
-        points(res, xlab="Distance", ylab="Distance",
-               pch=15,main=main,col=cols,cex=3)
+    get_datalist_for_som<-reactive({
+      if(isTRUE(input$mysupersom)){
+        get_training_list()[[1]]
       } else{
-        scatter_hexagon(res$x, res$y, radius = 0.2, fill=cols)
-
+        req(input$data_som)
+        vals$saved_data[[input$data_som]]
       }
-
-
-      if(isTRUE(show_points)){
-        points(points[1:2],pch=16,cex=.8)
-      }
-      if(isTRUE(label)){
-        text(res$x,res$y, labels=1:nrow(res), col="white")
-      }
-    }
-
-    ns<-session$ns
-    ns_som3<-NS('predsom')
-    ns_som2<-NS('som2')
-    ns_som<-NS('som')
-
-
-    output$label_data_som<-renderUI({
-      get_label_datasom()
     })
-    get_label_datasom<-reactive({
-      label<-"~ Training Datalist:"
-      if(isTRUE(input$mysupersom)&input$som_tab!="som_tab1"){
-        label<-span("Target Datalist",tiphelp("the supersom model will always be saved in the datalist selected in the first layer.",placement ="right"))
-      }
-      label
-    })
-
-
     get_training_list<-reactive({
 
       layer_table<-ssom_reac()
@@ -1261,8 +2803,78 @@ imesc_supersom$server<-function (id,vals ){
       res
 
     })
-    somval<-reactiveValues(df=F)
+    output$partition_column<-renderUI({
+      req(input$data_somY)
+      choices=c(colnames(attr(vals$saved_data[[input$data_somY]],"factors")))
+      selected=vals$cur_partition_column
+      selected<-get_selected_from_choices(selected,choices)
+      div(
+        pickerInput_fromtop(ns("partition_column"),span("Partition:",tiphelp("choose a factor as reference for the partition")), choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T)),
+        uiOutput(ns("partition_test"))
 
+      )
+    })
+    output$partition_test<-renderUI({
+      req(input$data_somY)
+      req(input$partition_column)
+      fac<-attr(vals$saved_data[[input$data_somY]],"factors")[,input$partition_column]
+      choices<-levels(fac)
+      selected=vals$cur_partition_ref
+      selected<-get_selected_from_choices(selected,choices)
+      pickerInput_fromtop(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=choices,selected=selected)
+    })
+
+
+
+    observeEvent(current_som_model(),{
+
+      m<-current_som_model()
+
+      attr(m,"model_name")<-input$som_models
+      vals$cur_kohonen<-m
+    })
+
+    modelplay<-reactiveVal()
+    output$play_out<-renderUI({
+      req(modelplay())
+
+
+      div(
+        div(sliderInput(session$ns("animation"), "Animation:",
+                        min = 1, max = length(modelplay()),
+                        value = 1, step = 1,
+                        animate =
+                          animationOptions(interval = input$play_interval,
+                                           playButton=tags$div(
+                                             tags$span("Play >> ",style="font-size: 14px;font-weight: bold; background:  #05668D;color: white; padding: 3px;"),style=" margin-top: 5px"
+                                           ),
+                                           loop = input$loop))),
+        uiOutput(ns("plot_animation"))
+      )
+    })
+    output$plot_animation<-renderUI({
+      renderPlot({
+        plotnetwork_list2(modelplay()[[input$animation]])
+
+      })
+    })
+    # Define the scatter_hexagon function
+
+
+    ns<-session$ns
+
+
+    output$label_data_som<-renderUI({
+      get_label_datasom()
+    })
+    get_label_datasom<-reactive({
+      label<-"~ Training Datalist:"
+      if(isTRUE(input$mysupersom)&input$som_tab!="som_tab1"){
+        label<-span("Target Datalist",tiphelp("the supersom model will always be saved in the datalist selected in the first layer.",placement ="right"))
+      }
+      label
+    })
+    somval<-reactiveValues(df=F)
     output$supersom_layers<-renderUI({
       div(class=show_dataX(),
           div("~ Training layers"),
@@ -1314,11 +2926,6 @@ imesc_supersom$server<-function (id,vals ){
         class='som_class0'
       }
     })
-
-
-
-
-
     getinit_supersom<-reactive({
       name1<-names(vals$saved_data)[1]
       choices_datalist<-unlist(lapply(vals$saved_data[-1],function(x){
@@ -1332,693 +2939,10 @@ imesc_supersom$server<-function (id,vals ){
       ssom_input
 
     })
-    output$ssom_df = renderUI({
-      div(
 
-        renderPrint(ssom_reac()),
 
 
-      )
-    })
 
-
-
-    symbols<-c("pch1","pch2","pch3","pch4",'pch5','pch6','pch7',"pch8")
-    df_symbol<-data.frame(
-      val = c(16,15,17,18,8,1,5,3)
-    )
-    for(i in 1:length(symbols))
-    {
-      symbol1<-base64enc::dataURI(file = paste0('inst/www/pch',i,".png"), mime = "image/png")
-
-      df_symbol$img[i]<- sprintf(paste0(img(src = symbol1, width = '10')))}
-
-
-
-    newdata_som<-reactive({
-      req(input$sompred_type)
-      m<-current_som_model()
-      newdata<-switch(input$sompred_type,
-                      "Partition"={
-                        attr(m,"test")},
-                      "Datalist"={
-                        req(input$predsom_new)
-                        vals$saved_data[[input$predsom_new]]
-                      },
-                      "Training"={current_som_model()$data})
-
-
-      if(length(newdata)==1){
-        newdata<-newdata[[1]]
-      }
-
-
-      newdata
-    })
-
-
-
-
-
-    output$pick_layer_result<-renderUI({
-      req(input$sompred_type)
-      #req(input$sompred_type%in%c("Partition","Training"))
-
-      #req(input$tab_pred_result%in%c("predictions","unit.predictions"))
-      m<-current_som_model()
-      req(inherits(m,"kohonen"))
-
-      req(get_sompred())
-      pred<-get_sompred()
-      choices=names(pred$predictions)
-
-      div(
-
-        selectInput(ns("layer_result"), "Show layer:",choices=choices, selected=vals$cur_layer_result)
-      )
-    })
-
-    observe({
-
-      shinyjs::toggle('ui_pred_result_newdata',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
-      shinyjs::toggle('pick_layer_result',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
-    })
-
-
-
-    {
-      output$ss1_plus_umatrix<-renderUI({
-        if(is.null(vals$plus_umatrix)){vals$plus_umatrix<-F}
-        checkboxInput(ns("ss1_plus_umatrix"),strong("+ U-Matrix:"), value=vals$plus_umatrix)
-      })
-      ss1_getdata_layer<-reactive({
-        choices0 = names(getsom()$data)
-        if(length(choices0)>0){
-          req(input$ss1_property_layer)
-          getsom()$data[[input$ss1_property_layer]]
-        } else{
-          getsom()$data[[1]]
-        }
-
-      })
-      ss1_indicate_hc<-reactive({
-        npic<-NULL
-        indicate<-NULL
-        if(isTRUE(input$ss1_varfacmap_action)){
-
-          npic<- input$ss1_npic
-          indicate<- input$ss1_vfm_type
-        }
-        iind=list(indicate=indicate,npic=npic)
-        iind
-      })
-      ss1_bp_som<-reactive({
-        iind=ss1_indicate_hc()
-        m<-getsom()
-        bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
-        vals$ss1_bp_som<-bp
-        bp
-      })
-      ss1_get_network<-reactive({
-        req(input$ss1_somback_value)
-        backtype=NULL
-        property=NULL
-        if(input$ss1_somback_value=="property"){
-          req(input$ss1_variable_pproperty)
-          backtype="property"
-          property=input$ss1_variable_pproperty
-        } else if(input$ss1_somback_value=="uMatrix"){
-          backtype="uMatrix"
-        }
-
-
-
-        m<-getsom()
-        hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
-        vals$ss1_hc_network<-hexs
-        hexs
-      })
-      ss1_get_copoints<-reactive({
-        m<-getsom()
-        copoints<-getcopoints(m)
-        vals$copoints_hc<-copoints
-        copoints
-      })
-      ss1_copoints_scaled<-reactive({
-        ss1_get_network()
-        ss1_get_copoints()
-        points_tomap=rescale_copoints(hexs=vals$ss1_hc_network,copoints=vals$copoints_hc)
-        data<-vals$saved_data[[input$data_som]]
-
-        factors<-attr(data,"factors")
-        if(length(input$ss1_pclus_text_factor)>0){
-          req(input$ss1_pclus_text_factor%in%colnames(factors))
-          text_factor= factors[rownames(data),input$ss1_pclus_text_factor, drop=F]
-          points_tomap$label<-text_factor[rownames(points_tomap),]
-        }
-        if(length(input$ss1_pclus_points_factor)>0){
-          req(input$ss1_pclus_points_factor%in%colnames(factors))
-          points_factor= factors[rownames(data),input$ss1_pclus_points_factor, drop=F]
-          points_tomap$point<-points_factor[rownames(points_tomap),]
-          attr(points_tomap,"namepoints")<-input$ss1_pclus_points_factor
-        }
-        vals$ss1_hc_mapsom<-points_tomap
-        points_tomap
-      })
-      ss1_get_choices_pal<-reactive({
-
-        req(input$ss1_somback_value)
-        title="+ Unit palette"
-        if(input$ss1_somback_value=="None"){
-
-          choices=getsolid_col()
-        } else {
-
-
-          choices=getgrad_col()
-
-        }
-
-
-        attr(choices,"title")<-title
-        choices
-      })
-
-
-      ss1_argsplot<-reactive({
-
-        req(input$ss1_pcodes_bgalpha)
-        if(isTRUE(input$ss1_pclus_addpoints)){
-          req(input$ss1_pclus_points_factor)
-          points_factor= NULL }
-        if(isTRUE(input$ss1_pclus_addtext)){
-          req(input$ss1_pclus_text_factor)
-          text_factor= NULL }
-
-        indicate=ss1_indicate_hc()
-
-
-        m<-current_som_model()
-
-        tryco<-try(ss1_copoints_scaled(), silent = T)
-
-        req(!inherits(tryco,"try-error"))
-        #savereac()
-        trybp<-try( ss1_bp_som(), silent = T)
-
-        req(!inherits(trybp,"try-error"))
-
-        errors<-NULL
-
-
-
-
-        copoints2<-vals$copoints2
-        copoints3<-copoints2
-        #opoints2$point<-args$points_factor
-        #attach(vals$args)
-
-
-        args<-list(m=m,
-                   hexs=vals$ss1_hc_network,
-                   points_tomap=vals$ss1_hc_mapsom,
-                   bp=vals$ss1_bp_som,
-                   points=input$ss1_pclus_addpoints,
-                   points_size=input$ss1_pclus_points_size,
-                   points_palette=input$ss1_pclus_points_palette,
-                   pch=as.numeric(input$ss1_pclus_symbol),
-                   text=input$ss1_pclus_addtext,
-                   text_size=input$ss1_pclus_text_size,
-                   text_palette=input$ss1_pclus_text_palette,
-                   bg_palette=input$ss1_bg_palette,
-                   newcolhabs=vals$newcolhabs,
-                   bgalpha=input$ss1_pcodes_bgalpha,
-                   border=input$ss1_pclus_border,
-                   indicate=indicate$indicate,
-                   cex.var=as.numeric(input$ss1_pclus.cex.var),
-                   col.text=input$ss1_p.clus.col.text,
-                   col.bg.var=input$ss1_var_bg,
-                   col.bg.var.alpha=1-input$ss1_var_bg_transp,
-                   show_error=errors,
-                   base_size=input$ss1_base_size,
-                   show_neucoords=input$ss1_theme,
-                   newdata=input$ss1_newdata,
-                   title=input$ss1_title,
-                   hc=somval$hc
-        )
-
-        args
-
-      })
-    }
-
-    output$bmu_plot<-renderUI({
-
-
-      renderPlot({
-
-        args<-ss1_argsplot()
-
-        bp<-args$bp
-        bp$id=NULL
-        vals$biplot_som<-bp
-        args$points_palette
-
-        args
-        vals$bmus_plot<-do.call(bmu_plot,args)
-        vals$bmus_plot
-      })
-
-    })
-
-
-    {
-
-
-
-
-
-
-
-
-
-
-      output$ss2_plus_umatrix<-renderUI({
-        if(is.null(vals$plus_umatrix)){vals$plus_umatrix<-F}
-        checkboxInput(ns("ss2_plus_umatrix"),strong("+ U-Matrix:"), value=vals$plus_umatrix)
-      })
-
-
-
-
-      ss2_getdata_layer<-reactive({
-        choices0 = names(getsom()$data)
-        if(length(choices0)>0){
-          req(input$ss2_property_layer)
-          getsom()$data[[input$ss2_property_layer]]
-        } else{
-          getsom()$data[[1]]
-        }
-
-      })
-
-      ss2_indicate_hc<-reactive({
-        npic<-NULL
-        indicate<-NULL
-        if(isTRUE(input$ss2_varfacmap_action)){
-
-          npic<- input$ss2_npic
-          indicate<- input$ss2_vfm_type
-        }
-        iind=list(indicate=indicate,npic=npic)
-        iind
-      })
-      ss2_bp_som<-reactive({
-        iind=ss2_indicate_hc()
-        m<-getsom()
-        bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
-        vals$ss2_bp_som<-bp
-        bp
-      })
-      ss2_get_network<-reactive({
-        req(input$ss2_somback_value)
-        backtype=NULL
-        property=NULL
-        if(input$ss2_somback_value=="property"){
-          req(input$ss2_variable_pproperty)
-          backtype="property"
-          property=input$ss2_variable_pproperty
-        } else if(input$ss2_somback_value=="uMatrix"){
-          backtype="uMatrix"
-        }
-
-
-
-        m<-getsom()
-        hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
-        vals$ss2_hc_network<-hexs
-        hexs
-      })
-      ss2_get_copoints<-reactive({
-        m<-get_som_model_pred()
-        copoints<-getcopoints(m)
-        vals$copoints_hc2<-copoints
-        copoints
-      })
-      ss2_copoints_scaled<-reactive({
-        ss2_get_network()
-        ss2_get_copoints()
-        points_tomap=rescale_copoints(hexs=vals$ss2_hc_network,copoints=vals$copoints_hc2)
-        data<-vals$saved_data[[input$data_som]]
-
-        factors<-attr(data,"factors")
-        if(length(input$ss2_pclus_text_factor)>0){
-          req(input$ss2_pclus_text_factor%in%colnames(factors))
-          text_factor= factors[rownames(data),input$ss2_pclus_text_factor, drop=F]
-          points_tomap$label<-text_factor[rownames(points_tomap),]
-        }
-        if(length(input$ss2_pclus_points_factor)>0){
-          req(input$ss2_pclus_points_factor%in%colnames(factors))
-          points_factor= factors[rownames(data),input$ss2_pclus_points_factor, drop=F]
-          points_tomap$point<-points_factor[rownames(points_tomap),]
-          attr(points_tomap,"namepoints")<-input$ss2_pclus_points_factor
-        }
-        vals$ss2_hc_mapsom<-points_tomap
-        points_tomap
-      })
-      ss2_get_choices_pal<-reactive({
-
-
-        req(length(input$ss2_somback_value)>0)
-        title="+ Unit palette"
-        if(input$ss2_somback_value=="None"){
-          vals$somplot_bg<-"gray"
-          choices=getsolid_col()
-        } else {
-
-          vals$somplot_bg<-"viridis"
-          choices=getgrad_col()
-
-        }
-
-
-        attr(choices,"title")<-title
-        choices
-      })
-
-
-
-
-
-
-
-      ss2_argsplot<-reactive({
-
-        req(input$ss2_pcodes_bgalpha)
-        if(isTRUE(input$ss2_pclus_addpoints)){
-          req(input$ss2_pclus_points_factor)
-          points_factor= NULL }
-        if(isTRUE(input$ss2_pclus_addtext)){
-          req(input$ss2_pclus_text_factor)
-          text_factor= NULL }
-
-        indicate=ss2_indicate_hc()
-
-
-        m<-current_som_model()
-
-        tryco<-try(ss2_copoints_scaled(), silent = F)
-
-        req(!inherits(tryco,"try-error"))
-        #savereac()
-        trybp<-try( ss2_bp_som(), silent = T)
-
-        req(!inherits(trybp,"try-error"))
-
-        errors<-NULL
-
-
-
-
-        copoints2<-vals$copoints2
-        copoints3<-copoints2
-        #opoints2$point<-args$points_factor
-        #attach(vals$args)
-
-
-        args<-list(m=m,
-                   hexs=vals$ss2_hc_network,
-                   points_tomap=vals$ss2_hc_mapsom,
-                   bp=vals$ss2_bp_som,
-                   points=input$ss2_pclus_addpoints,
-                   points_size=input$ss2_pclus_points_size,
-                   points_palette=input$ss2_pclus_points_palette,
-                   pch=as.numeric(input$ss2_pclus_symbol),
-                   text=input$ss2_pclus_addtext,
-                   text_size=input$ss2_pclus_text_size,
-                   text_palette=input$ss2_pclus_text_palette,
-                   bg_palette=input$ss2_bg_palette,
-                   newcolhabs=vals$newcolhabs,
-                   bgalpha=input$ss2_pcodes_bgalpha,
-                   border=input$ss2_pclus_border,
-                   indicate=indicate$indicate,
-                   cex.var=as.numeric(input$ss2_pclus.cex.var),
-                   col.text=input$ss2_p.clus.col.text,
-                   col.bg.var=input$ss2_var_bg,
-                   col.bg.var.alpha=1-input$ss2_var_bg_transp,
-                   show_error=errors,
-                   base_size=input$ss2_base_size,
-                   show_neucoords=input$ss2_theme,
-                   newdata=input$ss2_newdata,
-                   title=input$ss2_title,
-                   hc=somval$hc
-        )
-
-        args
-
-      })
-    }
-
-
-    getbmu_plot<-reactive({
-      args<-ss2_argsplot()
-      #saveRDS(args,"args.rds")
-
-      req(length(args)>0)
-      bp<-args$bp
-      bp$id=NULL
-      vals$biplot_som<-bp
-      do.call(bmu_plot,args)
-    })
-
-    output$predbmu_plot<-renderUI({
-      renderPlot({getbmu_plot()})
-
-    })
-
-    observeEvent(input$pred_performace,ignoreInit = T,{
-      updateTabsetPanel(session,'get_predsom_perf',selected=input$pred_performace)
-    })
-    output$pred_performace<-renderUI({
-      box_caret(
-        ns("box_pred_perf_out"),
-        title="Table",
-        button_title = uiOutput(ns('header_perf')),
-        tabsetPanel(
-          id=ns("get_predsom_perf"),
-
-          tabPanel(
-            value="predsom_perf_overhall",
-            title = "Overall performace",
-            uiOutput(ns("overhall_peform"))),
-          tabPanel(
-            value="predsom_perf_obs",
-            title = "Performace by observation",
-            uiOutput(ns("obs_peform"))
-          ),
-          tabPanel(
-            value="predsom_perf_var",
-            title = "Performace by variable",
-            uiOutput(ns("var_peform"))
-          )
-        )
-      )
-
-
-    })
-    output$obs_peform<-renderUI({
-      vals$som_perf_result<-table<-get_obs_peform()
-      div(class="half-drop-inline",
-          fixed_dt(table,dom='lt',pageLength=20)
-      )
-
-
-
-
-    })
-    output$var_peform<-renderUI({
-      vals$som_perf_result<-table<-get_var_peform()
-      div(class="half-drop-inline",
-          fixed_dt(table,dom='lt',pageLength=20)
-      )
-
-
-
-
-    })
-    output$overhall_peform<-renderUI({
-      vals$som_perf_result<-table<-get_overhall_peform()
-      div(class="half-drop-inline",
-          fixed_dt(table,dom='t')
-      )
-
-
-    })
-
-
-
-
-
-
-
-
-
-    output$header_perf<-renderUI({
-      div(
-        actionLink(ns('downtable_perf_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table")))
-        ),
-        uiOutput(ns("link_predsom_perf_obs"))
-
-      )
-    })
-    output$link_predsom_perf_obs<-renderUI({
-      req(input$get_predsom_perf=="predsom_perf_obs")
-      actionLink(ns('link_predsom_perf_obs_create'),span("+ Create a Datalist"))
-    })
-    output$link_predsom_newdata<-renderUI({
-      req(input$tab_pred_result=="predictions")
-      actionLink(ns('link_predsom_newdata_create'),span("+ Create a Datalist"))
-    })
-    output$link_predsom_codebook<-renderUI({
-      req(input$tab_pred_result=="unit.predictions")
-      actionLink(ns('link_predsom_codebook_create'),span("+ Create a Datalist"))
-    })
-    create_predsom_codebook<-reactive({
-      temp<-data.frame(vals$som_predict_result)
-      attr(temp,"factors")<-data.frame(id=rownames(temp))
-      coords<-data.frame(current_som_model()$grid$pts)
-      colnames(coords)<-c("x","y")
-      rownames(coords)<-rownames(temp)
-      attr(temp,"coords")<-coords
-      if(input$hand_save=="create") {
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-    })
-    create_predsom_newdata<-reactive({
-      data_o<-switch(
-        input$sompred_type,
-        "Partition"={
-          vals$saved_data[[input$data_som]][rownames(attr(current_som_model(),"test")[[1]]),]
-        },
-        "Datalist"={vals$saved_data[[input$predsom_new]]},
-        "Training"={vals$saved_data[[input$data_som]]}
-
-      )
-
-      temp<-vals$som_predict_result
-      if(input$hand_save=="create") {
-        temp<-data_migrate(data_o,temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(data_o,temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-    })
-
-    observeEvent(input$pred_results,ignoreInit = T,{
-      updateTabsetPanel(session,'tab_pred_result',selected =input$pred_results)
-    })
-    output$som_predict_results<-renderUI({
-      #req(get_sompred())
-      box_caret(ns("box_pred_results_out"),
-
-                title="Table",
-                button_title = div(
-
-                  div(
-                    actionLink(ns('downtable_predict_result'),span("+ Download",span(icon("fas fa-download"),icon("fas fa-table"))))
-                  )
-                ),
-                tabsetPanel(
-                  type="hidden",
-                  id=ns("tab_pred_result"),
-                  tabPanel(
-                    title = "Best-matching units",
-                    value="unit.classif",
-                    uiOutput(ns("out_pred_result_bmu"))
-                  ),
-                  tabPanel(
-                    title = "New Data (X)",
-                    value="predictions",
-
-                    uiOutput(ns("out_pred_result_newdata"))
-                  ),
-                  tabPanel(
-                    title = "Codebook",
-                    value="unit.predictions",
-                    uiOutput(ns('ui_pred_result_codebook')),
-                    uiOutput(ns("out_pred_result_codebook"))
-                  )
-                ))
-
-    })
-
-
-
-
-
-    palette=c(
-      "turbo",'viridis', 'plasma',"Rushmore1","FantasticFox1",'Grays',"heat",'Purples',"Blues",'Greens',"black","gray","royalblue", "firebrick","forestGreen",'goldenrod3',"white"
-    )
-    symbols<-c("pch1","pch2","pch3","pch4")
-
-    dfcolors<-data.frame(
-      val = palette
-    )
-
-
-    saved_sompred<-reactiveValues()
-    re<-reactiveValues(df=NULL)
-
-
-
-    observeEvent(ignoreInit = T,input$downp_pchanges,{
-
-      vals$hand_plot<-"generic_replay"
-      module_ui_figs("downfigs")
-      generic=g_pchanges()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Changes plot", name_c="som_changes")
-    })
-
-    observeEvent(ignoreInit = T,input$downp_pcounts,{
-
-      vals$hand_plot<-"generic_replay"
-      module_ui_figs("downfigs")
-      generic=g_pcounts()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Counting plot", name_c="som_counting")
-    })
-    g_pchanges<-reactive({
-      pchanges(current_som_model())
-      res<-recordPlot()
-      res
-    })
-    g_pcounts<-reactive({
-      pcounts(current_som_model())
-      res<-recordPlot()
-      res
-    })
-    output$pchanges<-renderPlot({
-      req(length(current_som_model())>0)
-      g_pchanges()
-    })
-    output$pcounts<-renderPlot({
-      req(length(current_som_model())>0)
-      g_pcounts()
-    })
-    output$pUmatrix<-renderPlot({
-      req(length(current_som_model())>0)
-      pUmatrix(current_som_model())
-    })
-    output$pproperty<-renderPlot({
-      req(input$variable_pproperty)
-      pproperty(current_som_model(),
-                input$variable_pproperty,
-                input$variable_pproperty)
-      vals$pprop_plot<-recordPlot()
-    })
 
     output$textsomgrid<-renderUI({
       div(
@@ -2104,36 +3028,6 @@ imesc_supersom$server<-function (id,vals ){
     )))
 
     })
-    output$textsugtopohelp<-renderUI({
-
-      div(
-        tags$style(HTML("
-       h2 {
-      font-size: 20px;
-      font-weight: bold;
-      }
-      h3 {
-      font-size: 20px;
-      font-weight: lighter;
-      }
-      code {
-      color: blue;
-      }
-
-    ")),
-
-    div(column(12,
-               'The number of map nodes and the side length ratio is performed with the following steps (Vesanto, 2000 ):',
-               column(12, style="margin-left: 10px; margin-top: 5px;",
-                      p(strong("1."),"Determine the number of map nodes using the heuristic recommendation:",withMathJax(helpText(
-                        "$$ M = 5{\\sqrt{N}}$$"
-                      )),"where N is the number of observations in the input data set ( Vesanto, 2000 ),"),
-                      p(strong("2."),"Determine the eigenvectors and eigenvalues in the data from the autocorrelation matrix,"),
-                      p(strong("3."),"Set the ratio between the two sides of the grid equivalent to the ratio between the two largest eigenvalues, and "),
-                      p(strong("4."),"Scale the side lengths so that their product (xdim * ydim) is as close as possible to the number of map units determined above."))
-    )))
-
-    })
     savereac<-reactive({
 
 
@@ -2154,34 +3048,6 @@ imesc_supersom$server<-function (id,vals ){
 
 
     })
-
-
-    output$train_som_button<-renderUI({
-      if(input$distmethod=="BrayCurtis"){
-        validate(need(anyNA(getdata_som())==F, "Missing values are not allowed in the Bray method. Change the distance or use the preprocessing tools to impute or remove the missing values"))
-      }
-
-
-      if(isTRUE(input$mysupersom)){
-        validate_supersom()
-        lab<-h4(icon("fas fa-braille"),"train superSOM",icon("fas fa-arrow-circle-right"))
-      }
-
-
-    })
-
-
-    topo.reactive<-reactiveVal()
-    toroidal<-reactive({
-      switch (input$toroidal,
-              'TRUE' = TRUE,
-              "FALSE" = FALSE)
-    })
-    output$train.summary<-renderTable({
-      train.summary()
-    }, rownames = T, colnames = F,striped=T, spacing ="xs")
-
-
     getobs_somX<-reactive({
       datalist<-vals$saved_data
       m<-current_som_model()
@@ -2195,298 +3061,20 @@ imesc_supersom$server<-function (id,vals ){
       }))
 
     })
-    checkpredsom<-reactive({
-      req(input$predsom_new)
-      check<-vals$saved_data[[input$data_som]]
-      res<-res0<-lapply(vals$saved_data,function(x) match_col(x,check) )
-      res<-names(which(unlist(res)==T))
-      choices=names(unlist(c(res0[res0==T],res0[ res0==F])))
-      #validate(need(isTRUE(res0[[input$predsom_new]]),paste("Variables from Datalist",input$predsom_new, "incompatible with the Training data", input$data_som)))
-      choices
-    })
-    getobs_som2<-reactive({
-      datalist<-vals$saved_data
-      m<-current_som_model()
-
-
-      res0<-unlist(
-        lapply(datalist, function (x){
-          res<-colnames(x)%in%colnames(m$data[[2]])
-          sum(res)==ncol(m$data[[2]])
-        })
-      )
-      names(res0[res0==T])
-    })
-
-
-
-
-    getpred_model<-reactive({
-
-      res0<-res<-get_sompred()
-
-      pic_result<-input$ss2_property_layer
-
-      res$predictions
-      res<-res[["unit.predictions"]][[pic_result]]
-      rownames(res)<-paste0("neu",1:nrow(res))
-      unit.predictions<-res
-
-      res<-res0
-      res_temp<-data.frame(bmu=res[['unit.classif']])
-      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
-      res<-res_temp
-      unit.classif<-res
-
-      res<-res0
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-
-      predictions<-res[["predictions"]][[pic_result]]
-
-      list(predictions=predictions,unit.classif=unit.classif,unit.predictions=unit.predictions,pic_result=pic_result)
-
-
-    })
-
-    get_som_model_pred<-reactive({
-      m_pred<-current_som_model()
-      req(inherits(m_pred,'kohonen'))
-
-      res<-getpred_model()
-      #res$pic_result<-input$ss2_property_layer
-      unit.classif<-res$unit.classif[,1]
-      names(unit.classif)<-rownames(res$unit.classif)
-
-
-      m_pred$codes<-list(res$unit.predictions)
-      names(m_pred$codes)<-res$pic_result
-
-      m_pred$unit.classif<-unit.classif
-
-      m_pred$data<-list(as.matrix(res$predictions))
-      m_pred$whatmap<-res$pic_result
-      names(m_pred$data)<-res$pic_result
-
-      picmap<-which(names(current_som_model()$data)%in%res$pic_result)
-      m_pred$dist.fcts<- m_pred$dist.fcts[picmap]
-      m_pred$distance.weights<- m_pred$distance.weights[picmap]
-      m_pred$user.weights<-m_pred$user.weights[picmap]
-      m_pred$whatmap=1
-      m_pred
-
-
-
-
-    })
-    getsolid_col<-reactive({
-      res<-lapply(vals$newcolhabs, function(x) x(2))
-      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
-      solid<-names(res1[res1==T])
-      pic<-which(vals$colors_img$val%in%solid)
-      pic
-    })
-    getgrad_col<-reactive({
-      res<-lapply(vals$newcolhabs, function(x) x(2))
-      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
-      grad<-names(res1[res1==F])
-      pic<-which(vals$colors_img$val%in%grad)
-      pic
-    })
-    output$som_errors<-renderUI({
-      som_qualist<-errors_som(current_som_model())
-      res<-data.frame(som_qualist$som_quality)
-
-      res$mean=apply(data.frame(lapply(res,function(x)as.numeric(x))),1,mean)
-      neu.uti<-data.frame(som_qualist$neu.uti)
-      rownames(neu.uti)<-"neu.uti"
-      res_names<-rownames(res)
-      div(
-
-
-        renderTable(res,rownames =T),
-        renderTable(neu.uti,rownames =T,colnames =F),
-      )
-    })
-
-    observeEvent(ignoreInit = T,input$create_codebook,{
-      vals$hand_save<-"Create Datalist with Codebooks"
-      vals$hand_save2<-NULL
-      vals$hand_save3<-NULL
-      showModal(module_som())
-    })
-
-
-    observeEvent(ignoreInit = T,input$down_pcodes_results,{
-      vals$hand_down<-"generic"
-
-
-      module_ui_downcenter("downcenter")
-      name<-"Codebook results"
-      data<- data.frame( kohonen::getCodes(current_som_model()))
-      mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Codebook results",data=data, name=name)
-    })
-
-    output$down_kohonen_results<-{
-      downloadHandler(
-        filename = function() {
-          paste0("Kohonen","_", Sys.Date(),".rds")
-        }, content = function(file) {
-          saveRDS(current_som_model(),file)
-        })
-    }
-
     getdata_som<-reactive({
       req(input$data_som)
       data_o<-data<-vals$saved_data[[input$data_som]]
 
       data
     })
-
-    bmu_pred_points<-reactive({
-      req(input$bmu_p_dotlabel)
-      if(input$bmu_p_dotlabel == 'symbols'){ T} else {F}
-    })
-    bmu_p_factors_reac<-reactive({
-      factors<-attr(vals$saved_data[[input$data_som]],"factors","factors")
-      m<-current_som_model()
-      if (length(input$bmu_p_factors)>0) {
-        c(factors[rownames(vals$saved_data[[input$data_som]],"factors"), input$bmu_p_factors],
-          if(length(attr(m,"test"))>0) {factors[rownames(attr(m,"test")), input$bmu_p_factors]})
-      } else{c(factors[rownames(vals$saved_data[[input$data_som]],"factors"),1],
-               if(length(attr(m,"test"))>0) {factors[rownames(attr(m,"test")), ]})}
-    })
-
-    bmu_factors_reac<-reactive({
-      factors<-attr(vals$saved_data[[input$data_som]],"factors","factors")
-      if (length(input$bmu_factors)>0) {
-        factors[rownames(vals$saved_data[[input$data_som]],"factors"), input$bmu_factors]
-      } else{factors[,1]}
-    })
-    train.summary<-reactive({
-      m<-current_som_model()
-
-      req(inherits(m,"kohonen"))
-      traindata<-data.frame(m$data[[1]])
-      mean = round(mean(unlist(traindata)), 2)
-      n.obs = nrow(traindata)
-      n.variables = ncol(traindata)
-      summ<-m$grid[-1]
-      summ$neighbourhood.fct<-as.character(summ$neighbourhood.fct)
-      summ<-do.call(rbind, summ)
-      mode<-attr(m,"mode")
-      alpha = paste0(m$alpha, collapse = "; ")
-      radius = paste0(round(m$radius, 3), collapse = "; ")
-      # user.weights = m$user.weights
-      maxNA.fraction = m$maxNA.fraction
-      dist.fcts =   paste0(m$dist.fcts,collapse="; ")
-      user.weights =   paste0(round(m$user.weights,4),collapse="; ")
-      Layers =   paste0(names(m$data),collapse="; ")
-      normalizeDataLayers<-attr(m,"normalizeDataLayers")
-
-
-
-
-
-      Parameters<-
-        rbind(
-          Layers,
-          dist.fcts,
-          user.weights,
-          n.obs,
-          n.variables,
-          summ,
-          alpha,
-          radius,
-          #user.weights,
-          maxNA.fraction,
-          normalizeDataLayers=normalizeDataLayers,
-
-          mode
-        )
-      result<-data.frame(Parameters)
-
-
-      result
-    })
-    coodebook_name<-reactive({
-      name0<-paste0("Codebook_",input$data_som,"::",input$som_models)
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
     data_overwritte<-reactiveValues(df=F)
     data_store<-reactiveValues(df=F)
     newname<-reactiveValues(df=0)
     get_newname<-reactive({
       req(!is.null(vals$hand_save))
-      newname$df<-switch(
-        vals$hand_save,
-        ##RF,
-        "Create Datalist  - Variables from VFM"=bag_vfm(),
-        "Create Datalist  - SOM predictions for New Data (X)"=bag_tab_pred_result(),
-        "Create Datalist  - SOM codebook predictions"=bag_tab_pred_result(),
-        "Create Datalist  - SOM performace"=bag_predsom_errors(),
-        "Save new som in"=bag_somname(),
-
-        "Save errors from som predictions (X)"=bag_sompred_eX(),
-        "Save errors from som predictions (Y)"=bag_sompred_eY(),
-        "Create Datalist with Codebooks"=coodebook_name()
-      )})
-    bag_predsom_errors<-reactive({
-      name0<-paste(input$data_som,input$get_predsom_perf, sep="_")
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
-    bag_tab_pred_result<-reactive({
-      name0<-paste(input$data_som,input$tab_pred_result,input$layer_result, sep="_")
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
+      newname$df<-bag_somname()})
 
 
-    predsom_name<-reactive({
-      zero<-"Som_Pred"
-      if(input$som_models!="new som (unsaved)"){
-        zero=paste0(input$som_models,"_Pred")
-      }
-      name<-if(!length(saved_sompred$df)>0){
-        zero
-      } else{
-        paste(zero,length(saved_sompred$df))
-      }
-      name
-    })
-    bag_sompred_eX<-reactive({
-      bag<-1
-      name0<-paste("Som_pred_errorsX")
-      name1<-paste(name0,bag)
-      if(name1%in%names(vals$saved_data))
-      {
-        repeat{
-          bag<-bag+1
-          name1<-paste(name0,bag)
-          if(!name1%in%names(vals$saved_data)) break
-        }
-      }
-      paste("Som_pred_errorsX",bag)
-
-    })
-    bag_sompred_eY<-reactive({
-      bag<-1
-      name0<-paste("Som_pred_errorsY")
-      name1<-paste(name0,bag)
-      if(name1%in%names(vals$saved_data))
-      {
-        repeat{
-          bag<-bag+1
-          name1<-paste(name0,bag)
-          if(!name1%in%names(vals$saved_data)) break
-        }
-      }
-      paste("Som_pred_errorsY",bag)
-
-    })
     module_som<-function() {
       ns<-session$ns
 
@@ -2508,7 +3096,7 @@ imesc_supersom$server<-function (id,vals ){
       choices<-c(names(vals$saved_data))
       req(input$hand_save=="over")
       if(vals$hand_save=='Save new som in'){choices<-names(attr(vals$saved_data[[input$data_som]],'som'))}
-      res<-pickerInput(ns("over_datalist"), NULL,choices, width="350px")
+      res<-pickerInput_fromtop(ns("over_datalist"), NULL,choices, width="350px")
       data_overwritte$df<-T
       inline(res)
     })
@@ -2544,112 +3132,7 @@ imesc_supersom$server<-function (id,vals ){
       actionButton(ns("data_confirm"),strong("confirm"))
     })
 
-    create_som_vfm<-reactive({
 
-      data_o<-vals$saved_data[[input$data_som]]
-      m<-getsom()
-      dd<-do.call(cbind,m$data)
-      colnames(dd)<-unlist(sapply(m$data,colnames))
-      temp<-data.frame(dd[,rownames(vals$biplot_som),drop=F])
-      colnames(temp)<-rownames(vals$biplot_som)
-      if(input$hand_save=="create") {
-        temp<-data_migrate(data_o,temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(data_o,temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-
-
-
-    })
-    bag_vfm<-reactive({
-      name0<-paste0(input$data_som,"_",input$ss1_npic,"vars")
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
-    create_predsom_errors<-reactive({
-
-      data_o<-switch(input$sompred_type,
-                     "Partition"={
-                       vals$saved_data[[input$data_som]][rownames(attr(current_som_model(),"test")[[1]]),]
-                     },
-                     "Datalist"={vals$saved_data[[input$predsom_new]]},
-                     "Training"={vals$saved_data[[input$data_som]]}
-      )
-
-      temp<-vals$som_perf_result
-      if(input$hand_save=="create") {
-        temp<-data_migrate(data_o,temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(data_o,temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-
-
-
-    })
-
-
-    savebmu<-reactive({
-      temp<-current_som_model()
-      bmu<-temp$unit.classif
-      names(bmu)<-rownames(temp$data[[1]])
-      bmu<-data.frame(bmu=as.factor(bmu))
-      factors<-attr(vals$saved_data[[input$data_som]],"factors")
-      factors<-data.frame(factors,bmu)
-      attr(vals$saved_data[[input$data_som]],"factors")<-factors
-    })
-
-    datalist_som_errorsX<-reactive({
-      temp<-data.frame(get_sompred_results())
-      if(input$hand_save=="create") {
-        temp<-data_migrate(vals$saved_data[[input$data_som]],temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(vals$saved_data[[input$data_som]],temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-    })
-    datalist_som_errorsY<-reactive({
-      temp<-data.frame(get_sompred_results())
-      if(input$hand_save=="create") {
-        temp<-data_migrate(vals$saved_data[[input$data_som]],temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(vals$saved_data[[input$data_som]],temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-    })
-
-
-
-    validate_supersom<-reactive({
-      layers = get_training_list()
-      ids<-names(layers)
-      dists<-ssom_reac()
-      dists$id<-rownames(dists)
-      dd<-sapply(layers,function(x) {any(rowSums(x)==0)})
-      dists$notval<-dd
-      if(any(dists$Distances=="BrayCurtis")){
-        notval<-which(apply(dists,1,function(x) x[3]=='BrayCurtis'&x[5]==T))
-
-        if(length(notval)>0){
-          paste(
-            "Error: Empty rows detected. SOM cannot be trained using the 'Bray' method for the layers",ifelse(length(notval) == 1, notval,
-                                                                                                              ifelse(length(notval) == 2, paste0(notval, collapse = " and "),
-                                                                                                                     paste0(paste0(notval[1:(length(notval)-1)], collapse = ", "), " and ", notval[length(notval)])))
-          )
-        } else{ NULL}
-
-
-
-      }
-
-    })
 
     getsom<-reactive({
       req(input$som_models)
@@ -2691,45 +3174,6 @@ imesc_supersom$server<-function (id,vals ){
     som_model_names<-reactive({
       req(input$data_som)
       names(attr(vals$saved_data[[input$data_som]],"som"))
-    })
-
-    savecoodebok<-reactive({
-      m<-attr(vals$saved_data[[input$data_som]],"som")[[input$som_models]]
-      grid<-m$grid$pts
-      bmus<-m$unit.classif
-      res_fac<-do.call(rbind,lapply(1:nrow(grid),function(i){
-        x<-rep(0,length(bmus))
-        x[which(bmus==i)]<-1
-        factor(x)
-      }))
-      res_fac<-data.frame(res_fac)
-      colnames(res_fac)<-names(bmus)
-      rownames(res_fac)<-paste("unit",1:nrow(grid))
-      res=data.frame(current_som_model()$codes[[1]])
-      rownames(res)<-paste("unit",1:nrow(grid))
-      data=res
-      res_fac<-data.frame(neuron=paste0("unit_",1:nrow(grid)))
-      attr(data,"factors")<-res_fac
-      coords<-data.frame(grid)
-      colnames(coords)<-c("x","y")
-      rownames(coords)<-rownames(data)
-      attr(data,"coords")<-coords
-
-      neu<-do.call(rbind,get_neurons(m))
-      my_df<-neu[,1:3]
-      df<-data.frame(group_by( st_as_sf(my_df,coords = c("x", "y"),crs = 4326),neu))
-      li<-lapply(split(df,df$neu),function(x){
-        x$geometry<-  st_combine(x$geometry)
-        x
-      })
-      base_shape<-st_cast(st_sf(do.call(rbind,li)),"POLYGON")
-
-
-      attr(data,"base_shape")<-base_shape
-      if(input$hand_save=="create"){
-        vals$saved_data[[input$newdatalist]]<-data
-      } else {
-        vals$saved_data[[input$over_datalist]]<-data}
     })
     savesom<-reactive({
       curtab<-vals$cursomtab
@@ -2773,267 +3217,8 @@ imesc_supersom$server<-function (id,vals ){
       res
     })
 
-    get_partition<-reactive({
-      if(isFALSE(input$usepartition)){
-        data<-getdata_som()
-        return(list(train=rownames(data),test=NULL))
-      }
-
-      data<-vals$saved_data[[input$data_somY]]
-
-
-      factors<-attr(data,"factors")
-      partition_column<-factors[input$partition_column]
-      test_ids<-which(partition_column[,1]%in%input$partition_ref)
-      train_ids<-rownames(data)[-test_ids]
-      test_ids<-rownames(data)[test_ids]
-      return(list(train=train_ids,test=test_ids))
-    })
-
-
-
-    observeEvent(input$trainSOM,ignoreInit = T,{
-      req(isTRUE(input$mysupersom))
-      attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL
-
-
-
-      if(is.null(attr(vals$saved_data[[input$data_som]],"som"))){
-        attr(vals$saved_data[[input$data_som]],"som")<-list()
-      }
-
-
-      layers = get_training_list()
-      layer_table<-ssom_reac()
-      weights<-layer_table$Weights
-      distances<-layer_table$Distances
-      data1<-vals$saved_data[layer_table$Datalist][[1]]
-      if(isTRUE(input$usepartition)){
-        #req(input$data_somY)
-        factors<-attr(vals$saved_data[[input$data_somY]],"factors")[rownames(data1),]
-        pic_split<-which(factors[,input$partition_column]%in%input$partition_ref)
-        test_ids<-rownames(factors)[pic_split]
-        train_ids<-rownames(factors)[-pic_split]
-        parts=list(train=train_ids,test=test_ids)
-        train<-parts$train
-        test<-parts$test
-        training_list<-lapply(layers,function(x){
-          x[train,]
-        })
-        test_list<-lapply(layers,function(x){
-          x[test,]
-        })
-      } else{
-        training_list<-layers
-        test_list<-"None"
-      }
-
-      ncodes<-input$xdim*input$ydim
-      seed<-input$seed
-      seed<-input$seed
-      if(is.na(seed)){
-        seed<-sample(.Random.seed,1)}
-
-
-
-      ncodes<-input$xdim*input$ydim
-      set.seed(seed)
-      starters<-sample(1:nrow(training_list[[1]]), ncodes, replace = FALSE)
-      init<-lapply(training_list, function(x) x[starters, , drop = FALSE])
-
-      withProgress(
-        message = "Running som... the time taken will depend on the size of the data and the training.",
-        min = 1,
-        max = 1,
-        {
-          if(is.na(input$seed)==F){set.seed(input$seed)}
-          args<-list(
-            data=training_list,
-            #whatmap = 1,
-            grid = kohonen::somgrid(
-              input$xdim,
-              input$ydim,
-              topo = input$topo,
-              toroidal = toroidal(),
-              neighbourhood.fct=input$neighbourhood.fct
-            ),
-            rlen = input$rlen,
-            dist.fcts = distances,
-            user.weights=weights,
-            alpha = c(input$a1, input$a2),
-            radius = c(input$r1, input$r2),
-            mode = input$mode,
-            maxNA.fraction = input$maxna,
-            normalizeDataLayers=as.logical(input$normalizeDataLayers),
-            init=init
-          )
-
-          m<-do.call(supersom,args)
-          attr(m,'mode')<-m$mode<-input$mode
-          m$seed<-seed
-          m$normalizeDataLayers<-input$normalizeDataLayers
-          m$init<-init
-          names(m$unit.classif)<-rownames(m$data[[1]])
-          attr(m,"Method")<-"superSOM"
-          attr(m,"Datalist")<-names(m$data)
-          attr(m,"test")<-test_list
-          attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
-
-          newmodesl<-c(list(m),attr(vals$saved_data[[input$data_som]],"som"))
-          names(newmodesl)[1]<-"new som (unsaved)"
-          attr(vals$saved_data[[input$data_som]],"som")<-newmodesl
-
-          updateTabsetPanel(session, "som_tab", "som_tab2")
-          updateTabsetPanel(session, "som_tab", "train_tab2")
-          updateTabsetPanel(session, "som_res", "train_tab1")
-          vals$cur_som_models<-"new som (unsaved)"
-        }
-      )
-    })
-
-    observeEvent(input$trainSOM,ignoreInit = T,{
-      req(isFALSE(input$mysupersom))
-      vals$som_unsaved<-NULL
-      attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL
-
-
-      traindat=data=data_o<-data.frame(vals$saved_data[[input$data_som]])
-      traindat=data[get_partition()$train,]
-
-
-      withProgress(
-        message = "Running som... the time taken will depend on the size of the data and the training.",
-        min = 1,
-        max = 1,
-
-
-
-        {
-          datalist<-list(as.matrix(traindat))
-          names(datalist)<-input$data_som
-          seed<-input$seed
-          if(is.na(seed)){
-            seed<-sample(.Random.seed,1)}
-
-
-
-          ncodes<-input$xdim*input$ydim
-          set.seed(seed)
-          starters<-sample(1:nrow(datalist[[1]]), ncodes, replace = FALSE)
-          init<-lapply(datalist, function(x) x[starters, , drop = FALSE])
-          set.seed(seed)
-          m<-try(
-            supersom(
-              datalist,
-              grid = kohonen::somgrid(
-                input$xdim,
-                input$ydim,
-                topo = input$topo,
-                toroidal = toroidal(),
-                neighbourhood.fct=input$neighbourhood.fct
-              ),
-              rlen = input$rlen,
-              dist.fcts = input$distmethod,
-              alpha = c(input$a1, input$a2),
-              radius = c(input$r1, input$r2),
-              mode = input$mode,
-              maxNA.fraction = input$maxna,
-              init=init,
-              normalizeDataLayers=as.logical(input$normalizeDataLayers)
-            )
-          )
-
-          if (!inherits(m,"kohonen"))        {
-            validate(paste(m[[1]], "Please decrease your alpha (learning rate)"))
-          }
-          attr(m,'mode')<-m$mode<-input$mode
-          m$seed<-seed
-          m$normalizeDataLayers<-input$normalizeDataLayers
-          m$init<-init
-          names(m$unit.classif)<-rownames(m$data[[1]])
-          attr(m,"test_partition")<-"None"
-          test_list<-list(as.matrix(data[get_partition()$test,]))
-          names(test_list)<-input$data_som
-          attr(m,"test")<-test_list
-          attr(m,"Method")<-"Unsupervised"
-          attr(m,"Datalist")<-input$data_som
-          attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
-          attr(m,"coords")<-attr(data,"coords")[rownames(traindat),]
-          vals$som_unsaved<-m
-          newmodesl<-c(list(m),attr(vals$saved_data[[input$data_som]],"som"))
-          names(newmodesl)[1]<-"new som (unsaved)"
-          attr(vals$saved_data[[input$data_som]],"som")<-newmodesl
-
-
-
-
-
-          updateTabsetPanel(session, "som_tab", "som_tab2")
-          updateTabsetPanel(session, "som_tab", "train_tab2")
-          updateTabsetPanel(session, "som_res", "train_tab1")
-          vals$cur_som_models<-"new som (unsaved)"
-        }
-      )
-    })
-
-
-
-
-
-
-
-
-
-
-
-    observeEvent(current_som_model(),{
-      m<-current_som_model()
-      test<-attr(m,"test")
-      choices=c("Training","Datalist")
-      if(inherits(test,"list")){
-        choices=c("Partition","Training","Datalist")
-      }
-      selected=vals$cur_sompred_type
-      selected<-get_selected_from_choices(selected,choices)
-
-      updateRadioGroupButtons(session,'sompred_type',choices=choices,selected=selected)
-    })
-
-    observeEvent(input$sompred_type,{
-      vals$cur_sompred_type<-input$sompred_type
-    })
-    observeEvent(list(input$xdim,input$ydim),{
-      req(input$xdim)
-      req(input$ydim)
-      value=as.vector(
-        quantile(
-          unit.distances(
-            kohonen::somgrid(input$xdim,input$ydim,topo = input$topo,toroidal = toroidal(), neighbourhood.fct=input$neighbourhood.fct)), 2 / 3
-        )
-      )
-      updateNumericInput(session,"r1",value=value)
-      fineonce<-reactiveVal(F)
-      if(isFALSE(fineonce())){
-        shinyjs::hide("finetuning_som")
-        fineonce(T)
-      }
-
-
-    })
-    observeEvent(ignoreInit = T,input$data_som,{
-      if(anyNA(getdata_som())){
-        updateSelectInput(session,"distmethod",selected="euclidean")
-      }
-    })
     observeEvent(ignoreInit = T,input$som_res,{
       vals$som_res<-input$som_res
-    })
-    observeEvent(ignoreInit = T,input$resettopo, {
-      shinyjs::reset("topocontrol")
-      shinyjs::reset("topocosugtopontrol")
-    })
-    observeEvent(ignoreInit = T,input$save_bmu,{
-      savebmu()
     })
     observeEvent(ignoreInit = T,input$supersomhelp, {
       showModal( modalDialog(
@@ -3045,19 +3230,6 @@ imesc_supersom$server<-function (id,vals ){
         size = "m",
         easyClose = TRUE
       ))
-    })
-    observeEvent(ignoreInit = T,input$sugtopohelp, {
-      showModal(
-
-        modalDialog(
-          uiOutput(ns('textsugtopohelp')),
-          title = "Suggested topology",
-          footer = modalButton("close"),
-          size = "m",
-          easyClose = TRUE
-        )
-
-      )
     })
     observeEvent(ignoreInit = T,input$supersomh,{
       output$supersomhelp<-renderText({
@@ -3112,24 +3284,6 @@ imesc_supersom$server<-function (id,vals ){
         getHelp('kohonen')
       })
     })
-    observeEvent(ignoreInit = T,input$ss1_varfacmap, {
-      showModal(modalDialog(
-        uiOutput(ns("textvarfacmap")),
-        title = h4(strong("Variable factor map")),
-        footer = modalButton("close"),
-        size = "m",
-        easyClose = TRUE
-      ))
-    })
-    observeEvent(ignoreInit = T,input$ss2_varfacmap, {
-      showModal(modalDialog(
-        uiOutput(ns("textvarfacmap")),
-        title = h4(strong("Variable factor map")),
-        footer = modalButton("close"),
-        size = "m",
-        easyClose = TRUE
-      ))
-    })
     observeEvent(ignoreInit = T,input$somgridh,{
       output$somgridhelp<-renderText({
         paste0(br(),
@@ -3137,177 +3291,20 @@ imesc_supersom$server<-function (id,vals ){
                getHelp('unit.distances'))
       })
     })
-    observeEvent(ignoreInit = T,input$somgridhelp, {
-      showModal(
-
-        modalDialog(
-          uiOutput(ns("textsomgrid")),
-          title = h4(strong("somgrid")),
-          footer = modalButton("close"),
-          size = "m",
-          easyClose = TRUE
-        )
-
-      )
-    })
     observeEvent(ignoreInit = T,input$partition_column,{
       vals$cur_partition_column<-input$partition_column
     })
     observeEvent(ignoreInit = T,input$partition_ref,{
       vals$cur_partition_ref<-input$partition_ref
     })
-    observeEvent(ignoreInit = T,input$pred_results,{
-      vals$cur_tab_pred_result<-input$pred_results
-    })
+
     observeEvent(ignoreInit = T,input$layer_result,{
       vals$cur_layer_result<-input$layer_result
     })
-    observeEvent(ignoreInit = T,input$link_predsom_codebook_create,{
-      vals$hand_save<-"Create Datalist  - SOM codebook predictions"
-      vals$hand_save2<-NULL
-      vals$hand_save3<-NULL
-      showModal(module_som())
-    })
-    observeEvent(ignoreInit = T,input$link_predsom_newdata_create,{
-      vals$hand_save<-"Create Datalist  - SOM predictions for New Data (X)"
-      vals$hand_save2<-NULL
-      vals$hand_save3<-NULL
-      showModal(module_som())
-    })
-    observeEvent(ignoreInit = T,input$downtable_perf_result,{
-      vals$hand_down<-"som_perf_result"
-      module_ui_downcenter("downcenter")
-      mod_downcenter<-callModule(module_server_downcenter, "downcenter",  vals=vals, name=paste(input$data_som,input$get_predsom_perf, sep="_"))
-
-    })
-    observeEvent(ignoreInit = T,input$downtable_predict_result,{
-      req(input$layer_result)
-      vals$hand_down<-"som_predict_result"
-      module_ui_downcenter("downcenter")
-      mod_downcenter<-callModule(module_server_downcenter, "downcenter",  vals=vals, name=paste(input$data_som,input$tab_pred_result,input$layer_result, sep="_"))
-
-    })
-    observeEvent(ignoreInit = T,input$link_predsom_perf_obs_create,{
-      vals$hand_save<-"Create Datalist  - SOM performace"
-      vals$hand_save2<-NULL
-      vals$hand_save3<-NULL
-      showModal(module_som())
-    })
-    observeEvent(ignoreInit = T,input$download_pbox6,{
-
-      vals$hand_plot<-"generic_gg"
-      module_ui_figs("downfigs")
-      generic=getbmu_plot()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot - predictions", name_c="bmu_pred")
-    })
-
-    observeEvent(ignoreInit = T,input$downp_bmu,{
-
-      vals$hand_plot<-"generic_gg"
-      module_ui_figs("downfigs")
-      generic=vals$bmus_plot
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot", name_c="bmu_plot")
-    })
 
 
-    observeEvent(vals$newcolhabs,{
-      choices = vals$colors_img$val[getsolid_col()]
-      choicesOpt=list(content=vals$colors_img$img[getsolid_col()])
-
-      updatePickerInput(session,'ss1_p.clus.col.text',
-                        choices=choices,
-                        choicesOpt=choicesOpt,
-                        selected="black"
-      )
-
-      updatePickerInput(session,'ss1_var_bg',
-                        choices=choices,
-                        choicesOpt=choicesOpt,
-                        selected="white"
-      )
 
 
-      updatePickerInput(session,'ss1_pclus_border',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "white")
-
-      updatePickerInput(session,'ss2_pclus_border',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "white"
-      )
-      updatePickerInput(session,'ss2_pclus_text_palette',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "black"
-      )
-      updatePickerInput(session,'ss1_pclus_text_palette',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "black"
-      )
-      updatePickerInput(session,'ss1_pclus_points_palette',
-                        choices = vals$colors_img$val,
-                        choicesOpt = list(content = vals$colors_img$img),
-                        selected="black"
-      )
-      updatePickerInput(session,'ss2_pclus_points_palette',
-                        choices = vals$colors_img$val,
-                        choicesOpt = list(content = vals$colors_img$img),
-                        selected="black"
-      )
-
-      updatePickerInput(session,'ss2_p.clus.col.text',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "black"
-      )
-
-      updatePickerInput(session,'ss2_var_bg',
-                        choices =  vals$colors_img$val[getsolid_col()] ,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[getsolid_col()] ),
-                        selected= "white"
-      )
-    })
-
-    observeEvent(ss1_getdata_layer(),{
-      updatePickerInput(session,'ss1_variable_pproperty',choices=colnames(ss1_getdata_layer()))
-    })
-    observeEvent(getsom(),{
-      choices = names(getsom()$data)
-      updatePickerInput(session,'ss1_property_layer',choices=choices)
-      updatePickerInput(session,'ss2_property_layer',choices=choices)
-    })
-    observeEvent(ss1_get_choices_pal(),{
-      choices<-ss1_get_choices_pal()
-      title<-attr(choices,"title")
-      req(input$ss1_somback_value)
-      selected<-ifelse(input$ss1_somback_value=="None","gray","viridis")
-
-      updatePickerInput(session,'ss1_bg_palette',
-                        choices =  vals$colors_img$val[choices],
-                        selected=selected,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[choices] ))
-    })
-    observeEvent(ignoreInit = T,input$create_vfm_results,{
-      vals$hand_save<-"Create Datalist  - Variables from VFM"
-      m<-getsom()
-      vals$hand_save2<-NULL
-      if(length(m$data)>1){
-        vals$hand_save2<-"Note that the trained SOM is composed by multiple layers. Variables from different layers will be merged (cbind) into a single Datalist"
-      }
-
-      vals$hand_save3<-NULL
-      showModal(module_som())
-    })
     observeEvent(ignoreInit = T,input$supersom_reset,{
       if(input$supersom_reset%%2){
 
@@ -3327,19 +3324,7 @@ imesc_supersom$server<-function (id,vals ){
 
       vals$ssom_tab0<-res
     })
-    observeEvent(list(vals$cur_somtab, vals$cur_tab, ssom_reac()[,1]),{
-      try({
-        req(!is.null(vals$ssom_tab))
-        req(!is.null(ssom_reac()))
-        df<-ssom_reac()
-        vals$cur_ssom_wei<-df[,2]
-        vals$cur_ssom_dist<-df[,3]
-        vals$cur_somdataXlist_supersom<-df[,1]
 
-        vals$ssom_tab0<-df
-
-      }, silent=T)
-    })
     observe({
       req(length(input$supersom_reset)>0)
       if(is.null(vals$ssom_tab0)){
@@ -3360,10 +3345,8 @@ imesc_supersom$server<-function (id,vals ){
       updateTabsetPanel(session,"som_tab","som_tab1")
     })
     observeEvent(ignoreInit = T,input$som_tab,{
-      somval$df_go<-F
-      vals$cur_somtab_before<-vals$cur_somtab
       vals$cur_somtab<-input$som_tab
-      somval$df_go<-T
+
     })
     output$som_models_panel<-renderUI({
       box_caret(ns('box_setup2'),
@@ -3386,256 +3369,20 @@ imesc_supersom$server<-function (id,vals ){
     observeEvent(input$som_models,{
       vals$cur_som_models<-input$som_models
     })
-
-    observeEvent(input$run_play2,ignoreInit = T,{
-
-      m<-current_som_model()
-      seed<-m$seed
-      ms<-list()
-      rlen=nrow(m$changes)
-
-      seq<-    round(seq(1,rlen,length.out=input$rlen_snap2))
-
-      withProgress(min=1,max=length(seq),message="Running...",{
-        for( i in seq) {
-
-          set.seed(seed)
-          m2<-supersom(m$data,m$grid,
-                       radius = m$radius,
-                       alpha =m$alpha,
-                       whatmap = m$whatmap,
-                       user.weights = m$user.weights,
-                       maxNA.fraction = m$maxNA.fraction,
-                       dist.fcts = m$dist.fcts,
-                       mode = m$mode,
-                       rlen=i,
-                       init=m$init,
-                       normalizeDataLayers = m$normalizeDataLayers)
-
-
-          ms[[length(ms)+1]]<-m2
-          incProgress(1)
-        }
-      })
-
-      modelplay2(ms)
-
-    })
     observeEvent(modelplay(),{
       shinyjs::toggle(selector=".anim_opt",condition=length(modelplay())>0)
     })
-    observeEvent(modelplay2(),{
-      shinyjs::toggle(selector=".anim_opt2",condition=length(modelplay2())>0)
-    })
-    observeEvent(input$run_play,ignoreInit = T,{
-      data<-data_example()
-      datalist<-list(as.matrix(data))
-      names(datalist)<-input$data_som
-      if(is.na(input$seed)==F){set.seed(input$seed)}
-      seed<-input$seed
-      if(is.na(seed)){
-        seed<-1
-      }
-      message(paste0('seed',seed))
-
-      ms<-list()
-      set.seed(seed)
-      set.seed(seed)
-      ncodes<-input$xdim*input$ydim
-      starters<-sample(1:nrow(datalist[[1]]), ncodes, replace = FALSE)
-      init<-lapply(datalist, function(x) x[starters, , drop = FALSE])
-
-      seq<-round(seq(1,input$rlen_play,length.out=input$rlen_snap))
-      withProgress(min=1,max=length(seq),message="Running...",{
-        for( i in seq) {
-
-          set.seed(seed)
-          m<-supersom(
-            datalist,
-            grid = kohonen::somgrid(
-              input$xdim,
-              input$ydim,
-              topo = input$topo,
-              toroidal = toroidal(),
-              neighbourhood.fct=input$neighbourhood.fct
-            ),
-            rlen = i,
-            init=init,
-            dist.fcts = input$distmethod,
-            alpha = c(input$a1, input$a2),
-            radius = c(input$r1, input$r2),
-            mode = input$mode,
-            maxNA.fraction = input$maxna,
-            normalizeDataLayers=as.logical(input$normalizeDataLayers)
-          )
-          ms[[length(ms)+1]]<-m
-          incProgress(1)
-        }
-      })
-
-      modelplay(ms)
-
-    })
-    observeEvent(input$ss1_somback_value,{
-      if(input$ss1_somback_value=="uMatrix"){
-        updatePickerInput(session,"ss1_bg_palette",selected="viridis")
-      }
-    })
-    observeEvent(input$ss2_somback_value,{
-      if(input$ss2_somback_value=="uMatrix"){
-        updatePickerInput(session,"ss2_bg_palette",selected="viridis")
-      }
-    })
-    observeEvent(ignoreInit = T,input$download_gwnp,{
-      req(get_plot_animation2())
-      vals$hand_plot<-"generic_replay"
-      module_ui_figs("downfigs")
-      generic=get_plot_animation2()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Grid-Weighted Neuron Plot", name_c="grid_weig_neuronplot")
-    })
-    observeEvent(ss2_get_choices_pal(),{
-      choices<-ss2_get_choices_pal()
-      updatePickerInput(session,'ss2_bg_palette',
-                        choices =  vals$colors_img$val[choices],
-                        choicesOpt = list(
-                          content =  vals$colors_img$img[choices] )
-      )
-    })
-    observeEvent(ss2_getdata_layer(),{
-      choices<-colnames(ss2_getdata_layer())
-      updatePickerInput(session,'ss2_variable_pproperty',choices=choices)
-    })
-    observeEvent(df_symbol$val,{
-      updatePickerInput(session,'ss1_pclus_symbol',
-                        choices = df_symbol$val,
-                        choicesOpt = list(content = df_symbol$img))
-      updatePickerInput(session,'ss2_pclus_symbol',
-                        choices = df_symbol$val,
-                        choicesOpt = list(content = df_symbol$img))
-    })
-    observeEvent(ignoreInit = T,input$som_quality_help, {
-
-      pkgs<-'aweSOM'
-      citations<-do.call('c',lapply(pkgs, citation))
-      citations<- lapply(citations,function(x){
-        format(x, style = "html")
-      })
-
-      showModal(
-        modalDialog(
-          title = "Quality Measures",
-          easyClose = TRUE,
-          size = "l",
-          column(12,class="modal_indent",
-                 hr(),
-                 p(
-
-                   p("Quality measures computed using the aweSOM package (Boelaert, 2022). For multiple layers trained, iMESc implements these measures individually by data layer, except for Neuron utilization."),
-                   p(h4("Quantization error:"),
-                     div(
-                       "This measure calculates the average squared distance between the data points and the map prototypes to which they are mapped. A lower value indicates better quality."
-                     )),
-                   p(h4("Percentage of explained variance:"),
-                     div(
-                       "Similar to other clustering methods, this measure represents the share of total variance that is explained by the clustering. It is calculated as 1 minus the ratio of quantization error to total variance. Higher values indicate better quality."
-                     )),
-                   p(h4("Topographic error:"),
-                     div(
-                       "This measure evaluates how well the topographic structure of the data is preserved on the map. It measures the proportion of observations for which the best-matching node is not a neighbor of the second-best matching node on the map. A lower value indicates better topographic representation. A value of 0 indicates excellent topographic representation, where all best and second-best matching nodes are neighbors, while a value of 1 represents the maximum error, where the best and second-best nodes are never neighbors."
-                     )),
-                   p(h4("Kaski-Lagus error:"),
-                     div(
-                       "The Kaski-Lagus error combines aspects of quantization and topographic error. It is computed as the sum of the mean distance between points and their best-matching prototypes, and the mean geodesic distance (pairwise prototype distances following the SOM grid) between the points and their second-best matching prototype."
-                     )),
-                   p(h4("Neuron Utilization error:"),
-                     div(
-                       "Neuron Utilization represents the percentage of neurons that are not the Best Matching Unit (BMU) of any observation. It provides insight into the utilization of neurons in the SOM."
-                     )),
-                   hr(),
-                   h4("Reference:"),
-                   p(HTML(paste0(citations)))
-                 )
-          )
-        )
-      )
-    })
     observeEvent( input$data_confirm,{
       req(!is.null(vals$hand_save))
-      switch(
-        vals$hand_save,
-        "Create Datalist  - Variables from VFM"=create_som_vfm(),
-        "Create Datalist  - SOM predictions for New Data (X)"=create_predsom_newdata(),
-        "Create Datalist  - SOM codebook predictions"=create_predsom_codebook(),
-        "Create Datalist  - SOM performace"=create_predsom_errors(),
-        "Create Datalist with Codebooks"=savecoodebok(),
-        "Save new som in"=savesom(),
-
-        "Save errors from som predictions (X)"=datalist_som_errorsX(),
-        "Save errors from som predictions (Y)"=datalist_som_errorsY()
-      )
+      savesom()
       removeModal()
 
     })
     observeEvent(ignoreInit = T,input$data_som,{
       vals$cur_data<-vals$cur_somdataX<-input$data_som
     })
-
     observeEvent(input$ssom_layer1,{
       vals$cur_data<-input$ssom_layer1
-    })
-
-
-    observe({
-      req(input$data_som%in%names(vals$saved_data))
-      req(getdata_som())
-      df=data.frame(na.omit(getdata_som()))
-      N<-nrow(getdata_som())
-      SIZE<-sqrt(5*sqrt(N))
-      L<- floor(SIZE)
-      res<-if(!nrow(df)>0){
-        c(L*L,L,L)
-      } else{
-        topology(getdata_som(), dist = input$distmethod)
-      }
-      topo.reactive(res)
-      if(isTRUE(input$sugtopo)){
-        dim<-as.numeric(res[c(2,3)])
-
-        updateNumericInput(session,"xdim",value= dim[1])
-        updateNumericInput(session,"ydim",value= dim[2])
-      }
-
-    })
-    observeEvent(list(input$xdim, input$ydim), {
-      req(input$xdim)
-      req(input$ydim)
-      if (length( names(vals$saved_data)) > 0) {
-        dim = try(topo.reactive(),silent=T )
-        req(!inherits(dim,"try-error"))
-        ydim<-dim[[3]]
-        xdim<-dim[[2]]
-        req(xdim)
-        req(ydim)
-        if (input$xdim != xdim|input$ydim != ydim) {
-          updateCheckboxInput(session, "sugtopo", NULL, FALSE)
-        } else{
-          updateCheckboxInput(session, "sugtopo", NULL, TRUE)
-        }
-
-      }
-    })
-
-
-
-
-
-
-    observeEvent(input$data_som,ignoreInit = T,{
-      choices<-c(colnames(attr(vals$saved_data[[input$data_som]],"factors")))
-      updatePickerInput(session,'ss2_pclus_points_factor',choices=choices)
-      updatePickerInput(session,'ss1_pclus_text_factor',choices=choices)
-      updatePickerInput(session,'ss2_pclus_text_factor',choices=choices)
-      updatePickerInput(session,'ss1_pclus_points_factor',choices=choices)
     })
     observe({
       if(!is.null(vals$ssom_tab0)){
@@ -3660,7 +3407,7 @@ imesc_supersom$server<-function (id,vals ){
                 },strong(i)
               ),
               div(class="ensemble_labels",
-                  pickerInput(ns(paste0("ssom_layer", i)), "", choices = if(i!=1){choices_datalist}else{names(vals$saved_data)},selected=vals$cur_somdataXlist_supersom[i], options=list(container="body"))
+                  pickerInput_fromtop(ns(paste0("ssom_layer", i)), "", choices = if(i!=1){choices_datalist}else{names(vals$saved_data)},selected=vals$cur_somdataXlist_supersom[i], options=list(container="body"))
               )
               ,
               div(class="layers_wei",
@@ -3670,7 +3417,7 @@ imesc_supersom$server<-function (id,vals ){
               ),
               div(class="layers_dist",
 
-                  pickerInput(ns(paste0("ssom_dist", i)), "", choices = c("BrayCurtis","euclidean","sumofsquares" ,"manhattan", "tanimoto"),selected=vals$cur_ssom_dist[i], options=list(container="body")))
+                  pickerInput_fromtop(ns(paste0("ssom_dist", i)), "", choices = c("BrayCurtis","euclidean","sumofsquares" ,"manhattan", "tanimoto"),selected=vals$cur_ssom_dist[i], options=list(container="body")))
 
 
           )
@@ -3678,9 +3425,6 @@ imesc_supersom$server<-function (id,vals ){
         vals$ssom_tab<-temp
 
       }})
-
-
-
     observeEvent(ignoreInit = T,input$tools_savesom,{
       if(input$tools_savesom %% 2){
         vals$hand_save<-"Save new som in"
@@ -3692,34 +3436,6 @@ imesc_supersom$server<-function (id,vals ){
           module_som())}
     })
 
-
-
-    observeEvent(input$mysupersom,{
-      shinyjs::toggle('distmethod',condition=isFALSE(input$mysupersom))
-    })
-    observeEvent(input$finesom,{
-      shinyjs::toggle('finetuning_som')
-    })
-    observeEvent(input$sompred_type,{
-      shinyjs::toggle("sompred_type_datalist", condition = input$sompred_type =='Datalist')
-    })
-    observeEvent(input$ss1_varfacmap_action,shinyjs::toggle("ss1_varfac_out",condition=isTRUE(input$ss1_varfacmap_action)))
-    observeEvent(input$ss1_pclus_addtext,{
-      shinyjs::toggle("ss1_pclus_text_inputs",condition=isTRUE(input$ss1_pclus_addtext))
-    })
-    observe({
-      data = ss1_getdata_layer()
-      shinyjs::toggle('ss1_prev_property',condition=which(colnames(data)==input$ss1_variable_pproperty)!=1)
-
-      shinyjs::toggle('ss1_next_property',condition=which(colnames(data)!=input$ss1_variable_pproperty)==ncol(data))
-    })
-    observeEvent(input$ss1_pclus_addpoints,{
-      shinyjs::toggle("ss1_pclus_points_inputs",condition=isTRUE(input$ss1_pclus_addpoints))
-    })
-    observeEvent(input$ss1_somback_value,{
-      shinyjs::toggle("ss1_var_pproperty",condition=input$ss1_somback_value=="property")
-      shinyjs::toggle("ss1_property_layer",condition=input$ss1_somback_value=="property")
-    })
     observe({
       condition=input$som_models%in%"new som (unsaved)"&input$som_tab!="som_tab1"
       shinyjs::toggle('tools_savesom', condition=condition)
@@ -3737,25 +3453,6 @@ imesc_supersom$server<-function (id,vals ){
     observeEvent(input$usepartition,{
       shinyjs::toggle("partition_on",condition=input$usepartition)
     })
-    observeEvent(input$ss2_somback_value,{
-      shinyjs::toggle("ss2_property_layer_out",condition=input$ss2_somback_value=="property")
-    })
-    observe({
-      data = ss2_getdata_layer()
-      condition=which(colnames(data)==input$ss2_variable_pproperty)!=1
-      shinyjs::toggle('ss2_prev_property',condition=condition)
-      condition=which(colnames(data)!=input$ss2_variable_pproperty)==ncol(data)
-      shinyjs::toggle('ss2_next_property',condition=condition)
-    })
-    observeEvent(input$ss2_pclus_addpoints,{
-      shinyjs::toggle("ss2_pclus_points_inputs",condition=isTRUE(input$ss2_pclus_addpoints))
-    })
-    observeEvent(input$ss2_pclus_addtext,{
-      shinyjs::toggle('ss2_pclus_text_inputs',condition=isTRUE(input$ss2_pclus_addtext))
-    })
-    observeEvent(input$ss2_varfacmap_action,{
-      shinyjs::toggle("ss2_varfac_out",condition=isTRUE(input$ss2_varfacmap_action))
-    })
     observeEvent(input$save_bug,{
 
 
@@ -3769,8 +3466,553 @@ imesc_supersom$server<-function (id,vals ){
       beep(10)
     })
 
+
+
+    ## traning
+    {
+
+
+      box_caret_server("box_setup4")
+      box_caret_server("box_setup5")
+
+      observeEvent(ignoreInit = T,input$somgridhelp, {
+        showModal(
+
+          modalDialog(
+            uiOutput(ns("textsomgrid")),
+            title = h4(strong("somgrid")),
+            footer = modalButton("close"),
+            size = "m",
+            easyClose = TRUE
+          )
+
+        )
+      })
+      observeEvent(ignoreInit = T,input$resettopo, {
+        shinyjs::reset("topocontrol")
+        shinyjs::reset("topocosugtopontrol")
+      })
+      observeEvent(ignoreInit = T,input$sugtopohelp, {
+        showModal(
+
+          modalDialog(
+            uiOutput(ns('textsugtopohelp')),
+            title = "Suggested topology",
+            footer = modalButton("close"),
+            size = "m",
+            easyClose = TRUE
+          )
+
+        )
+      })
+
+      cur_data_som<-reactive({
+        traindat<-if(isTRUE(input$mysupersom)){
+          do.call(cbind,get_training_list())
+        } else{
+          req(input$data_som)
+          vals$saved_data[[input$data_som]]
+        }
+        traindat=traindat[get_partition()$train,,drop=F]
+        traindat
+      })
+
+      observe({
+
+
+        data<-cur_data_som()
+
+        #req(get_partition()$train%in%rownames(data))
+
+        data<-data[get_partition()$train,,drop=F]
+
+        req(input$data_som%in%names(vals$saved_data))
+        req(data)
+        df=data.frame(na.omit(data))
+        N<-nrow(data)
+        SIZE<-sqrt(5*sqrt(N))
+        L<- floor(SIZE)
+        res<-if(!nrow(df)>0){
+          c(L*L,L,L)
+        } else{
+          topology(data, dist = input$distmethod)
+        }
+        topo.reactive(res)
+        if(isTRUE(input$sugtopo)){
+          dim<-as.numeric(res[c(2,3)])
+
+          updateNumericInput(session,"xdim",value= dim[1])
+          updateNumericInput(session,"ydim",value= dim[2])
+        }
+
+      })
+      observeEvent(list(input$xdim, input$ydim), {
+        req(input$xdim)
+        req(input$ydim)
+        if (length( names(vals$saved_data)) > 0) {
+          dim = try(topo.reactive(),silent=T )
+          req(!inherits(dim,"try-error"))
+          ydim<-dim[[3]]
+          xdim<-dim[[2]]
+          req(xdim)
+          req(ydim)
+          if (input$xdim != xdim|input$ydim != ydim) {
+            updateCheckboxInput(session, "sugtopo", NULL, FALSE)
+          } else{
+            updateCheckboxInput(session, "sugtopo", NULL, TRUE)
+          }
+
+        }
+      })
+      observe({
+        data=cur_data_som()
+        condition=(input$xdim*input$ydim)<=nrow(data)
+        shinyjs::toggle('trainSOM',condition=condition)
+      })
+      output$showgrid<-renderUI({
+        dim = try(topo.reactive(),silent=T )
+        if(inherits(dim,"try-error")){updateCheckboxInput(session,"sugtopo",value=F)}
+        validate(need(!inherits(dim,"try-error"),"Error: suggested topology has been disabled; check for inconsistency in data, such as columns with variance 0. "))
+
+        renderPlot({
+          data = getdata_som()
+          validate(need(input$xdim!="", ""))
+          validate(need(input$ydim!="", ""))
+          validate(need( (input$xdim*input$ydim)<=nrow(data), "The number of map units must be less than or equal to the number of observations. Please decrease the 'xdim' and/or 'ydim' dimensions"))
+          try({
+            par(mar = c(0, 0, 0, 0))
+
+            grid<-kohonen::somgrid(input$xdim, input$ydim, topo = input$topo, neighbourhood.fct=input$neighbourhood.fct, toroidal=toroidal())
+            plot.som_grid(grid)
+          },silent=T )
+        },
+        width = 200,
+        height = 200)
+      })
+      output$textsugtopohelp<-renderUI({
+
+        div(
+          tags$style(HTML("
+       h2 {
+      font-size: 20px;
+      font-weight: bold;
+      }
+      h3 {
+      font-size: 20px;
+      font-weight: lighter;
+      }
+      code {
+      color: blue;
+      }
+
+    ")),
+
+    div(column(12,
+               'The number of map nodes and the side length ratio is performed with the following steps (Vesanto, 2000 ):',
+               column(12, style="margin-left: 10px; margin-top: 5px;",
+                      p(strong("1."),"Determine the number of map nodes using the heuristic recommendation:",withMathJax(helpText(
+                        "$$ M = 5{\\sqrt{N}}$$"
+                      )),"where N is the number of observations in the input data set ( Vesanto, 2000 ),"),
+                      p(strong("2."),"Determine the eigenvectors and eigenvalues in the data from the autocorrelation matrix,"),
+                      p(strong("3."),"Set the ratio between the two sides of the grid equivalent to the ratio between the two largest eigenvalues, and "),
+                      p(strong("4."),"Scale the side lengths so that their product (xdim * ydim) is as close as possible to the number of map units determined above."))
+    )))
+
+      })
+
+
+      observeEvent(input$trainSOM,ignoreInit = T,{
+
+
+        req(isTRUE(input$mysupersom))
+        data_x_o<-names(get_training_list())[[1]]
+        attr(vals$saved_data[[data_x_o]],"som")[["new som (unsaved)"]]<-NULL
+
+
+
+        if(is.null(attr(vals$saved_data[[data_x_o]],"som"))){
+          attr(vals$saved_data[[data_x_o]],"som")<-list()
+        }
+
+
+        layers = get_training_list()
+        layer_table<-ssom_reac()
+        weights<-layer_table$Weights
+        distances<-layer_table$Distances
+        data1<-vals$saved_data[layer_table$Datalist][[1]]
+        if(isTRUE(input$usepartition)){
+          #req(input$data_somY)
+          factors<-attr(vals$saved_data[[input$data_somY]],"factors")[rownames(data1),,drop=F]
+          pic_split<-which(factors[,input$partition_column]%in%input$partition_ref)
+          test_ids<-rownames(factors)[pic_split]
+          train_ids<-rownames(factors)[-pic_split]
+          parts=list(train=train_ids,test=test_ids)
+          train<-parts$train
+          test<-parts$test
+          training_list<-lapply(layers,function(x){
+            x[train,,drop=F]
+          })
+          test_list<-lapply(layers,function(x){
+            x[test,,drop=F]
+          })
+        } else{
+          training_list<-layers
+          test_list<-"None"
+        }
+
+        ncodes<-input$xdim*input$ydim
+        seed<-input$seed
+        seed<-input$seed
+        if(is.na(seed)){
+          seed<-sample(.Random.seed,1)}
+
+
+
+        ncodes<-input$xdim*input$ydim
+        set.seed(seed)
+        starters<-sample(1:nrow(training_list[[1]]), ncodes, replace = FALSE)
+        init<-lapply(training_list, function(x) x[starters, , drop = FALSE])
+
+        withProgress(
+          message = "Running som... the time taken will depend on the size of the data and the training.",
+          min = 1,
+          max = 1,
+          {
+            if(is.na(input$seed)==F){set.seed(input$seed)}
+            args<-list(
+              data=training_list,
+              #whatmap = 1,
+              grid = kohonen::somgrid(
+                input$xdim,
+                input$ydim,
+                topo = input$topo,
+                toroidal = toroidal(),
+                neighbourhood.fct=input$neighbourhood.fct
+              ),
+              rlen = input$rlen,
+              dist.fcts = distances,
+              user.weights=weights,
+              alpha = c(input$a1, input$a2),
+              radius = c(input$r1, input$r2),
+              mode = input$mode,
+              maxNA.fraction = input$maxna,
+              normalizeDataLayers=as.logical(input$normalizeDataLayers),
+              init=init
+            )
+
+            m<-do.call(supersom,args)
+            attr(m,'mode')<-m$mode<-input$mode
+            m$seed<-seed
+            m$normalizeDataLayers<-input$normalizeDataLayers
+            m$init<-init
+            names(m$unit.classif)<-rownames(m$data[[1]])
+            attr(m,"Method")<-"superSOM"
+            attr(m,"Datalist")<-names(m$data)
+            attr(m,"test")<-test_list
+            attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
+
+            newmodesl<-c(list(m),attr(vals$saved_data[[data_x_o]],"som"))
+            names(newmodesl)[1]<-"new som (unsaved)"
+            attr(vals$saved_data[[data_x_o]],"som")<-newmodesl
+
+            updateTabsetPanel(session, "som_tab", "som_tab2")
+            updateTabsetPanel(session, "som_tab", "train_tab2")
+            updateTabsetPanel(session, "som_res", "train_tab1")
+            vals$cur_som_models<-"new som (unsaved)"
+            vals$cur_data<-data_x_o
+          }
+        )
+
+
+      })
+
+      observeEvent(input$trainSOM,ignoreInit = T,{
+
+
+        req(isFALSE(input$mysupersom))
+        vals$som_unsaved<-NULL
+        attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL
+
+
+        traindat=data=data_o<-data.frame(vals$saved_data[[input$data_som]])
+        traindat=data[get_partition()$train,,drop=F]
+
+
+        withProgress(
+          message = "Running som... the time taken will depend on the size of the data and the training.",
+          min = 1,
+          max = 1,
+
+
+
+          {
+            datalist<-list(as.matrix(traindat))
+            names(datalist)<-input$data_som
+            seed<-input$seed
+            if(is.na(seed)){seed<-sample(.Random.seed,1)}
+
+
+
+            ncodes<-input$xdim*input$ydim
+            set.seed(seed)
+            starters<-sample(1:nrow(datalist[[1]]), ncodes, replace = FALSE)
+            init<-lapply(datalist, function(x) x[starters, , drop = FALSE])
+            set.seed(seed)
+            m<-try(
+              supersom(
+                datalist,
+                grid = kohonen::somgrid(
+                  input$xdim,
+                  input$ydim,
+                  topo = input$topo,
+                  toroidal = toroidal(),
+                  neighbourhood.fct=input$neighbourhood.fct
+                ),
+                rlen = input$rlen,
+                dist.fcts = input$distmethod,
+                alpha = c(input$a1, input$a2),
+                radius = c(input$r1, input$r2),
+                mode = input$mode,
+                maxNA.fraction = input$maxna,
+                init=init,
+                normalizeDataLayers=as.logical(input$normalizeDataLayers)
+              )
+            )
+
+            if (!inherits(m,"kohonen"))        {
+              validate(paste(m[[1]], "Please decrease your alpha (learning rate)"))
+            }
+            attr(m,'mode')<-m$mode<-input$mode
+            m$seed<-seed
+            m$normalizeDataLayers<-input$normalizeDataLayers
+            m$init<-init
+            names(m$unit.classif)<-rownames(m$data[[1]])
+            attr(m,"test_partition")<-"None"
+            test_list<-list(as.matrix(data[get_partition()$test,,drop=F]))
+            names(test_list)<-input$data_som
+            attr(m,"test")<-test_list
+            attr(m,"Method")<-"Unsupervised"
+            attr(m,"Datalist")<-input$data_som
+            attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
+            attr(m,"coords")<-attr(data,"coords")[rownames(traindat),]
+            vals$som_unsaved<-m
+            newmodesl<-c(list(m),attr(vals$saved_data[[input$data_som]],"som"))
+            names(newmodesl)[1]<-"new som (unsaved)"
+            attr(vals$saved_data[[input$data_som]],"som")<-newmodesl
+
+
+
+
+
+            updateTabsetPanel(session, "som_tab", "som_tab2")
+            updateTabsetPanel(session, "som_tab", "train_tab2")
+            updateTabsetPanel(session, "som_res", "train_tab1")
+            vals$cur_som_models<-"new som (unsaved)"
+          }
+        )
+
+
+      })
+      observeEvent(list(input$xdim,input$ydim),{
+        req(input$xdim)
+        req(input$ydim)
+        value=as.vector(
+          quantile(
+            unit.distances(
+              kohonen::somgrid(input$xdim,input$ydim,topo = input$topo,toroidal = toroidal(), neighbourhood.fct=input$neighbourhood.fct)), 2 / 3
+          )
+        )
+        updateNumericInput(session,"r1",value=value)
+        fineonce<-reactiveVal(F)
+        if(isFALSE(fineonce())){
+          shinyjs::hide("finetuning_som")
+          fineonce(T)
+        }
+
+
+      })
+      observeEvent(input$run_play,ignoreInit = T,{
+        data<-data_example()
+        datalist<-list(as.matrix(data))
+        names(datalist)<-input$data_som
+        if(is.na(input$seed)==F){set.seed(input$seed)}
+        seed<-input$seed
+        if(is.na(seed)){
+          seed<-1
+        }
+        message(paste0('seed',seed))
+
+        ms<-list()
+        set.seed(seed)
+        set.seed(seed)
+        ncodes<-input$xdim*input$ydim
+        starters<-sample(1:nrow(datalist[[1]]), ncodes, replace = FALSE)
+        init<-lapply(datalist, function(x) x[starters, , drop = FALSE])
+
+        seq<-round(seq(1,input$rlen_play,length.out=input$rlen_snap))
+        withProgress(min=1,max=length(seq),message="Running...",{
+          for( i in seq) {
+
+            set.seed(seed)
+            m<-supersom(
+              datalist,
+              grid = kohonen::somgrid(
+                input$xdim,
+                input$ydim,
+                topo = input$topo,
+                toroidal = toroidal(),
+                neighbourhood.fct=input$neighbourhood.fct
+              ),
+              rlen = i,
+              init=init,
+              dist.fcts = input$distmethod,
+              alpha = c(input$a1, input$a2),
+              radius = c(input$r1, input$r2),
+              mode = input$mode,
+              maxNA.fraction = input$maxna,
+              normalizeDataLayers=as.logical(input$normalizeDataLayers)
+            )
+            ms[[length(ms)+1]]<-m
+            incProgress(1)
+          }
+        })
+
+        modelplay(ms)
+
+      })
+
+
+      observeEvent(ignoreInit = T,input$data_som,{
+        if(anyNA(getdata_som())){
+          updateSelectInput(session,"distmethod",selected="euclidean")
+        }
+      })
+      observeEvent(input$mysupersom,{
+        shinyjs::toggle('distmethod',condition=isFALSE(input$mysupersom))
+      })
+
+      output$train_som_button<-renderUI({
+        if(input$distmethod=="BrayCurtis"){
+          validate(need(anyNA(getdata_som())==F, "Missing values are not allowed in the Bray method. Change the distance or use the preprocessing tools to impute or remove the missing values"))
+        }
+
+
+        if(isTRUE(input$mysupersom)){
+          validate_supersom()
+          lab<-h4(icon("fas fa-braille"),"train superSOM",icon("fas fa-arrow-circle-right"))
+        }
+
+
+      })
+
+      observeEvent(input$finesom,{
+        shinyjs::toggle('finetuning_som')
+      })
+
+      topo.reactive<-reactiveVal()
+      toroidal<-reactive({
+        switch (input$toroidal,
+                'TRUE' = TRUE,
+                "FALSE" = FALSE)
+      })
+      get_partition<-reactive({
+        if(isFALSE(input$usepartition)){
+          data<-getdata_som()
+          return(list(train=rownames(data),test=NULL))
+        }
+
+        req(input$data_somY)
+        data<-vals$saved_data[[input$data_somY]]
+
+
+        factors<-attr(data,"factors")
+        req(input$partition_column%in%colnames(factors))
+        partition_column<-factors[input$partition_column]
+        test_ids<-which(partition_column[,1]%in%input$partition_ref)
+        train_ids<-rownames(data)[-test_ids]
+        test_ids<-rownames(data)[test_ids]
+        return(list(train=train_ids,test=test_ids))
+      })
+      data_example<-reactive({
+        switch(input$data_example,
+               "nema_araca"={
+                 as.matrix(data.frame(fread("inst/www/nema_araca.csv"))[-1])
+               },
+               "nema_hellinguer"={
+                 data<-data.frame(fread("inst/www/nema_araca.csv"))[-1]
+                 as.matrix(decostand(data,"hell"))
+               },
+               "envi_araca"={
+
+                 as.matrix(data.frame(fread("inst/www/envi_araca.csv"))[-1])
+
+               },
+               "envi_araca_scaled"={
+
+                 data<-data.frame(fread("inst/www/nema_araca.csv"))[-1]
+                 scale(data)
+
+               },
+               "user-defined"=as.matrix(getdata_som())
+
+        )
+      })
+      validate_supersom<-reactive({
+        layers = get_training_list()
+        ids<-names(layers)
+        dists<-ssom_reac()
+        dists$id<-rownames(dists)
+        dd<-sapply(layers,function(x) {any(rowSums(x)==0)})
+        dists$notval<-dd
+        if(any(dists$Distances=="BrayCurtis")){
+          notval<-which(apply(dists,1,function(x) x[3]=='BrayCurtis'&x[5]==T))
+
+          if(length(notval)>0){
+            paste(
+              "Error: Empty rows detected. SOM cannot be trained using the 'Bray' method for the layers",ifelse(length(notval) == 1, notval,
+                                                                                                                ifelse(length(notval) == 2, paste0(notval, collapse = " and "),
+                                                                                                                       paste0(paste0(notval[1:(length(notval)-1)], collapse = ", "), " and ", notval[length(notval)])))
+            )
+          } else{ NULL}
+
+
+
+        }
+
+      })
+
+
+      observeEvent(list(vals$cur_somtab, vals$cur_tab, ssom_reac()[,1]),{
+        try({
+          req(!is.null(vals$ssom_tab))
+          req(!is.null(ssom_reac()))
+          df<-ssom_reac()
+          vals$cur_ssom_wei<-df[,2]
+          vals$cur_ssom_dist<-df[,3]
+          vals$cur_somdataXlist_supersom<-df[,1]
+
+          vals$ssom_tab0<-df
+
+        }, silent=T)
+      })
+
+      output$ssom_df = renderUI({
+        div(
+
+          renderPrint(ssom_reac()),
+
+
+        )
+      })
+
+
+
+    }
+
+
   })
 
 
 
 }
+

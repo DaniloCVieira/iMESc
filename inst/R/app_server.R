@@ -2,6 +2,7 @@
 #' @import shiny viridis colorRamps wesanderson shinyTree sortable
 #' @import randomForestExplainer
 #' @importFrom readxl excel_sheets read_excel
+#' @importFrom ggforce geom_arc_bar
 #' @importFrom gplots heatmap.2
 #' @importFrom Metrics mae mape mse rmse
 #' @importFrom vegan ordiplot rda scores decostand vegdist metaMDS specnumber diversity rrarefy ordiArrowTextXY estimateR fisher.alpha
@@ -43,7 +44,7 @@
 #' @importFrom utils capture.output citation combn compareVersion head help object.size packageDescription str write.table zip
 
 #' @importFrom dplyr mutate
-
+#' @importFrom plotly plotlyOutput renderPlotly ggplotly config event_register style event_data plotlyProxy plotlyProxyInvoke
 
 
 #roxygen2::roxygenise()
@@ -853,7 +854,7 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observeEvent(input$savepoint_yes,{
+  observe({
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

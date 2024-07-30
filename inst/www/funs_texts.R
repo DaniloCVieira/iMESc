@@ -689,7 +689,7 @@ data_migrate<-function(data,newdata, newname=NULL){
   {
     attr(newdata, "datalist_root")=attr(data, "datalist_root")
     #attr(newdata, "data.factor")=attr(data,"data.factor")[rownames(newdata),]
-    attr(newdata, "datalist")=newname
+    attr(newdata, "datalist")=attr(data, "datalist")
     attr(newdata, "filename")=attr(data, "filename")
     attr(newdata, "factors")=attr(data, "factors")[rownames(newdata), , drop=FALSE]
     attr(newdata, "coords")= attr(data,"coords")[rownames(newdata), , drop=FALSE]
@@ -1173,7 +1173,7 @@ pfac<-function(factors, width=0.4,
 
     dd
   }))
-  df <- df[order(df$factor, -as.numeric(as.factor(df$level))),]
+  df <- df[order(df$factor, -as.numeric(as.factor(df$level))),,drop=F]
   df$factor<-factor(df$factor, levels=rev(colnames(factors)))
   df$position <- ave(df$nobs, df$factor, FUN = function(x){
     res<-cumsum(x)

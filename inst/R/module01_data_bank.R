@@ -173,9 +173,8 @@ databank_module$server<-function(id, vals){
 
 
 
-
-    get_metrics<-reactive({
-      get_datalist_model_metrics(vals$saved_data,input$data_bank)
+get_metrics<-reactive({
+     get_datalist_model_metrics(vals$saved_data,input$data_bank)
     })
 
     render_metrics<-function(table,round){
@@ -245,7 +244,7 @@ databank_module$server<-function(id, vals){
       div(
         span(
           inline(
-            pickerInput(ns("pick_elayers"), "Shapes:",  choices, width = "200px")
+            pickerInput(ns("pick_elayers"), "Shapes:",  choices, width = "250px")
           ),
           actionButton(ns("delete_elayer_shape"), icon("fas fa-trash-alt"))
         ),
@@ -647,7 +646,8 @@ databank_module$server<-function(id, vals){
       )
     })
     observeEvent(ignoreInit = T,input$delete_som_yes,{
-      vals$saved_data[[input$data_bank]][input$remove_som]<-NULL
+
+      attr(vals$saved_data[[input$data_bank]],"som")[input$remove_som]<-NULL
       removeModal()
 
     })

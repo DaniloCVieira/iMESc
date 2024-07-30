@@ -1,4 +1,22 @@
 #' @export
+#'
+bin_Freedman<-function(x){
+  #Freedman-Diaconis rule
+  iqr <- IQR(x)
+  bin_width <- 2 * iqr / (length(x)^(1/3))
+  n_bins <- ceiling(diff(range(x)) / bin_width)
+}
+bin_Sturges <- function(x) {
+  # Sturges' rule
+  n_bins <- ceiling(log2(length(x)) + 1)
+  return(n_bins)
+}
+bin_Scott <- function(x) {
+  # Scott's rule
+  bin_width <- 3.5 * sd(x) / (length(x)^(1/3))
+  n_bins <- ceiling(diff(range(x)) / bin_width)
+  return(n_bins)
+}
 validate_transf<-function(dfrom,dto){
 
   message<-FALSE
@@ -7,6 +25,8 @@ validate_transf<-function(dfrom,dto){
 
   tto<-paste0(attr(dto,"name")," > ",
               attr(dto,"attr"))
+  req(tfrom)
+  req(tto)
 
 
   if(!any(rownames(dfrom)%in%

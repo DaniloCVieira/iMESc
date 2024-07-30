@@ -729,7 +729,7 @@ help_autofit<-function(){
              HTML(paste0("iMESc uses the function ",code('autofitVariogram')," from ",code('automap')," package to automatically fit a experimental variogram."))
            ),
            p("The initial sill is estimated as the mean of the max and the median of the semi-variance. The inital range is defined as 0.10 times the diagonal of the bounding box of the data. The initial nugget is defined as the min of the the semi-variance"),
-           p("Users can also adjust the parameters manually.")
+           p("Users can also adjust the parameters manually (nugget, psill, range and kappa).")
          ),"right"
 
   )
@@ -786,8 +786,13 @@ add_base_shape<-function(map,data,shape_attr="base_shape",color="blue",fillOpaci
   map
 }
 
-map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,...){
+map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,light=0,...){
   palette0<-palette
+  colors00<-lighten(vals$newcolhabs[[palette]](256),light)
+  newcolhabs[[palette]]<-colorRampPalette(colors00)
+  pal<-lighten(pal,light)
+
+
   if(is.factor(data[,1])){
     max_radius<-max_radius-2
   } else{
@@ -841,7 +846,7 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   }
 
   if(isTRUE(addMinicharts)){
-    map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal)
+    map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light)
   }
   map <- map |> addProviderTiles(providers)
 
@@ -930,7 +935,8 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
                  crs.info="+proj=longlat +datum=WGS84 +no_defs",scale_radius=T,
                  min_radius=1,max_radius=5,addCircles=T,addMinicharts=F,buffer_zize=1,
                  fun="sum",factor_chart=1,args_extra_shape=NULL,data_depth=NULL,data_o=NULL,
-                 base_shape_args,layer_shape_args,factor=F,...) {
+                 base_shape_args,layer_shape_args,factor=F,light=0,...) {
+
   req(!is.null(rst)|!is.null(data))
   if(class(rst)[1]=="RasterLayer"){
     crs.info<-crs(rst)
@@ -968,7 +974,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
 
   if(!is.factor(rasterpoints$z)){
     #breaks=    breaks_interval(z=rasterpoints$z,num_breaks)
-    colbin<-colorBin( newcolhabs[[pal]](256),rasterpoints$z,bins =num_breaks)
+    colbin<-colorBin( lighten(newcolhabs[[pal]](256),light),rasterpoints$z,bins =num_breaks)
     breaks= as.numeric(custom_breaks)
   } else{ breaks=    levels(rasterpoints$z)}
   {
@@ -984,13 +990,13 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
 
     if(class(rst)=="RasterLayer"){
 
-      p<-rst_tile(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor, data_o=data_o)
+      p<-rst_tile(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor, data_o=data_o,light)
 
     } else{
       if(isTRUE(addCircles))
-        p<-gg_circles(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius, num_breaks=num_breaks)
+        p<-gg_circles(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius, num_breaks=num_breaks,light)
       if(isTRUE(addMinicharts)){
-        p<-gg_pie(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity)
+        p<-gg_pie(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity,light)
       }
     }
     names( p$layers)[length( p$layers)]<-paste0('points')
@@ -1023,14 +1029,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
       p<-p+theme(legend.key.size=unit(key.height, 'pt'))
     }
 
-    if(isTRUE(show_labels)){
-      labels=attr(data,"factors")[labels]
-      coords_labels<-attr(data,"coords")
-      labs<-labels[rownames(coords_labels),]
-      df_labels<-cbind(coords_labels,labs)
-      colnames(df_labels)<-c("x","y","label")
-      p<-p+  geom_text( data=df_labels, aes(x=x, y=y, label=label),size=cex.fac,colour=col.fac)
-    }
+
     if(isTRUE(show_coords)){
       coords_data<-attr(rst,"coords")
       colnames(coords_data)<-c("x","y")
@@ -1074,6 +1073,14 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
       p$layers<-new_p
 
   }
+  if(isTRUE(show_labels)){
+    labels=attr(data,"factors")[labels]
+    coords_labels<-attr(data,"coords")
+    labs<-labels[rownames(coords_labels),]
+    df_labels<-cbind(coords_labels,labs)
+    colnames(df_labels)<-c("x","y","label")
+    p<-p+  geom_text( data=df_labels, aes(x=x, y=y, label=label),size=cex.fac,colour=col.fac)
+  }
 
   p<-p+ coord_sf(xlim = xlim, ylim = ylim, expand = FALSE)
 
@@ -1094,7 +1101,7 @@ help_interp <- function(method){
   )
   tiphelp(res)
 }
-add_pie_chart<-function(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal){
+add_pie_chart<-function(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light=0){
   max_radius<-max_radius*2
   min_radius=min_radius*2
   df0<-get_chart_data(data,factor_chart, distance=buffer_zize, fun=fun)
@@ -1108,9 +1115,9 @@ add_pie_chart<-function(map,data,factor_chart,buffer_zize,fun, min_radius,max_ra
   }
   facddf<-df[-c(1:2)]
   fac<-attr(data,"factors")[factor_chart]
-  colors <- colorRampPalette(pal)(ncol(facddf))
+  colors <- lighten(colorRampPalette(pal)(ncol(facddf)),light)
   if(is.factor(data[,1])){
-    colors=   get_cols_factor_chart(df,data, pal)
+    colors=   lighten(get_cols_factor_chart(df,data, pal),light)
     width=max_radius
   } else{
     width = scales::rescale(rowSums(facddf),c(min_radius,max_radius))

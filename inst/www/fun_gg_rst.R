@@ -80,14 +80,14 @@ col_factor_map<-function(newcolhabs,pal,data,reverse_palette){
 
 
 #' @export
-gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius,num_breaks){
+gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius,num_breaks,light=0){
   if(is.factor(rst[,1])){
     range<-c(max_radius,max_radius)
   } else{
     range<-if(isTRUE(scale_radius)){c(min_radius,max_radius*2)} else {max_radius}
   }
   colors<-colors0<-col_factor_map(newcolhabs,pal,rst,reverse_palette)
-  colors<-adjustcolor(colors,fillOpacity)
+  colors<-adjustcolor(lighten(colors,light),fillOpacity)
   p0<-p
   if(is.factor(rst[,1])){
     p<-p+
@@ -132,11 +132,11 @@ gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palet
 }
 #' @export
 
-rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o){
+rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o,light=0){
 
   name<-attr(rst,'z_name')
   if(isTRUE(factor)){levs<-levels(data_o[,1])
-  colhabs= newcolhabs[[pal]](length(levs))
+  colhabs= lighten(newcolhabs[[pal]](length(levs)),light)
   colhabs<-colhabs[levs%in%rasterpoints$z]
   colhabs=adjustcolor(colhabs,fillOpacity)
 
@@ -179,13 +179,13 @@ get_pie_gg<-function(rst,factor_chart=1,buffer_zize=1,fun="sum",min_radius=1,max
 }
 #' @export
 gg_pie<-function(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity){
-  pie_data<-get_pie_gg(rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs, pal)
+  pie_data<-get_pie_gg(rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs, pal,light=0)
   if(is.factor(rst[,1])){
     colpie<-attr(pie_data,"color")
   } else{
     colpie<-newcolhabs[[pal]](ncol(pie_data))
   }
-  colpie<-adjustcolor(colpie,fillOpacity)
+  colpie<-adjustcolor(lighten(colpie,light),fillOpacity)
 
 
   if(isTRUE(reverse_palette)){

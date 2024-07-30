@@ -22,16 +22,23 @@ module_save_changes$ui<-function(id,vals=NULL){
           div(style="padding-left: 30px",
               uiOutput(ns('newdata')),
 
+          ),
+          div(style="padding-left: 30px",
+              uiOutput(ns('message')),
+
           )
       )
     )
   )
 }
 module_save_changes$server<-function(id,vals,update_tab1=NULL,tab1=NULL,
-                                     update_tab2=NULL,tab2=NULL){
+                                     update_tab2=NULL,tab2=NULL,message=NULL){
   moduleServer(id,function(input,output,session){
     ns<-session$ns
 
+    output$message<-renderUI({
+      message
+    })
 
     newdata<-reactive({
       req(vals$newdatalist)
@@ -134,7 +141,7 @@ model_control$ui<-function(id,vals){
   }
   lapply(seq_along(argslist),function(i){
     id<-names(argslist)[i]
-    lab<-span(id,tiphelp(HTML(paste0(sl_tips[[model]][id,1]))))
+    lab<-span(id,tipright(HTML(paste0(sl_tips[[model]][id,1]))))
     value=argslist[[i]]
     if(len[[i]]==0){
       if(classes[i]=="NULL"){
@@ -167,7 +174,7 @@ msp_earth$ui<-function(id,vals,model){
              title="Plot Options",
              color="#c3cc74ff",
              div(
-               pickerInput(ns('which'),"Plot to draw",
+               pickerInput_fromtop(ns('which'),"Plot to draw",
                            options=shinyWidgets::pickerOptions(windowPadding="top"),
                            choices=c(
                              'Model selection plot'=1,
@@ -297,7 +304,7 @@ msp_dnn$ui<-function(id,vals){
              div(
                numericInput(ns("neu_radius"), "Neuron size", value =0.05,step=0.01),
                colourpicker::colourInput(ns('neuron_fill'),"Neuron fill",value="Grey"),
-               pickerInput(inputId = ns("weight_palette"),
+               pickerInput_fromtop(inputId = ns("weight_palette"),
                            label ="Weight Palette",
                            choices =  vals$colors_img$val,
                            options=shinyWidgets::pickerOptions(windowPadding="top"),
@@ -551,8 +558,8 @@ msp_monmlp$ui<-function(id,vals){
              title="Plot Options",
              color="#c3cc74ff",
              div(
-               pickerInput(ns("column"), "Variable",choices=choices,multiple = T,selected=choices[1:4], options=shinyWidgets::pickerOptions(windowPadding="top")),
-               pickerInput(inputId = ns("palette"),
+               pickerInput_fromtop(ns("column"), "Variable",choices=choices,multiple = T,selected=choices[1:4], options=shinyWidgets::pickerOptions(windowPadding="top")),
+               pickerInput_fromtop(inputId = ns("palette"),
                            label ="Palette",
                            choices =  vals$colors_img$val,
                            choicesOpt = list(
@@ -576,7 +583,7 @@ msp_monmlp$ui<-function(id,vals){
     ),
     column(6,
            box_caret(ns("box_b"),
-                     title="Network Plot",
+                     title="GAM style plot",
                      button_title = actionLink(ns("download_plot"),
                                                "Download",icon("download")),
                      div(
@@ -773,7 +780,7 @@ msp_rpart$ui<-function(id,vals){
                    div(class="map_side",id=ns('args_terminal'),
                        selectInput(ns('type'),"Type",choices=c('simple',"pies","barplot")),
 
-                       pickerInput(
+                       pickerInput_fromtop(
                          inputId = ns("palette"),
                          label ="Palette",
                          choices =  vals$colors_img$val,
@@ -835,7 +842,7 @@ msp_rpart$ui<-function(id,vals){
     ),
     column(8,
            box_caret(ns("box_b"),
-                     title="Network Plot",
+                     title="Tree Plot",
                      button_title = actionLink(ns("download_plot"),
                                                "Download",icon("download")),
                      div(
@@ -920,12 +927,12 @@ msp_rpart$server<-function(id,model,vals){
           ct_node[[i]]$split$breaks<-round(breaks,round)
 
       }
-      ct$node <- as.partynode(ct_node)
+      ct$node <- partykit::as.partynode(ct_node)
       legname<-attr(model,"supervisor")
-      p<-ggparty(ct) +
-        geom_edge(linetype=linetype,color=linecolor) +
-        geom_edge_label(size = values.size) +
-        geom_node_splitvar(size = node_text.size,fill=node_fill, color=node_color)
+      p<-ggparty::ggparty(ct) +
+        ggparty::geom_edge(linetype=linetype,color=linecolor) +
+        ggparty::geom_edge_label(size = values.size) +
+        ggparty::geom_node_splitvar(size = node_text.size,fill=node_fill, color=node_color)
       type=match.arg(type,c("barplot","simple","pies"))
       if(type=="barplot"){
 
@@ -937,7 +944,7 @@ msp_rpart$server<-function(id,model,vals){
 
 
         if(model$modelType=="Classification"){
-          p2<-p+geom_node_plot(gglist =  list(
+          p2<-p+ggparty::geom_node_plot(gglist =  list(
             geom_bar(aes(x = "",
                          fill = .outcome),
 
@@ -960,7 +967,7 @@ msp_rpart$server<-function(id,model,vals){
           ))
         } else{
           colors<-palette(1)
-          p2<-p+geom_node_plot(gglist =  list(
+          p2<-p+ggparty::geom_node_plot(gglist =  list(
             geom_boxplot(aes(x = "",
                              y = .outcome),
                          fill=colors
@@ -1002,7 +1009,7 @@ msp_rpart$server<-function(id,model,vals){
         na_id<-which(p$data$kids==0)
 
         p$data$splitvar[na_id]<-prelab
-        p2<-p+geom_node_info(
+        p2<-p+ggparty::geom_node_info(
           ids=na_id,
           color=terminal_color,
           mapping=aes(label=splitvar, fill=splitvar),
@@ -1015,7 +1022,7 @@ msp_rpart$server<-function(id,model,vals){
             )
           )
       } else if(type=="pies"){
-        p2<-p+ geom_node_plot(gglist = list(
+        p2<-p+ ggparty::geom_node_plot(gglist = list(
           geom_bar(aes(x = "", fill = .outcome),
                    position = position_fill()),
           scale_fill_manual(values=colors, name=legname),
@@ -1112,6 +1119,10 @@ msp_rpart$server<-function(id,model,vals){
 
 model_control$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
+
+
+
+
 
     args0<-reactive({
       req(vals$trainSL_args)
@@ -1246,14 +1257,14 @@ msp_xyf$ui<-function(id,vals){
 
                    )
                ),
-               pickerInput(inputId = ns("xyf_bg_palette"),
+               pickerInput_fromtop(inputId = ns("xyf_bg_palette"),
                            label ="Palette",
                            choices =  vals$colors_img$val,
                            choicesOpt = list(
                              content =  vals$colors_img$img),
                            options=shinyWidgets::pickerOptions(windowPadding="top")),
                numericInput(ns("xyf_pcodes_bgalpha"),'Lightness',value = 0,min = 0,max = 1,step = .1),
-               pickerInput(ns("xyf_pclus_border"),
+               pickerInput_fromtop(ns("xyf_pclus_border"),
                            label ='Border:',
                            choices = NULL,
                            options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -1272,7 +1283,7 @@ msp_xyf$ui<-function(id,vals){
                checkboxInput(ns("xyf_pclus_addpoints"),"Points",
                              value=T),
                div(id=ns("xyf_pclus_points_inputs"),style="padding-left: 20px",
-                   pickerInput(inputId = ns("xyf_pclus_points_palette"),
+                   pickerInput_fromtop(inputId = ns("xyf_pclus_points_palette"),
                                label ="Palette:",
                                choices = vals$colors_img$val,
                                choicesOpt = list(content = vals$colors_img$img),
@@ -1280,7 +1291,7 @@ msp_xyf$ui<-function(id,vals){
                                selected="black"),
                    selectInput(ns("xyf_pclus_points_factor"),"Factor:",
                                choices =NULL),
-                   pickerInput(inputId = ns("xyf_pclus_symbol"),
+                   pickerInput_fromtop(inputId = ns("xyf_pclus_symbol"),
                                label = "Shape:",
                                choices = df_symbol$val,
                                choicesOpt = list(content = df_symbol$img),
@@ -1296,11 +1307,11 @@ msp_xyf$ui<-function(id,vals){
                div(
                  checkboxInput(ns("xyf_pclus_addtext"),"Labels",F),
                  div(id=ns('xyf_pclus_text_inputs'),style="display: none;padding-left: 20px",
-                     pickerInput(inputId = ns("xyf_pclus_text_palette"),
+                     pickerInput_fromtop(inputId = ns("xyf_pclus_text_palette"),
                                  label ="Color",
                                  choices = NULL,
                                  options=shinyWidgets::pickerOptions(windowPadding="top")),
-                     pickerInput(ns("xyf_pclus_text_factor"),"Factor:",
+                     pickerInput_fromtop(ns("xyf_pclus_text_factor"),"Factor:",
                                  choices = NULL,
                                  options=shinyWidgets::pickerOptions(windowPadding="top")),
                      numericInput(ns("xyf_pclus_text_size"),'Size:',value = 1,min = 0.1,max = 3,step = .1)
@@ -1318,7 +1329,7 @@ msp_xyf$ui<-function(id,vals){
                  checkboxInput(ns("xyf_varfacmap_action"), span("Variable factor map",actionLink(ns("xyf_varfacmap"), tipify(icon("fas fa-question-circle"),'Click for more details',placement ="right"))),value =T),
                  div(style="padding-left: 20px",
                      id=ns('xyf_varfac_out'),
-                     pickerInput(ns("xyf_vfm_type"),"Show correlation:",
+                     pickerInput_fromtop(ns("xyf_vfm_type"),"Show correlation:",
                                  choices =list("Highest"='var', "Chull"="cor"),
                                  options=shinyWidgets::pickerOptions(windowPadding="top")
                      ),
@@ -1327,11 +1338,11 @@ msp_xyf$ui<-function(id,vals){
                      numericInput(ns("xyf_npic"), span('Number',tipright("Number of variables to display")), value =10),
 
                      numericInput(ns("xyf_pclus.cex.var"), "Var size", value =1),
-                     pickerInput(inputId = ns("xyf_p.clus.col.text"),
+                     pickerInput_fromtop(inputId = ns("xyf_p.clus.col.text"),
                                  label ="Var text color",
                                  choices = NULL,
                                  options=shinyWidgets::pickerOptions(windowPadding="top")),
-                     pickerInput(inputId = ns("xyf_var_bg"),
+                     pickerInput_fromtop(inputId = ns("xyf_var_bg"),
                                  label ="Var background",
                                  choices = NULL,
                                  options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -1725,15 +1736,15 @@ msp_rf$ui<-function(id,vals){
                        div(id=ns('run_btn'),class="save_changes",
                            align="right",
                            style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                       pickerInput(ns("fm_tree"),"+ Tree",NULL,
+                       pickerInput_fromtop(ns("fm_tree"),"+ Tree",NULL,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
                        numericInput(ns('fm_round'),'+ Round',2),
-                       pickerInput(
+                       pickerInput_fromtop(
                          ns("edge_type"), "+ Edge type",
                          choices=list("Link"="link",'Fluid'="fluid"),
                          options=shinyWidgets::pickerOptions(windowPadding="top")
                        ),
-                       pickerInput(ns("tree_type"), "+ Tree type", choices=list("Dendrogram"="dendrogram","Tree"='tree'))
+                       pickerInput_fromtop(ns("tree_type"), "+ Tree type", choices=list("Dendrogram"="dendrogram","Tree"='tree'))
 
                      )
            ),
@@ -1743,7 +1754,7 @@ msp_rf$ui<-function(id,vals){
                      title="Plot options",
                      color="#c3cc74ff",
                      div(
-                       pickerInput(inputId = ns("fm_palette"),
+                       pickerInput_fromtop(inputId = ns("fm_palette"),
                                    label = 'Palette',
                                    choices =     vals$colors_img$val,
                                    choicesOpt = list(content =vals$colors_img$img),
@@ -1843,7 +1854,7 @@ msp_rf$server<-function(id,model,vals){
       tree_predictions
     })
     observeEvent(predall_rf(),{
-      updatePickerInput(session,'fm_tree',choices=colnames(predall_rf()))
+      updatePickerInput(session,'fm_tree',choices=colnames(predall_rf()),options=shinyWidgets::pickerOptions(liveSearch=T))
     })
     observeEvent(list(
       input$fm_tree,
@@ -1932,7 +1943,7 @@ msp_cforest$ui<-function(id,vals){
                  actionLink(ns("rank_tree"),">> Rank trees"),tipright("Click to order the trees based on their performance. The <code>Tree</code> suspended menu will be updated from highest to lowest performing.")
                ),
                div(style="display: flex",
-                   pickerInput(ns("tree"),"Tree",choices=1:length(model$finalModel@ensemble),options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top")),
+                   pickerInput_fromtop(ns("tree"),"Tree",choices=1:length(model$finalModel@ensemble),options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top")),
                    div(id=ns('run_btn'),class="save_changes",style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px"),tipright("Click to get results from the selected tree."))
                ),
 
@@ -1949,7 +1960,7 @@ msp_cforest$ui<-function(id,vals){
 
                numericInput(ns("base_size"),"Base size",10),
                numericInput(ns("digits"),"Digits:",3),
-               pickerInput(
+               pickerInput_fromtop(
                  inputId = ns("palette"),
                  label ="Palette",
                  choices =  vals$colors_img$val,
@@ -2024,7 +2035,7 @@ msp_cforest$server<-function(id,model,vals){
         })
 
         updatePickerInput(session,"tree",
-                          choices=c(1:ntrees)[order(res,decreasing=T)])
+                          choices=c(1:ntrees)[order(res,decreasing=T)],options=shinyWidgets::pickerOptions(liveSearch=T))
 
 
 
@@ -2253,6 +2264,7 @@ panel_box_caret2$server<-function(id,vals){
     ns<-session$ns
 
 
+
     output$grid_parameters<-renderUI({
       x<-vals$cur_xtrain
       y<-vals$cur_var_y
@@ -2404,7 +2416,7 @@ panel_box_caret4$ui<-function(id){
     id=ns("resamp_parameters"),
     div(
 
-      pickerInput(ns("method"),lab_resamling, choices=list("Repeated Cross-Validation"="repeatedcv",'Boot'="boot","Leave one out"="LOOCV","Leave-group out"="LGOCV","Adaptive CV"="adaptive_cv"),
+      pickerInput_fromtop(ns("method"),lab_resamling, choices=list("Repeated Cross-Validation"="repeatedcv",'Boot'="boot","Leave one out"="LOOCV","Leave-group out"="LGOCV","Adaptive CV"="adaptive_cv"),
                   options=shinyWidgets::pickerOptions(windowPadding="top")),
       div(id=ns('args_adapt'),class="map_side",
           numericInput(ns("adap_min"),"min",5),
@@ -2413,7 +2425,7 @@ panel_box_caret4$ui<-function(id){
           checkboxInput(ns("adap_complete"),"complete",T)
 
       ),
-      pickerInput(ns("selfinal"),
+      pickerInput_fromtop(ns("selfinal"),
                   span("Select Final",
                        tipify(actionLink(ns("selfinal_help"),
                                          icon("fas fa-question-circle")),"Click for details","right")),
@@ -2450,7 +2462,7 @@ panel_box_caret4$server<-function(id,vals){
         easyClose = T
       ))
     })
-    observeEvent(input$method,ignoreInit = T,{
+    observe({
       shinyjs::toggle("cv",condition=input$method%in%c('cv','repeatedcv','boot','adaptive_cv'))
       shinyjs::toggle('repeats', condition=input$method%in%c('repeatedcv','adaptive_cv'))
       shinyjs::toggle("pleaves",condition=input$method=='LGOCV')
@@ -2520,7 +2532,7 @@ permutation_importance$ui<-function(id){
                          div(
                            numericInput(ns("feat_npic"),span("+ nvars:",tipright("Number of variables to display")), value=20,  step=1),
                            numericInput(ns("sig_feature"),span("+ Sig",tipright("Significance level")), value=0.05,  step=0.05),
-                           pickerInput(inputId = ns("pal_feature"),
+                           pickerInput_fromtop(inputId = ns("pal_feature"),
                                        label = "+ Palette",
                                        choices =    NULL,
                                        options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -2557,7 +2569,7 @@ permutation_importance$ui<-function(id){
                       div(class="inline_pickers",style="color: #05668D",
                           selectizeInput(inputId = ns("var_feature_cm"),label = "+ Variable:",choices =NULL),
 
-                          pickerInput(inputId = ns("pal_feature_cm"),label = "+ Palette:",choices =NULL,
+                          pickerInput_fromtop(inputId = ns("pal_feature_cm"),label = "+ Palette:",choices =NULL,
                                       options=shinyWidgets::pickerOptions(windowPadding="top")),
                           textInput(ns("title_cm"),"Title", value=NULL)
                       ),
@@ -2940,10 +2952,10 @@ caret_pairs$ui<-function(id){
                      color="#c3cc74ff",
                      div(
                        div(id=ns('gg_run_btn'),class="save_changes",align="right",actionButton(ns('gg_run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                       pickerInput(ns("ggpair.variables"),span("Variables:",class='text_alert'),NULL, multiple = T,options=shinyWidgets::pickerOptions(actionsBox  = TRUE,windowPadding="top")),
+                       pickerInput_fromtop(ns("ggpair.variables"),span("Variables:",class='text_alert'),NULL, multiple = T,options=shinyWidgets::pickerOptions(actionsBox  = TRUE,windowPadding="top")),
 
 
-                       pickerInput(ns("ggpair.method"),"Correlation method:",c("none","pearson", "kendall", "spearman"))
+                       pickerInput_fromtop(ns("ggpair.method"),"Correlation method:",c("none","pearson", "kendall", "spearman"))
 
                      )
            ),
@@ -2953,7 +2965,7 @@ caret_pairs$ui<-function(id){
                      div(
 
                        textInput(ns("ggpair.title"),"Title:",""),
-                       pickerInput(inputId = ns("fm_palette"),
+                       pickerInput_fromtop(inputId = ns("fm_palette"),
                                    label = 'Palette',
                                    choices =  NULL,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -2998,7 +3010,7 @@ caret_pairs$server<-function(id,model,vals){
     m<-model
     req(m)
     choices<-colnames(getdata_model(model))
-    updatePickerInput(session,"ggpair.variables",choices=choices,selected=choices[1:3])
+    updatePickerInput(session,"ggpair.variables",choices=choices,selected=choices[1:3],options=shinyWidgets::pickerOptions(liveSearch=T))
     data<-getdata_model(model)
     box_caret_server('msp_pairs_a')
     box_caret_server('msp_pairs_b')
@@ -3121,16 +3133,16 @@ pd$ui<-function(id){
            box_caret(ns("41_a"),
                      title="Analysis Options",
                      color="#c3cc74ff",
-                     tip=tipright("Plot partial dependence of two variables(i.e., marginal effects) for the randomForest"),
+                     tip=tipright("Plot partial dependence of two variables(i.e., marginal effects)"),
                      div(
                        div(class="radio_search radio-btn-green",
-                           radioGroupButtons(ns("rf_useinter"), span(tipright("<li> <code> Custom Variables</code>: custom defining x and y ;</li> <li> <code> Interaction Frame </code>: only available for Random Forest after running Interactions- Allow use a list ranked by most frequent interactions; </li>"),"Use:"), choices=c("Interaction Frame","Custom Variables"))),
+                           radioGroupButtons(ns("rf_useinter"), span(tipright("<li> <code> Custom Variables</code>: custom defining x and y ;</li> <li> <code> Interaction Frame </code>: only available for Random Forest after running Interactions (randomFlorestExplainer). Allow use a list ranked by most frequent interactions; </li>"),"Use:"), choices=c("Interaction Frame","Custom Variables"))),
 
                        selectInput(ns("rf_interaction"), "Interaction:", choices=NULL),
                        selectInput(ns("rf_grid_var1"), "Variable 1", choices=NULL),
                        selectInput(ns("rf_grid_var2"), "Variable 2", choices=NULL),
 
-                       pickerInput(ns("rf_biplotclass"), "+ Class", choices=NULL,multiple = T,
+                       pickerInput_fromtop(ns("rf_biplotclass"), "+ Class", choices=NULL,multiple = T,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
 
 
@@ -3142,7 +3154,7 @@ pd$ui<-function(id){
                      div(
 
                        div(
-                         pickerInput(inputId = ns("pd_palette"),
+                         pickerInput_fromtop(inputId = ns("pd_palette"),
                                      label = "Palette:",
                                      choices =NULL,
                                      options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -3439,11 +3451,11 @@ msp_nb$ui<-function(id,model){
                        div(id=ns('run_btn'),class="save_changes",
                            align="right",
                            style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                       pickerInput(ns("msp_nb_vars"),"+ Select the variable",colnames(getdata_model(model)),
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
+                       pickerInput_fromtop(ns("msp_nb_vars"),"+ Select the variable",colnames(getdata_model(model)),
+                                   options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch=T)),
 
                        checkboxInput(ns('nb_wrap'),"+ Wrap", T),
-                       pickerInput(ns("nb_type_plot"),"Type:",c("identity","stack","fill"),
+                       pickerInput_fromtop(ns("nb_type_plot"),"Type:",c("identity","stack","fill"),
                                    options=shinyWidgets::pickerOptions(windowPadding="top"))
 
 
@@ -3454,7 +3466,7 @@ msp_nb$ui<-function(id,model){
                      title="Plot options",
                      color="#c3cc74ff",
                      div(
-                       pickerInput(inputId = ns("palette"),
+                       pickerInput_fromtop(inputId = ns("palette"),
                                    label = 'Palette',
                                    choices =  NULL,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -3582,7 +3594,7 @@ confusion_module$ui<-function(id){
                        selectInput(inputId = ns("caret_cm_type"),
                                    label = "+ Type: ",
                                    choices = c("Resampling","finalModel")),
-                       pickerInput(inputId = ns("caretpalette"),
+                       pickerInput_fromtop(inputId = ns("caretpalette"),
                                    label = "+ Palette",NULL,
                                    options=shinyWidgets::pickerOptions(windowPadding="top")),
                        textInput(ns('cm_title'),"Title","Training"),
@@ -3786,10 +3798,10 @@ model_results$ui<-function(id){
 
                                      align="right",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
                                  div(class="radio_search",
-                                     radioGroupButtons(ns("useModel"), span("Use Model:",tipright(paste0("Use a model based technique for measuring variable importance?. TRUE is only available for ", code(paste0(names(which(sapply(model_varImp,length)>0)),collapse=", "))))), choices = FALSE)
+                                     radioGroupButtons(ns("useModel"), span("Use Model:",tipright(paste0("Use a model based technique for measuring variable importance?. TRUE is only available for ", code('rf','gbm','glm','cforest', 'avNNet','nnet','rpart')))), choices = FALSE)
                                  ),
                                  numericInput(ns("nvars"),span("+ nvars:",tipright("Number of variables to display")), value=20,  step=1),
-                                 pickerInput(ns("feat_palette"),
+                                 pickerInput_fromtop(ns("feat_palette"),
                                              label ='Palette:',
                                              choices = NULL,
                                              options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -3841,16 +3853,9 @@ model_results$ui<-function(id){
         uiOutput(ns('pd_out'))
       ),
       tabPanel(
-        "2.6. Model-Specific Plots",value="t6",
-        tabsetPanel(NULL,id=ns("msp"),
-                    tabPanel("2.6.1. GGpairs",
-                             caret_pairs$ui(ns("ggpairs")),
-                             uiOutput(ns('pair_out'))
-                    )
-        )
-
-
-
+        "2.6. GGpairs",value="t6",
+        caret_pairs$ui(ns("ggpairs")),
+        uiOutput(ns('pair_out'))
       )
 
     )
@@ -3893,38 +3898,10 @@ model_results$server<-function(id,vals){
 
 
 
-    observeEvent(vals$cur_caret_model,{
-
-      removeTab('msp',"msp_nb")
-      removeTab('msp',"msp_rf")
-      removeTab('msp',"msp_xyf")
-      removeTab('msp',"msp_dnn")
-      removeTab('msp',"msp_earth")
-      removeTab('msp',"msp_avNNet")
-      removeTab('msp',"msp_nnet")
-      removeTab('msp',"msp_monmlp")
-      removeTab('msp',"msp_rpart")
-      removeTab('msp',"msp_cforest")
-    })
 
 
-    observeEvent(vals$cur_caret_model,{
-      req(vals$cmodel)
-      removeTab('tab2',"rfe")
-      req(vals$cmodel)
-      if(vals$cmodel=='rf'){
-        insertTab('tab2',
-                  tabPanel("2.7. randomForestExplainer",
-                           value="rfe",
-                           rf_explainer$ui(ns("explain")),
-                           uiOutput(ns("explainer_out"))
-                  )
-        )
-
-      }
 
 
-    })
 
 
     observeEvent(input$stack,{
@@ -4009,7 +3986,7 @@ model_results$server<-function(id,vals){
         multiple=T
         selected=choices
       }
-      pickerInput(ns("xvar"),"+ X", choices=choices,selected=selected,multiple =multiple,
+      pickerInput_fromtop(ns("xvar"),"+ X", choices=choices,selected=selected,multiple =multiple,
                   options=shinyWidgets::pickerOptions(windowPadding="top"))
     })
 
@@ -4109,71 +4086,102 @@ model_results$server<-function(id,vals){
     })
 
 
-    observeEvent(model(),{
+    observeEvent(vals$cur_caret_model,{
+      req(vals$cmodel)
+      removeTab('tab2',"rfe")
+      req(vals$cmodel)
+      if(vals$cmodel=='rf'){
+        insertTab('tab2',
+                  tabPanel("2.7. randomForestExplainer",
+                           value="rfe",
+                           rf_explainer$ui(ns("explain")),
+                           uiOutput(ns("explainer_out"))
+                  )
+        )
+
+      }
+
+
+    })
+
+    observeEvent(vals$cur_caret_model,{
+
+      removeTab('tab2',"msp_nb")
+      removeTab('tab2',"msp_rf")
+      removeTab('tab2',"msp_xyf")
+      removeTab('tab2',"msp_dnn")
+      removeTab('tab2',"msp_earth")
+      removeTab('tab2',"msp_avNNet")
+      removeTab('tab2',"msp_nnet")
+      removeTab('tab2',"msp_monmlp")
+      removeTab('tab2',"msp_rpart")
+      removeTab('tab2',"msp_cforest")
+
 
       if(inherits(model()$finalModel,"NaiveBayes")){
-        insertTab('msp',
-                  tabPanel("2.6.2. Densities",value="msp_nb",
+        insertTab('tab2',
+                  tabPanel("2.7 Densities",value="msp_nb",
                            msp_nb$ui(ns("nb"),model()),
                            uiOutput(ns("nb_density"))
                   ))
       } else if(inherits(model()$finalModel,"randomForest")){
-        insertTab('msp',
-                  tabPanel("2.6.2. Trees",value="msp_rf",
+        insertTab('tab2',
+                  tabPanel("2.8 Trees",value="msp_rf",
                            msp_rf$ui(ns("rf"),vals),
                            uiOutput(ns("rf_trees"))
                   ))
       } else if(inherits(model()$finalModel,"kohonen")) {
-        insertTab('msp',
-                  tabPanel("2.6.2. Kohonen",value="msp_xyf",
+        insertTab('tab2',
+                  tabPanel("2.7 BMU plot",value="msp_xyf",
                            msp_xyf$ui(ns("xyf"),vals),
                            uiOutput(ns("xyf_plot"))
                   ))
       } else if(model()$modelInfo$label=="Stacked AutoEncoder Deep Neural Network") {
-        insertTab('msp',
-                  tabPanel("2.6.2. dnn",value="msp_dnn",
+        insertTab('tab2',
+                  tabPanel("2.7 Network",value="msp_dnn",
                            msp_dnn$ui(ns("dnn"),vals),
                            uiOutput(ns("dnn_plot"))
                   ))
       } else if(inherits(model()$finalModel,"earth")) {
-        insertTab('msp',select=T,
-                  tabPanel("2.6.2. Earth",value="msp_earth",
+        insertTab('tab2',select=T,
+                  tabPanel("2.7 Earth",value="msp_earth",
                            msp_earth$ui(ns("earth"),vals,model()),
                            uiOutput(ns("earth_plot"))
                   ))
       } else if(inherits(model()$finalModel,"avNNet")) {
-        insertTab('msp',
-                  tabPanel("2.6.2. avNNet",value="msp_avNNet",
+        insertTab('tab2',
+                  tabPanel("2.7 Network",value="msp_avNNet",
                            msp_dnn$ui(ns("avNNet"),vals),
                            uiOutput(ns("avNNet_plot"))
                   ))
 
       } else if(model()$method%in%c('nnet','pcaNNet','monmlp','mlpML')) {
-        insertTab('msp',
-                  tabPanel("2.6.2. nnet",value="msp_nnet",
+        insertTab('tab2',
+                  tabPanel("2.7 Network",value="msp_nnet",
                            msp_dnn$ui(ns("nnet"),vals),
                            uiOutput(ns("nnet_plot"))
                   ))
       }
       if(model()$method%in%c('monmlp')){
-        insertTab('msp',
-                  tabPanel("2.6.3. Gam.Syte",value="msp_monmlp",
+        insertTab('tab2',
+                  tabPanel("2.8 Gam.Syte",value="msp_monmlp",
                            msp_monmlp$ui(ns("monmlp"),vals),
                            uiOutput(ns("monmlp_plot"))
                   ))
       } else if(model()$method%in%c('rpart','evtree')) {
-        insertTab('msp',select=T,
-                  tabPanel("2.6.3. Tree Plot",value="msp_rpart",
+        insertTab('tab2',
+                  tabPanel("2.7 Tree Plot",value="msp_rpart",
                            msp_rpart$ui(ns("rpart"),vals),
                            uiOutput(ns("rpart_plot"))
                   ))
       } else if(model()$method%in%c("cforest")) {
-        insertTab('msp',
-                  tabPanel("2.6.3. Tree Plot",value="msp_cforest",
+        insertTab('tab2',
+                  tabPanel("2.7 Tree Plot",value="msp_cforest",
                            msp_cforest$ui(ns("cforest"),vals),
                            uiOutput(ns("cforest_plot"))
                   ))
       }
+
 
 
     })
@@ -4738,7 +4746,7 @@ model_predic$server<-function(id,vals){
 
       div(
         textInput(ns("svm_cmpred_title"),"+ CM Title",gettile_cmpred()),
-        pickerInput(inputId = ns("svmpalette_pred"),
+        pickerInput_fromtop(inputId = ns("svmpalette_pred"),
                     label = lab2,
                     choices =     vals$colors_img$val,
                     choicesOpt = list(content =     vals$colors_img$img),
@@ -4961,7 +4969,7 @@ panel_box_caret1$ui<-function(id){
         radioGroupButtons(ns("search"), span("Search:",tipright("Tuning search")), choices = choices)
     ),
     div(
-      numericInput(ns("tuneLength"), span("tuneLength:",tipright("The maximum number of mtry- combinations that will be generated")), value = 3)
+      numericInput(ns("tuneLength"), span("tuneLength:",tipright("The maximum number of mtry- combinations that will be generated")), value = 5)
     )
 
   )
@@ -5388,6 +5396,7 @@ caret_models$ui<-function(id){
                            title="Summary",
                            tip=tipright("<p>This panel provides a summary of the current selection of the model.</p><p>It serves as a quick reference for the user to review and confirm their chosen settings before running the analysis.</p>"),
                            div(style="padding: 10px",
+                               div(style="position: absolute; top: 0px;right: 0px; padding: 20px",uiOutput(ns('print_train'))),
                                uiOutput(ns('panel_green')),
                            )
                  ),
@@ -5418,6 +5427,33 @@ caret_models$server<-function(id,vals){
     ns<-session$ns
 
 
+
+    output$print_train<-renderUI({
+
+      req(vals$cur_xtrain)
+      req(vals$cur_ytrain)
+
+      div(
+
+        div(style="display: flex; font-size: 11px; margin-top: 20px",
+            div(style="margin-left: 10px; margin-top: 15px",
+                div(strong('x:')),
+                div(strong('y:'))),
+            div(style="margin-left: 10px",
+                div(strong("Training:")),
+                div(emgreen(paste0(dim(vals$cur_xtrain),collapse=" x "))),
+                div(emgreen(paste0(dim(vals$cur_ytrain),collapse=" x ")))),
+            if(dim(vals$cur_xtest)[1]>0)
+              div(style="margin-left: 10px",
+                  div(strong("Test:")),
+                  div(emgreen(paste0(dim(vals$cur_xtest),collapse=" x "))),
+                  div(emgreen(paste0(dim(vals$cur_ytest),collapse=" x "))))
+
+        )
+      )
+    })
+
+
     get_grid<-reactive({
       req(!vals$cmodel%in%'rfGA')
       req(vals$cur_caret_search)
@@ -5433,6 +5469,14 @@ caret_models$server<-function(id,vals){
         param<-expand.grid(vals$box_caret2_args)
       } else{
         req(vals$box_caret1_args$tuneLength)
+
+        req(nrow(x)>0)
+        req(ncol(x)>0)
+        req(nrow(y)>0)
+        req(ncol(y)>0)
+       # args<-list(x=x,y=y,model=model, len=vals$box_caret1_args$tuneLength)
+        #saveRDS(args,"args.rds")
+        #print(args)
         res<-run_gridcaret(x,y,model, len=vals$box_caret1_args$tuneLength)
         param<-res$param
       }
@@ -5549,8 +5593,8 @@ caret_models$server<-function(id,vals){
       div(
 
         div(style="display: flex",
-            hidden(selectInput(ns("wei_datalist"),"Datalist",choices,selected=selected)),
-            hidden(selectInput(ns("wei_var"),label=NULL,NULL)))
+            hidden(pickerInput_fromtop(ns("wei_datalist"),"Datalist",choices,selected=selected)),
+            hidden(pickerInput_fromtop(ns("wei_var"),label=NULL,NULL)))
       )
     })
     output$validate_twoclass<-renderUI({
@@ -5664,7 +5708,7 @@ caret_models$server<-function(id,vals){
       vals$cur_caret_dl<-input$wei_var
       choices<-colnames(vals$saved_data[[input$wei_datalist]])
       selected<-get_selected_from_choices(vals$cur_caret_wei,choices)
-      updateSelectInput(session,"wei_var",choices=choices,selected=selected)
+      updatePickerInput(session,"wei_var",choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
     observeEvent(input$wei_var,{
       vals$cur_caret_wei<-input$wei_var
@@ -5679,7 +5723,7 @@ caret_models$server<-function(id,vals){
           easyClose = T,
           div(class="help_page",
               h4(model_library[[vals$cmodel]]),
-              pickerInput(ns("sel_help_model"),"Model",
+              pickerInput_fromtop(ns("sel_help_model"),"Model",
                           choices =names(train_functions2),
                           selected=selected,
 
@@ -6164,10 +6208,7 @@ caret_train$ui<-function(id){
       )
 
     ),
-    div(style="position: absolute; top: 0px;right: 0px; padding: 20px",
-        uiOutput(ns('print_train')),
-        uiOutput(ns('print_results'))
-    )
+    #div(style="position: absolute; top: 0px;right: 0px; padding: 20px",uiOutput(ns('print_train')))
 
   )
 
@@ -6269,31 +6310,6 @@ caret_train$server<-function(id,vals=NULL){
       data<-vals$saved_data[[input$data_y]]
       data
     })
-    output$print_train<-renderUI({
-      req(vals$cur_caret_tab)
-      req(vals$cur_caret_tab=="tab1")
-      req(x_train())
-      req(y_train())
-
-      div(
-
-        div(style="display: flex; font-size: 11px; margin-top: 20px",
-            div(style="margin-left: 10px; margin-top: 15px",
-                div(strong('x:')),
-                div(strong('y:'))),
-            div(style="margin-left: 10px",
-                div(strong("Training:")),
-                div(emgreen(paste0(dim(x_train()),collapse=" x "))),
-                div(emgreen(paste0(dim(y_train()),collapse=" x ")))),
-            if(dim(x_test())[1]>0)
-              div(style="margin-left: 10px",
-                  div(strong("Test:")),
-                  div(emgreen(paste0(dim(x_test()),collapse=" x "))),
-                  div(emgreen(paste0(dim(y_test()),collapse=" x "))))
-
-        )
-      )
-    })
 
     output$validate_train<-renderUI({
       x<-x_train()
@@ -6353,11 +6369,12 @@ caret_train$server<-function(id,vals=NULL){
       data<-data_x()
       filter<-colnames(data)
       if(length(input$filter)>0){
+        if(all(input$filter%in%colnames(data)))
         filter<-input$filter
       }
       data<-data[get_partition()$train,,drop=F]
 
-      data[,input$filter,drop=F]
+      data<-data[,filter,drop=F]
       data
     })
     x_test<-reactive({
@@ -6370,19 +6387,24 @@ caret_train$server<-function(id,vals=NULL){
       data<-data[get_partition()$test,,drop=F]
 
       data[,input$filter,drop=F]
+
       data
     })
     y_train<-reactive({
       req(input$var_y)
       data<-get_data_y()
       req(input$var_y%in%colnames(data))
-      data[get_partition()$train,input$var_y,drop=F]
+      data<-data[get_partition()$train,input$var_y,drop=F]
+
+      data
     })
     y_test<-reactive({
       req(input$var_y)
       data<-get_data_y()
       req(input$var_y%in%colnames(data))
-      data[get_partition()$test,input$var_y,drop=F]
+      data<-data[get_partition()$test,input$var_y,drop=F]
+
+      data
     })
     y_factors<-reactive({
       data<-datalist_y()
@@ -6583,7 +6605,7 @@ caret_train$server<-function(id,vals=NULL){
       choices<-names(available_models())
 
       selected<-get_selected_from_choices(vals$cur_model_name,choices)
-      pickerInput(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected)
+      pickerInput_fromtop(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected)
     })
 
 
@@ -6594,7 +6616,16 @@ caret_train$server<-function(id,vals=NULL){
 
     })
     observeEvent(y_train(),{
-      vals$cur_var_y<-y_train()
+      vals$cur_ytrain<-vals$cur_var_y<-y_train()
+    })
+
+    observeEvent(x_test(),{
+      vals$cur_xtest<-x_test()
+    })
+
+
+    observeEvent(y_test(),{
+      vals$cur_ytest<-y_test()
     })
 
     observeEvent(vals$cur_caret_tab,{
@@ -6626,7 +6657,7 @@ caret_train$server<-function(id,vals=NULL){
 
 
     output$data_y<-renderUI({
-      pickerInput(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y)
+      pickerInput_fromtop(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y)
     })
 
 
@@ -6713,7 +6744,7 @@ font-style: italic;
 }
 
 .data_x .open>.dropdown-menu {
-        max-height: 300px;
+
         overflow-y: auto;
 
         }
@@ -6751,7 +6782,7 @@ cursor: none
 
 div(class="data_x",
     uiOutput(ns("data_x_active")),
-    pickerInput(ns("data_x"),
+    pickerInput_fromtop(ns("data_x"),
                 span("~ Training Datalist",tiphelp("Choose the Datalist containing your independent variables (X).")),
                 selected=vals$cur_data_sl,
                 choices=choices,
@@ -6793,9 +6824,9 @@ div(class="data_x",
 
       selected<-get_selected_from_choices(vals$cur_response,choices)
 
-      pickerInput(ns("var_y"),
+      pickerInput_fromtop(ns("var_y"),
                   span("Variable",tipright("Choose the response Variable (Y)")),
-                  choices = choices,selected=selected)
+                  choices = choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     output$partition<-renderUI({
@@ -6805,15 +6836,16 @@ div(class="data_x",
       selected<-get_selected_from_choices(vals$cur_test_partition,choices)
 
 
-      pickerInput(ns("partition"),span("Partition",tipright("Select a factor to use as a reference for partitioning the data into training and testing sets")), choices=choices,selected=selected)
+      pickerInput_fromtop(ns("partition"),span("Partition",tipright("Select a factor to use as a reference for partitioning the data into training and testing sets")), choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     output$partition_ref_out<-renderUI({
       req(input$partition!="None")
       data<-y_factors()
+      req(input$partition%in%colnames(data))
       choices<-levels(data[,input$partition])
       selected<-get_selected_from_choices(vals$cur_testdata,choices)
-      pickerInput(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
+      pickerInput_fromtop(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
     })
 
 
@@ -6889,7 +6921,7 @@ color: WhiteSmoke
 
         "
       )),
-pickerInput(ns("model"),span("Model",tipright("Select the machine learning algorithm for model training. If there are saved models corresponding to the selected Training Datalist, they will be displayed in the Custom Name dropdown")),
+pickerInput_fromtop(ns("model"),span("Model",tipright("Select the machine learning algorithm for model training. If there are saved models corresponding to the selected Training Datalist, they will be displayed in the Custom Name dropdown")),
             options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"),
             choices =grupos_modelos(),
             selected=vals$cmodel,
@@ -6950,11 +6982,15 @@ pickerInput(ns("model"),span("Model",tipright("Select the machine learning algor
       })
     })
 
+    observeEvent(input$model,{
+      vals$cmodel<-input$model
+    })
+
 
 
 
     observeEvent(input$model,ignoreInit = T,{
-      vals$cur_caret_model<-NULL
+      #vals$cur_caret_model<-NULL
       if(!is.null( vals$cmodel)){
         pkg<-model_library[[vals$cmodel]]
         sapply(pkg,detach_package)
@@ -6962,8 +6998,8 @@ pickerInput(ns("model"),span("Model",tipright("Select the machine learning algor
 
       }
 
-      req(input$model)
-      vals$cmodel<-input$model
+
+
     })
     return(NULL)
 

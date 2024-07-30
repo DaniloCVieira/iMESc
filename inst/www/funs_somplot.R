@@ -1,3 +1,12 @@
+pickerInput_fromtop<-function(inputId, label = NULL, choices, selected = NULL, multiple = FALSE,options = list(), choicesOpt = NULL, width = NULL, inline = FALSE,stateInput = TRUE, autocomplete = FALSE){
+  win_pad<-shinyWidgets::pickerOptions(windowPadding="top",size=10)
+  options[names(win_pad)]<-win_pad
+
+
+
+  pickerInput(inputId, label = label, choices, selected = selected, multiple = multiple,options = options, choicesOpt = choicesOpt, width = width, inline = inline,stateInput = stateInput, autocomplete = autocomplete)
+}
+
 #' @export
 supersom_summaries<-function(m){
   traindata <- m$data
@@ -480,8 +489,98 @@ new_scale<-function (new_aes) {
 new_scale_fill<-function () {
   new_scale("fill")
 }
+
+importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c('top_hc','top','top_w','manual'), layer=1){
+  var_pie_type=match.arg(var_pie_type,c('top_hc','top','top_w','manual'))
+
+  top_indicators<-hc_imp_rel<-NULL
+
+  codebook<-data.frame(abs(m$codes[[layer]]))
+  colnames(codebook)<-colnames(m$codes[[layer]])
+
+  n_top<-n
+  if(n_top>ncol(codebook)){
+    n_top<-ncol(codebook)
+  }
+  grid<-data.frame(m$grid$pts)
+
+
+  if(var_pie_type=='top_hc'){
+    req(hc)
+    grid$hc<-hc
+
+    hc_ids<-lapply(split(grid,grid$hc)
+                   ,function(x) as.numeric(rownames(x)))
+    split_codebook<-lapply(hc_ids,function(ids){
+      codebook[ids,]
+    })
+
+    hc_imp<-lapply(seq_along(split_codebook),function(i){
+      code<-split_codebook[[i]]
+      variable_importance <- colSums(code)
+      res<-data.frame(sum_weight=variable_importance)
+      colnames(res)<-names(hc_ids)[i]
+      res
+    })
+    hcimp2<-do.call(cbind,hc_imp)
+    hc_imp_rel<-as.matrix(t(apply(hcimp2,1,function(x) x/sum(x))))
+    top_indicators <- apply(hc_imp_rel, 2, function(x) {
+      top_indices <- order(x, decreasing = TRUE)[1:n_top]
+      rownames(hc_imp_rel)[top_indices]
+    })
+    indicadores<-as.vector(unlist(top_indicators))
+    l_inds<-unique(indicadores)
+  } else if(var_pie_type=="top"){
+    hc_imp_rel<-as.matrix(t(apply(codebook,1,function(x) x/sum(x))))
+    pic<-order(colSums(hc_imp_rel),decreasing=T)[1:n_top]
+    l_inds<-colnames(hc_imp_rel)[pic]
+  } else if(var_pie_type=="top_w"){
+    pic<-order(colSums(codebook),decreasing=T)[1:n_top]
+    l_inds<-colnames(codebook)[pic]
+  }
+  attr(l_inds,"imp_results")<-hc_imp_rel
+  attr(l_inds,"imp_layer")<-layer
+  l_inds
+}
+add_codebook_pies<-function(p,m,hc=NULL,n=5,var_pie_type=c('top_hc','top','top_w','manual'),Y_palette="turbo", var_pie=F,newcolhabs=list(turbo=turbo),var_pie_transp=0.1, layer=1,pie_variables=1:2){
+  var_pie_type=match.arg(var_pie_type,c('top_hc','top','top_w','manual'))
+  if(isFALSE(var_pie)){
+    return(p)
+  }
+  if(var_pie_type=="manual"){
+    varY<-pie_variables
+  } else{
+    varY<-importance_codebook(m,hc,n,var_pie_type, layer)
+  }
+
+  c_code<-data.frame(do.call(cbind,m$codes))
+  colnames(c_code)<-as.character(unlist(sapply(m$codes,colnames)))
+  c_code<-c_code[,varY]
+
+  codes2<-data.frame(id=rownames(c_code),m$grid$pts,c_code)
+  df3<-reshape2::melt(codes2, c('id',"x","y"))
+  colY<-c(newcolhabs[[Y_palette]] (length(varY)))
+  colY<-lighten(colY,var_pie_transp)
+  df3$value2<-scales::rescale(df3$value,c(0,.45))
+  p2<-p +  geom_arc_bar(data=df3,aes(x0 = x, y0 = y, r0 = 0, r = value2, amount = value,fill = variable),stat = 'pie',linewidth=0, colour=NA )
+
+  p<-p2+
+    scale_fill_manual(name="Variables",values = colY ,drop=F)
+  attr(p,"imp_results")<-attr(varY,"imp_results")
+  attr(p,"imp_layer")<-attr(varY,"imp_layer")
+  attr(p,"imp_vars")<-varY
+  p
+}
 #' @export
-bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL) {
+bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,
+                   fill_neurons=F,
+                   border_width=0.5,
+                   var_pie=F,
+                   var_pie_type="top",
+                   var_pie_transp=0.1,
+                   n_var_pie=5,
+                   var_pie_layer=1,
+                   pie_variables=1:2){
 
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
@@ -532,8 +631,22 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
     show_error$err<-colnames(err)[3]
     show_error$hc<-rownames(show_error)
   }
-  p<-ggplot() +
-    geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border) +xlab("")+ylab("")
+  if(!is.null(background_type)){
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border,linewidth=border_width) +xlab("")+ylab("")
+  } else{
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu), col=border,linewidth=border_width,fill=bg_color) +xlab("")+ylab("")
+  }
+
+
+  if(is.null(background_type)){
+    p<-add_codebook_pies(p,m,hc=hc,n=n_var_pie,var_pie_type=var_pie_type,Y_palette=Y_palette, var_pie=var_pie,newcolhabs=newcolhabs,var_pie_transp=var_pie_transp,layer=var_pie_layer,pie_variables=pie_variables)
+  }
+
+  imp_results<-attr(p,"imp_results")
+  imp_layer<-attr(p,"imp_layer")
+  imp_vars<-attr(p,"imp_vars")
 
   if(!is.null(background_type)&!is.null(hc)&length(unique(df$group))!=1){
     if(background_type%in%"uMatrix"){
@@ -548,7 +661,8 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
     }
 
   } else{
-    p<-p+scale_fill_manual(name=leg_name,values=bg_color)+guides(fill="none")
+    if(isFALSE(var_pie))
+      p<-p+guides(fill="none")
   }
   if(isTRUE(plotY)){
     codes2<-cbind(m$codes[[2]])
@@ -623,16 +737,20 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
     )+theme(panel.background=element_blank())
   }
 
-  p+ggtitle(title)+
+  p<-p+ggtitle(title)+
     guides(color = guide_legend(order=1),
            size = guide_legend(order=2),
            shape = guide_legend(order=3))
 
-
+  attr(p,"imp_results")<-imp_results
+  attr(p,"imp_layer")<-imp_layer
+  attr(p,"imp_vars")<-imp_vars
+  p
 }
 #' @export
-bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL) {
 
+
+bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2) {
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
   }
@@ -661,28 +779,56 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
     show_error$err<-colnames(err)[3]
     show_error$hc<-rownames(show_error)
   }
-  p<-ggplot() +
-    geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border) +xlab("")+ylab("")
+
+  if(isFALSE(fill_neurons)){
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, col=group), fill='white',linewidth=border_width) +xlab("")+ylab("")
+  } else{
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border,linewidth=border_width) +xlab("")+ylab("")
+  }
 
 
-  p<-p+scale_fill_manual(name=paste0(leg_name,if(!is.null(show_error)){paste0("",colnames(err)[3])}),values=bg_color,labels=if( !is.null(show_error)){
-    c(show_error$id,
-      if(anyNA(df)){""})
-  } else{   levels(hc) })
 
+
+  if(isFALSE(fill_neurons)){
+    p<-p+scale_color_manual(name=leg_name,values=bg_color,labels=  levels(hc) )
+  } else{
+    p<-p+scale_fill_manual(name=paste0(leg_name,if(!is.null(show_error)){paste0("",colnames(err)[3])}),values=bg_color,labels=if( !is.null(show_error)){
+      c(show_error$id,
+        if(anyNA(df)){""})
+    } else{   levels(hc) })
+  }
+
+  p<-add_codebook_pies(p,m,hc=hc,n=n_var_pie,var_pie_type=var_pie_type,Y_palette=Y_palette, var_pie=var_pie,newcolhabs=newcolhabs,var_pie_transp=var_pie_transp,layer=var_pie_layer,pie_variables=pie_variables)
+  imp_results<-attr(p,"imp_results")
+  imp_layer<-attr(p,"imp_layer")
+  imp_vars<-attr(p,"imp_vars")
 
   if(!is.null(points_tomap)){
     if(isTRUE(points)){
       req(length(points_tomap)>0)
-      colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
+      if(isTRUE(fill_neurons)){
+        colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
+      } else{
+        colpoints<-newcolhabs[[points_palette]](1)
+      }
+
       namepoints<-attr(points_tomap,"namepoints")
       if(length(unique(colpoints))==1){
         points_tomap$point<-"Observations"
         namepoints=""
       }
 
-      p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)+
-        scale_color_manual(name=namepoints,values=colpoints)
+
+      if(isTRUE(fill_neurons)){
+        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)
+        p<-p+scale_color_manual(name=namepoints,values=colpoints)
+      } else{
+        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt), size=points_size+2, shape=pch, col=colpoints)
+      }
+
+
     }
 
     if(isTRUE(text)){
@@ -721,12 +867,17 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
     )+theme(panel.background=element_blank())
   }
 
-  p+ggtitle(title)+
+  p<-p+ggtitle(title)+
     guides(color = guide_legend(order=1),
            size = guide_legend(order=2),
            shape = guide_legend(order=3))
 
+  attr(p,"imp_results")<-imp_results
+  attr(p,"imp_layer")<-imp_layer
+  attr(p,"imp_vars")<-imp_vars
 
+
+  p
 }
 #' @export
 pclus_new<-function(m,somC,points,points_factor,points_size,points_palette,pch,text,text_factor,text_size,text_palette,bg_palette,newcolhabs,bgalpha,border,npic,indicate,cex.var,col.text,col.bg.var,col.bg.var.alpha,background_type=c("hc","property","uMatrix"), property=NULL) {

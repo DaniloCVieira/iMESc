@@ -29,7 +29,7 @@ module_compare$ui<-function(id){
                                 button_title = actionLink(ns('summ_down'),"+ Download table"),
 
                                 div(
-                                  pickerInput(ns("summ_pic"),"+ Show:" , choices=NULL),
+                                  pickerInput_fromtop(ns("summ_pic"),"+ Show:" , choices=NULL),
                                   numericInput(ns('round_summ'),"+ Round",3)
 
                                 ))
@@ -40,14 +40,14 @@ module_compare$ui<-function(id){
                                          title=strong("Plot options:"),
                                          div(
                                            div(
-                                             pickerInput(inputId = ns("shape"),
+                                             pickerInput_fromtop(inputId = ns("shape"),
                                                          label = ' + Shape:',
                                                          choices = NULL),
                                              numericInput(ns("point_size"),"+ Point size:", value=1),
                                              numericInput(ns("axis_size"),"+ Axis size:", value=1),
                                              numericInput(ns("label_size"),"+ Label size:", value=1),
                                              numericInput(ns("lwd_size"),"+ Line width:", value=1),
-                                             pickerInput(inputId = ns("palette"),
+                                             pickerInput_fromtop(inputId = ns("palette"),
                                                          label = "+ Palette",
                                                          choices =NULL),
                                              uiOutput(ns("comp_downplot"))
@@ -65,7 +65,7 @@ module_compare$ui<-function(id){
                              div(id=ns("page1"),
                                  div(
                                    h5(strong("1. Select the Datalist")),
-                                   pickerInput(ns("data_comp"),NULL,choices=NULL)),
+                                   pickerInput_fromtop(ns("data_comp"),NULL,choices=NULL)),
                                  uiOutput(ns("data_comp_out"))
                              )),
                     tabPanel('tab2',value=2,
@@ -529,13 +529,13 @@ module_compare$server<-function (id,vals,df_colors,newcolhabs,df_symbol){
           inline(
             div(style="max-width: 200px; min-width: 50px",
                 div("X"),
-                div(pickerInput(ns("model_X"),NULL, choices=names(vals$modellist)))
+                div(pickerInput_fromtop(ns("model_X"),NULL, choices=names(vals$modellist)))
             )
           ),
           inline(
             div(style="max-width: 200px; min-width: 50px",
                 div("Y"),
-                div(pickerInput(ns("model_Y"),NULL, choices=names(vals$modellist)))
+                div(pickerInput_fromtop(ns("model_Y"),NULL, choices=names(vals$modellist)))
             )
           )
         ),

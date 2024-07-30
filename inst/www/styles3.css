@@ -1,4 +1,19 @@
+observeEvent(
+      list(input$shp_feature1,input$shp_feature2),{
+        req(input$shp_feature1)
+        shp<-shape1_raw()
 
+      if(input$shp_feature1!="None"){
+        req(input$shp_feature1%in%names(shp))
+        rows=shp[[input$shp_feature1]]
+        req(input$shp_feature2%in%rows)
+        shp$shape[rows==input$shp_feature2]<-"selected"
+      }  else{
+        shp$shape<-"selected"
+      }
+        shape1_raw(shp)
+
+    })
 
 
 .setup_box {min-height: 30px;align-items: flex-end;margin-top:2px;position: relative;box-sizing: border-box}

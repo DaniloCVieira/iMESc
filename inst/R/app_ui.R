@@ -164,7 +164,8 @@ div(
                         title=NULL,
                         tabItems(
                           tabItem(tabName = "menu_intro",
-                                  column(12,uiOutput("menu_intro_out"))),
+                                  column(12,uiOutput("menu_intro_out")
+                                         )),
                           tabItem(tabName = "menu_upload",
                                   column(12,
                                          div(

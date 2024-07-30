@@ -1,7 +1,8 @@
 #' @export
+
 ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
                 cex.main=1,xlab=colnames(res)[1],ylab=colnames(res)[2],main="",
-                box_linecol="firebrick",box_alpha=0.7,newcolhabs,cex.label_panel=10,varwidth=F, linewidth=.8, theme='theme_bw', grid=T, background="white",xlab_rotate=0,ylab_rotate=0,nrow=NULL,ncol=2,box_title_font="italic"){
+                box_linecol="firebrick",box_alpha=0.7,newcolhabs,cex.label_panel=10,varwidth=F, linewidth=.8, theme='theme_bw', grid=T, background="white",xlab_rotate=0,ylab_rotate=0,nrow=NULL,ncol=2,box_title_font="italic",subtitle=NULL,cex.subtitle=10,              box_subtitle_font="plain") {
   wrap=F
   if(is.na(nrow)){
     nrow=NULL
@@ -31,6 +32,8 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
     p<-p+stat_boxplot(geom='errorbar', linetype=1, width=0.3,color=coline)+
       geom_boxplot(fill="white")+  geom_boxplot(varwidth =varwidth,size=linewidth,color=coline)
   }
+  p<-p+
+    scale_fill_manual(values=cols)
 
 
 
@@ -51,9 +54,8 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
   }
   #theme(panel.background=element_rect(fill=NA, color=background))
 
-  p<-p+
-    scale_fill_manual(values=cols) +
-    ggtitle(main) +
+  p<-p +
+    ggtitle(main,subtitle=subtitle) +
     xlab(xlab)+ylab(ylab)+ theme(
       legend.position="none",
 
@@ -63,6 +65,7 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
       axis.text=element_text(size=cex.axes),
       axis.title=element_text(size=cex.lab),
       plot.title=element_text(size=cex.main,face=box_title_font),
+      plot.subtitle=element_text(size=cex.subtitle,face=box_subtitle_font),
       axis.text.x = element_text(angle = xlab_rotate,vjust = .5, hjust = .5),
       axis.text.y = element_text(angle = ylab_rotate,vjust = .5, hjust = .5)
 
@@ -72,6 +75,8 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
     p<-p+coord_flip()
 
   }
+  p<-p+
+    scale_y_continuous(labels = scales::label_number(big.mark = ",", decimal.mark = "."))
 
   if(isTRUE(wrap)){
 
@@ -255,7 +260,7 @@ mergedatacol<-function(datalist,rm_dup=T){
 
     newdata<-data_migrate(to_merge[[mx]],newdata,"")
     attr(newdata, "transf")=NULL
-    attr(newdata,"factors")<-newfac[rownames(newdata),]
+    attr(newdata,"factors")<-newfac[rownames(newdata),,drop=F]
     newdata
   }
 }

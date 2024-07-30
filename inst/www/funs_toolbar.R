@@ -403,6 +403,59 @@ basic_summary<-function(data){
 
   )
 }
+
+confirm_modal<-function(ns=ns("id"),action="",data1=NULL,data2=NULL,left="Old:",right="New:",from="",to="",div_left=T,div_right=T,div1_post="",arrow=T,print=NULL){
+  showModal(
+    modalDialog(
+      title=NULL,
+      footer=div(
+
+        modalButton("Cancel"),
+        actionButton(ns("confirm"),"Confirm")
+      ),
+      easyClose = T,
+      div(style="overflow-x:hidden; overflow-y:auto; max-height: 600px",
+          div(action,style="margin-bottom: 15px"),
+          get_basic_compare(data1=data1,data2=data2,left=left,right=right,from=from,to=to,div_left=div_left,div_right,div1_post=div1_post,arrow=arrow),
+          if(!is.null(print))
+            renderPrint(print)
+
+      )
+
+    )
+  )
+}
+get_basic_compare<-function(data1=NULL,data2=NULL,left="New:",right="Old:",from="",to="",div_left=T,div_right=T,div1_post=NULL,arrow=T){
+  d1<-div()
+  d2<-div()
+  d3<-div()
+  if(isTRUE(div_left)){
+    d1<-div(style="background: #FFF0F5",
+            div(span(embrown(strong(left)),from)),
+            if(!is.null(data1))
+              basic_summary2(data1))
+  } else{
+    d1<-div_left
+  }
+  if(isTRUE(div_right)){
+    d2<-div( icon("arrow-right", style = "color: #007bff; font-size: 24px;padding-left: 10px; padding-right: 10px"))
+    if(isFALSE(arrow)){
+      d2<-NULL
+    }
+    d3<-div(
+      style="background: #F0FFF0",
+      div(span(strong(right,style="color: #007bff"),to)),
+      if(!is.null(data2))
+        basic_summary2(data2))
+  }
+
+  div(style="display: flex",
+      div(d1,div1_post),
+      d2,
+      d3
+
+  )
+}
 basic_summary2<-function(data, style_numeric="",style_factor="",style_coords="", name=NULL,missing_name='Missing Values:'){
 
   if(is.null(data)){return(NULL)}
@@ -413,6 +466,13 @@ basic_summary2<-function(data, style_numeric="",style_factor="",style_coords="",
       name<-"Numeric-Attribute:"
     }
   }
+  name_datalist<-NULL
+  value_name_datalist<-attr(data,"datalist")
+  if(!is.null(value_name_datalist)){
+    name_datalist<-"Datalist name"
+  }
+
+
 
   shapes<-c()
   name_shapes<-name_fac<-name_coords<-NULL
@@ -443,69 +503,23 @@ basic_summary2<-function(data, style_numeric="",style_factor="",style_coords="",
   }
 
   div(style="font-size: 11px; margin-top: 10px;display: flex",
-         div(div(name,style=style_numeric),
-             div(missing_name),
-             div(name_fac),
-             div(name_coords),
-             div(name_shapes)
-             ),
-         div(style="padding-left: 5px",
-             div(emgreen(paste0(dim(data),collapse=" x ")),style=style_numeric),
-             div(emgreen(sum(is.na(data)))),
-             div(emgreen(dim_fac)),
-             div(emgreen(dim_coords)),
-             div(emgreen(shapes))
-
-         )
-
-  )
-}
-confirm_modal<-function(ns=ns("id"),action="",data1=NULL,data2=NULL,left="Old:",right="New:",from="",to="",div_left=T,div_right=T,div1_post="",arrow=T){
-  showModal(
-    modalDialog(
-      title=NULL,
-      footer=div(
-
-        modalButton("Cancel"),
-        actionButton(ns("confirm"),"Confirm")
+      div(
+        div(name_datalist),
+        div(name,style=style_numeric),
+        div(missing_name),
+        div(name_fac),
+        div(name_coords),
+        div(name_shapes)
       ),
-      easyClose = T,
-      div(style="overflow-x:hidden; overflow-y:auto; max-height: 300px",
-        div(action,style="margin-bottom: 15px"),
-        get_basic_compare(data1=data1,data2=data2,left=left,right=right,from=from,to=to,div_left=div_left,div_right,div1_post=div1_post,arrow=arrow)
+      div(style="padding-left: 5px",
+          div(value_name_datalist),
+          div(emgreen(paste0(dim(data),collapse=" x ")),style=style_numeric),
+          div(emgreen(sum(is.na(data)))),
+          div(emgreen(dim_fac)),
+          div(emgreen(dim_coords)),
+          div(emgreen(shapes))
+
       )
-
-    )
-  )
-}
-get_basic_compare<-function(data1=NULL,data2=NULL,left="New:",right="Old:",from="",to="",div_left=T,div_right=T,div1_post=NULL,arrow=T){
-  d1<-div()
-  d2<-div()
-  d3<-div()
-  if(isTRUE(div_left)){
-    d1<-div(style="background: #FFF0F5",
-        div(span(embrown(strong(left)),from)),
-        if(!is.null(data1))
-          basic_summary2(data1))
-  } else{
-    d1<-div_left
-  }
-  if(isTRUE(div_right)){
-    d2<-div( icon("arrow-right", style = "color: #007bff; font-size: 24px;padding-left: 10px; padding-right: 10px"))
-    if(isFALSE(arrow)){
-      d2<-NULL
-    }
-    d3<-div(
-      style="background: #F0FFF0",
-      div(span(strong(right,style="color: #007bff"),to)),
-      if(!is.null(data2))
-        basic_summary2(data2))
-  }
-
-  div(style="display: flex",
-              div(d1,div1_post),
-              d2,
-              d3
 
   )
 }

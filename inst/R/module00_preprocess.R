@@ -6732,9 +6732,9 @@ pre_process$server<-function(id, vals){
     })
     observeEvent(new_datalist_name(),{
       if(r_action()%in%"datalist"){
-        attr(vals$tosave,"new_datalist")<-new_datalist_name()
+       # attr(vals$tosave,"new_datalist")<-new_datalist_name()
       } else{
-        attr(vals$tosave,"new_datalist")<-attr(vals$pp_data,'datalist_root')
+       # attr(vals$tosave,"new_datalist")<-attr(vals$pp_data,'datalist_root')
       }
     })
 

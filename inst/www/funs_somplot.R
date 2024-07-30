@@ -4,7 +4,7 @@ pickerInput_fromtop<-function(inputId, label = NULL, choices, selected = NULL, m
 
 
 
-  pickerInput(inputId, label = label, choices, selected = selected, multiple = multiple,options = options, choicesOpt = choicesOpt, width = width, inline = inline,stateInput = stateInput, autocomplete = autocomplete)
+  shinyWidgets::pickerInput(inputId, label = label, choices, selected = selected, multiple = multiple,options = options, choicesOpt = choicesOpt, width = width, inline = inline)
 }
 
 #' @export

@@ -1579,7 +1579,6 @@ tool2_tab7$server<-function(id,vals){
 
   })
 }
-
 tool2_tab8<-list()
 tool2_tab8$ui<-function(id){
   ns<-NS(id)
@@ -1601,34 +1600,40 @@ tool2_tab8$ui<-function(id){
             "View and download",value="tab_view",
             div(
               div(style="max-width: 400px",em(icon("fas fa-lightbulb"),"Optimize your datalist creation speed by downloading shapes as an .rds file. This file format loads quickly and avoids the need to create the shape from scratch each time you need it.")),
-              column(12,class="mp0",
-                     column(4,class='mp0',
+              column(
+                12,class="mp0",
+                column(
+                  4,class='mp0',
 
-                            box_caret(
-                              ns('box_shp_tab1_1'),
-                              title="Options",
-                              color="#c3cc74ff",
-                              uiOutput(ns("shp_data_view_down")),
-                              pickerInput_fromtop(ns("shp_attr_view_down"),
-                                                  "2. Select the Attribute:",
-                                                  choices=list("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
-                              )
+                  box_caret(
+                    ns('box_shp_tab1_1'),
+                    title="Options",
+                    color="#c3cc74ff",
+                    uiOutput(ns("shp_data_view_down")),
+                    pickerInput_fromtop(
+                      ns("shp_attr_view_down"),
+                      "2. Select the Attribute:",
+                      choices=list("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
 
-                            )
-                     ),
-                     column(
-                       8,class="mp0",
-                       box_caret(
-                         ns('box_shp_tab1_2'),
-                         title="Plot",
-                         button_title = downloadLink(ns("download_shape"),"Download",icon("download")),
-                         div(
+                    )
 
-                           uiOutput(ns("shape_view"))
+                  )
 
-                         )
-                       )
-                     ))
+                ),
+                column(
+                  8,class="mp0",
+                  box_caret(
+                    ns('box_shp_tab1_2'),
+                    title="Plot",
+                    button_title = downloadLink(ns("download_shape"),"Download",icon("download")),
+                    div(
+
+                      uiOutput(ns("shape_view"))
+
+                    )
+                  )
+                )
+              )
             )
           ),
           tabPanel(
@@ -1638,86 +1643,156 @@ tool2_tab8$ui<-function(id){
                         font-weight: bold
                         }
                         .inline_pickers .large-input .form-control {
-                        height: 60px;
+                        height: 30px;
                         }
                         .inline_pickers .large-input >div  {
                         display: block;
+                        width: 180px;
+
 
                         padding: 0px;
                         margin: 0px;
                         margin-top: -20px;
-                        margin-bottom: -10px
+                        margin-bottom: -10px;
+                        margin-left: 10px
 
                         }
                         ")),
 
-            div(class="shp_box",
+            div(
+
+              class="shp_box",style="overflow-y: auto;margin-left: -10px",
+              column(
+                12,class="mp0",
                 column(
-                  4,class='mp0',
+                  4,class="mp0",
                   box_caret(
                     ns("box_shp1"),
-                    title="Setup",
+                    title="1. Targets & Upload",
+                    button_title = actionLink(ns('reset'),"reset",icon('undo')),
                     color="#c3cc74ff",
                     div(
+                      style="height: 135px",
+                      column(
+                        12,class="mp0",
+                        column(10,class="mp0",pickerInput_fromtop(
+                          ns("shp_include"),
+                          "Target-Attribute:",
+                          c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
 
-                      div(align="right",
-                          actionLink(ns('reset'),"reset",icon('undo'))),
-                      div(
-
-                        uiOutput(ns("out_shp_datalist")),
-                        column(
-                          12,class="mp0",
-                          column(10,class="mp0",pickerInput_fromtop(
-                            ns("shp_include"),
-                            "2. Target Attribute:",
-                            c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
-                          )),
-                          column(2,class="mp0",div(style="margin-top: 8px; margin-left: -10px",actionButton(ns("trash_open"),icon('trash'))))
-                        ),
-                        div(
-                          style="padding-left: 15px",
-                          textInput(ns("extra_layer_newname"), "Extra-Layer name:",NULL)
-                        )
+                        )),
+                        column(2,align="right",class="mp0",div(style="margin-top: 8px; ",tipify(actionLink(ns("trash_open"),icon('trash')),"Remove Current Shape-Attribute")))
 
                       ),
+                      uiOutput(ns("out_shp_datalist")),
 
                       div(
-
-                        div(
-                          tags$label( "3. Upload the shapefiles at once:",actionLink(ns("shp_help"),icon("fas fa-question-circle"))),
+                        style="padding-left: 15px",
+                        textInput(ns("extra_layer_newname"), "Extra-Layer name:",NULL)
+                      ),
+                      div(style="display: flex;margin-top: 2px",
+                          tags$label("Shape Files:",tipright(actionLink(ns("shp_help"),icon("fas fa-question-circle")),"Upload the shapefiles at once")),
                           div(class="large-input",fileInput(inputId = ns("shp"),"", multiple = TRUE, accept = c('.shp', '.dbf','.sbn', '.sbx', '.shx', '.prj'))),
-                          div(
-                            class="save_changes",id=ns('read_shp_btn'),style='display: none',
-                            span(tags$label("4. Click to read the shapes"),icon("fas fa-hand-point-right"),actionButton(ns('read_shp'),"Read",style="height: 24px;width: 50px; padding: 3px"))
-                          )
-                        ),
-
-                        div(class="half-drop half-drop-inline",
-                            numericInput(ns("st_simplify"),span("Simplify",tipright('Specify a tolerance (in meters) to simplify geometries for faster visualization')),value=NA,step=0.01),
-                            uiOutput(ns('filter_features'))
-
-                        )
-
 
                       )
-
-
 
                     )
                   )
                 ),
                 column(
-                  8,class='mp0',
+                  8,class="mp0",
                   box_caret(
-                    ns("box_shp2"),
-                    title="Shape",
-                    div(
-                      uiOutput(ns("plot_layers")),
-                      uiOutput(ns('shp_out'))
-                    )
+                    ns('box_cur_shapes'),
+                    title="Saved Shapes",
+
+                    div(uiOutput(ns("cur_shape_plot")))
                   )
                 )
-            ))
+              ),
+              tags$style(HTML(".box_title .read_shp .btn, .box_title .read_shp .btn .btn-default {font-size: 13px; width: 80px;color: #333; font-style: italic}
+                              .box_title .read_shp_save .btn {width: 30px;}
+                              .box_title .read_shp_save i ,
+                              .box_title .read_shp i{
+                              font-size:14px
+                              }
+                              ")),
+              column(
+
+                12,class="mp0",
+                column(
+                  7,class="mp0",
+                  id=ns("filter_crop"),style="display: none",
+                  box_caret(
+                    ns("box_shp2"),
+                    title=div(class="read_shp",style='display: inline-block',"2. Filter & Crop",
+                              div(
+                                id=ns('read_shp_btn'),
+                                class="save_changes",
+                                style='display: inline-block',
+                                icon("fas fa-hand-point-right"),
+                                span(bsButton(ns('read_shp'),"Read shapes"))
+                              )
+
+                    ),
+                    color="#c3cc74ff",
+
+                    fluidRow(column(
+                      4,class="mp0",
+
+                      div(
+                        numericInput(ns("st_simplify"),span("Simplify:",tipright('Specify a tolerance (in meters) to simplify geometries for faster visualization')),value=NA,step=0.01),
+                        uiOutput(ns('filter_features')),
+                        pickerInput(
+                          ns("crop_shapes"),
+                          span("Crop to:",tipright("<p>Select the shape to crop the area of the new shape.</p><p>If custom is selected, the area will be cropped according to the area of the plot being displayed. Use Plotly interactive features to zoom and specify the crop area precisely.</p>")
+
+                          ),
+                          choices=NULL)
+
+                      )
+
+                    ),
+                    column(
+                      8,class="mp0",
+                      style="overflow-y: auto;max-height:45vh ",
+                      pickerInput_fromtop(ns("show_layers"),"Show:",choices=c("base_shape","layer_shape","extra_shape"),multiple = T),
+                      uiOutput(ns('shp_out'))
+
+                    ))
+                  )
+                ),
+                column(
+                  5,class="mp0",
+                  id=ns("create_save"),style="display: none",
+                  box_caret(
+                    ns('box_final_shapes'),
+                    title=div(class="read_shp",
+                              style='display: inline-block',
+                              "3. Create & Save:",
+                              div(
+                                id=ns('prepare_btn'),
+                                class="save_changes",
+                                style='display: inline-block',
+                                icon("fas fa-hand-point-right"),
+                                span(bsButton(ns('prepare'),"Create",icon("fas fa-map")))
+                              ),
+                              div(
+                                id=ns("add_shape_btn"),
+                                class='save_changes read_shp_save',
+
+                                style="display: inline-block; position: absolute; right: 5px",
+                                bsButton(ns("add_shape"),icon("fas fa-save"), style='width: 50px')
+                              )
+
+                    ),
+
+                    div(uiOutput(ns("final_shape_plot")))
+                  )
+                )
+              )
+
+            )
+          )
         ))
 
 
@@ -1726,7 +1801,6 @@ tool2_tab8$ui<-function(id){
 tool2_tab8$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     ns<-session$ns
-
 
     observeEvent(input$exit_tool8,{
       vals$exit_tool8<-input$exit_tool8
@@ -1741,6 +1815,14 @@ tool2_tab8$server<-function(id,vals){
     shape2_prep<-reactiveVal(NULL)
     shape3_filtered<-reactiveVal(NULL)
     shape4_final<-reactiveVal(NULL)
+    observe({
+      shinyjs::toggle('add_shape',condition=!is.null(shape4_final()))
+    })
+
+    observe({
+      shinyjs::toggle('prepare_btn',condition=!is.null(shape2_prep()))
+    })
+
 
     observe({
       shinyjs::toggle("st_simplify",condition=!is.null(shape1_raw()))
@@ -1759,9 +1841,13 @@ tool2_tab8$server<-function(id,vals){
       shape4_final(NULL)
       plot_step1(NULL)
       plot1_prepare(NULL)
+      vals$shp_show_layers<-input$shp_include
       shinyjs::reset('shp')
       shinyjs::hide('read_shp_btn')
+      shinyjs::hide('crop_shapes')
+
     })
+
     observeEvent(shp_start(),{
       shp_step(0)
       shape1_raw(NULL)
@@ -1770,9 +1856,17 @@ tool2_tab8$server<-function(id,vals){
       shape4_final(NULL)
       plot1_prepare(NULL)
       plot_step1(NULL)
-
+      vals$shp_show_layers<-input$shp_include
       shinyjs::addClass('read_shp_btn',"save_changes")
+      shinyjs::hide('crop_shapes')
     })
+
+    observe({
+      shinyjs::toggle('read_shp_btn',condition=length(input$shp)>0)
+    })
+
+
+
     observeEvent(input$shp,ignoreInit = T,{
       shinyjs::show('read_shp_btn')
       shinyjs::addClass('read_shp_btn',"save_changes")
@@ -1780,6 +1874,8 @@ tool2_tab8$server<-function(id,vals){
     shp_files<-reactiveVal()
     observeEvent(input$shp,ignoreInit = T,{
       sf<-Read_Shapefile(input$shp)
+      shinyjs::show('filter_crop')
+      shinyjs::addClass('prepare_btn',"save_changes")
       shp_files(sf)
       updateNumericInput(session,'st_simplify',value= as.numeric(round(get_tolerance(sf),3)))
     })
@@ -1791,7 +1887,7 @@ tool2_tab8$server<-function(id,vals){
       }
     })
     observeEvent(input$read_shp,ignoreInit = T,{
-
+      shinyjs::show('crop_shapes')
       req(shp_files())
       user_shp<-shp_files()
       user_shp<-st_transform(user_shp,"+proj=longlat +datum=WGS84 +no_defs")
@@ -1811,11 +1907,15 @@ tool2_tab8$server<-function(id,vals){
 
       shinyjs::toggle("feature2",condition = input$shp_feature1!="None")
     })
+
+    observe({
+      shinyjs::toggle('create_save', condition = !is.null(shape2_prep()))
+    })
+
     #step2
     observeEvent(input$prepare,ignoreInit = T,{
 
 
-      #saveRDS(reactiveValuesToList(vals),"vals.rds")
 
       bacias<-    shape1_raw()
       req(bacias)
@@ -1849,26 +1949,20 @@ tool2_tab8$server<-function(id,vals){
 
       shape4_final(new_shape)
       shinyjs::show('add_shape_btn_out')
+      shinyjs::addClass("add_shape_btn","save_changes")
 
     })
     #step3
+
+    #
     output$shp_out<-renderUI({
+      req(!is.null(shape2_prep()))
       div(
         div(style="display: flex",
-            uiOutput(ns("cur_shape_plot")),
+
             uiOutput(ns('shp_warning'))
         ),
-        fluidRow(
-          column(
-            12,class="mp0",
-            column(6,class="mp0",
-                   plotly::plotlyOutput(ns("full_shape_plot"),height = "300px")
-            ),
-            column(6,class="mp0",
-                   uiOutput(ns("final_shape_plot"))
-            )
-          )
-        )
+        plotly::plotlyOutput(ns("full_shape_plot"),height = "300px")
 
       )
     })
@@ -1890,32 +1984,19 @@ tool2_tab8$server<-function(id,vals){
       req(!is.null(shape4_final()))
       disabled=F
       class="save_changes"
-      tip<-"Click to add the Shape into the selected Datalist"
+
       cond<-!nrow(shape4_final())>0
       if(cond){
         disabled=T
         class="div"
         tip="No features remain in the New Shape"
       }
-      div(
 
-        div(
-          id=ns("add_shape_btn"),
-          class=class,
-          style="display: flex",
-          tags$label(paste0("8. Save the ",title_shape(),": "),style="margin-right: 5px"),
-          tipify(bsButton(ns("add_shape"),icon("fas fa-save"), style='button_active',disabled=disabled),tip,"right")
-        ),
-        if(!disabled){
-          tipify(actionLink(ns("save_feature"),"Download",icon =icon('download')),"Save shape as a single object. This file can be uploaded when creating a Datalist as base_shape or layer_shape.","right")}
-
-
-      )
     })
     output$feature1<-renderUI({
       atributos_shp<-attributes(shape1_raw())$names
       atributos_shp<-atributos_shp[!atributos_shp%in%"geometry"]
-      pickerInput_fromtop(ns('shp_feature1'),"5. Filter the features:",choices=c("None",atributos_shp))
+      pickerInput_fromtop(ns('shp_feature1'),"Filter by:",choices=c("None",atributos_shp))
     })
     output$feature2<-renderUI({
       req(shape1_raw())
@@ -1946,6 +2027,9 @@ tool2_tab8$server<-function(id,vals){
 
 
     })
+
+
+
     observeEvent(input$crop_shapes,ignoreInit = T,{
       if ("Custom" %in% input$crop_shapes) {
         updatePickerInput(
@@ -1960,19 +2044,8 @@ tool2_tab8$server<-function(id,vals){
       req(!is.null(shape1_raw()))
       div(
         uiOutput(ns('feature1')),
-        uiOutput(ns('feature2')),
-        uiOutput(ns('crop_feature')),
-        div(
-          div(
-            class="save_changes",
-            style="margin-bottom: 10px;margin-top: 10px",
-            id=ns('prepare_btn'),
-            tags$label("7. Prepare Shape:"),
-            actionButton(ns('prepare'),icon(verify_fa = FALSE,name=NULL,class="fas fa-map"),icon(verify_fa = FALSE,name=NULL,class="fas fa-arrow-circle-right"))
-          )
+        uiOutput(ns('feature2'))
 
-        ),
-        uiOutput(ns('add_shape_btn_out'))
 
 
 
@@ -2056,7 +2129,7 @@ tool2_tab8$server<-function(id,vals){
 
       #shape1_raw()
 
-      #saveRDS(reactiveValuesToList(vals),'vals.rds')
+
     })
     observeEvent(input$confirm,ignoreInit = T,{
       removeModal()
@@ -2067,18 +2140,35 @@ tool2_tab8$server<-function(id,vals){
       confirm_shp(F)
       shape<-shape4_final()
       req(shape)
-      res<-switch(input$shp_include,
-                  "base_shape"={attr(vals$saved_data[[input$shp_datalist]],"base_shape")<-shape},
-                  "layer_shape"={attr(vals$saved_data[[input$shp_datalist]],"layer_shape")<-shape},
-                  'extra_shape'={
-                    attr(vals$saved_data[[input$shp_datalist]],"extra_shape")[[input$extra_layer_newname]]<-shape
-                  }
+      res<-switch(
+        input$shp_include,
+        "base_shape"={
+          attr(vals$saved_data[[input$shp_datalist]],"base_shape")<-shape
+        },
+        "layer_shape"={
+          attr(vals$saved_data[[input$shp_datalist]],"layer_shape")<-shape
+        },
+        'extra_shape'={
+          extra_names<-make.unique(c(
+            names(attr(vals$saved_data[[input$shp_datalist]],"extra_shape")),input$extra_layer_newname
+          ))
+
+
+          attr(vals$saved_data[[input$shp_datalist]],"extra_shape")[[ extra_names[length(extra_names)]]]<-shape
+        }
+
       )
+
       shinyjs::reset("shp")
+      shape1_raw(NULL)
       shape2_prep(NULL)
       shape3_filtered(NULL)
       shape4_final(NULL)
+      shinyjs::hide('crop_shapes')
       shinyjs::removeClass("add_shape_btn","save_changes")
+      shinyjs::hide('read_shp_btn')
+      shinyjs::hide('filter_crop')
+
     })
     observeEvent(input$shp_help,{
       showModal(
@@ -2094,36 +2184,37 @@ tool2_tab8$server<-function(id,vals){
       req(input$shp_datalist%in%names(vals$saved_data))
       vals$saved_data[[input$shp_datalist]]
     })
-    observeEvent(data_shp(),ignoreInit = T,{
-      data<-data_shp()
-      base_shape<-attr(data,"base_shape")
-      layer_shape<-attr(data,"layer_shape")
-      shapes<-c(base_shape,layer_shape)
-      if(length(shapes)==0){
-        updatePickerInput(session,"shp_include",selected="base_shape")
-      }
-      if(length(shapes)==2){
-        updatePickerInput(session,"shp_include",selected="extra_shape")
-        return(NULL)
-      }
-      if(!is.null(base_shape)&is.null(layer_shape)){
-        updatePickerInput(session,"shp_include",selected="layer_shape")
 
-      } else if(is.null(base_shape)&!is.null(layer_shape)){
-        updatePickerInput(session,"shp_include",selected="base_shape")
-      }
+    get_new_shape_attr<-reactive({
 
 
+      shape_list<-shape_list()
+      shp_names<-names(shape_list)[sapply(shape_list,length)>0]
+
+      if(!length(shp_names)>0){
+        return('base_shape')
+      }
+
+      new="base_shape"
+      if(length(shp_names)>0){
+        if(!"base_shape"%in%shp_names){
+          new="base_shape"
+
+        }
+        if(!"layer_shape"%in%shp_names){
+          new="layer_shape"
+
+        }
+        if(all(c('base_shape',"layer_shape")%in%shp_names)){
+          new="extra_shape"
+
+        }
+      }
+      new
     })
-    layers_choices2<-reactive({
-      base_shape<-attr(data_shp(),"base_shape")
-      layer_shape<-attr(data_shp(),"layer_shape")
-      eshape<-attr(data_shp(),"extra_shape")
 
-      pic<-which(unlist(lapply(list(base_shape,layer_shape),function(x)length(x)>0)))
-      choices=c(c("Base Shape","Layer Shape"),names(eshape))
-      choices
-    })
+
+
     bag_extralayer<-reactive({
       name0<-'Extra-Layer'
       new<-make.unique(c(names(attr(data_shp(),"extra_shape")),name0))
@@ -2174,12 +2265,17 @@ tool2_tab8$server<-function(id,vals){
     })
 
     observe({
-      shinyjs::toggle('plot_layers',condition=!is.null(shape2_prep()))
+      shinyjs::toggle('show_layers',condition=!is.null(shape2_prep()))
+      shinyjs::toggle('crop_shapes',condition=!is.null(shape2_prep()))
     })
-    output$plot_layers<-renderUI({
-      #input<-list()
-      req(input$shp_include)
-      #input$shp_include="extra_shape"
+
+
+    observe({
+      choices=c(names(current_shapes_list()),"Custom")
+      updatePickerInput(session,'crop_shapes',choices=choices,selected=choices[1])
+    })
+
+    choices_layers<-reactive({
       choices<-c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
       names(choices)<-choices
       choices<-choices[sapply(choices,function(x) length(attr(data_shp(),x))>0)]
@@ -2189,14 +2285,21 @@ tool2_tab8$server<-function(id,vals){
       include<-which(choices%in%input$shp_include)
       names(choices)[include]<-paste0("New:",names(choices)[include])
       choices<-c(choices[include],choices[-include])
-      selected=choices[1]
-
-      div(
-        checkboxGroupInput(ns("show_layers"),"Show:",choices,
-                           inline =T,
-                           selected=selected)
-      )
     })
+
+    observe({
+      updatePickerInput(session,'show_layers',
+                        choices=choices_layers(),
+                        selected=input$shp_include)
+    })
+
+
+    observeEvent(input$shp_include,{
+      updatePickerInput(session,'show_layers',selected=input$shp_include)
+    })
+
+
+
     output$shape_view<-renderUI({
       req(input$shp_data_view_down)
       req(input$shp_attr_view_down)
@@ -2210,7 +2313,7 @@ tool2_tab8$server<-function(id,vals){
       choices=names(vals$saved_data)
       req(length(choices)>0)
       selected=get_selected_from_choices(vals$cur_data,choices)
-      pickerInput_fromtop(ns("shp_datalist"),"1. Target Datalist:",choices=choices,selected=selected)
+      pickerInput_fromtop(ns("shp_datalist"),"Target Datalist:",choices=choices,selected=selected)
     })
     observeEvent(input$shp_datalist,ignoreInit = T,{
       vals$cur_data<-input$shp_datalist
@@ -2227,29 +2330,37 @@ tool2_tab8$server<-function(id,vals){
     # choices<-layers_choices2()
     plot_shape<-function(nw_shp){
       req(!is.null(nw_shp))
-
-      fill=if(length(unique(nw_shp$shape))==1){
-        p<-ggplot(st_as_sf(nw_shp))+ geom_sf(fill="gray")+theme_void()
-      } else{
-        p<-ggplot(st_as_sf(nw_shp))+ geom_sf(aes(fill=shape))+theme_void()
-      }
-
+      req(inherits(nw_shp,"sf"))
+      p<-ggplot(st_as_sf(nw_shp))+ geom_sf(fill="gray")+theme_void()
       p
+
     }
+
+    shape_list<-reactive({
+      data<-data_shp()
+      base_shape<-attr(data,"base_shape")
+      layer_shape<-attr(data,"layer_shape")
+      extra_shape<-attr(data,"extra_shape")
+      shape_list<-c(list(base_shape=base_shape,layer_shape=layer_shape),extra_shape)
+      shape_list
+    })
+
     output$cur_shape_plot<-renderUI({
       req(input$shp_include)
-      shp<-attr(data_shp(),input$shp_include)
-      req(shp)
-      shp<-st_as_sf(shp)
-
-      shp$shape<-"current"
+      shpl<-shape_list()
+      shpl<-shpl[sapply(shpl,length)>0]
 
       div(class="plot200 shp_p0",
-          strong("Current",title_shape()),
-          renderPlot(
-            plot_shape(shp),height= 100,width=100,
-          )
-      )
+          strong("Shapes saved in ",input$shp_datalist,":"),
+          div(style="display: flex",
+              lapply(names(shpl),function(name){
+                div(em(name),
+                    renderPlot(
+                      plot_shape(shpl[[name]]),height= 100,width=100,
+                    )
+                )
+              })
+          ))
     })
     plot_shp_function<-function(shp,data,shp_include,show_shapes=c("base_shape","layer_shape","extra_shape")){
 
@@ -2325,23 +2436,54 @@ tool2_tab8$server<-function(id,vals){
     once<-reactiveVal(F)
     plot1_prepare<-reactiveVal()
     observe({
+      shp<-shape1_raw()
+      req(shp)
+      req(shape2_prep())
       req(input$st_simplify)
       req(!is.na(input$st_simplify))
       data<-data_shp()
       req(data)
-      shp<-shape1_raw()
+
       if(length(shp_rows())<nrow(shp)){
         shp<-shp[shp_rows(),,drop=F]
       }
-      req(shp)
+
 
 
       shp<-st_simplify(shp, dTolerance = input$st_simplify)
       args<-list(shp=shp,data=data, shp_include=input$shp_include, show_shapes=input$show_layers)
 
 
+
+
       p<-do.call(plot_shp_function,args)
+
       plot1_prepare(p)
+    })
+    get_shp_limits<-function(shape_list){
+
+      res<-lapply(names(shape_list), function(i){
+        x<-shape_list[[i]]
+        res<-data.frame(as.list(st_bbox(x)))
+        rownames(res)<-i
+        res
+      })
+      do.call(rbind,res)
+
+    }
+
+    get_limits_shapes<-reactive({
+      shape_list<-current_shapes_list()
+      res<-get_shp_limits(shape_list)
+      shp1_cutted<-shape3_filtered()
+      if(is.null(shp1_cutted)){
+        shp1_cutted<-shape2_prep()
+      }
+      req(shp1_cutted)
+      new_shape_limts<-data.frame(as.list(st_bbox(shp1_cutted)))
+      rownames(new_shape_limts)<-'New Shape'
+      res<-rbind(res,new_shape_limts)
+      res
     })
     get_tolerance <- function(shp, fraction = 50) {
       # Verificar se a unidade do sistema de coordenadas é adequada
@@ -2360,6 +2502,7 @@ tool2_tab8$server<-function(id,vals){
 
       return(tolerance)
     }
+
     plot_shp_rect<-function(p,data,lims){
 
       coords<-attr(data,"coords")
@@ -2445,9 +2588,6 @@ tool2_tab8$server<-function(id,vals){
         if (!is.null(d)) {
           req(length(d)==4)
 
-          #shape<-saveRDS(shape,'shape.rds')
-          # shape<-readRDS("shape.rds")
-
           xmin <- d[[1]]
           req(is.numeric(xmin))
           xmax <- d[[2]]
@@ -2488,7 +2628,7 @@ tool2_tab8$server<-function(id,vals){
       req(!nrow(shp)>0)
       div(
         render_warning(list(
-          span(strong("New-Shape"),strong(embrown("is empty"))),
+          span(strong("New Shape"),strong(embrown("is empty"))),
           span(emgray("No features remain in the New Shape within the",embrown(paste(input$crop_shapes,collapse=", ")),emgray("limits."))),
           span(emgray('Consider expanding your crop area to New Shape or use the Custom crop option'))
         ))
@@ -2507,7 +2647,10 @@ tool2_tab8$server<-function(id,vals){
         )
       }
       div(class="plot200 shp_p2",
-          div(strong("New-Shape:"),emgreen(title_shape())),
+          div(
+            div(strong("New Shape:"),emgreen(title_shape())),
+            div(strong("Target Datalist:"),emgreen(input$shp_datalist))
+          ),
           renderPlot({
             plot_shape(shp)
           },width =300, height=150)
@@ -2530,31 +2673,17 @@ tool2_tab8$server<-function(id,vals){
       base_shape<-attr(data,"base_shape")
       layer_shape<-attr(data,"layer_shape")
       extra_shape<-attr(data,"extra_shape")
-      result<-list(base_shape=base_shape,layer_shape=layer_shape,extra_shape=extra_shape,"New Shape"=shp)
+      result<-c(list(base_shape=base_shape,layer_shape=layer_shape),extra_shape,list("New Shape"=shp))
       pic<-which(sapply(result,length)>0)
       shape_list<-result[pic]
       req(length(shape_list)>0)
       shape_list
     })
-    get_limits_shapes<-reactive({
-      shape_list<-current_shapes_list()
-      res<-data.frame(t(sapply(shape_list, function(x){
-        req(x)
-        data.frame(as.list(st_bbox(x)))
-      })))
-      shp1_cutted<-shape3_filtered()
-      if(is.null(shp1_cutted)){
-        shp1_cutted<-shape2_prep()
-      }
-      req(shp1_cutted)
-      new_shape_limts<-data.frame(as.list(st_bbox(shp1_cutted)))
-      rownames(new_shape_limts)<-'New Shape'
-      res<-rbind(res,new_shape_limts)
-      res
-    })
+
     get_shape_lims<-reactive({
 
       lims<-get_limits_shapes()
+
       req(lims)
       req(nrow(lims)>0)
 
@@ -2593,6 +2722,15 @@ tool2_tab8$server<-function(id,vals){
       return(lims)
 
     })
+
+    observeEvent(data_shp(),{
+
+      new=get_new_shape_attr()
+      print(new)
+      updatePickerInput(session,"shp_include",selected=new)
+    })
+
+
     title_shape<-reactive({
       req(input$shp_include)
 
@@ -4379,7 +4517,7 @@ tool6$server<-function(id,vals){
     observe({
       if(isTRUE(vals$done_impute)){
         res<-vals$r_imputed
-        attr(res,"na_target")<-"factors"
+
         vals$vtools$tool6<-res
         vals$r_impute<-T
       }

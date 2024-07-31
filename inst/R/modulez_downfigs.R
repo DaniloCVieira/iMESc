@@ -43,8 +43,6 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     vals$fheight<-input$fheight
     vals$pointsize<-input$pointsize
     vals$fformat<-input$fformat
-    vals$fig_preview<-input$fig_preview
-
     fn_downloadf<-fn_downloadf()
     #saveRDS(fn_downloadf,"fn_downloadf.rds")
     #saveRDS(reactiveValuesToList(input),'input.rds')
@@ -369,10 +367,7 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
   })
   observeEvent(input$pointsize,{})
   observeEvent(input$fformat,{})
-  observeEvent(input$fig_preview,{
 
-    vals$fig_preview<-input$fig_preview
-  })
 
   output$out_fheight<-renderUI({})
   output$out_fwidth<-renderUI({
@@ -410,7 +405,7 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     div(uiOutput(ns('fig_specifications'))),
     div(uiOutput(ns('prevbutton'))),
     div( id="figview_body",
-         div(style="margin: 4px",
+         div(style="margin: 4px; overflow-y: auto; overflow-x: auto;",
              imageOutput(ns("plotoutput")))
     )
 
@@ -428,7 +423,7 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
       if(is.null(vals$fres)){vals$fres<-100}
       if(is.null(vals$pointsize)){vals$pointsize<-12}
       if(is.null(vals$fformat)){vals$fformat<-"pdf"}
-      if(is.null(vals$fig_preview)){vals$fig_preview<-T}
+
       dims<-vals$dimension_display
       # req(length(dims)>0)
       xdim<-dims[1]*.65
@@ -482,15 +477,19 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
 
   modal_downfig()
 
+  observeEvent(input$fig_preview,{
+    vals$fig_preview<-input$fig_preview
+  })
 
 
   output$prevbutton<-renderUI({
+    if(is.null(vals$fig_preview)){vals$fig_preview<-T}
     #req(length(vals$hand_plot)>0)
     fheight<-input$fheight
     fwidth<-input$fwidth
     fres<-as.numeric(input$fres)
     div(
-      div(checkboxInput(ns("fig_preview"),span("Render preview"),value=T)),
+      div(checkboxInput(ns("fig_preview"),span("Render preview"),value=vals$fig_preview)),
 
     )
 

@@ -315,7 +315,7 @@ rescale_copoints<-function(hexs,copoints){
       newlim_x<-c(newlim_x[1]+.25,newlim_x[2]-.25)
       newlim_y<-  c(res$y[2]+(py/2),(res$y[3]-(py/2)))
       cop$x_pt<-scales::rescale(cop$x_pt,  newlim_x)
-      cop$y_pt<-scales::rescale(cop$y_pt,  newlim_y)
+      cop$y_pt<-scales::rescale(cop$y_pt,   newlim_y)
       cop$hc<-hc[i]
       cop
     }
@@ -580,7 +580,7 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
                    var_pie_transp=0.1,
                    n_var_pie=5,
                    var_pie_layer=1,
-                   pie_variables=1:2){
+                   pie_variables=1:2,text_repel=F,max.overlaps=10,...){
 
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
@@ -704,7 +704,12 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
     if(isTRUE(text)){
       req(length(points_tomap)>0)
       coltext<-newcolhabs[[text_palette]](1)
-      p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
+      if(isTRUE(text_repel)){
+        p<- p+ggrepel::geom_text_repel(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext,max.overlaps = max.overlaps)
+      } else{
+        p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
+      }
+
     }
 
   }
@@ -750,7 +755,7 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
 #' @export
 
 
-bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2) {
+bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2,text_repel=F,max.overlaps=10) {
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
   }
@@ -831,10 +836,16 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
 
     }
 
+
     if(isTRUE(text)){
       req(length(points_tomap)>0)
       coltext<-newcolhabs[[text_palette]](1)
-      p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
+      if(isTRUE(text_repel)) {
+        p<- p+ggrepel::geom_text_repel(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext,max.overlaps = max.overlaps)
+      } else{
+        p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
+      }
+
     }
 
   }

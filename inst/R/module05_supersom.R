@@ -256,10 +256,13 @@ table_results_tab3$ui<-function(id){
           ),
 
           pickerInput_fromtop(ns("ss1_property_layer"),label = "Layer:",choices = NULL),
-          div(id=ns('ss1_var_pproperty'),style="display: flex",
-              actionButton(ns("ss1_prev_property"),"<<"),
-              pickerInput_fromtop(ns("ss1_variable_pproperty"),label = "Variable:",choices = NULL),
-              actionButton(ns("ss1_next_property"),">>")
+          div(id=ns('ss1_var_pproperty'),style="display: flex; align-items: center; padding-left: 20px",class="half-drop-inline",
+              div(
+                actionLink(ns("ss1_prev_property"),"<<")),
+              div("Variable:",style="max-width: 150px",
+                pickerInput_fromtop(ns("ss1_variable_pproperty"),label = NULL,choices = NULL)
+              ),
+              div(actionLink(ns("ss1_next_property"),">>"))
 
           ),
 
@@ -303,7 +306,10 @@ table_results_tab3$ui<-function(id){
                         choices =  NULL),
             pickerInput_fromtop(ns("ss1_pclus_text_factor"),"Factor",
                         choices = NULL),
-            numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+            numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+            checkboxInput(ns("text_repel"),"Repel Labels",F),
+            numericInput(ns("max.overlaps"),"max.overlaps",value = 10,min = 1,step = 1),
+
         )
       ),
       box_caret(
@@ -928,7 +934,7 @@ table_results_tab3$server<-function(id,vals){
       iind=ss1_indicate_hc()
       m<-current_som_model()
       bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
-      vals$ss1_bp_som<-bp
+      vals$biplot_som<-bp
       bp
     })
     ss1_get_network<-reactive({
@@ -942,44 +948,34 @@ table_results_tab3$server<-function(id,vals){
       } else if(input$ss1_somback_value=="uMatrix"){
         backtype="uMatrix"
       }
-
-
-
       m<-current_som_model()
       hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
-      vals$ss1_hc_network<-hexs
       hexs
     })
-    ss1_get_copoints<-reactive({
-      m<-current_som_model()
-      copoints<-getcopoints(m)
-      vals$copoints_hc<-copoints
-      copoints
-    })
-    ss1_copoints_scaled<-reactive({
-      ss1_get_network()
-      ss1_get_copoints()
-
-      points_tomap=rescale_copoints(hexs=vals$ss1_hc_network,copoints=vals$copoints_hc)
-      data<-vals$saved_data[[data_x()]]
-
+    bmu_text_points<-function(data,text_factor,points_factor,points_tomap){
       factors<-attr(data,"factors")
-      if(length(input$ss1_pclus_text_factor)>0){
-        req(input$ss1_pclus_text_factor%in%colnames(factors))
-        text_factor= factors[rownames(data),input$ss1_pclus_text_factor, drop=F]
+      if(length(text_factor)>0){
+        req(text_factor%in%colnames(factors))
+        text_factor= factors[rownames(data),text_factor, drop=F]
         points_tomap$label<-text_factor[rownames(points_tomap),]
       }
-      if(length(input$ss1_pclus_points_factor)>0){
-        req(input$ss1_pclus_points_factor%in%colnames(factors))
-        points_factor= factors[rownames(data),input$ss1_pclus_points_factor, drop=F]
-        points_tomap$point<-points_factor[rownames(points_tomap),]
-        attr(points_tomap,"namepoints")<-input$ss1_pclus_points_factor
+      if(length(points_factor)>0){
+        req(points_factor%in%colnames(factors))
+        df= factors[rownames(data),points_factor, drop=F]
+        points_tomap$point<-df[rownames(points_tomap),]
+        attr(points_tomap,"namepoints")<-points_factor
       }
-      vals$ss1_hc_mapsom<-points_tomap
       points_tomap
+    }
+
+    points_tomap<-reactive({
+      m<-current_som_model()
+      pm=rescale_copoints(hexs=ss1_get_network(),copoints=getcopoints(m))
+      data<-vals$saved_data[[data_x()]]
+      pm=bmu_text_points(data,input$ss1_pclus_text_factor,input$ss1_pclus_points_factor,pm)
+      pm
     })
     ss1_argsplot<-reactive({
-
       req(input$ss1_pcodes_bgalpha)
       if(isTRUE(input$ss1_pclus_addpoints)){
         req(input$ss1_pclus_points_factor)
@@ -987,35 +983,13 @@ table_results_tab3$server<-function(id,vals){
       if(isTRUE(input$ss1_pclus_addtext)){
         req(input$ss1_pclus_text_factor)
         text_factor= NULL }
-
       indicate=ss1_indicate_hc()
-
-
       m<-current_som_model()
-
-      tryco<-try(ss1_copoints_scaled(), silent = T)
-
-      req(!inherits(tryco,"try-error"))
-      #savereac()
-      trybp<-try( ss1_bp_som(), silent = T)
-
-      req(!inherits(trybp,"try-error"))
-
       errors<-NULL
-
-
-
-
-      copoints2<-vals$copoints2
-      copoints3<-copoints2
-      #opoints2$point<-args$points_factor
-      #attach(vals$args)
-
-
       args<-list(m=m,
-                 hexs=vals$ss1_hc_network,
-                 points_tomap=vals$ss1_hc_mapsom,
-                 bp=vals$ss1_bp_som,
+                 hexs=ss1_get_network(),
+                 points_tomap=points_tomap(),
+                 bp=ss1_bp_som(),
                  points=input$ss1_pclus_addpoints,
                  points_size=input$ss1_pclus_points_size,
                  points_palette=input$ss1_pclus_points_palette,
@@ -1046,11 +1020,17 @@ table_results_tab3$server<-function(id,vals){
                  var_pie_layer=input$var_pie_layer,
                  pie_variables=input$var_pie_manual,
                  border_width=input$border_width,
-                 fill_neurons=input$fill_neurons
+                 fill_neurons=input$fill_neurons,
+                 text_repel=input$text_repel,
+                 max.overlaps=input$max.overlaps
       )
 
       args
 
+    })
+
+    observe({
+      shinyjs::toggle('max.overlaps',condition=isTRUE(input$text_repel))
     })
     output$bmu_plot<-renderUI({
 
@@ -1064,8 +1044,9 @@ table_results_tab3$server<-function(id,vals){
         vals$biplot_som<-bp
         args$points_palette
 
-        args
-        vals$bmus_plot<-do.call(bmu_plot,args)
+        p<-try(do.call(bmu_plot,args))
+        req(!inherits(p,"try-error"))
+        vals$bmus_plot<-p
         vals$bmus_plot
       })
 
@@ -1161,6 +1142,45 @@ table_results_tab3$server<-function(id,vals){
 
       shinyjs::toggle('ss1_next_property',condition=which(colnames(data)!=input$ss1_variable_pproperty)==ncol(data))
     })
+
+
+    cur_propert<-reactiveVal(1)
+
+
+
+
+    observeEvent(input$ss1_prev_property,{
+      cur<-cur_propert()
+      req(cur>1)
+      cur_propert(cur-1)
+    })
+    observeEvent(input$ss1_next_property,{
+      cur<-cur_propert()
+      req(cur<ncol(ss1_getdata_layer()))
+      cur_propert(cur+1)
+    })
+
+    stop_update_propperty<-reactiveVal(F)
+    observeEvent(cur_propert(),{
+      req(input$ss1_variable_pproperty)
+      #req(isFALSE(stop_update_propperty()))
+     # stop_update_propperty(T)
+      choices<-colnames(ss1_getdata_layer())
+      if(choices[cur_propert()]!=input$ss1_variable_pproperty)
+      updatePickerInput(session,'ss1_variable_pproperty', selected=choices[cur_propert()])
+      #stop_update_propperty(F)
+    })
+
+    observeEvent(input$ss1_variable_pproperty,{
+      #req(isFALSE(stop_update_propperty()))
+      #stop_update_propperty(T)
+      pic<-which(colnames(ss1_getdata_layer())%in%input$ss1_variable_pproperty)
+      if(pic!=cur_propert())
+      cur_propert(pic)
+      #stop_update_propperty(F)
+    })
+
+
     observeEvent(input$ss1_pclus_addpoints,{
       shinyjs::toggle("ss1_pclus_points_inputs",condition=isTRUE(input$ss1_pclus_addpoints))
     })
@@ -1253,7 +1273,12 @@ table_results_tab3$server<-function(id,vals){
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       generic=vals$bmus_plot
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot", name_c="bmu_plot")
+      name_c<-'bmu_plot'
+      if(input$ss1_somback_value=="property"){
+
+        name_c=  gsub("[^[:alnum:]]","-", input$ss1_variable_pproperty)
+      }
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot", name_c=name_c)
     })
 
     return(NULL)

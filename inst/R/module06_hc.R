@@ -255,7 +255,9 @@ hc_module$ui<-function(id){
                        div(id=ns('pclus_addtext_out'),
                            pickerInput_fromtop(ns("pclus_text_palette"),label ="Palette",NULL),
                            pickerInput_fromtop(ns("pclus_text_factor"),"Factor",choices = NULL),
-                           numericInput(ns("pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+                           numericInput(ns("pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+                           checkboxInput(ns("text_repel"),"Repel Labels",F),
+                           numericInput(ns("max.overlaps"),"max.overlaps",value = 10,min = 1,step = 1)
                        )),
                      box_caret(
                        ns("box4_vfm"),
@@ -705,35 +707,7 @@ hc_module$server<-function(id, vals){
       vals$cur_hc_ord_factor<-input$hc_ord_factor
     })
     args_bmu<-reactiveVal()
-    args_bmu_inputs<-reactive({
 
-      args<-list(
-        getmodel_hc(),phc(),indicate_hc(),vals$cutsom,input$hcsom_newdata,getsom_layers(),hcsom_whatmap(),getmodel_hc0(),hcsom_active_layers(),
-        points=input$pclus_addpoints,
-        points_size=input$pclus_points_size,
-        points_palette=input$pclus_points_palette,
-        pch=as.numeric(input$pclus_symbol),
-        text=input$pclus_addtext,
-        text_size=input$pclus_text_size,
-        text_palette=input$pclus_text_palette,
-        bg_palette=input$bg_palette,
-        newcolhabs=vals$newcolhabs,
-        bgalpha=input$pcodes_bgalpha,
-        border=input$pclus_border,
-
-        cex.var=as.numeric(input$pclus.cex.var),
-        col.text=input$p.clus.col.text,
-        col.bg.var=input$var_bg,
-        col.bg.var.alpha=1-input$var_bg_transp,
-        base_size=input$base_size,
-        show_neucoords=input$hcs_theme,
-        newdata=input$newdata_hc,
-        title=input$hcs_title
-
-      )
-
-      args
-    })
     output$somcut_display<-renderUI({
       div(span("Display:", inline(
         radioButtons(
@@ -1185,7 +1159,9 @@ hc_module$server<-function(id, vals){
                  var_pie_layer=input$var_pie_layer,
                  pie_variables=input$var_pie_manual,
                  border_width=input$border_width,
-                 fill_neurons=input$fill_neurons
+                 fill_neurons=input$fill_neurons,
+                 text_repel=input$text_repel,
+                 max.overlaps=input$max.overlaps
       )
 
       args

@@ -1875,19 +1875,21 @@ desctools_tab8$ui<-function(id){
                       div(style="display: flex; gap: 10px; margin-top: -10px",class="setup_box picker-flex",
 
                           div(style="display: flex;",
-                              div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("rda_X"),NULL, choices=NULL)
+                              div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("rda_X"),"", choices=NULL)
 
                               ),
                           ),
-                          div(style="height: 30px",
+                          div(style="height: 30px; margin-top: 20px",
                               div(strong("~")),
                               div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left")))),
                           div(style="display: flex;",
                               div(
-                                class="setup_box picker-flex picker-before-x", pickerInput_fromtop(ns("rda_Y"),NULL, choices=NULL)
+                                class="setup_box picker-flex picker-before-x", pickerInput_fromtop(ns("rda_Y"),"", choices=NULL)
                               )
                           ),
-                          uiOutput(ns('rda_btn'))
+                          div(style="margin-top: 20px",
+                            uiOutput(ns('rda_btn'))
+                          )
 
                       ),
                       div(
@@ -2278,15 +2280,15 @@ desctools_tab9$ui<-function(id){
         div(style="display: flex; gap: 10px; margin-top: -10px; margin-bottom: 10px",class="setup_box picker-flex",
 
             div(style="display: flex;",
-                div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("segrda_X"),NULL, choices=NULL)
+                div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("segrda_X"),"", choices=NULL)
 
                 ),
             ),
-            div(style="height: 30px",
+            div(style="height: 30px; margin-top: 20px",
                 div(strong("~")),
                 div(actionLink(ns("rev_segrda"),icon("arrow-right-arrow-left")))),
             div(style="display: flex;",
-                div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("segrda_Y"),NULL, choices=NULL)),
+                div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("segrda_Y"),"", choices=NULL)),
             ),
             uiOutput(ns('segrda_btn'))
 

@@ -12,9 +12,9 @@ k_means_module$ui<-function(id){
       div(
         div(style="display: flex;column-gap: 20px;flex-flow: wrap  ;flex-grow: 4;",class="setup_box setup_top half-drop-inline;",
             div(style="display: flex",class="setup_box",
-                div(tags$div("X",class="trailab")),
-                div(class="picker-flex",
-                    selectInput(ns("data_kmeans"),span("~ Training Datalist",tiphelp("Choose the Datalist containing your variables (X).")),choices =NULL),
+                div(
+                  style="display: flex;",
+                  div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_kmeans"),"~ Training Datalist", choices=NULL))
                 )
             ),
             uiOutput(ns('model_or_data')),
@@ -438,7 +438,7 @@ k_means_module$server<-function (id,vals){
     observeEvent(vals$saved_data,{
       choices=names(vals$saved_data)
       selected<-get_selected_from_choices(vals$cur_data,choices)
-      updateSelectInput(session,'data_kmeans',choices=choices,selected=selected)
+      updatePickerInput(session,'data_kmeans',choices=choices,selected=selected)
     })
 
     symbols<-c("pch1","pch2","pch3","pch4",'pch5','pch6','pch7',"pch8")

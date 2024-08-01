@@ -1647,7 +1647,7 @@ tool2_tab8$ui<-function(id){
                         }
                         .inline_pickers .large-input >div  {
                         display: block;
-                        width: 180px;
+                        max-width: 180px;
 
 
                         padding: 0px;

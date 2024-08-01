@@ -1058,13 +1058,45 @@ table_results_tab3$server<-function(id,vals){
       name1[length(vals$saved_data)+1]
     })
     observeEvent(ignoreInit = T,input$ss1_varfacmap, {
-      showModal(modalDialog(
-        uiOutput(ns("textvarfacmap")),
-        title = h4(strong("Variable factor map")),
-        footer = modalButton("close"),
-        size = "m",
-        easyClose = TRUE
-      ))
+      showModal(
+        modalDialog(
+          uiOutput(session$ns("textvarfacmap")),
+          title = h4(strong("Variable factor map")),
+          footer = modalButton("close"),
+          size = "m",
+          easyClose = TRUE
+        )
+      )
+    })
+    output$textvarfacmap<-renderUI({
+
+      div(
+
+        tags$style(HTML("
+       h2 {
+      font-size: 20px;
+      font-weight: bold;
+      }
+      h3 {
+      font-size: 20px;
+      font-weight: lighter;
+      }
+      code {
+      color: blue;
+      }
+
+    ")),
+
+    div(
+      column(12,
+             h4("Variable factor map"),
+             p("The chart is very similar to the variable factor map obtained from the principal component analysis (PCA). It calculates the weighted correlation for each variable using the coordinates (x, y) of the neurons and their weights (number of instances). The codebooks vectors of the cells correspond to an estimation of the conditional averages, calculating their variance for each variable is equivalent to estimating the between-node variance of the variable, and hence their relevance."),
+             p("The ",code("most important correlations")," option returns",code("npic")," variables with the highest variance, whereas ",code("Chull correlations")," returns",code("npic")," variables with the highest correlation considering the convex hull, while also ensuring that the points are ordered by their proximity to codebook center")
+      )
+
+    )
+      )
+
     })
     observeEvent(vals$newcolhabs,{
       choices = vals$colors_img$val[getsolid_col()]

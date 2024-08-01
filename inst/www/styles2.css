@@ -770,7 +770,7 @@ width: 400px
         color: gray;
           top: 34px;
           position: absolute
-                          }
+  }
 .mydiv2:hover:after{
 content: 'Create a Datalist to enable the pre-processing tools.';
  display: inline-block;
@@ -855,4 +855,27 @@ right: 0px;
 .tool_box8 .toolbar .nav>li a {
 padding-left: 5px;
 padding-right: 5px;
+}
+.box_title .read_shp .btn, .box_title .read_shp .btn .btn-default {font-size: 13px; width: 80px;color: #333; font-style: italic}
+.box_title .read_shp_save .btn {width: 30px;}
+.box_title .read_shp_save i ,
+.box_title .read_shp i{
+font-size:14px
+}
+.shp_box .train_box label{
+color: #05668D;
+font-weight: bold
+}
+.inline_pickers .large-input .form-control {
+height: 30px;
+}
+.inline_pickers .large-input >div  {
+display: block;
+width: 180px;
+padding: 0px;
+margin: 0px;
+margin-top: -20px;
+margin-bottom: -10px;
+margin-left: 10px
+
 }

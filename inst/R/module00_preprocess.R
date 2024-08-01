@@ -1595,72 +1595,9 @@ tool2_tab8$ui<-function(id){
         div(strong("SHP toolbox")),
 
         tabsetPanel(
-          selected="tab_create",
-          tabPanel(
-            "View and download",value="tab_view",
-            div(
-              div(style="max-width: 400px",em(icon("fas fa-lightbulb"),"Optimize your datalist creation speed by downloading shapes as an .rds file. This file format loads quickly and avoids the need to create the shape from scratch each time you need it.")),
-              column(
-                12,class="mp0",
-                column(
-                  4,class='mp0',
-
-                  box_caret(
-                    ns('box_shp_tab1_1'),
-                    title="Options",
-                    color="#c3cc74ff",
-                    uiOutput(ns("shp_data_view_down")),
-                    pickerInput_fromtop(
-                      ns("shp_attr_view_down"),
-                      "2. Select the Attribute:",
-                      choices=list("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
-
-                    )
-
-                  )
-
-                ),
-                column(
-                  8,class="mp0",
-                  box_caret(
-                    ns('box_shp_tab1_2'),
-                    title="Plot",
-                    button_title = downloadLink(ns("download_shape"),"Download",icon("download")),
-                    div(
-
-                      uiOutput(ns("shape_view"))
-
-                    )
-                  )
-                )
-              )
-            )
-          ),
           tabPanel(
             "Create Shape",value="tab_create",
-            tags$style(HTML(".shp_box .train_box label{
-                        color: #05668D;
-                        font-weight: bold
-                        }
-                        .inline_pickers .large-input .form-control {
-                        height: 30px;
-                        }
-                        .inline_pickers .large-input >div  {
-                        display: block;
-                        max-width: 180px;
-
-
-                        padding: 0px;
-                        margin: 0px;
-                        margin-top: -20px;
-                        margin-bottom: -10px;
-                        margin-left: 10px
-
-                        }
-                        ")),
-
             div(
-
               class="shp_box",style="overflow-y: auto;margin-left: -10px",
               column(
                 12,class="mp0",
@@ -1709,13 +1646,7 @@ tool2_tab8$ui<-function(id){
                   )
                 )
               ),
-              tags$style(HTML(".box_title .read_shp .btn, .box_title .read_shp .btn .btn-default {font-size: 13px; width: 80px;color: #333; font-style: italic}
-                              .box_title .read_shp_save .btn {width: 30px;}
-                              .box_title .read_shp_save i ,
-                              .box_title .read_shp i{
-                              font-size:14px
-                              }
-                              ")),
+
               column(
 
                 12,class="mp0",
@@ -1792,6 +1723,48 @@ tool2_tab8$ui<-function(id){
               )
 
             )
+          ),
+          tabPanel(
+            "View and download",value="tab_view",
+            div(
+              div(style="max-width: 400px",em(icon("fas fa-lightbulb"),"Optimize your datalist creation speed by downloading shapes as an .rds file. This file format loads quickly and avoids the need to create the shape from scratch each time you need it.")),
+              column(
+                12,class="mp0",
+                column(
+                  4,class='mp0',
+
+                  box_caret(
+                    ns('box_shp_tab1_1'),
+                    title="Options",
+                    color="#c3cc74ff",
+                    div(
+                      uiOutput(ns("shp_data_view_down")),
+                      pickerInput_fromtop(
+                        ns("shp_attr_view_down"),
+                        "2. Select the Attribute:",
+                        choices=list("Base-Shape"="base_shape","Layer-Shape"="layer_shape")
+
+                      )
+                    )
+
+                  )
+
+                ),
+                column(
+                  8,class="mp0",
+                  box_caret(
+                    ns('box_shp_tab1_2'),
+                    title="Plot",
+                    button_title = downloadLink(ns("download_shape"),"Download",icon("download")),
+                    div(
+
+                      uiOutput(ns("shape_view"))
+
+                    )
+                  )
+                )
+              )
+            )
           )
         ))
 
@@ -1807,10 +1780,48 @@ tool2_tab8$server<-function(id,vals){
 
     })
 
+    data_shp_down<-reactive({
+      req(input$shp_data_view_down)
+      vals$saved_data[[input$shp_data_view_down]]
+    })
+    shape_list_down<-reactive({
+      data<-data_shp_down()
+      base_shape<-attr(data,"base_shape")
+      layer_shape<-attr(data,"layer_shape")
+      extra_shape<-attr(data,"extra_shape")
+      shape_list<-c(list(base_shape=base_shape,layer_shape=layer_shape),extra_shape)
+      shape_list
+    })
+    observeEvent(shape_list_down(),{
+      updatePickerInput(session,'shp_attr_view_down',choices=names(shape_list_down()))
+
+    })
+    output$shape_view<-renderUI({
+      shl<-shape_list_down()
+      req(input$shp_data_view_down)
+      req(input$shp_attr_view_down)
+      shape<-shl[[input$shp_attr_view_down]]
+      req(length(shape)>0)
+      renderPlot({ggplot(st_as_sf(shape)) + geom_sf()+
+          theme(panel.background = element_rect(fill = "white"),
+                panel.border = element_rect(fill=NA,color="black", linewidth=0.5, linetype="solid"))}, height=250)
+    })
+
+    output$download_shape<-{
+      downloadHandler(
+        filename = function() {
+          paste0(paste0(input$shp_attr_view_down,"_",input$shp_data_view_down),"_", Sys.Date())
+        }, content = function(file) {
+          shl<-shape_list_down()
+          shape<-shl[[input$shp_attr_view_down]]
+          saveRDS(shape,file)
+        })
+
+    }
+
     observeEvent(input$shp,{
       shinyjs::show('read_shp_btn')
     })
-
     shape1_raw<-reactiveVal(NULL)
     shape2_prep<-reactiveVal(NULL)
     shape3_filtered<-reactiveVal(NULL)
@@ -1818,16 +1829,13 @@ tool2_tab8$server<-function(id,vals){
     observe({
       shinyjs::toggle('add_shape',condition=!is.null(shape4_final()))
     })
-
     observe({
       shinyjs::toggle('prepare_btn',condition=!is.null(shape2_prep()))
     })
 
-
     observe({
       shinyjs::toggle("st_simplify",condition=!is.null(shape1_raw()))
     })
-
     shp_step<-reactiveVal(0)
     shp_start<-reactive({
       list(input$shp,data_shp())
@@ -1847,7 +1855,6 @@ tool2_tab8$server<-function(id,vals){
       shinyjs::hide('crop_shapes')
 
     })
-
     observeEvent(shp_start(),{
       shp_step(0)
       shape1_raw(NULL)
@@ -1860,13 +1867,9 @@ tool2_tab8$server<-function(id,vals){
       shinyjs::addClass('read_shp_btn',"save_changes")
       shinyjs::hide('crop_shapes')
     })
-
     observe({
       shinyjs::toggle('read_shp_btn',condition=length(input$shp)>0)
     })
-
-
-
     observeEvent(input$shp,ignoreInit = T,{
       shinyjs::show('read_shp_btn')
       shinyjs::addClass('read_shp_btn',"save_changes")
@@ -2027,9 +2030,6 @@ tool2_tab8$server<-function(id,vals){
 
 
     })
-
-
-
     observeEvent(input$crop_shapes,ignoreInit = T,{
       if ("Custom" %in% input$crop_shapes) {
         updatePickerInput(
@@ -2184,7 +2184,6 @@ tool2_tab8$server<-function(id,vals){
       req(input$shp_datalist%in%names(vals$saved_data))
       vals$saved_data[[input$shp_datalist]]
     })
-
     get_new_shape_attr<-reactive({
 
 
@@ -2212,9 +2211,6 @@ tool2_tab8$server<-function(id,vals){
       }
       new
     })
-
-
-
     bag_extralayer<-reactive({
       name0<-'Extra-Layer'
       new<-make.unique(c(names(attr(data_shp(),"extra_shape")),name0))
@@ -2235,21 +2231,6 @@ tool2_tab8$server<-function(id,vals){
         shp_tool()
       )
     })
-    output$download_shape_button<-renderUI({
-      req(input$shp_data_view_down)
-      req(input$shp_attr_view_down)
-      shape<-attr(vals$saved_data[[input$shp_data_view_down]],input$shp_attr_view_down)
-      req(length(shape)>0)
-    })
-    output$download_shape<-{
-      downloadHandler(
-        filename = function() {
-          paste0("feature_shape","_", Sys.Date())
-        }, content = function(file) {
-          saveRDS(attr(vals$saved_data[[input$shp_data_view_down]],input$shp_attr_view_down),file)
-        })
-
-    }
     shapes_list<-reactive({
       base_shape<-attr(data_shp(),"base_shape")
       layer_shape<-attr(data_shp(),"layer_shape")
@@ -2263,18 +2244,14 @@ tool2_tab8$server<-function(id,vals){
     observeEvent(input$close_shp,{
       removeModal()
     })
-
     observe({
       shinyjs::toggle('show_layers',condition=!is.null(shape2_prep()))
       shinyjs::toggle('crop_shapes',condition=!is.null(shape2_prep()))
     })
-
-
     observe({
       choices=c(names(current_shapes_list()),"Custom")
       updatePickerInput(session,'crop_shapes',choices=choices,selected=choices[1])
     })
-
     choices_layers<-reactive({
       choices<-c("Base-Shape"="base_shape","Layer-Shape"="layer_shape","Extra-Shape"="extra_shape")
       names(choices)<-choices
@@ -2286,28 +2263,13 @@ tool2_tab8$server<-function(id,vals){
       names(choices)[include]<-paste0("New:",names(choices)[include])
       choices<-c(choices[include],choices[-include])
     })
-
     observe({
       updatePickerInput(session,'show_layers',
                         choices=choices_layers(),
                         selected=input$shp_include)
     })
-
-
     observeEvent(input$shp_include,{
       updatePickerInput(session,'show_layers',selected=input$shp_include)
-    })
-
-
-
-    output$shape_view<-renderUI({
-      req(input$shp_data_view_down)
-      req(input$shp_attr_view_down)
-      shape<-attr(vals$saved_data[[input$shp_data_view_down]],input$shp_attr_view_down)
-      req(length(shape)>0)
-      renderPlot({ggplot(st_as_sf(shape)) + geom_sf()+
-          theme(panel.background = element_rect(fill = "white"),
-                panel.border = element_rect(fill=NA,color="black", linewidth=0.5, linetype="solid"))}, height=250)
     })
     output$out_shp_datalist<-renderUI({
       choices=names(vals$saved_data)

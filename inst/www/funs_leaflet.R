@@ -788,7 +788,7 @@ add_base_shape<-function(map,data,shape_attr="base_shape",color="blue",fillOpaci
 
 map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,light=0,...){
   palette0<-palette
-  colors00<-lighten(vals$newcolhabs[[palette]](256),light)
+  colors00<-lighten(newcolhabs[[palette]](256),light)
   newcolhabs[[palette]]<-colorRampPalette(colors00)
   pal<-lighten(pal,light)
 

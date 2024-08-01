@@ -17,8 +17,12 @@ diversity_tool$ui<-function(id){
                 title="Setup",
                 div(
                   div(style="display: flex;height: 50px",class="setup_box picker-flex",
-                      div(tags$div("X",class="trailab")),
-                      selectInput(ns("data_div"),tipify(span("Datalist:"),"Datalist for selecting the Factor", ),choices = NULL),
+                      div(
+                        style="display: flex;",
+                        div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_div"),"", choices=NULL))
+                      ),
+
+
                       uiOutput(ns('try_chao_fisher'))
 
                       ))),
@@ -209,7 +213,7 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
       mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Diversity restuls",data=data, name=name)
     })
     observeEvent(vals$saved_data,{
-      updateSelectInput(session,"data_div",choices = names(vals$saved_data), selected=vals$cur_data)
+      updatePickerInput(session,"data_div",choices = names(vals$saved_data), selected=vals$cur_data)
     })
 
     output$Nhelp<-renderUI({

@@ -94,15 +94,15 @@ diversity_tool$ui<-function(id){
                color="#374061ff",
                title="Model Setup",
                div(
-                 div(style="display: flex;",class="setup_box picker-flex",
+                 div(style="display: flex;gap:15px",class="setup_box picker-flex",
 
                      div(style="display: flex;",
                          div(tipify(tags$div("Y",class="trailab"),"Predictors")),
                          pickerInput(ns("omi_X"),NULL, choices=NULL)),
-                     div(
+                     div(style="text-align: center",
                        div(strong("~")),
-                       div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left"),style="padding-top: -10px")),
-                       style="height: 30px; width: 30px; padding-top: -10px;padding-left:10px; margin-left: -20px"),
+                       div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left"),style=""))
+                     ),
                      div(style="display: flex;",
                          div(tipify(tags$div("X",class="trailab"),"Response data")),
                          pickerInput(ns("omi_Y"),NULL, choices=NULL)),
@@ -124,7 +124,10 @@ diversity_tool$ui<-function(id){
                          radioGroupButtons(ns("show_niche"), "Show", choices = c("Plot","Table"))),
 
                      pickerInput(ns("omi_result"),'Result',choices=c('Niche params',"species coordinates","variable coordinates","Site coordinates","Axis upon niche axis","EBNB"),selected="EBNB"),
-                     uiOutput(ns("ebnb_pc"))
+                     uiOutput(ns("ebnb_pc")),
+                     pickerInput_fromtop(ns("palette"),
+                                         label = "Palette:",
+                                         choices=NULL)
                  )
                ),
                div(id=ns("ebnb_obsel"),
@@ -165,6 +168,13 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
     })
 
 
+    observe({
+      condition=input$show_niche=="Plot"&length(input$observation_selection_rows_selected)>0
+      shinyjs::toggle("palette",condition = condition)
+    })
+    observeEvent(vals$newcolhabs,{
+      updatePickerInput(session,'palette', choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img),)
+    })
     getdata_div<-reactive({
       req(input$data_div)
       data=vals$saved_data[[input$data_div]]
@@ -486,11 +496,16 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
       req(length(input$observation_selection_rows_selected)>0)
 
       df0<-getebnb()[input$observation_selection_rows_selected,]
+      #df0<-readRDS("df0.rds")
+      #saveRDS(df0,"df0.rds")
+      #print("saved")
 
 
       df<-data.frame(id=rownames(df0),df0)
-      p<-ggplot(df,aes(x=NP, y=reorder(id,NP, decreasing=T)))+ geom_point()+
-        geom_errorbar(aes(xmin  = NP-( NB/2), xmax  = NP+( NB/2)))+xlab(paste0("Niche Axis",input$ebnb_pc))+ylab("Species")
+      p<-ggplot(df,aes(x=NP, y=reorder(id,NP, decreasing=T)))+
+        geom_errorbar(aes(xmin  = NP-( EB/2), xmax  = NP+( EB/2),color="EB"),linetype="dashed")+
+        geom_errorbar(aes(xmin  = NP-( NB/2), xmax  = NP+( NB/2),color="NB"))+ geom_point(aes(color="NP"))
+      p<-p+xlab(paste0("Niche Axis",input$ebnb_pc))+ylab("Species")+scale_color_manual(values=vals$newcolhabs[[input$palette]](3),name="")
       vals$plot_niche<-p
       renderPlot(p)
 

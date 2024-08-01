@@ -697,10 +697,6 @@ app_server<-function(input, output, session) {
   observeEvent(input$dimension,{
     delay(500,{vals$dimension_display<-input$dimension})
   })
-  output$sys_info<-renderUI({
-    sys_info<-readRDS('www/sys_info.rds')
-    do.call('div',args=list(sys_info))
-  })
 
 
   pre_process$server("preproc", vals)
@@ -740,13 +736,97 @@ app_server<-function(input, output, session) {
           ),
           tabPanel(
             "Documentation",value="intro5",
-            column(12, style="background: white",
-                   HTML("Access the complete documentation at <a href='https://danilocvieira.github.io/iMESc_help' target='_blank'>iMESc<sup>help!</sup></a> for detailed guides and support. It provides everything needed to effectively utilize iMESc.")
+            column(6, style="background: white",
+                   div("Access the complete documentation at",actionLink('imesc_help_link',HTML("iMESc<sup>help!</sup>")),"for detailed guides and support. It provides everything needed to effectively utilize iMESc."),
+                   #HTML("Access the complete documentation at <a href='https://danilocvieira.github.io/iMESc_help' target='_blank'>iMESc<sup>help!</sup></a> for detailed guides and support. It provides everything needed to effectively utilize iMESc."),
+            )),
+          tabPanel(
+            "Video Tutorials",value="intro6",
+            column(
+              12, style="background: white",
+              column(
+                3,class="mp0",
+                radioGroupButtons(
+                  "video_tab",NULL,
+                  direction ="vertical",
+                  justified = FALSE,
+                  choices=c(
+                    "Creating Datalists"="video1",
+                    "Pre-processing tools"="video2",
+                    "Descriptive tools"="video3",
+                    "Biodiversity tools"="video4",
+                    "Spatial tools"="video5",
+                    "Self-Organizing Maps"="video6",
+                    "Hierarchical Clustering"="video7",
+                    "K-Means"="video8",
+                    "Supervised Algorithms"="video9",
+                    "Exchange Factor/Variables"="video10",
+                    "SHP toolbox"="video11"
+                  )
+                )),
+              column(9,class="mp0",uiOutput("videos"))
             ))
 
         )
     )
   })
+  observeEvent(input$imesc_help_link,{
+  browseURL("https://danilocvieira.github.io/iMESc_help")
+})
+
+  get_video<-reactive({
+    switch(input$video_tab,
+           "video1"={'https://danilocvieira.github.io/iMESc_help/images/t1-creating-datalist.mp4'},
+           "video2"={'https://danilocvieira.github.io/iMESc_help/images/t16-preproc.mp4'},
+           "video3"={'https://danilocvieira.github.io/iMESc_help/images/t7-desctools.mp4'},
+           "video4"={'https://danilocvieira.github.io/iMESc_help/images/t14-Divtools.mp4'},
+           "video5"={'https://danilocvieira.github.io/iMESc_help/images/t6-maps.mp4'},
+           "video6"={'https://danilocvieira.github.io/iMESc_help/images/t9-self-organizing-maps.mp4'},
+           "video7"={'https://danilocvieira.github.io/iMESc_help/images/t11-HC.mp4'},
+           "video8"={'https://danilocvieira.github.io/iMESc_help/images/T12-kmeans.mp4'},
+           "video9"={'https://danilocvieira.github.io/iMESc_help/images/t10-SL.mp4'},
+           "video10"={'https://danilocvieira.github.io/iMESc_help/images/t8-exchange-numeric-factors.mp4'},
+           "video11"={'https://danilocvieira.github.io/iMESc_help/images/t13-shp_toolbox.mp4'})
+  })
+
+  output$videos<-renderUI({
+    tags$video(
+      id = "myVideo",
+      height="400px",
+      src = get_video(),
+      type = "video/mp4",
+      autoplay=FALSE,
+      muted=TRUE,
+      playsinline=TRUE,
+      loop=F,
+      controls=T)
+
+  })
+  output$license<-renderUI({
+    column(12,
+           column(12, h4(strong('Copyright Notice'), style="color: #05668D;"),
+                  p(icon('copyright'),'2023 Danilo Candido Vieira and Gustavo Fonseca. All rights reserved.'),
+                  p('The content, coding, and related assets associated with the iMESc project are the sole property of the authors, Danilo Candido Vieira and Gustavo Fonseca. Redistribution, modification, commercial use, or any other form of utilization of this project is strictly prohibited without the express written consent of the authors.'),
+
+                  h4(strong('License'), style="color: #05668D;"),
+                  p("This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license. This license allows others to download the project and share it with others as long as they credit the authors, but they can't change it in any way or use it commercially."),
+
+                  h4(strong("Disclaimer"), style="color: #05668D;"),
+                  p("The iMESc application ('the software') is provided 'as-is', without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software."),
+
+                  p("While efforts have been made to ensure the accuracy and reliability of the software, the authors cannot guarantee that the software will always operate error-free or that it is completely secure. Users are advised to exercise their own skill and care with respect to their use of the software."),
+
+                  p("The software may contain links to other websites or resources. The authors are not responsible for the availability of such external sites or resources, and do not endorse and are not responsible or liable for any content, advertising, products, or other materials on or available from such sites or resources.")
+           ))
+  })
+  output$sys_info<-renderUI({
+    sys_info<-readRDS('www/sys_info.rds')
+    do.call('div',args=list(sys_info))
+  })
+  observeEvent(input$imesc_help_link,{
+    browseURL("https://danilocvieira.github.io/iMESc_help")
+  })
+
   output$menu_bank_out<-renderUI({
     #validate(need(length(vals$saved_data)>0,"No Datalist found"))
 
@@ -754,6 +834,8 @@ app_server<-function(input, output, session) {
     NULL
 
   })
+
+
 
 
   output$menu_div_out<-renderUI({
@@ -829,23 +911,7 @@ app_server<-function(input, output, session) {
     module_compare$server("module_comp",  vals=vals, df_colors=vals$colors_img,newcolhabs=newcolhabs,df_symbol=df_symbol)
     NULL
   })
-  output$license<-renderUI({
-    column(12,
-           column(12, h4(strong('Copyright Notice'), style="color: #05668D;"),
-                  p(icon('copyright'),'2023 Danilo Candido Vieira and Gustavo Fonseca. All rights reserved.'),
-                  p('The content, coding, and related assets associated with the iMESc project are the sole property of the authors, Danilo Candido Vieira and Gustavo Fonseca. Redistribution, modification, commercial use, or any other form of utilization of this project is strictly prohibited without the express written consent of the authors.'),
 
-                  h4(strong('License'), style="color: #05668D;"),
-                  p("This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license. This license allows others to download the project and share it with others as long as they credit the authors, but they can't change it in any way or use it commercially."),
-
-                  h4(strong("Disclaimer"), style="color: #05668D;"),
-                  p("The iMESc application ('the software') is provided 'as-is', without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software."),
-
-                  p("While efforts have been made to ensure the accuracy and reliability of the software, the authors cannot guarantee that the software will always operate error-free or that it is completely secure. Users are advised to exercise their own skill and care with respect to their use of the software."),
-
-                  p("The software may contain links to other websites or resources. The authors are not responsible for the availability of such external sites or resources, and do not endorse and are not responsible or liable for any content, advertising, products, or other materials on or available from such sites or resources.")
-           ))
-  })
 
 
   observeEvent(vals$update_curtab,{

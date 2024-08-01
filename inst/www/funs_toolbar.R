@@ -315,7 +315,7 @@ imesc_excel_sheets<-function(path,sheet,attr="Numeric"){
   df<-df[-1,]
 
   ids<-make.unique(  as.character(df[,1]))
-  df<-df[,-1]
+  df<-df[,-1,drop=F]
   colnames(df)<-cols
   if(any(is.na(ids))){
     ids[is.na(ids)]<-"NA_id"

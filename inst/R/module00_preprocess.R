@@ -547,7 +547,7 @@ tool1$server<-function(id,vals){
         path<-file_coords()
       }
       if(length(path)>0)
-        imesc_data(path,input$sheet_coord,"Coords")[rownames(datao),]
+        imesc_data(path,input$sheet_coord,"Coords")[rownames(datao),,drop=F]
     })
     read_base<-reactive({
       if (input$up_or_ex=="example") {

@@ -799,8 +799,8 @@ ll_options$ui<-function(id){
                                'Esri.NatGeoWorldMap',
                                'Esri.WorldPhysical',
                                'USGS.USImagery'
-                    )),
-         numericInput(ns("zoomSnap"),'+ zoomSnap',min=0,max=1,0.25,step=0.01,width='50px')
+                    ))
+         #numericInput(ns("zoomSnap"),'+ zoomSnap',min=0,max=1,0.25,step=0.01,width='50px')
 
 
 

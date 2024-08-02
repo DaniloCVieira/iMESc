@@ -4293,38 +4293,42 @@ tool6$server<-function(id,vals){
       vals$pp_data
     })
     observeEvent(input$run_na,ignoreInit = T,{
-      # print("run_na")
+      try({
 
-      shinyjs::removeClass("run_na_btn","save_changes")
-      #req(isTRUE(vals$r_impute))
+        # print("run_na")
 
-      data=vals$pp_data
-      na_method=input$na_method
-      k=input$na_knn
-      attr=input$na_targ
+        shinyjs::removeClass("run_na_btn","save_changes")
+        #req(isTRUE(vals$r_impute))
+
+        data=vals$pp_data
+        na_method=input$na_method
+        k=input$na_knn
+        attr=input$na_targ
 
 
 
-      withProgress(
-        min=NA,
-        max=NA,
-        message="Imputing...",{
-          newdata0<-newdata<-nadata(data(),na_method,k,attr=attr)
-          attr(newdata,"bag")<-bag_name()
-          newdata<-data_migrate(data(),newdata)
-          if(input$na_targ=="Factor-Attribute"){
-            data_o<-data()
-            attr(data_o,"factors")<-newdata0
-            newdata<-data_o
-          }
-          #result_v6
-          vals$r_imputed<-newdata
-        })
-      shinyjs::removeClass("run_na_btn","save_changes")
-      done_modal()
-      vals$done_impute<-T
-      vals$r_impute<-NULL
+        withProgress(
+          min=NA,
+          max=NA,
+          message="Imputing...",{
+            newdata0<-newdata<-nadata(data(),na_method,k,attr=attr)
+            attr(newdata,"bag")<-bag_name()
+            newdata<-data_migrate(data(),newdata)
+            if(input$na_targ=="Factor-Attribute"){
+              data_o<-data()
+              attr(data_o,"factors")<-newdata0
+              newdata<-data_o
+            }
+            #result_v6
+            vals$r_imputed<-newdata
+          })
+        shinyjs::removeClass("run_na_btn","save_changes")
+        done_modal()
+        vals$done_impute<-T
+        vals$r_impute<-NULL
 
+
+      })
     })
 
 

@@ -771,7 +771,7 @@ ll_options<-list()
 ll_options$ui<-function(id){
   ns<-NS(id)
   div(
-    div(class="map_providers",
+    div(class="map_providers",style="display: flex",
 
         selectInput(ns("providers"),
                     label ="+ Map Style",
@@ -799,8 +799,8 @@ ll_options$ui<-function(id){
                                'Esri.NatGeoWorldMap',
                                'Esri.WorldPhysical',
                                'USGS.USImagery'
-                    ))
-        # numericInput(ns("fillOpacity"),'+ Fill Opacity',min=0,max=1,0.8,step=0.1)
+                    )),
+         numericInput(ns("zoomSnap"),'+ zoomSnap',min=0,max=1,0.25,step=0.01,width='50px')
 
 
 
@@ -813,7 +813,8 @@ ll_options$server<-function(id){
     return(
       reactive({
         list(
-          providers=input$providers
+          providers=input$providers,
+          zoomSnap=input$zoomSnap
         )
       })
     )
@@ -848,6 +849,7 @@ ll_down_modal$server<-function(id, map,file_name='leaflet_'){
                              vwidth=input$vwidth,
                              vheight=input$vheight)
           })
+
 
           file.remove("map.html")
 
@@ -3223,13 +3225,17 @@ div(style="display: flex",
 
     get_args_surface<-reactive({
 
+      req(input$saved_maps)
       req(isTRUE(surface))
       req(input$custom_breaks)
       p1<-vals$saved_maps[[input$saved_maps]]
       shape_args<-get_shapes()
+      req(input$saved_maps2)
 
 
       p2<-vals$saved_maps[[input$saved_maps2]]
+      req(p1)
+      req(p2)
       palette<-color_args1()$pal
       light<-color_args1()$light
 

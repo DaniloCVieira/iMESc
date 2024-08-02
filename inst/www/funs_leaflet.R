@@ -786,7 +786,7 @@ add_base_shape<-function(map,data,shape_attr="base_shape",color="blue",fillOpaci
   map
 }
 
-map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,light=0,...){
+map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=5,scale_radius=F,fillOpacity=0.8, providers="Esri.WorldTopoMap", addCircles=T,addMinicharts=F,factor_chart=2,buffer_zize=50, fun="sum",base_shape_args=NULL,layer_shape_args=NULL, rst=NULL,args_extra_shape=NULL,args_labels=NULL,newcolhabs=NULL,palette=NULL,custom_breaks=NULL,light=0,zoomSnap=0.25,...){
   palette0<-palette
   colors00<-lighten(newcolhabs[[palette]](256),light)
   newcolhabs[[palette]]<-colorRampPalette(colors00)
@@ -825,7 +825,11 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
     palette <- colorBin(pal,domain = df[,3], bins = as.numeric(custom_breaks))
   }
 
-  map <- leaflet(df, options =leafletOptions()  )
+  map <- leaflet(df, options =leafletOptions(
+    #zoomSnap=zoomSnap,
+    #zoomControl =T,
+    #zoomDelta = 1
+  )  )
 
   map<-add_shapes1(map,data,layer_shape_args,base_shape_args)
 
@@ -848,7 +852,8 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   if(isTRUE(addMinicharts)){
     map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light)
   }
-  map <- map |> addProviderTiles(providers)
+  map <- map %>% addTiles() %>%
+    addProviderTiles(providers)
 
 
   map0<-map

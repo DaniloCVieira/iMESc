@@ -171,9 +171,38 @@ databank_module$server<-function(id, vals){
       mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Summary table - Regression",data=data, name='sl_reg_summary')
     })
 
+    update_imesc_models<-reactive({
+      req(input$data_bank)
+      data_x<-input$data_bank
+
+      saved_models<-lapply(as.character(available_models),function(model){
+        attr(vals$saved_data[[data_x]],model)
+      })
+      models_in<-available_models[sapply(saved_models,length)>0]
+      if(length(models_in)>0){
+        saved_models<-saved_models[sapply(saved_models,length)>0]
+        names(saved_models)<-models_in
+        for(i in seq_along(saved_models)){
+          for(j in names(saved_models[[i]])){
+            if(inherits(saved_models[[i]][[j]],"train")){
+              saved_models[[i]][[j]]<-list(m= saved_models[[i]][[j]])
+            }
+
+          }
+        }
+        for(i in seq_along(saved_models)) {
+          attr(vals$saved_data[[data_x]],names(saved_models)[i])<-saved_models[[i]]
+        }
+
+      }
+
+      return(NULL)
+    })
+
 
 
 get_metrics<-reactive({
+    update_imesc_models()
      get_datalist_model_metrics(vals$saved_data,input$data_bank)
     })
 

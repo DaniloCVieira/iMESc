@@ -937,9 +937,12 @@ get_metric_model<-function(m){
 table_training_datalist<-function(saved_data,data_x){
   data<-saved_data[[data_x]]
   res0<-lapply(seq_along(available_models),function(i){
+
     cmodel<-as.character(available_models)[i]
     models_in<-attr(data,cmodel)
+
     lapply(seq_along(models_in),function(j){
+
       model_name<-names(models_in)[j]
       m<-models_in[[model_name]][[1]]
       cbind(data.frame(
@@ -1004,15 +1007,20 @@ table_test_datalist<-function(saved_data,data_x){
 
           test_data<-as.matrix(attr(m,"test"))
           colnames(test_data)<-colnames(getdata_model(m))
-          pred<-suppressWarnings(predict(m,))
+          pred<-suppressWarnings(predict(m))
           if(inherits(attr(m,"sup_test"),"data.frame")){
             obs<-attr(m,"sup_test")[,1]
           } else{
             obs<-attr(m,"sup_test")
           }
+          if(length(obs)!=length(pred)){
+            df<-"None"
+          } else{
+            df<-cbind(data.frame(modelid=paste0(i,j),Datalist=data_x,Model=cmodel,Model_name=model_name,Model_type=m$modelType,nobs=length(pred),rbind(  postResample(pred,obs))
+            ))
+          }
 
-          df<-cbind(data.frame(modelid=paste0(i,j),Datalist=data_x,Model=cmodel,Model_name=model_name,Model_type=m$modelType,nobs=length(pred),rbind(  postResample(pred,obs))
-          ))
+
         } else{df<-"None"}
         results[[model_name]]<-df
       }

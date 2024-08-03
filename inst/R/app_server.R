@@ -321,7 +321,7 @@ app_server<-function(input, output, session) {
     updateTabsetPanel(session,"tabs",selected="menu_upload")
   })
   observeEvent(ignoreInit = T,input$tabs,{
-    remove_unsaved_models()
+   # remove_unsaved_models()
   })
   remove_unsaved_models<-reactive({
     req(length(vals$saved_data)>0)
@@ -920,11 +920,11 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observe({
+  observeEvent(input$savepoint_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)
-    mybooks_teste<-readRDS('savepoint.rds')
+
 
     newvals0<-newvals<-readRDS('savepoint.rds')
 

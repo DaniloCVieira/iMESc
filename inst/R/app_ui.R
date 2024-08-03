@@ -212,7 +212,7 @@ div(
                                   )),
 
                           tabItem(tabName = "menu_compare",
-                                  module_compare$ui("module_comp"),
+                                  compare_models$ui("module_comp"),
                                   uiOutput('menu_compare_out')),
 
                           tabItem(tabName = "menu_keras",

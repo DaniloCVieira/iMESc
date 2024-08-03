@@ -6734,14 +6734,7 @@ display: none
 display: block;
 color: yellow
 }
-.picker_tip{
-z-index: 99999;
-padding-left: 10px;
-font-size: 12px;
-color: SeaGreen;
-font-style: italic;
 
-}
 
 .data_x .open>.dropdown-menu {
 

@@ -760,8 +760,9 @@ app_server<-function(input, output, session) {
                     "Hierarchical Clustering"="video7",
                     "K-Means"="video8",
                     "Supervised Algorithms"="video9",
-                    "Exchange Factor/Variables"="video10",
-                    "SHP toolbox"="video11"
+                    "Compare Models"="video10",
+                    "Exchange Factor/Variables"="video11",
+                    "SHP toolbox"="video12"
                   )
                 )),
               column(9,class="mp0",uiOutput("videos"))
@@ -777,16 +778,17 @@ app_server<-function(input, output, session) {
   get_video<-reactive({
     switch(input$video_tab,
            "video1"={'https://danilocvieira.github.io/iMESc_help/images/t1-creating-datalist.mp4'},
-           "video2"={'https://danilocvieira.github.io/iMESc_help/images/t16-preproc.mp4'},
-           "video3"={'https://danilocvieira.github.io/iMESc_help/images/t7-desctools.mp4'},
-           "video4"={'https://danilocvieira.github.io/iMESc_help/images/t14-Divtools.mp4'},
-           "video5"={'https://danilocvieira.github.io/iMESc_help/images/t6-maps.mp4'},
-           "video6"={'https://danilocvieira.github.io/iMESc_help/images/t9-self-organizing-maps.mp4'},
-           "video7"={'https://danilocvieira.github.io/iMESc_help/images/t11-HC.mp4'},
-           "video8"={'https://danilocvieira.github.io/iMESc_help/images/T12-kmeans.mp4'},
-           "video9"={'https://danilocvieira.github.io/iMESc_help/images/t10-SL.mp4'},
-           "video10"={'https://danilocvieira.github.io/iMESc_help/images/t8-exchange-numeric-factors.mp4'},
-           "video11"={'https://danilocvieira.github.io/iMESc_help/images/t13-shp_toolbox.mp4'})
+           "video2"={'https://danilocvieira.github.io/iMESc_help/images/pre-processing.mp4'},
+           "video3"={'https://danilocvieira.github.io/iMESc_help/images/module02-descriptive-tools.mp4'},
+           "video4"={'https://danilocvieira.github.io/iMESc_help/images/module03-biodiversity-tools.mp4'},
+           "video5"={'https://danilocvieira.github.io/iMESc_help/images/module04-spatial-tools.mp4'},
+           "video6"={'https://danilocvieira.github.io/iMESc_help/images/module05-supersom.mp4'},
+           "video7"={'https://danilocvieira.github.io/iMESc_help/images/module06-hierarchical-clustering.mp4'},
+           "video8"={'https://danilocvieira.github.io/iMESc_help/images/module07-kmeans.mp4'},
+           "video9"={'https://danilocvieira.github.io/iMESc_help/images/module08-supervised-algorithms.mp4'},
+           "video10"={'https://danilocvieira.github.io/iMESc_help/images/module09-compare-models.mp4'},
+           "video11"={'https://danilocvieira.github.io/iMESc_help/images/options-exchange-factors-variables.mp4'},
+           "video12"={'https://danilocvieira.github.io/iMESc_help/images/options-shp-toolbox.mp4'})
   })
 
   output$videos<-renderUI({
@@ -908,7 +910,7 @@ app_server<-function(input, output, session) {
   })
   output$menu_compare_out<-renderUI({
 
-    module_compare$server("module_comp",  vals=vals, df_colors=vals$colors_img,newcolhabs=newcolhabs,df_symbol=df_symbol)
+    compare_models$server("module_comp",  vals)
     NULL
   })
 
@@ -920,7 +922,7 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observeEvent(input$savepoint_yes,{
+  observeEvent(input$save_point_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

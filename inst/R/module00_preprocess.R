@@ -2833,7 +2833,7 @@ tool2_tab10$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     output$tree_gen<-  shinyTree::renderTree({
 
-      attrlist<-getTree_saved_data(vals,F,imesc_attrs,imesc_models)
+      attrlist<-getTree_saved_data(vals,F,available_models,imesc_models)
 
       attrlist
     })

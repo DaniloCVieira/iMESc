@@ -826,9 +826,9 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   }
 
   map <- leaflet(df, options =leafletOptions(
-    #zoomSnap=zoomSnap,
-    #zoomControl =T,
-    #zoomDelta = 1
+    zoomSnap=zoomSnap,
+    zoomControl =T,
+    zoomDelta = 1
   )  )
 
   map<-add_shapes1(map,data,layer_shape_args,base_shape_args)

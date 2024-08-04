@@ -432,3 +432,15 @@ padding: 0px;
 .selectize-control.single .selectize-input:not(.no-arrow):after{
   right: 4px;
 }
+.spatial_tools,.spatial_tools .form-control,
+.spatial_tools .btn {
+ font-size: 13px;
+}
+
+.zoom_leaflet .modal-footer{
+  padding: 0px;
+}
+.spatial_tools .spatial_setup .train_box {
+  padding-bottom: 5px;
+  margin-bottom: 2px;
+}

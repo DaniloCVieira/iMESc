@@ -72,7 +72,7 @@ check_inputs<-function(input,pattern){
 ll_data<-list()
 ll_data$ui<-function(id){
   ns<-NS(id)
-  div(
+  div(class="spatial_tools spatial_setup",
     id=ns('map_setup'),
     box_caret(ns("box_setup"),
               title="Data setup",
@@ -770,8 +770,8 @@ ll_shapes$server<-function(id,vals=NULL){
 ll_options<-list()
 ll_options$ui<-function(id){
   ns<-NS(id)
-  div(
-    div(class="map_providers",style="display: flex",
+  div(class="mp0",
+    div(class="map_providers",style="display: flex; align-items: center",
 
         selectInput(ns("providers"),
                     label ="+ Map Style",
@@ -799,8 +799,9 @@ ll_options$ui<-function(id){
                                'Esri.NatGeoWorldMap',
                                'Esri.WorldPhysical',
                                'USGS.USImagery'
-                    ))
-         #numericInput(ns("zoomSnap"),'+ zoomSnap',min=0,max=1,0.25,step=0.01,width='50px')
+                    ),
+                    width='220px'),
+         numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
 
 
 
@@ -1555,7 +1556,7 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
     class="inline_pickers",
     div(
       column(
-        4,class="mp0",style="height: calc(100vh - 200px);overflow-y: auto",
+        4,class="mp0",style="height: 80vh;overflow-y: auto",
 
         div(
           if(isTRUE(interp)|raster){
@@ -1755,9 +1756,9 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
 
                          id=ns("run_map_btn"),
                          actionButton(ns("run_map"),
-                                      span(icon("angles-right"),icon("map")))
+                                      span(icon("angles-right"),icon("map")),style="height: 30px; padding-top: 3px;padding-bottom: 3px")
                        ),
-                       div(style="padding: 10px",
+                       div(style="padding: 5px",
                            emgray(icon("fas fa-hand-point-right"),"Click to Create the map")
                        ),
                        div(style="position: absolute; right: 2px",
@@ -1773,13 +1774,16 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
                 if(isFALSE(any(surface,stack,scatter3d)))
                   tabPanel("Leaflet",value="leaflet",
 
-                           span(id=ns("zoom_leaflet_btn"),style="display: none",
-                                inline(ll_options$ui(ns("options1"))),
-                                actionButton(ns("zoom_leaflet"),icon("magnifying-glass-plus"))
+                           div(id=ns("zoom_leaflet_btn"),
+                           div(style="position: absolute; top: 150px; left: 40px; z-index: 9999",
+                               actionLink(ns("zoom_leaflet"),icon("magnifying-glass-plus",style="color: #05668D;"),style="font-size: 18px;")
                            ),
+                           div(style="display: flex; position: absolute;top: 30px; right: 0px;gap: 15px; align-items: center",ll_options$ui(ns("options1"))
+
+                           )),
                            bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
 
-                           leaflet::leafletOutput(ns("plot_from_leaflet"))),
+                           leaflet::leafletOutput(ns("plot_from_leaflet"),width="50vw")),
                 if(isFALSE(any(surface,stack,scatter3d)))
                   tabPanel(
                     "GGplot",value="ggplot",
@@ -4044,10 +4048,10 @@ div(style="display: flex",
     })
     observeEvent(input$zoom_leaflet,{
       showModal(
-        tags$div(id="modal_leaflet",
+        tags$div(id="modal_leaflet",class="zoom_leaflet",
                  modalDialog(
                    size ="xl",
-                   leafletOutput(ns("plot_from_leaflet2"), height  = 600),
+                   leafletOutput(ns("plot_from_leaflet2"), height  = 520, width='70vw'),
                    easyClose = T
                  )
         )
@@ -4342,7 +4346,7 @@ llet<-list()
 #' @export
 llet$ui<-function(id){
   ns<-NS(id)
-  div(    # actionButton(ns("savebug"),"save bug"),
+  div( class="spatial_tools",
     tags$style(HTML(
       "
 

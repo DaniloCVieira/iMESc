@@ -312,11 +312,16 @@ uiOutput('preprocess'))
       )
     )
 ) ),
-footer=shinydashboardPlus::dashboardFooter(left=div(style="display: flex",
-                                                    div(style="width: 17%; display: inline-block; text-align: center",
-                                                        HTML("<a href='https://danilocvieira.github.io/iMESc_help' target='_blank'>iMESc<sup>help!</sup></a>")),
-                                                    div(style="width: 80%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)),
-                                                    div(style="width: 4%; display: inline-block; text-align: right",
-                                                        uiOutput('footer_qsave'))
-))))
+footer=shinydashboardPlus::dashboardFooter(
+  left=div(style="display: flex",
+           div(style="width: 17%; display: inline-block; text-align: center",
+               #HTML("<a href='https://danilocvieira.github.io/iMESc_help' target='_blank'>iMESc<sup>help!</sup></a>"),
+               actionLink('imesc_help_link_side',HTML("iMESc<sup>help!</sup>"))
+               ),
+
+           div(style="width: 80%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)),
+           div(style="width: 4%; display: inline-block; text-align: right",
+               uiOutput('footer_qsave'))
+  )
+)))
 }

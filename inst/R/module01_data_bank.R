@@ -121,7 +121,7 @@ div(
           'tab1',
           div(
             style = " background: white;",
-            div(style="font-size: 11px",
+            div(style="font-size: 11px; display: none",
                 id=ns("split_columns"),
                 render_warning(
                   title=NULL,point_icon=F,icon=NULL,
@@ -672,6 +672,7 @@ databank_module$server<-function(id, vals){
     output$split_data_out<-renderUI({
       data<-getdata_bank()
 
+      req(input$col_interval)
       div(class="picker25",
           fixed_dt_con$ui(ns("numeric"),data,input$col_interval,label="Show Group:")
       )
@@ -679,6 +680,7 @@ databank_module$server<-function(id, vals){
     })
 
     get_data_split<-reactive({
+      req(input$col_interval)
       fixed_dt_con$server2("numeric",getdata_bank(),input$col_interval)
     })
 

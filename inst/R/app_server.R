@@ -771,9 +771,7 @@ app_server<-function(input, output, session) {
         )
     )
   })
-  observeEvent(input$imesc_help_link,{
-  browseURL("https://danilocvieira.github.io/iMESc_help")
-})
+
 
   get_video<-reactive({
     switch(input$video_tab,
@@ -825,10 +823,12 @@ app_server<-function(input, output, session) {
     sys_info<-readRDS('www/sys_info.rds')
     do.call('div',args=list(sys_info))
   })
+  observeEvent(input$imesc_help_link_side,{
+    browseURL("https://danilocvieira.github.io/iMESc_help")
+  })
   observeEvent(input$imesc_help_link,{
     browseURL("https://danilocvieira.github.io/iMESc_help")
   })
-
   output$menu_bank_out<-renderUI({
     #validate(need(length(vals$saved_data)>0,"No Datalist found"))
 

@@ -12,7 +12,7 @@
 #' @noRd
 library(shinyBS)
 
-version<-"1.0.3"
+
 #' @export
 app_ui<-function(request) {
 

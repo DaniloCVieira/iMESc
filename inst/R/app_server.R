@@ -820,7 +820,8 @@ app_server<-function(input, output, session) {
            ))
   })
   output$sys_info<-renderUI({
-    sys_info<-readRDS('www/sys_info.rds')
+    print(getwd())
+    sys_info<-readRDS('inst/www/sys_info.rds')
     do.call('div',args=list(sys_info))
   })
   observeEvent(input$imesc_help_link_side,{
@@ -958,5 +959,30 @@ app_server<-function(input, output, session) {
   t1<-Sys.time()
   #print(t1-t0)
 
+  observeEvent(input$imesc_desktop_git,{
+    browseURL("https://github.com/DaniloCVieira/iMESc-Desktop")
+  })
+
+  observe({
+    req(grepl("iMESc-Desktop",getwd()))
+    req(check_version())
+    result<-check_version()
+    current_version<-attr(result,"current")
+    latest_version<-attr(result,"latest")
+    showModal(
+      modalDialog(
+        title="iMESc ",
+        div(
+
+
+          div("A newer version of iMESc-Desktop is available:", embrown(latest_version)),
+          div("Downlod the new version in",
+              actionLink('imesc_desktop_git', "https://github.com/DaniloCVieira/iMESc-Desktop"),
+          ),
+        )
+      )
+    )
+
+  })
 
 }

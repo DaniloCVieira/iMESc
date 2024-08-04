@@ -11,7 +11,7 @@ options(shiny.autoload.r=FALSE)
 #rm(list=ls())
 inicio<-Sys.time()
 
-
+version<-"1.0.4"
 load_required_packages<-function(){
   packages_required<-c('ade4','aweSOM','base64enc','beepr','caret','class','cluster','colorRamps','colorspace','colourpicker','data.table','DBI','dendextend','doParallel',
 'doSNOW','dplyr','DT','e1071','factoextra','foreach','gbm','gbRd','geodist','ggnewscale','ggplot2','ggpubr','ggraph','ggrepel','ggridges','ggthemes','golem','gplots','graphics','gstat','igraph','kernlab','klaR','kohonen','lattice','leaflet','leaflet.minicharts','MASS','methods','Metrics','parallel','pdp','plotly','pROC','processx','purrr','randomForestExplainer','raster','RColorBrewer','readxl','remotes','reshape','rintrojs','rstudioapi','scales','scatterpie','segRDA','sf','shiny','shinyBS','shinybusy',
@@ -94,7 +94,7 @@ transf_df<-list(
 mytips<-paste0(do.call(paste0,args=list("'",lapply(transf_df,function(x) x$tooltip), sep="'")),collapse=",")
 
 
-
+source("www/check_version_desktop.R")
 source("www/funs_ordination_plot.R")
 source('www/funs_texts.R')
 source("www/funs_pre_treat.R")

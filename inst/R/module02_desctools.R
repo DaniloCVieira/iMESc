@@ -664,8 +664,11 @@ desctools_tab3$ui<-function(id){
                          div(
                            pickerInput_fromtop(inputId=ns("rid_y"),label = "X (factor)",
                                        choices =NULL),
-                           div(actionLink(ns("show_obs_selection"),"Y (numeric)")),
-                           div(uiOutput(ns('rid_x_variables')),)
+                           div(tags$label("Y (numeric)")),
+                           div(
+                             class="virtual-100",
+                             virtualPicker(ns("ridge_variables"),label=NULL,NULL,SelectedText="Variables selected")
+                           )
                          ),
 
 
@@ -720,17 +723,11 @@ desctools_tab3$server<-function(id,vals){
       )
     })
 
-    output$rid_x_variables<-renderUI({
-      div(
-        fluidPage(
-
-          DT::dataTableOutput(ns('rid_x'))
 
 
-        )
-      )
 
-    })
+
+
 
     output$rid_out<-renderUI({
       req(!is.null(vals$rid_plot))
@@ -739,22 +736,11 @@ desctools_tab3$server<-function(id,vals){
       renderPlot(vals$rid_plot, width=input$rid_width,height=input$rid_heigth)
 
     })
-    output$rid_x = DT::renderDataTable(
-      {      data<-getdata_descX()
-      table=data.frame(Variables=colnames(data))
-      DT::datatable(table, options=list(
-        dom="t",
 
-        lengthMenu = list(c(-1), c("All")),
-        scrollX = TRUE,
-        scrollY = "200px",
-        autoWidth=F
-
-      ), class ='compact cell-border',rownames=F,  colnames="",
-
-      selection = list(mode = 'multiple', selected = c(1:3)))
-      })
-
+    observeEvent(getdata_descX(),{
+      choices=colnames(getdata_descX())
+      shinyWidgets::updateVirtualSelect('ridge_variables',choices=choices,selected=choices[1:3])
+    })
     observeEvent(args_ridges(),{
       req(input$rid_heigth)
       req(input$run_ridges)
@@ -765,7 +751,7 @@ desctools_tab3$server<-function(id,vals){
       updatePickerInput(session,'rid_col',choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img))
     })
     observe({
-     # print(input$rid_x_rows_selected)
+     # print(input$ridge_variables)
     })
 
     args_ridges<-reactive({
@@ -780,9 +766,9 @@ desctools_tab3$server<-function(id,vals){
         #vals<-readRDS('vals.rds')
         #saveRDS(reactiveValuesToList(input),"input.rds")
         #saveRDS(reactiveValuesToList(vals),"vals.rds")
-        req(length(input$rid_x_rows_selected)>0)
-        # req(input$rid_x_rows_selected%in%colnames(data))
-        x<-data<-data[,input$rid_x_rows_selected, drop=F]
+        req(length(input$ridge_variables)>0)
+        # req(input$ridge_variables%in%colnames(data))
+        x<-data<-data[,input$ridge_variables, drop=F]
         req(input$rid_y%in%colnames(factors))
         y<-factors[input$rid_y]
 
@@ -813,9 +799,7 @@ desctools_tab3$server<-function(id,vals){
       choices =rev(colnames(factors))
       updatePickerInput(session,'rid_y',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
-    observeEvent(ignoreInit = T,input$show_obs_selection,{
-      shinyjs::toggle("rid_x")
-    })
+
 
 
     observeEvent(input$run_ridges,{
@@ -842,9 +826,13 @@ desctools_tab4$ui<-function(id){
 
                      title=strong("Variables & Panels"),
                      color="#c3cc74ff",
-                     div(
+                     div(class="half-drop-inline",
+                         div(
+                           class="virtual-100",
+                           div(span("Variables:",class='text_alert')),
 
-                       pickerInput_fromtop(ns("ggpair.variables"),span("Variables:",class='text_alert'),NULL, multiple = T,options=list(`actions-box` = TRUE)),
+                           virtualPicker(ns("ggpair.variables"),label=NULL,NULL,SelectedText="Variables selected")
+                         ),
 
 
 
@@ -1031,7 +1019,7 @@ desctools_tab4$server<-function(id,vals){
     })
     observeEvent(getdata_descX(),{
       choices=colnames(getdata_descX())
-      updatePickerInput(session,'ggpair.variables',choices=choices,selected=choices[1:3],options=shinyWidgets::pickerOptions(liveSearch=T))
+      shinyWidgets::updateVirtualSelect('ggpair.variables',choices=choices,selected=choices[1:3])
     })
     get_ggpair_args<-reactive({
       args<-try(silent = T,{

@@ -522,6 +522,12 @@ background: #f7f7f7ff;
 .tools_page .form-group {
  margin-bottom: 0px;
 }
+.virtual-80 .virtual-select .vscomp-options-container {
+  height: 80px;
+}
+.virtual-100 .virtual-select .vscomp-options-container {
+  height: 100px;
+}
 .virtual-130 .virtual-select .vscomp-options-container {
   height: 130px;
 }

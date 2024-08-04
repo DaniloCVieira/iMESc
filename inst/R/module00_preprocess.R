@@ -3066,7 +3066,7 @@ tool2_tab11$server<-function(id,vals){
   })
 }
 
-virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,selected=NULL){
+virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,selected=NULL,search =T){
   div(class="picker_open",
       shinyWidgets::virtualSelectInput(
         inputId = id,
@@ -3074,12 +3074,12 @@ virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,
         optionHeight='24px',
         choices = choices,
         selected=selected,
-        search = TRUE,
+        search = search,
         keepAlwaysOpen = TRUE,
         multiple =T,
         hideClearButton=T,
         alwaysShowSelectedOptionsCount=T,
-        searchPlaceholderText="Select all",
+        searchPlaceholderText="Select all  -  Search",
         optionsSelectedText=SelectedText,
         optionSelectedText=SelectedText
       )

@@ -89,7 +89,11 @@ Imports:
     partykit,
     automap,
     aweSOM,
-    plotly
+    plotly,
+    plot3D,
+    ggparty,
+    MLmetrics,
+    gbRd
 Suggests: 
     knitr,
     rmarkdown

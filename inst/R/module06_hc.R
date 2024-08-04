@@ -217,7 +217,8 @@ hc_module$ui<-function(id){
                              numericInput(ns("pcodes_bgalpha"),"Lightness",value = 0,min = 0,max = 1,step = .1),
                              pickerInput_fromtop(ns("pclus_border"),label ='Border:',choices = NULL),
                          ),
-                         numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1)
+                         numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1),
+                         textInput(ns("neuron_legend_text"),"Legend text","Group")
 
                        )),
                      box_caret(
@@ -242,7 +243,10 @@ hc_module$ui<-function(id){
                              ),
 
                              pickerInput_fromtop(inputId = ns("pclus_symbol"),label = "Shape",choices=NULL),
-                             numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+                             numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+                             checkboxInput(ns("pclus_show_legend"),"Show legend",T),
+                             textInput(ns("pclus_points_legend_text"),"Legend text","Observations"),
+
                            ))
                      ),
                      box_caret(
@@ -720,7 +724,7 @@ hc_module$server<-function(id, vals){
       if(isTRUE(input$hcsom_newdata)){
         cols<-vals$newcolhabs[[input$pclus_points_palette]](100)[1:2]
         if(cols[1]==cols[2])
-          updateTabsetPanel(session,"pclus_points_palette",selected="turbo")
+          updatePickerInput(session,"pclus_points_palette",selected="turbo")
       }
 
     })
@@ -1161,7 +1165,10 @@ hc_module$server<-function(id, vals){
                  border_width=input$border_width,
                  fill_neurons=input$fill_neurons,
                  text_repel=input$text_repel,
-                 max.overlaps=input$max.overlaps
+                 max.overlaps=input$max.overlaps,
+                 show_legend=input$pclus_show_legend,
+                 neuron_legend=input$neuron_legend_text,
+                 points_legend=input$pclus_points_legend_text
       )
 
       args
@@ -1502,18 +1509,23 @@ hc_module$server<-function(id, vals){
 
 
 
-    observeEvent(args_hc3(),{
+
+    observeEvent(argsplot_somplot(),{
       vals$hc_messages<-NULL
       shinyjs::addClass("run_bmu_btn","save_changes")
     })
     hcplot4<-reactiveVal()
-    observeEvent(input$run_bmu,ignoreInit = T,{
+    observeEvent(hcplot4(),{
       shinyjs::removeClass("run_bmu_btn","save_changes")
+    })
+    observeEvent(input$run_bmu,ignoreInit = T,{
+      hcplot4(NULL)
       m<-getmodel_hc()
       somC<-phc()
       args<-argsplot_somplot()
       args$hc<-phc()$som.hc
       hcplot4(do.call(bmu_plot_hc,args))
+
     })
 
     args_hc2<-reactive({
@@ -1667,6 +1679,13 @@ hc_module$server<-function(id, vals){
       cols<-vals$newcolhabs[[input$pclus_points_palette]](8)
       shinyjs::toggle('pclus_points_factor',condition=cols[1]!=cols[2])
       shinyjs::toggle('color_factor',condition=cols[1]==cols[2])
+      if(cols[1]==cols[2]){
+        updateTextInput(session,'pclus_points_legend_text',value="Observations")
+      } else{
+        updateTextInput(session,'pclus_points_legend_text',value=input$pclus_points_factor)
+      }
+
+
     })
     observeEvent(df_symbol$val,{
       updatePickerInput(session,'pclus_symbol',choices = df_symbol$val,

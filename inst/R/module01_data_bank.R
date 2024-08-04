@@ -1,4 +1,57 @@
 #' @export
+
+
+fixed_dt_con<-list()
+#' @export
+fixed_dt_con$ui<-function(id,data,max_length=100, label="Show columns:"){
+  if(is.null(data)){
+    return(NULL)
+  }
+  vecs<-split_vector_max_elements(1:ncol(data),max_length)
+  choices_containers<-sapply(vecs,function(x) paste(range(x),collapse="-"))
+  choices_names<-names(choices_containers)
+  names(choices_names)<-choices_containers
+  ns<-NS(id)
+  div(
+    pickerInput_fromtop(ns("data_container"),label , choices_names)
+
+  )
+}
+#' @export
+fixed_dt_con$server<-function(id,data,max_length=100){
+  moduleServer(id,function(input,output,session){
+
+    if(is.null(data)){
+      return(NULL)
+    }
+    vecs<-split_vector_max_elements(1:ncol(data),max_length)
+    data_containers<-lapply(vecs,function(x) data[,x])
+    output$data_render<-renderUI({
+      div(
+        class="half-drop-inline",
+        style="max-width: 100%; overflow-x: auto",
+        fixed_dt(data_containers[[input$data_container]],scrollY = "300px",scrollX=T)
+      )
+    })
+  })
+}
+fixed_dt_con$server2<-function(id,data,max_length=100){
+  moduleServer(id,function(input,output,session){
+
+    if(is.null(data)){
+      return(NULL)
+    }
+    vecs<-split_vector_max_elements(1:ncol(data),max_length)
+    data_containers<-lapply(vecs,function(x) data[,x])
+
+    if(!is.null(input$data_container))
+      return(data_containers[[input$data_container]])
+  })
+}
+split_vector_max_elements <- function(vec, max_length) {
+  split(vec, ceiling(seq_along(vec) / max_length))
+}
+#' @export
 databank_module<-list()
 #' @export
 databank_module$ui<-function(id){
@@ -16,85 +69,144 @@ databank_module$ui<-function(id){
     div(id = ns("tab7"), icon("fas fa-comment"))
   )
 
+  div(tags$style(HTML(
+    "
+    .picker25 .bootstrap-select>.dropdown-toggle,.picker25 .form-control, .half-drop-inline .picker25 .form-group {
+        height: 20px;
+    padding:2px
+    margin: 0px
+    }
+    .picker25 .form-control {
+    margin-bottom: 5px
+    }
+    .dataTables_wrapper .dataTables_filter input {
+    border: 1px solid #aaa;
+    border-radius: 0px;
+    padding: 2px;
+    background-color: transparent;
+    color: inherit;
+    margin-left: 1px;
+    height: 25px;
+}
+    "
+  )),
+div(
+
+  box_caret(ns("bank_tools"),
+            title="Datalist Attributes",
+            color="#374061ff",
+            inline=F,
+            div(class="bank_attr",
+                div(style="display: flex",
+                    uiOutput(ns('data_bank'))
+
+                    ,
+                    radioGroupButtons(
+                      ns("view_datalist"), NULL,
+                      choiceNames = choices_names,
+                      selected='tab1',
+                      choiceValues = choices, status = "view_datalist"
+                    )
+                )
+            )),
+
   div(
+    class="half-drop-inline",
     div(
+      style="margin-top: -10px;padding-left: 20px;padding-top: 5px",
+      tabsetPanel(
+        id=ns("tab_bank"),
+        type="hidden",
+        tabPanel(
+          'tab1',
+          div(
+            style = " background: white;",
+            div(style="font-size: 11px",
+                id=ns("split_columns"),
+                render_warning(
+                  title=NULL,point_icon=F,icon=NULL,
+                  fluidRow(
+                    column(12,
 
-      box_caret(ns("bank_tools"),
-                title="Datalist Attributes",
-                color="#374061ff",
-                inline=F,
-          div(class="bank_attr",
-              div(style="display: flex",
-                  uiOutput(ns('data_bank'))
+                           column(4,class="mp0",
+                                  div("The selected 'Datalist' has many columns, which may slow rendering. Columns were splitted based on the 'Max Nº of Columns'."),
 
-                  ,
-                  radioGroupButtons(
-                    ns("view_datalist"), NULL,
-                    choiceNames = choices_names,
-                    selected='tab1',
-                    choiceValues = choices, status = "view_datalist"
-                  )
-              )
-          )),
+                           ),
+                           column(8,class="mp0",
+                                  class="half-drop picker25",
+                                  div(style="display: flex;
+                                    flex-wrap:wrap; margin-left: 15px",
+                                    numericInput(ns('col_interval'),"Max Nº of Columns:",200),
+                                    uiOutput(ns('split_data_out'))
+                                  )
 
-      div(class="half-drop-inline",
-          div(style="margin-top: -10px;padding-left: 20px;padding-top: 5px",
-              tabsetPanel(
-                id=ns("tab_bank"),
-                type="hidden",
-                tabPanel('tab1',
-                         div(
-                           style = " background: white;",
-                           h5(strong("Numeric-Attribute"),
-                              actionButton(ns("ddcogs2"),  tipify(icon("fas fa-download"), "Download table"))),
-                           DT::dataTableOutput(ns("DT_data"))
-
-                         )
-                ),
-                tabPanel('tab2',
-                         div(style = "background: white;",
-                             h5(span(strong("Factor-Attribute")),
-                                actionButton(ns("dfcogs2"), tipify(icon("fas fa-download"), "Download table"))),
-                             DT::dataTableOutput(ns("DT_factors"))
-
-                         )),
-                tabPanel('tab3',
-                         div(style = " background: white;",
-                             uiOutput(ns("viewcoords")))
-                ),
-                tabPanel('tab4',uiOutput(ns("viewshapes"))),
-                tabPanel('tab5',uiOutput(ns("viewsom"))),
-                tabPanel('tab6',div(
-                  tabsetPanel(
-                    header=div(class='inline_pickers',
-                               numericInput(ns("round_sl"),"Round",3)),
-                    tabPanel("Classification Models",
-                             actionLink(ns("download_class"),
-                                        "Download table",
-                                        icon("download")),
-
-                             div(style="overflow: auto",
-                                 uiOutput(ns("viewsl_class"))
-                             )
-
-
-                    ),
-                    tabPanel("Regression Models",
-                             actionLink(ns("download_reg"),
-                                        "Download table",
-                                        icon("download")),
-
-                             div(style="overflow: auto",
-                                 uiOutput(ns("viewsl_reg")))
-
+                           )
                     )
                   )
-                )),
-                tabPanel('tab7',uiOutput(ns("comments")))
-              )
-          ))
+                )
+            ),
+            h5(
+              style="display: flex; align-items: center;gap:15px",
+              strong("Numeric-Attribute"),
+              actionButton(ns("ddcogs2"),  tipify(icon("fas fa-download"), "Download table")),
+
+
+
+
+
+            ),
+
+            DT::dataTableOutput(ns("DT_data"))
+
+          )
+
+        ),
+        tabPanel('tab2',
+                 div(style = "background: white;",
+                     h5(span(strong("Factor-Attribute")),
+                        actionButton(ns("dfcogs2"), tipify(icon("fas fa-download"), "Download table"))),
+                     DT::dataTableOutput(ns("DT_factors"))
+
+                 )),
+        tabPanel('tab3',
+                 div(style = " background: white;",
+                     uiOutput(ns("viewcoords")))
+        ),
+        tabPanel('tab4',uiOutput(ns("viewshapes"))),
+        tabPanel('tab5',uiOutput(ns("viewsom"))),
+        tabPanel('tab6',div(
+          tabsetPanel(
+            header=div(class='inline_pickers',
+                       numericInput(ns("round_sl"),"Round",3)),
+            tabPanel("Classification Models",
+                     actionLink(ns("download_class"),
+                                "Download table",
+                                icon("download")),
+
+                     div(style="overflow: auto",
+                         uiOutput(ns("viewsl_class"))
+                     )
+
+
+            ),
+            tabPanel("Regression Models",
+                     actionLink(ns("download_reg"),
+                                "Download table",
+                                icon("download")),
+
+                     div(style="overflow: auto",
+                         uiOutput(ns("viewsl_reg")))
+
+            )
+          )
+        )),
+        tabPanel('tab7',uiOutput(ns("comments")))
+      )
 
     )
+  )
+
+)
   )
 }
 
@@ -104,6 +216,9 @@ databank_module$server<-function(id, vals){
 
     ns<-session$ns
     available_models<-SL_models$models
+
+
+
 
 
     observeEvent(input$data_bank,{
@@ -201,9 +316,9 @@ databank_module$server<-function(id, vals){
 
 
 
-get_metrics<-reactive({
-    update_imesc_models()
-     get_datalist_model_metrics(vals$saved_data,input$data_bank)
+    get_metrics<-reactive({
+      update_imesc_models()
+      get_datalist_model_metrics(vals$saved_data,input$data_bank)
     })
 
     render_metrics<-function(table,round){
@@ -550,12 +665,34 @@ get_metrics<-reactive({
       )
     })
 
+    observeEvent(getdata_bank(),{
+      data<-getdata_bank()
+      shinyjs::toggle("split_columns",condition=ncol(data)>300)
+    })
+    output$split_data_out<-renderUI({
+      data<-getdata_bank()
+
+      div(class="picker25",
+          fixed_dt_con$ui(ns("numeric"),data,input$col_interval,label="Show Group:")
+      )
+
+    })
+
+    get_data_split<-reactive({
+      fixed_dt_con$server2("numeric",getdata_bank(),input$col_interval)
+    })
+
     output$DT_data<-{
-      req(getdata_bank())
-      req(is.data.frame(getdata_bank()))
+
       DT::renderDataTable({
-        validate(need(ncol(getdata_bank()) < 1000, "Preview not available for data with more than 1000 columns"))
-        getdata_bank()},
+        data<-getdata_bank()
+
+        req(data)
+        req(is.data.frame(data))
+        if(ncol(data)>input$col_interval){
+          data<-get_data_split()
+        }
+        data},
         extensions = c('FixedColumns',"FixedHeader"),
         options = list(
           pageLength = 15,
@@ -564,15 +701,38 @@ get_metrics<-reactive({
           autoWidth=F,
           scrollX = TRUE,
           scrollY = '280px',
-          fixedHeader=TRUE,
           fixedColumns = list(leftColumns = 1, rightColumns = 0)),
         rownames = TRUE,
         class ='cell-border compact stripe',
         editable=T)}
-    output$DT_factors<-{DT::renderDataTable({
-      validate(need(ncol(attr(getdata_bank(), "factors")) < 1000, "Preview not available for data with more than 1000 columns"))
-      attr(getdata_bank(),"factors")},
-      options = list(pageLength = 15,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=F,scrollX = TRUE, scrollY = "280px"), rownames = TRUE,class ='cell-border compact stripe', editable=T)}
+    observeEvent(ignoreInit = T,input$DT_data_cell_edit, {
+      row <-input$DT_data_cell_edit$row
+      clmn<-input$DT_data_cell_edit$col
+      value<-if(input$DT_data_cell_edit$value==""){NA}else{as.numeric(input$DT_data_cell_edit$value)}
+      if(ncol(vals$saved_data[[input$data_bank]])>input$col_interval){
+        vals$saved_data[[input$data_bank]][colnames(get_data_split())][row, clmn]<-value
+      } else{         vals$saved_data[[input$data_bank]][row, clmn]<-value
+      }
+    })
+
+    output$DT_factors<-{
+      req(getdata_bank())
+      data<-attr(getdata_bank(),"factors")
+      DT::renderDataTable({
+        validate(need(ncol(data) < 1000, "Preview not available for data with more than 1000 columns"))
+        data},
+        extensions = c('FixedColumns',"FixedHeader"),
+        options = list(
+          pageLength = 15,
+          info = FALSE,
+          lengthMenu = list(c(15, -1), c( "15","All")),
+          autoWidth=F,
+          scrollX = TRUE,
+          scrollY = '280px',
+          fixedColumns = list(leftColumns = 1, rightColumns = 0)),
+        rownames = TRUE,
+        class ='cell-border compact stripe',
+        editable=T)}
     output$DTcoords<-{DT::renderDataTable(data.frame(attr(getdata_bank(),"coords")),options = list(
       pageLength = 15, info = FALSE,lengthMenu = list(c(15, -1), c( "15","All")), autoWidth=T,dom = 'lt',scrollX = TRUE, scrollY = "280px"), rownames = TRUE,class ='cell-border compact stripe')}
 
@@ -823,12 +983,7 @@ get_metrics<-reactive({
     })
     observeEvent(ignoreInit = T,input$view_datalist,
                  {vals$curview_databank<-input$view_datalist})
-    observeEvent(ignoreInit = T,input$DT_data_cell_edit, {
-      row <-input$DT_data_cell_edit$row
-      clmn<-input$DT_data_cell_edit$col
-      value<-if(input$DT_data_cell_edit$value==""){NA}else{as.numeric(input$DT_data_cell_edit$value)}
-      vals$saved_data[[input$data_bank]][row, clmn]<-value
-    })
+
     observeEvent(ignoreInit = T,input$ddcogs1_pick,{
       vals$ddcogs1_pick<-input$ddcogs1_pick
     })
@@ -916,3 +1071,5 @@ get_metrics<-reactive({
 
   })
 }
+
+

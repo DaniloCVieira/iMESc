@@ -331,7 +331,7 @@ app_server<-function(input, output, session) {
 
 
 
-      models<-c("kmeans","som","nb","svm","knn","rf","sgboost","xyf")
+      models<-as.character(available_models)
       for(x in models){
         {
           res<-attr(vals$saved_data[[vals$cur_data]],x)
@@ -922,7 +922,7 @@ app_server<-function(input, output, session) {
   })
 
   once_savepoint<-reactiveVal(F)
-  observeEvent(input$save_point_yes,{
+  observeEvent(input$savepoint_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

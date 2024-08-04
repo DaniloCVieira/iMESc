@@ -1,39 +1,7 @@
 #' @noRd
 
-fixed_dt_con<-list()
-#' @export
-fixed_dt_con$ui<-function(id,data,max_length=100){
-  if(is.null(data)){
-    return(NULL)
-  }
-  vecs<-split_vector_max_elements(1:ncol(data),max_length)
-  choices_containers<-sapply(vecs,function(x) paste(range(x),collapse="-"))
-  choices_names<-names(choices_containers)
-  names(choices_names)<-choices_containers
-  ns<-NS(id)
-  div(
-    pickerInput_fromtop(ns("data_container"),"Show columns" , choices_names)
 
-  )
-}
-#' @export
-fixed_dt_con$server<-function(id,data,max_length=100){
-  moduleServer(id,function(input,output,session){
 
-    if(is.null(data)){
-      return(NULL)
-    }
-    vecs<-split_vector_max_elements(1:ncol(data),max_length)
-    data_containers<-lapply(vecs,function(x) data[,x])
-    output$data_render<-renderUI({
-      div(
-        class="half-drop-inline",
-        style="max-width: 100%; overflow-x: auto",
-        fixed_dt(data_containers[[input$data_container]],scrollY = "300px",scrollX=T)
-      )
-    })
-  })
-}
 split_vector_max_elements <- function(vec, max_length) {
   split(vec, ceiling(seq_along(vec) / max_length))
 }
@@ -269,7 +237,8 @@ table_results_tab3$ui<-function(id){
           pickerInput_fromtop(inputId = ns("ss1_bg_palette"),"Palette",NULL),
           numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1),
           numericInput(ns("ss1_pcodes_bgalpha"), "Unit lightness",value = 0,min = 0,max = 1,step = .1),
-          pickerInput_fromtop(ns("ss1_pclus_border"),label ='Border:',NULL)
+          pickerInput_fromtop(ns("ss1_pclus_border"),label ='Border:',NULL),
+          textInput(ns("ss1_neuron_legend"),"Legend text",NULL)
         )
       ),
       box_caret(
@@ -289,7 +258,9 @@ table_results_tab3$ui<-function(id){
               pickerInput_fromtop(inputId = ns("ss1_pclus_symbol"),
                           label = "Shape",
                           choices = NULL),
-              numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
+              numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+              checkboxInput(ns("show_legend"),'Show legend',T),
+              textInput(ns("ss1_points_legend"),"Legend text","Observations")
           )
         )
       ),
@@ -870,6 +841,9 @@ table_results_tab3$server<-function(id,vals){
     })
 
     observe({
+      shinyjs::toggle("ss1_neuron_legend",condition=input$ss1_somback_value!='None')
+    })
+    observe({
       shinyjs::toggle('show_box_var_pie',condition=input$ss1_somback_value=='None')
     })
 
@@ -895,6 +869,17 @@ table_results_tab3$server<-function(id,vals){
       shinyjs::toggle("ss1_pclus_points_factor",condition = isFALSE(input$var_pie))
 
     })
+    observeEvent(input$ss1_pclus_points_palette,{
+      cols<-vals$newcolhabs[[input$ss1_pclus_points_palette]](8)
+      shinyjs::toggle('ss1_pclus_points_factor',condition = cols[1]!=cols[2])
+      if(cols[1]==cols[2]){
+        updateTextInput(session,'ss1_points_legend',value="Observations")
+      } else{
+        updateTextInput(session,'ss1_points_legend',value=input$ss1_pclus_points_factor)
+      }
+
+    })
+
     observe({
       toggle("var_pie_out",condition=isTRUE(input$var_pie))
     })
@@ -950,6 +935,7 @@ table_results_tab3$server<-function(id,vals){
       }
       m<-current_som_model()
       hexs<-get_neurons(m,background_type=backtype,property=property, hc=NULL)
+      updateTextInput(session,'ss1_neuron_legend',value=attr(hexs,"leg_name"))
       hexs
     })
     bmu_text_points<-function(data,text_factor,points_factor,points_tomap){
@@ -1022,7 +1008,10 @@ table_results_tab3$server<-function(id,vals){
                  border_width=input$border_width,
                  fill_neurons=input$fill_neurons,
                  text_repel=input$text_repel,
-                 max.overlaps=input$max.overlaps
+                 max.overlaps=input$max.overlaps,
+                 show_legend=input$show_legend,
+                 points_legend=input$ss1_points_legend,
+                 neuron_legend=input$ss1_neuron_legend
       )
 
       args
@@ -1037,12 +1026,15 @@ table_results_tab3$server<-function(id,vals){
 
       renderPlot({
 
+
         args<-ss1_argsplot()
 
         bp<-args$bp
         bp$id=NULL
         vals$biplot_som<-bp
         args$points_palette
+
+        #args$show_legend<-F
 
         p<-try(do.call(bmu_plot,args))
         req(!inherits(p,"try-error"))
@@ -1468,7 +1460,27 @@ table_predict_som$ui<-function(id){
 
       ),
       div(
-        uiOutput(ns("pred_result_options")),
+        div(id=ns("pred_result_options"),
+          box_caret(
+            ns('box_pred_results'),
+            title="Options",
+            color="#c3cc74ff",
+            div(
+              selectInput(ns('pred_results'),"Prediction results:",choices=c(
+                "Best-matching units"='unit.classif',
+                "Data"="predictions",
+                "Codebook"="unit.predictions"
+              )),
+              uiOutput(ns("pick_layer_result")),
+              uiOutput(ns("ui_pred_result_newdata")),
+              div(style="padding-top: 5px",
+                  uiOutput(ns("link_predsom_newdata")),
+                  uiOutput(ns("link_predsom_codebook"))
+              )
+            )
+
+          )
+        ),
         uiOutput(ns("pred_perf_options")),
         div(
           id=ns('pred_bmu_options'),
@@ -1737,25 +1749,7 @@ table_predict_som$server<-function(id,vals){
     })
 
     output$pred_result_options<-renderUI({
-      box_caret(
-        ns('box_pred_results'),
-        title="Options",
-        color="#c3cc74ff",
-        div(
-          selectInput(ns('pred_results'),"Prediction results:",choices=c(
-            "Best-matching units"='unit.classif',
-            "Data"="predictions",
-            "Codebook"="unit.predictions"
-          ),selected=vals$cur_tab_pred_result),
-          uiOutput(ns("pick_layer_result")),
-          uiOutput(ns("ui_pred_result_newdata")),
-          div(style="padding-top: 5px",
-              uiOutput(ns("link_predsom_newdata")),
-              uiOutput(ns("link_predsom_codebook"))
-          )
-        )
 
-      )
     })
     output$out_pred_result_codebook<-renderUI({
       table<-get_pred_codebook()
@@ -2311,12 +2305,13 @@ table_predict_som$server<-function(id,vals){
 
 
     observe({
+      shinyjs::toggle('pred_result_options',condition=input$predsom_tab=='predsom_tab01')
 
       shinyjs::toggle('ui_pred_result_newdata',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
       shinyjs::toggle('pick_layer_result',condition=input$tab_pred_result%in%c('predictions','unit.predictions'))
     })
     observe(shinyjs::toggle('pred_bmu_options',condition=input$predsom_tab=='predsom_tab01c'))
-    observe(shinyjs::toggle('pred_result_options',condition=input$predsom_tab=='predsom_tab01'))
+
     observe({
       data = ss2_getdata_layer()
       condition=which(colnames(data)==input$ss2_variable_pproperty)!=1
@@ -3680,6 +3675,7 @@ imesc_supersom$server<-function (id,vals ){
 
       observeEvent(input$trainSOM,ignoreInit = T,{
 
+        req(length(vals$saved_data)>0)
 
         req(isTRUE(input$mysupersom))
         data_x_o<-names(get_training_list())[[1]]
@@ -3785,7 +3781,7 @@ imesc_supersom$server<-function (id,vals ){
 
       observeEvent(input$trainSOM,ignoreInit = T,{
 
-
+        req(length(vals$saved_data)>0)
         req(isFALSE(input$mysupersom))
         vals$som_unsaved<-NULL
         attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL

@@ -6436,40 +6436,93 @@ caret_train$server<-function(id,vals=NULL){
     observeEvent(input$filter,{
       vals$cur_filter_model<-input$filter
     })
-    observeEvent(input$trash_model,ignoreInit = T,{
-      choices<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
+
+
+
+    get_models_datax_table<-reactive({
+      saved_data<-vals$saved_data
+      data_x<-input$data_x
+      req(data_x)
+      {
+
+
+        models<-as.character(models)
+        names(models)<-models
+        {
+          data<-saved_data[[data_x]]
+          result<-lapply(models,function(model){
+            df<-data.frame(model_name=names(attr(data,model)))
+            if(nrow(df)>0){
+              df$data_x<-data_x
+              df$attr<-model
+
+
+              df
+            }
+          })
+          do.call(rbind,result)
+        }
+        df<-do.call(rbind,result)
+        rownames(df)<-NULL
+
+
+        df
+      }
+    })
+    output$modal_trash_selection<-renderUI({
+      df_models<-get_models_datax_table()
+      if(is.null(df_models)){
+        return(emgray("no model saved in selected datalist"))
+      }
+      choices<-1:nrow(df_models)
+      names(choices)<-df_models$model_name
+      choices<-split(choices,factor(df_models$attr,levels=models))
+      choices<-choices[sapply(choices,length)>0]
+
+
       ns<-session$ns
+
+      div(
+        shinyWidgets::virtualSelectInput(
+          inputId = ns("trash_picker"),
+          label = "Select the models",
+          optionHeight='24px',
+          choices = choices,
+          search = TRUE,
+          keepAlwaysOpen = TRUE,
+          multiple =T,
+          hideClearButton=T,
+          alwaysShowSelectedOptionsCount=T,
+          searchPlaceholderText="Select all",
+          optionsSelectedText="Models selected",
+          optionSelectedText="Models selected"
+        )
+
+
+
+      )
+    })
+    observeEvent(input$trash_model,ignoreInit = T,{
+
       showModal(
         modalDialog(
           easyClose = T,
           title="Remove models",
-          div(
-            shinyWidgets::virtualSelectInput(
-              inputId = ns("trash_picker"),
-              label = "Select the columns",
-              optionHeight='24px',
-              choices = choices,
-              search = TRUE,
-              keepAlwaysOpen = TRUE,
-              multiple =T,
-              hideClearButton=T,
-              alwaysShowSelectedOptionsCount=T,
-              searchPlaceholderText="Select all",
-              optionsSelectedText="Models selected",
-              optionSelectedText="Models selected"
-            ),
-            actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
-          ),
-          footer=div(modalButton("Close"))
+          div(uiOutput(ns('modal_trash_selection'))),
+          footer=div(modalButton("Cancel"), actionButton(ns("trash_confirm"),"Remove Models",icon("trash"),style="height: 40px"))
         )
       )
     })
-
     observeEvent(input$trash_confirm,ignoreInit = T,{
-      req(vals$cmodel)
+      df<- get_models_datax_table()[input$trash_picker,]
+
       vals$update_tab_caret<-"tab1"
-      attr(vals$saved_data[[input$data_x]],vals$cmodel)[input$trash_picker]<-NULL
-      removeModal()
+
+      for(i in 1:nrow(df)){
+        attr(vals$saved_data[[input$data_x]],df$attr[i])[df$model_name[i]]<-NULL
+      }
+
+      #removeModal()
     })
 
 

@@ -580,7 +580,7 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
                    var_pie_transp=0.1,
                    n_var_pie=5,
                    var_pie_layer=1,
-                   pie_variables=1:2,text_repel=F,max.overlaps=10,...){
+                   pie_variables=1:2,text_repel=F,max.overlaps=10,show_legend=T,points_legend="Observations",neuron_legend=NULL,...){
 
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
@@ -621,7 +621,12 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
 
 
   bg_color<-lighten(bg_color, bgalpha)
-  leg_name<-attr(hexs,"leg_name")
+  if(is.null(neuron_legend)){
+    leg_name<-attr(hexs,"leg_name")
+  } else{
+    leg_name<-neuron_legend
+  }
+
   mybreaks<-scales::rescale(1:nx,c(min(grid$x)+px,max(grid$x)))
   mybreaksy<-scales::rescale(1:ny,c(min(grid$y),max(grid$y)))
   if(!is.null(show_error)){
@@ -685,6 +690,11 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
 
 
 
+  if(isTRUE(show_legend)){
+    guide="legend"
+  } else{
+    guide="none"
+  }
 
 
   if(!is.null(points_tomap)){
@@ -693,12 +703,12 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
       colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
       namepoints<-attr(points_tomap,"namepoints")
       if(length(unique(colpoints))==1){
-        points_tomap$point<-"Observations"
+        points_tomap$point<-points_legend
         namepoints=""
       }
 
       p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)+
-        scale_color_manual(name=namepoints,values=colpoints)
+        scale_color_manual(name=namepoints,values=colpoints,guide=guide)
     }
 
     if(isTRUE(text)){
@@ -742,10 +752,14 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
     )+theme(panel.background=element_blank())
   }
 
-  p<-p+ggtitle(title)+
-    guides(color = guide_legend(order=1),
-           size = guide_legend(order=2),
-           shape = guide_legend(order=3))
+  p<-p+ggtitle(title)
+  if(isTRUE(show_legend)){
+    p<-p+
+      guides(color = guide_legend(order=1),
+             size = guide_legend(order=2),
+             shape = guide_legend(order=3))
+  }
+
 
   attr(p,"imp_results")<-imp_results
   attr(p,"imp_layer")<-imp_layer
@@ -755,7 +769,14 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
 #' @export
 
 
-bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2,text_repel=F,max.overlaps=10) {
+bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2,text_repel=F,max.overlaps=10,show_legend=T,neuron_legend="Group",points_legend="Observations") {
+
+  if(isTRUE(show_legend)){
+    guide="legend"
+  } else{
+    guide="none"
+  }
+
   if(!is.factor(points_tomap$point)){
     points_tomap$point<-factor(points_tomap$point)
   }
@@ -797,9 +818,9 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
 
 
   if(isFALSE(fill_neurons)){
-    p<-p+scale_color_manual(name=leg_name,values=bg_color,labels=  levels(hc) )
+    p<-p+scale_color_manual(name=neuron_legend,values=bg_color,labels=  levels(hc) )
   } else{
-    p<-p+scale_fill_manual(name=paste0(leg_name,if(!is.null(show_error)){paste0("",colnames(err)[3])}),values=bg_color,labels=if( !is.null(show_error)){
+    p<-p+scale_fill_manual(name=neuron_legend,values=bg_color,labels=if( !is.null(show_error)){
       c(show_error$id,
         if(anyNA(df)){""})
     } else{   levels(hc) })
@@ -821,7 +842,7 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
 
       namepoints<-attr(points_tomap,"namepoints")
       if(length(unique(colpoints))==1){
-        points_tomap$point<-"Observations"
+        points_tomap$point<-points_legend
         namepoints=""
       }
 
@@ -877,11 +898,17 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
       base_size=base_size
     )+theme(panel.background=element_blank())
   }
+  p<-p+ggtitle(title)
+  if(isTRUE(show_legend)){
+    p<-p+
+      guides(color = guide_legend(order=1),
+             size = guide_legend(order=2),
+             shape = guide_legend(order=3))
+  }  else{
+    p<-p+guides(color="none",fill="none")
+  }
 
-  p<-p+ggtitle(title)+
-    guides(color = guide_legend(order=1),
-           size = guide_legend(order=2),
-           shape = guide_legend(order=3))
+
 
   attr(p,"imp_results")<-imp_results
   attr(p,"imp_layer")<-imp_layer

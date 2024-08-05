@@ -71,6 +71,9 @@ databank_module$ui<-function(id){
 
   div(tags$style(HTML(
     "
+    .bank_attr .btn, .bank_attr i{
+    color: #333
+    }
     .picker25 .bootstrap-select>.dropdown-toggle,.picker25 .form-control, .half-drop-inline .picker25 .form-group {
         height: 20px;
     padding:2px
@@ -98,9 +101,7 @@ div(
             inline=F,
             div(class="bank_attr",
                 div(style="display: flex",
-                    uiOutput(ns('data_bank'))
-
-                    ,
+                    uiOutput(ns('data_bank')),
                     radioGroupButtons(
                       ns("view_datalist"), NULL,
                       choiceNames = choices_names,

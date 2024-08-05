@@ -1,3 +1,5 @@
+
+
 module_save_changes<-list()
 module_save_changes$ui<-function(id,vals=NULL){
   ns<-NS(id)
@@ -175,18 +177,18 @@ msp_earth$ui<-function(id,vals,model){
              color="#c3cc74ff",
              div(
                pickerInput_fromtop(ns('which'),"Plot to draw",
-                           options=shinyWidgets::pickerOptions(windowPadding="top"),
-                           choices=c(
-                             'Model selection plot'=1,
-                             'Cumulative distribution of abs residuals'=2,
-                             'Residuals vs fitted'=3,
-                             'QQ plot'=4,
-                             'Abs residuals vs fitted'=5,
-                             'Sqrt abs residuals vs fitted'=6,
-                             'Abs residuals vs log fitted'=7,
-                             'Cube root of the squared residuals vs log fitted'=8,
-                             'Log abs residuals vs log fitted'=9
-                           )),
+                                   options=shinyWidgets::pickerOptions(windowPadding="top"),
+                                   choices=c(
+                                     'Model selection plot'=1,
+                                     'Cumulative distribution of abs residuals'=2,
+                                     'Residuals vs fitted'=3,
+                                     'QQ plot'=4,
+                                     'Abs residuals vs fitted'=5,
+                                     'Sqrt abs residuals vs fitted'=6,
+                                     'Abs residuals vs log fitted'=7,
+                                     'Cube root of the squared residuals vs log fitted'=8,
+                                     'Log abs residuals vs log fitted'=9
+                                   )),
 
 
                selectInput(ns('nresponse'),span("Response",tipright("Response level")),model$levels),
@@ -305,11 +307,11 @@ msp_dnn$ui<-function(id,vals){
                numericInput(ns("neu_radius"), "Neuron size", value =0.05,step=0.01),
                colourpicker::colourInput(ns('neuron_fill'),"Neuron fill",value="Grey"),
                pickerInput_fromtop(inputId = ns("weight_palette"),
-                           label ="Weight Palette",
-                           choices =  vals$colors_img$val,
-                           options=shinyWidgets::pickerOptions(windowPadding="top"),
-                           choicesOpt = list(
-                             content =  vals$colors_img$img)),
+                                   label ="Weight Palette",
+                                   choices =  vals$colors_img$val,
+                                   options=shinyWidgets::pickerOptions(windowPadding="top"),
+                                   choicesOpt = list(
+                                     content =  vals$colors_img$img)),
                div(style="display: flex",
                    numericInput(ns("xlim1"), "Xlims", value =-0.5,step=0.1),
                    numericInput(ns("xlim2"), "to", value =1.5,step=0.1)
@@ -560,11 +562,11 @@ msp_monmlp$ui<-function(id,vals){
              div(
                pickerInput_fromtop(ns("column"), "Variable",choices=choices,multiple = T,selected=choices[1:4], options=shinyWidgets::pickerOptions(windowPadding="top")),
                pickerInput_fromtop(inputId = ns("palette"),
-                           label ="Palette",
-                           choices =  vals$colors_img$val,
-                           choicesOpt = list(
-                             content =  vals$colors_img$img),
-                           options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                   label ="Palette",
+                                   choices =  vals$colors_img$val,
+                                   choicesOpt = list(
+                                     content =  vals$colors_img$img),
+                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
                div(style="display: flex",
                    numericInput(ns("ncol"), "ncol", value =2,step=0.1),
                    numericInput(ns("nrow"), "nrow", value =NA,step=0.1)
@@ -1258,16 +1260,16 @@ msp_xyf$ui<-function(id,vals){
                    )
                ),
                pickerInput_fromtop(inputId = ns("xyf_bg_palette"),
-                           label ="Palette",
-                           choices =  vals$colors_img$val,
-                           choicesOpt = list(
-                             content =  vals$colors_img$img),
-                           options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                   label ="Palette",
+                                   choices =  vals$colors_img$val,
+                                   choicesOpt = list(
+                                     content =  vals$colors_img$img),
+                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
                numericInput(ns("xyf_pcodes_bgalpha"),'Lightness',value = 0,min = 0,max = 1,step = .1),
                pickerInput_fromtop(ns("xyf_pclus_border"),
-                           label ='Border:',
-                           choices = NULL,
-                           options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                   label ='Border:',
+                                   choices = NULL,
+                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
                checkboxInput(ns("xyf_theme"),
                              label = "show neuron coordinates",
                              value=F
@@ -1284,18 +1286,18 @@ msp_xyf$ui<-function(id,vals){
                              value=T),
                div(id=ns("xyf_pclus_points_inputs"),style="padding-left: 20px",
                    pickerInput_fromtop(inputId = ns("xyf_pclus_points_palette"),
-                               label ="Palette:",
-                               choices = vals$colors_img$val,
-                               choicesOpt = list(content = vals$colors_img$img),
-                               options=shinyWidgets::pickerOptions(windowPadding="top"),
-                               selected="black"),
+                                       label ="Palette:",
+                                       choices = vals$colors_img$val,
+                                       choicesOpt = list(content = vals$colors_img$img),
+                                       options=shinyWidgets::pickerOptions(windowPadding="top"),
+                                       selected="black"),
                    selectInput(ns("xyf_pclus_points_factor"),"Factor:",
                                choices =NULL),
                    pickerInput_fromtop(inputId = ns("xyf_pclus_symbol"),
-                               label = "Shape:",
-                               choices = df_symbol$val,
-                               choicesOpt = list(content = df_symbol$img),
-                               options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                       label = "Shape:",
+                                       choices = df_symbol$val,
+                                       choicesOpt = list(content = df_symbol$img),
+                                       options=shinyWidgets::pickerOptions(windowPadding="top")),
                    numericInput(ns("xyf_pclus_points_size"),"Size:",value =1,min = 0.1,max = 3,step = .1),
                )
              )
@@ -1308,12 +1310,12 @@ msp_xyf$ui<-function(id,vals){
                  checkboxInput(ns("xyf_pclus_addtext"),"Labels",F),
                  div(id=ns('xyf_pclus_text_inputs'),style="display: none;padding-left: 20px",
                      pickerInput_fromtop(inputId = ns("xyf_pclus_text_palette"),
-                                 label ="Color",
-                                 choices = NULL,
-                                 options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                         label ="Color",
+                                         choices = NULL,
+                                         options=shinyWidgets::pickerOptions(windowPadding="top")),
                      pickerInput_fromtop(ns("xyf_pclus_text_factor"),"Factor:",
-                                 choices = NULL,
-                                 options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                         choices = NULL,
+                                         options=shinyWidgets::pickerOptions(windowPadding="top")),
                      numericInput(ns("xyf_pclus_text_size"),'Size:',value = 1,min = 0.1,max = 3,step = .1)
                  )
                )
@@ -1330,8 +1332,8 @@ msp_xyf$ui<-function(id,vals){
                  div(style="padding-left: 20px",
                      id=ns('xyf_varfac_out'),
                      pickerInput_fromtop(ns("xyf_vfm_type"),"Show correlation:",
-                                 choices =list("Highest"='var', "Chull"="cor"),
-                                 options=shinyWidgets::pickerOptions(windowPadding="top")
+                                         choices =list("Highest"='var', "Chull"="cor"),
+                                         options=shinyWidgets::pickerOptions(windowPadding="top")
                      ),
 
 
@@ -1339,13 +1341,13 @@ msp_xyf$ui<-function(id,vals){
 
                      numericInput(ns("xyf_pclus.cex.var"), "Var size", value =1),
                      pickerInput_fromtop(inputId = ns("xyf_p.clus.col.text"),
-                                 label ="Var text color",
-                                 choices = NULL,
-                                 options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                         label ="Var text color",
+                                         choices = NULL,
+                                         options=shinyWidgets::pickerOptions(windowPadding="top")),
                      pickerInput_fromtop(inputId = ns("xyf_var_bg"),
-                                 label ="Var background",
-                                 choices = NULL,
-                                 options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                         label ="Var background",
+                                         choices = NULL,
+                                         options=shinyWidgets::pickerOptions(windowPadding="top")),
                      numericInput(ns("xyf_var_bg_transp"), 'Var transparency', value = 0, min = 2),
                      actionLink(ns("down_vfm"),"Download Results")
                  )
@@ -1726,72 +1728,72 @@ msp_xyf$server<-function(id,model,vals){
 msp_rf<-list()
 msp_rf$ui<-function(id,vals){
   ns<-NS(id)
-  div(
-    column(4,
-           box_caret(ns("box_a"),
-                     title="Analysis options",
-                     color="#c3cc74ff",
+  column(12,class="mp0",
+         column(4,class="mp0",
+                box_caret(ns("box_a"),
+                          title="Analysis options",
+                          color="#c3cc74ff",
 
-                     div(
-                       div(id=ns('run_btn'),class="save_changes",
-                           align="right",
-                           style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                       pickerInput_fromtop(ns("fm_tree"),"+ Tree",NULL,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
-                       numericInput(ns('fm_round'),'+ Round',2),
-                       pickerInput_fromtop(
-                         ns("edge_type"), "+ Edge type",
-                         choices=list("Link"="link",'Fluid'="fluid"),
-                         options=shinyWidgets::pickerOptions(windowPadding="top")
-                       ),
-                       pickerInput_fromtop(ns("tree_type"), "+ Tree type", choices=list("Dendrogram"="dendrogram","Tree"='tree'))
+                          div(
+                            div(id=ns('run_btn'),class="save_changes",
+                                align="right",
+                                style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
+                            pickerInput_fromtop(ns("fm_tree"),"+ Tree",NULL,
+                                                options=shinyWidgets::pickerOptions(windowPadding="top")),
+                            numericInput(ns('fm_round'),'+ Round',2),
+                            pickerInput_fromtop(
+                              ns("edge_type"), "+ Edge type",
+                              choices=list("Link"="link",'Fluid'="fluid"),
+                              options=shinyWidgets::pickerOptions(windowPadding="top")
+                            ),
+                            pickerInput_fromtop(ns("tree_type"), "+ Tree type", choices=list("Dendrogram"="dendrogram","Tree"='tree'))
 
-                     )
-           ),
-
-
-           box_caret(ns('box_b'),
-                     title="Plot options",
-                     color="#c3cc74ff",
-                     div(
-                       pickerInput_fromtop(inputId = ns("fm_palette"),
-                                   label = 'Palette',
-                                   choices =     vals$colors_img$val,
-                                   choicesOpt = list(content =vals$colors_img$img),
-                                   selected=vals$cm_palette,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
-                       numericInput(ns("msp_plot_base_size"),"Base size",12),
-                       numericInput(ns("text_size"),"Text size",8),
-                       numericInput(ns("msp_plot_width"), "Plot width",600),
-                       numericInput(ns("msp_plot_height"), "Plot height",350),
-                     )
-           )
-    ),
-    column(6,
-           box_caret(
-             ns('box_c'),
-             title="Plot",
-             button_title = actionLink(ns("download_plot"),
-                                       "Download",icon("download")),
-             div(
-               style="overflow:auto;max-height: 300px",
-               uiOutput(ns("treeplot"))
-             )
-           ),
-           box_caret(
-             ns('box_d'),
-             title="Confusion Matrix",
-             button_title = actionLink(ns("download_plot_cm"),
-                                       "Download",icon("download")),
-             div(
-               style="overflow:auto;max-height: 300px",
-               uiOutput(ns("treecm"))
-             )
-           )
+                          )
+                ),
 
 
+                box_caret(ns('box_b'),
+                          title="Plot options",
+                          color="#c3cc74ff",
+                          div(
+                            pickerInput_fromtop(inputId = ns("fm_palette"),
+                                                label = 'Palette',
+                                                choices =     vals$colors_img$val,
+                                                choicesOpt = list(content =vals$colors_img$img),
+                                                selected=vals$cm_palette,
+                                                options=shinyWidgets::pickerOptions(windowPadding="top")),
+                            numericInput(ns("msp_plot_base_size"),"Base size",12),
+                            numericInput(ns("text_size"),"Text size",8),
+                            numericInput(ns("msp_plot_width"), "Plot width",600),
+                            numericInput(ns("msp_plot_height"), "Plot height",350),
+                          )
+                )
+         ),
+         column(8,class="mp0",
+                box_caret(
+                  ns('box_c'),
+                  title="Plot",
+                  button_title = actionLink(ns("download_plot"),
+                                            "Download",icon("download")),
+                  div(
+                    style="overflow:auto;max-height: 300px",
+                    uiOutput(ns("treeplot"))
+                  )
+                ),
+                box_caret(
+                  ns('box_d'),
+                  title="Confusion Matrix",
+                  button_title = actionLink(ns("download_plot_cm"),
+                                            "Download",icon("download")),
+                  div(
+                    style="overflow:auto;max-height: 300px",
+                    uiOutput(ns("treecm"))
+                  )
+                )
 
-    )
+
+
+         )
   )
 }
 msp_rf$server<-function(id,model,vals){
@@ -2417,7 +2419,7 @@ panel_box_caret4$ui<-function(id){
     div(
 
       pickerInput_fromtop(ns("method"),lab_resamling, choices=list("Repeated Cross-Validation"="repeatedcv",'Boot'="boot","Leave one out"="LOOCV","Leave-group out"="LGOCV","Adaptive CV"="adaptive_cv"),
-                  options=shinyWidgets::pickerOptions(windowPadding="top")),
+                          options=shinyWidgets::pickerOptions(windowPadding="top")),
       div(id=ns('args_adapt'),class="map_side",
           numericInput(ns("adap_min"),"min",5),
           numericInput(ns("adap_alpha"),"alpha",0.05),
@@ -2426,11 +2428,11 @@ panel_box_caret4$ui<-function(id){
 
       ),
       pickerInput_fromtop(ns("selfinal"),
-                  span("Select Final",
-                       tipify(actionLink(ns("selfinal_help"),
-                                         icon("fas fa-question-circle")),"Click for details","right")),
-                  choices=c("best","oneSE","tolerance"),
-                  options=shinyWidgets::pickerOptions(windowPadding="top")),
+                          span("Select Final",
+                               tipify(actionLink(ns("selfinal_help"),
+                                                 icon("fas fa-question-circle")),"Click for details","right")),
+                          choices=c("best","oneSE","tolerance"),
+                          options=shinyWidgets::pickerOptions(windowPadding="top")),
 
 
 
@@ -2533,9 +2535,9 @@ permutation_importance$ui<-function(id){
                            numericInput(ns("feat_npic"),span("+ nvars:",tipright("Number of variables to display")), value=20,  step=1),
                            numericInput(ns("sig_feature"),span("+ Sig",tipright("Significance level")), value=0.05,  step=0.05),
                            pickerInput_fromtop(inputId = ns("pal_feature"),
-                                       label = "+ Palette",
-                                       choices =    NULL,
-                                       options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                               label = "+ Palette",
+                                               choices =    NULL,
+                                               options=shinyWidgets::pickerOptions(windowPadding="top")),
                            numericInput(ns("feaimp_cex.axes"),"+ Axes size",
                                         value=13, step=1),
                            numericInput(ns("feaimp_cex.lab"),"+ Label size",
@@ -2570,7 +2572,7 @@ permutation_importance$ui<-function(id){
                           selectizeInput(inputId = ns("var_feature_cm"),label = "+ Variable:",choices =NULL),
 
                           pickerInput_fromtop(inputId = ns("pal_feature_cm"),label = "+ Palette:",choices =NULL,
-                                      options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                              options=shinyWidgets::pickerOptions(windowPadding="top")),
                           textInput(ns("title_cm"),"Title", value=NULL)
                       ),
 
@@ -2946,7 +2948,7 @@ caret_pairs$ui<-function(id){
   ns<-NS(id)
 
   div(
-    column(4,
+    column(4,class='mp0',
            box_caret(ns("msp_pairs_a"),
                      title="Analysis options",
                      color="#c3cc74ff",
@@ -2966,9 +2968,9 @@ caret_pairs$ui<-function(id){
 
                        textInput(ns("ggpair.title"),"Title:",""),
                        pickerInput_fromtop(inputId = ns("fm_palette"),
-                                   label = 'Palette',
-                                   choices =  NULL,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                           label = 'Palette',
+                                           choices =  NULL,
+                                           options=shinyWidgets::pickerOptions(windowPadding="top")),
                        numericInput(ns("msp_plot_width"), "Plot width",800),
                        numericInput(ns("msp_plot_height"), "Plot height",600),
                        numericInput(ns("msp_plot_base_size"),"Base size",12),
@@ -2992,7 +2994,7 @@ caret_pairs$ui<-function(id){
                      ))
 
     ),
-    column(8,
+    column(8,class='mp0',
            box_caret(ns('msp_pairs_c'),
                      title="Plot",
                      button_title=actionLink(ns('down_ggpair'),'Download',icon('download')),
@@ -3128,7 +3130,7 @@ pd<-list()
 pd$ui<-function(id){
   ns<-NS(id)
   div(
-    column(4,
+    column(4,class="mp0",
 
            box_caret(ns("41_a"),
                      title="Analysis Options",
@@ -3143,7 +3145,7 @@ pd$ui<-function(id){
                        selectInput(ns("rf_grid_var2"), "Variable 2", choices=NULL),
 
                        pickerInput_fromtop(ns("rf_biplotclass"), "+ Class", choices=NULL,multiple = T,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                           options=shinyWidgets::pickerOptions(windowPadding="top")),
 
 
                        numericInput(ns('rfbi_grid'),span(tipright("Integer giving the number of equally spaced points to use for the continuous variables"),'Grid resolution'),8),
@@ -3155,9 +3157,9 @@ pd$ui<-function(id){
 
                        div(
                          pickerInput_fromtop(inputId = ns("pd_palette"),
-                                     label = "Palette:",
-                                     choices =NULL,
-                                     options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                             label = "Palette:",
+                                             choices =NULL,
+                                             options=shinyWidgets::pickerOptions(windowPadding="top")),
                          textInput(ns("title_pd"),"Title:", value=NULL),
                          textInput(ns("legend_pd"),"Legend:", value="Partial dependence (prob)"),
                          textInput(ns("xlab_pd"),"X label:", value=NULL),
@@ -3172,7 +3174,7 @@ pd$ui<-function(id){
                      )
            )
     ),
-    column(8,
+    column(8,class="mp0",
            box_caret(ns("42_a"),
                      title="Biplot",
                      button_title=actionLink(ns('down_plot_pd'),"Download",icon("download")),
@@ -3443,7 +3445,7 @@ msp_nb$ui<-function(id,model){
   ns<-NS(id)
 
   div(
-    column(4,
+    column(4,class='mp0',
            box_caret(ns("msp_nb_a"),
                      title="Anaysis options",
                      color="#c3cc74ff",
@@ -3452,11 +3454,11 @@ msp_nb$ui<-function(id,model){
                            align="right",
                            style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
                        pickerInput_fromtop(ns("msp_nb_vars"),"+ Select the variable",colnames(getdata_model(model)),
-                                   options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch=T)),
+                                           options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch=T)),
 
                        checkboxInput(ns('nb_wrap'),"+ Wrap", T),
                        pickerInput_fromtop(ns("nb_type_plot"),"Type:",c("identity","stack","fill"),
-                                   options=shinyWidgets::pickerOptions(windowPadding="top"))
+                                           options=shinyWidgets::pickerOptions(windowPadding="top"))
 
 
 
@@ -3467,9 +3469,9 @@ msp_nb$ui<-function(id,model){
                      color="#c3cc74ff",
                      div(
                        pickerInput_fromtop(inputId = ns("palette"),
-                                   label = 'Palette',
-                                   choices =  NULL,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                           label = 'Palette',
+                                           choices =  NULL,
+                                           options=shinyWidgets::pickerOptions(windowPadding="top")),
                        numericInput(ns("base_size"),"Base size",12),
                        numericInput(ns("width"), "Plot width",800),
                        numericInput(ns("height"), "Plot height",600),
@@ -3484,7 +3486,7 @@ msp_nb$ui<-function(id,model){
            )
 
     ),
-    column(8,
+    column(8,class='mp0',
            box_caret(
              ns('msp_nb_c'),
              title="Plot",
@@ -3586,7 +3588,7 @@ confusion_module$ui<-function(id){
   ns<-NS(id)
   div(
 
-    column(4,
+    column(4,class="mp0",
            box_caret(ns('24'),
                      title="Options",
                      color="#c3cc74ff",
@@ -3595,14 +3597,14 @@ confusion_module$ui<-function(id){
                                    label = "+ Type: ",
                                    choices = c("Resampling","finalModel")),
                        pickerInput_fromtop(inputId = ns("caretpalette"),
-                                   label = "+ Palette",NULL,
-                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                           label = "+ Palette",NULL,
+                                           options=shinyWidgets::pickerOptions(windowPadding="top")),
                        textInput(ns('cm_title'),"Title","Training"),
 
                        div(
                          popify(actionLink(ns("downtable_cm_train"),span("+ Download",icon("fas fa-download"),icon("fas fa-table")),style  = "button_active"),NULL,"download CM table")
                        )))),
-    column(6,
+    column(8,class="mp0",
            box_caret(
              ns("24"),
              title="Plot",
@@ -3735,7 +3737,7 @@ model_results$ui<-function(id){
       tabPanel(
         "2.2. Performace",value="t2",
         div(
-          column(5,
+          column(6,class="mp0",
 
                  box_caret(ns('12'),
                            title="Global metrics",
@@ -3765,7 +3767,7 @@ model_results$ui<-function(id){
                              )
                            )
                  )),
-          column(6,class="half-drop-inline",
+          column(6,class="mp0 half-drop-inline",
                  box_caret(ns('13'),
                            title="Observation metrics",
                            div(
@@ -3787,48 +3789,48 @@ model_results$ui<-function(id){
 
           tabPanel(
             '2.4.1. Variable Importance',value="tab1",
-            div(
-              column(4,
-                     box_caret(ns("15"),
-                               title="Options",
-                               color="#c3cc74ff",
+            column(12,class='mp0',
+                   column(4,class="mp0",
+                          box_caret(ns("15"),
+                                    title="Options",
+                                    color="#c3cc74ff",
 
-                               div(
-                                 div(id=ns('run_btn'),class="save_changes",
+                                    div(
+                                      div(id=ns('run_btn'),class="save_changes",
 
-                                     align="right",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                                 div(class="radio_search",
-                                     radioGroupButtons(ns("useModel"), span("Use Model:",tipright(paste0("Use a model based technique for measuring variable importance?. TRUE is only available for ", code('rf','gbm','glm','cforest', 'avNNet','nnet','rpart')))), choices = FALSE)
-                                 ),
-                                 numericInput(ns("nvars"),span("+ nvars:",tipright("Number of variables to display")), value=20,  step=1),
-                                 pickerInput_fromtop(ns("feat_palette"),
-                                             label ='Palette:',
-                                             choices = NULL,
-                                             options=shinyWidgets::pickerOptions(windowPadding="top")),
-                                 numericInput(ns("feat_size"),'+ size', value=12,  step=1),
-                                 numericInput(ns("feat_barhei"),'+ bar height', value=.95,  step=.1),
-                                 hidden(checkboxInput(ns("stack"),"+ Stack",F)),
-                                 uiOutput(ns("xvar_out")),
-                                 textInput(ns("xlab"),"+ xlab", value=NULL),
-                                 textInput(ns('ylab'),"+ ylab", "Variables"),
-                                 numericInput(ns("width"), span("Plot width",tipright("in pixels or empty for auto width")),350),
-                                 numericInput(ns("height"), span("Plot height",tipright("in pixels or empty for auto height")),NA)
+                                          align="right",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
+                                      div(class="radio_search",
+                                          radioGroupButtons(ns("useModel"), span("Use Model:",tipright(paste0("Use a model based technique for measuring variable importance?. TRUE is only available for ", code('rf','gbm','glm','cforest', 'avNNet','nnet','rpart')))), choices = FALSE)
+                                      ),
+                                      numericInput(ns("nvars"),span("+ nvars:",tipright("Number of variables to display")), value=20,  step=1),
+                                      pickerInput_fromtop(ns("feat_palette"),
+                                                          label ='Palette:',
+                                                          choices = NULL,
+                                                          options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                      numericInput(ns("feat_size"),'+ size', value=12,  step=1),
+                                      numericInput(ns("feat_barhei"),'+ bar height', value=.95,  step=.1),
+                                      hidden(checkboxInput(ns("stack"),"+ Stack",F)),
+                                      uiOutput(ns("xvar_out")),
+                                      textInput(ns("xlab"),"+ xlab", value=NULL),
+                                      textInput(ns('ylab'),"+ ylab", "Variables"),
+                                      numericInput(ns("width"), span("Plot width",tipright("in pixels or empty for auto width")),350),
+                                      numericInput(ns("height"), span("Plot height",tipright("in pixels or empty for auto height")),NA)
 
-                               )
-                     )),
-              column(
-                8,
-                box_caret(ns("16"),
-                          title="Plot",
-                          button_title=actionLink(ns('down_plot_feat'),
-                                                  "Download",
-                                                  icon('download')),
-                          uiOutput(ns('importance_plot'))),
-                box_caret(ns('17'),
-                          title="Table",
-                          button_title=actionLink(ns('down_table_feat'),"Download",icon('download')),
-                          uiOutput(ns('importance_table')))
-              )
+                                    )
+                          )),
+                   column(
+                     8,class='mp0',
+                     box_caret(ns("16"),
+                               title="Plot",
+                               button_title=actionLink(ns('down_plot_feat'),
+                                                       "Download",
+                                                       icon('download')),
+                               uiOutput(ns('importance_plot'))),
+                     box_caret(ns('17'),
+                               title="Table",
+                               button_title=actionLink(ns('down_table_feat'),"Download",icon('download')),
+                               uiOutput(ns('importance_table')))
+                   )
 
             )
 
@@ -3987,7 +3989,7 @@ model_results$server<-function(id,vals){
         selected=choices
       }
       pickerInput_fromtop(ns("xvar"),"+ X", choices=choices,selected=selected,multiple =multiple,
-                  options=shinyWidgets::pickerOptions(windowPadding="top"))
+                          options=shinyWidgets::pickerOptions(windowPadding="top"))
     })
 
 
@@ -4086,16 +4088,18 @@ model_results$server<-function(id,vals){
     })
 
 
-    observeEvent(vals$cur_caret_model,{
+    observe({
       req(vals$cmodel)
       removeTab('tab2',"rfe")
       req(vals$cmodel)
       if(vals$cmodel=='rf'){
-        insertTab('tab2',
+        insertTab('tab2',  select = FALSE,
                   tabPanel("2.7. randomForestExplainer",
                            value="rfe",
-                           rf_explainer$ui(ns("explain")),
-                           uiOutput(ns("explainer_out"))
+                           div(style="margin-top: -10px",
+                               rf_explainer$ui(ns("explain")),
+                               uiOutput(ns("explainer_out")
+                               ))
                   )
         )
 
@@ -4265,60 +4269,60 @@ model_results$server<-function(id,vals){
       )
     })
     output$tab2_1<-renderUI({
-      div(class="inline_pickers",
+      column(12, class="mp0 inline_pickers",
 
-          #uiOutput(ns('prin_model_wei')),
+             #uiOutput(ns('prin_model_wei')),
 
-          uiOutput(ns('prin_model_args')),
-
-
-          column(5,
-                 box_caret(ns('7'),click=F,title="Model Print",
-                           button_title = popify(
-                             downloadLink(ns("down_caret_results"),label=span(icon("download"),"Download model")),NULL,
-                             HTML(paste0(
-                               div(HTML(paste0("Download model as ",em('rds')," file to be read in R as", code('base::readRDS(file.rds)'))))
-                             ))
-                           ),
-                           tip=tipright("Displays the default print of the trained model."),
-                           div(id=ns('box7_content'),class="hei300",
-                               uiOutput(ns('model_print'))
-                           )),
-                 box_caret(ns('8'),click=F,
-                           title="Model content",
-                           tip=tipright("Displays specific objects within the trained model"),
-                           div(
-                             id=ns('box8_content'),
+             uiOutput(ns('prin_model_args')),
 
 
-                             class="hei300",
-                             selectInput(ns("inside_m"),"model$",c(names(model())),selected="results"),
-                             uiOutput(ns('print_inside_m'))
-                           )
-                 )
+             column(6,class="mp0",
+                    box_caret(ns('7'),click=F,title="Model Print",
+                              button_title = popify(
+                                downloadLink(ns("down_caret_results"),label=span(icon("download"),"Download model")),NULL,
+                                HTML(paste0(
+                                  div(HTML(paste0("Download model as ",em('rds')," file to be read in R as", code('base::readRDS(file.rds)'))))
+                                ))
+                              ),
+                              tip=tipright("Displays the default print of the trained model."),
+                              div(id=ns('box7_content'),class="hei300",
+                                  uiOutput(ns('model_print'))
+                              )),
+                    box_caret(ns('8'),click=F,
+                              title="Model content",
+                              tip=tipright("Displays specific objects within the trained model"),
+                              div(
+                                id=ns('box8_content'),
 
-          ),
-          column(5,
-                 box_caret(ns('10'),title="Training Plot",
-                           button_title=actionLink(ns('down_plot_train'),'Download',icon('image')),
-                           div(
-                             id=ns('box10_content'),class="hei300",
+
+                                class="hei300",
+                                selectInput(ns("inside_m"),"model$",c(names(model())),selected="results"),
+                                uiOutput(ns('print_inside_m'))
+                              )
+                    )
+
+             ),
+             column(6,class="mp0",
+                    box_caret(ns('10'),title="Training Plot",
+                              button_title=actionLink(ns('down_plot_train'),'Download',icon('image')),
+                              div(
+                                id=ns('box10_content'),class="hei300",
 
 
-                             uiOutput(ns('model_plot'))
+                                uiOutput(ns('model_plot'))
 
-                           )
-                 ),
-                 box_caret(ns('9'),click=F,
-                           title="finalModel content",
-                           tip=tipright("Displays specific objects within the finalModel"),
-                           div(
-                             id=ns('box9_content'),class="hei300",
-                             selectInput(ns("inside_final"),">>",c("Print",names(model()$finalModel))),
+                              )
+                    ),
+                    box_caret(ns('9'),click=F,
+                              title="finalModel content",
+                              tip=tipright("Displays specific objects within the finalModel"),
+                              div(
+                                id=ns('box9_content'),class="hei300",
+                                selectInput(ns("inside_final"),">>",c("Print",names(model()$finalModel))),
 
-                             uiOutput(ns('print_inside_final')))
+                                uiOutput(ns('print_inside_final')))
 
-                 )),
+                    )),
 
 
 
@@ -4530,7 +4534,7 @@ model_predic$ui<-function(id){
   div(
 
     div(class="inline_pickers well3 color_box",
-        div(style="display: flex",
+        div(style="display: flex;align-items: flex-start ",
             div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
             div(class="radio_search radio_yellow",
                 radioGroupButtons(ns("svmpred_which"), span("New data (X):",tiphelp(("Data to generate predictions"))), choices = c("Partition","Datalist"))
@@ -4540,38 +4544,35 @@ model_predic$ui<-function(id){
                 uiOutput(ns('newdata_datalist')),
                 uiOutput(ns('out_predsvm_newY'))
 
-            )),
-        div(style="display: flex",
-            div(style="width: 20px;heigth: 20px;background:DarkGoldenRod;display:inline-block;margin-top: -5px;margin-left: -5px"),
+            ))
 
-        )
     ),
     tabsetPanel(
       id=ns("predsvm_tab"),
       tabPanel(
         "3.1. Results",
 
-        div(
-          column(5,
-                 box_caret(
-                   ns("25"),
-                   title="Metrics",
-                   button_title = actionLink(ns("down_metrics"),"Download",icon('download')),
-                   div(
-                     numericInput(ns("round_metric"),"+ Round",3,step=1),
-                     uiOutput(ns('predict_metrics')))
-                 )),
+        column(12,class='mp0',
+               column(6,class='mp0',
+                      box_caret(
+                        ns("25"),
+                        title="Metrics",
+                        button_title = actionLink(ns("down_metrics"),"Download",icon('download')),
+                        div(
+                          numericInput(ns("round_metric"),"+ Round",3,step=1),
+                          uiOutput(ns('predict_metrics')))
+                      )),
 
-          column(5,
-                 box_caret(
-                   ns("26"),
-                   title="Predictions",
-                   button_title = actionLink(ns("down_svm_tab3_1"),"Download",icon('download')),
-                   div(
-                     div(tipify(actionLink(ns('svm_create_predictions'),span("+ Create Datalist")), "Create a datalist with the svm predictions", "right")),
-                     uiOutput(ns('svmtab_pred'))
-                   )
-                 )),
+               column(6,class='mp0',
+                      box_caret(
+                        ns("26"),
+                        title="Predictions",
+                        button_title = actionLink(ns("down_svm_tab3_1"),"Download",icon('download')),
+                        div(
+                          div(tipify(actionLink(ns('svm_create_predictions'),span("+ Create Datalist")), "Create a datalist with the svm predictions", "right")),
+                          uiOutput(ns('svmtab_pred'))
+                        )
+                      )),
 
 
         )
@@ -4579,36 +4580,36 @@ model_predic$ui<-function(id){
       ),
       tabPanel(
         "3.2. Confusion Matrix",
-        div(style="background: white",
+        column(12,class='mp0',style="background: white",
 
 
-            column(4,
-                   box_caret(ns("27"),
-                             title="Options",
-                             color="#c3cc74ff",
-                             div(
+               column(4,class="mp0",
+                      box_caret(ns("27"),
+                                title="Options",
+                                color="#c3cc74ff",
+                                div(
 
-                               uiOutput(ns('svm_pred_pal')),
-                               numericInput(ns("round_pred_svm"),"+ Round",3,step=1),
-                               div(id=ns('down_cm_btn'),
-                                   div(actionLink(ns("dowcenter_cmsvm_pred"),span("+ Download Table",icon("fas fa-table")))),
-                                   div(
-                                   )
-                               ),
+                                  uiOutput(ns('svm_pred_pal')),
+                                  numericInput(ns("round_pred_svm"),"+ Round",3,step=1),
+                                  div(id=ns('down_cm_btn'),
+                                      div(actionLink(ns("dowcenter_cmsvm_pred"),span("+ Download Table",icon("fas fa-table")))),
+                                      div(
+                                      )
+                                  ),
 
 
-                             )
+                                )
 
-                   )),
-            column(6,
-                   box_caret(ns("28"),
-                             title="Plot",
-                             button_title = actionLink(ns("downp_cmsvm_pred"),"Download",icon('download')),
-                             div(
-                               uiOutput(ns("confusion_svm_pred")),
-                               verbatimTextOutput(ns("confusion_svm2_pred"))
-                             )
-                   ))
+                      )),
+               column(8,class='mp0',
+                      box_caret(ns("28"),
+                                title="Plot",
+                                button_title = actionLink(ns("downp_cmsvm_pred"),"Download",icon('download')),
+                                div(
+                                  uiOutput(ns("confusion_svm_pred")),
+                                  verbatimTextOutput(ns("confusion_svm2_pred"))
+                                )
+                      ))
 
 
         )
@@ -4747,10 +4748,10 @@ model_predic$server<-function(id,vals){
       div(
         textInput(ns("svm_cmpred_title"),"+ CM Title",gettile_cmpred()),
         pickerInput_fromtop(inputId = ns("svmpalette_pred"),
-                    label = lab2,
-                    choices =     vals$colors_img$val,
-                    choicesOpt = list(content =     vals$colors_img$img),
-                    options=shinyWidgets::pickerOptions(windowPadding="top"))
+                            label = lab2,
+                            choices =     vals$colors_img$val,
+                            choicesOpt = list(content =     vals$colors_img$img),
+                            options=shinyWidgets::pickerOptions(windowPadding="top"))
 
 
       )
@@ -5071,7 +5072,7 @@ fs$ui <- function(id){
       ))
   )
   ns<-NS(id)
-  div(style="overflow: auto; height: 100vh",
+  div(class='mp0',style="overflow: auto; height: 100vh",
 
       column(4,
              class="mp0",
@@ -5122,16 +5123,16 @@ fs$ui <- function(id){
                        ),
 
                        uiOutput(ns("result"))),
-             column(6,class="mp0",
-                    box_caret(ns("a"),
-                              button_title = actionLink(ns("download_plot1"),"Download",icon("download")),
-                              title="Performace plot",
-                              uiOutput(ns('plot1')))),
-             column(6,class="mp0",
-                    box_caret(ns("b"),
-                              button_title = actionLink(ns("download_plot2"),"Download",icon("download")),
-                              title="Fit plot",
-                              uiOutput(ns('plot2'))))
+             div(class='mp0',column(6,class="mp0",
+                                    box_caret(ns("a"),
+                                              button_title = actionLink(ns("download_plot1"),"Download",icon("download")),
+                                              title="Performace plot",
+                                              uiOutput(ns('plot1')))),
+                 column(6,class="mp0",
+                        box_caret(ns("b"),
+                                  button_title = actionLink(ns("download_plot2"),"Download",icon("download")),
+                                  title="Fit plot",
+                                  uiOutput(ns('plot2')))))
       )
 
 
@@ -5321,103 +5322,109 @@ caret_models$ui<-function(id){
         fs$ui(ns("fsga")),
         uiOutput(ns("fsout"))
     ),
+    tags$style(HTML(".train_button .btn{
+border-radius: 4px;
+border: 0px;
+ box-shadow: 0px 1px 3px 0px black  ;
+box-sizing: border-box;
+background:  #05668D; color: white; margin: 0px; font-size: 16px; position: absolute;right: 0px; margin-top: 8px;z-index: 999
+}
 
-    div(class="nav_caret",
-        tabsetPanel(NULL,id=ns("tab"),selected="tab1",
-                    tabPanel("1. Training",value="tab1",
-                             div(style="display: flex;",
-                                 div(
-                                   uiOutput(ns('pkg_installed')),
-                                   uiOutput(ns('validate_twoclass')),
-                                   #uiOutput(ns('prin_model_fit')),
-                                 ),
-                                 uiOutput(ns("tab1_out"))
+")),
+
+column(12,class="mp0 nav_caret",
+       tabsetPanel(NULL,id=ns("tab"),
+                   tabPanel("1. Training",value="tab1",
+                            div(style="display: flex;",
+                                div(
+                                  uiOutput(ns('pkg_installed')),
+                                  uiOutput(ns('validate_twoclass')),
+                                  #uiOutput(ns('prin_model_fit')),
+                                ),
+                                uiOutput(ns("tab1_out"))
 
 
 
-                             )),
-                    tabPanel("2. Results",value="tab2",
+                            )),
+                   tabPanel("2. Results",value="tab2",
 
-                             model_results$ui(ns("caret_results")),
-                             uiOutput(ns('tab2_out'))),
-                    tabPanel("3. Predict",value="tab3",
-                             div(
-                               model_predic$ui(ns("caret_pred")),
-                               uiOutput(ns('tab3_out'))
-                             ))
+                            model_results$ui(ns("caret_results")),
+                            uiOutput(ns('tab2_out'))),
+                   tabPanel("3. Predict",value="tab3",
+                            div(
+                              model_predic$ui(ns("caret_pred")),
+                              uiOutput(ns('tab3_out'))
+                            ))
 
-        )),
+       )),
 
-    div(id=ns('panel_train'),style="display:flex;",
-        div(style="min-width: 320px;",
-            box_caret(ns('1'),
-                      title="Tuning",
-                      tip=tipright("<p>Choose the tuning search method using this panel.</p><p>If <code>Grid</code> or <code>Random</code> is selected, the app will create a tuning grid using the <code>grid</code> function assigned to the model within the caret package.</p><p>Select <code>custom-grid</code> to define your own tuning parameters, and IMESc will generate the corresponding combinations.</p>"),
-                      div(id=ns('box1_content'),
-                          panel_box_caret1$ui(ns("panel_box_caret1"))
-                      )
-            ),
-            div(
-              id=ns('grid_box'),
-              box_caret(ns('2'),
-                        div(id=ns('box2_content'),
-                            panel_box_caret2$ui(ns("grid")),
-                            uiOutput(ns("box2_output"))
+column(12, class="mp0",id=ns('panel_train'),
+       div(class="mp0 train_button",
+           actionButton(ns("run_train"),span("Train",icon("fas fa-angles-right"))),
+
+
+       ),
+       column(4,class="mp0",
+              box_caret(ns('1'),
+                        title="Tuning",
+                        tip=tipright("<p>Choose the tuning search method using this panel.</p><p>If <code>Grid</code> or <code>Random</code> is selected, the app will create a tuning grid using the <code>grid</code> function assigned to the model within the caret package.</p><p>Select <code>custom-grid</code> to define your own tuning parameters, and IMESc will generate the corresponding combinations.</p>"),
+                        div(id=ns('box1_content'),
+                            panel_box_caret1$ui(ns("panel_box_caret1"))
+                        )
+              ),
+              div(
+                id=ns('grid_box'),
+                box_caret(ns('2'),
+                          div(id=ns('box2_content'),
+                              panel_box_caret2$ui(ns("grid")),
+                              uiOutput(ns("box2_output"))
+                          ))
+              ),
+              box_caret(ns('3'),
+                        title="Model parameters",
+                        tip=tipright("Specify model-specific parameters that are not included in the tuning search"),
+                        div(id=ns('box3_content'),
+                            uiOutput(ns("panel_box_caret3"))
+                        )),
+
+              box_caret(ns('4'),
+                        title="Resampling",
+                        tip=tipright("<p>Use this panel to specify resampling parameters, which determine how the data is repeatedly sampled and used for model validation. This includes selecting the resampling method (e.g., cross-validation, bootstrapping) and setting the number of repeats.</p>"),
+                        div(id=ns('box4_content'),
+                            panel_box_caret4$ui(ns("panel_box_caret4"))
                         ))
-            ),
-            box_caret(ns('3'),
-                      title="Model parameters",
-                      tip=tipright("Specify model-specific parameters that are not included in the tuning search"),
-                      div(id=ns('box3_content'),
-                          uiOutput(ns("panel_box_caret3"))
-                      )),
+       ),
+       column(7,class='mp0',
+              uiOutput(ns("training_failed")),
+              uiOutput(ns("training_failed0")),
+              div(id=ns("use_wei"),
+                  box_caret(ns("6"),
+                            title=inline(div(class="check_title",
+                                             checkboxInput(ns("wei_use"),span("Use weights",tipright("Use case weights")),F)
+                            )),
+                            div(style="padding: 10px",
+                                uiOutput(ns('panel_wei')),
+                            )
+                  )),
+              box_caret(ns("5"),class="train_box box_deep",
+                        title="Summary",
+                        tip=tipright("<p>This panel provides a summary of the current selection of the model.</p><p>It serves as a quick reference for the user to review and confirm their chosen settings before running the analysis.</p>"),
+                        div(style="padding: 10px",
+                            div(style="position: absolute; top: 0px;right: 0px; padding: 20px",uiOutput(ns('print_train'))),
+                            uiOutput(ns("validate_train")),
+                            uiOutput(ns('panel_green')),
+                        )
+              ),
 
-            box_caret(ns('4'),
-                      title="Resampling",
-                      tip=tipright("<p>Use this panel to specify resampling parameters, which determine how the data is repeatedly sampled and used for model validation. This includes selecting the resampling method (e.g., cross-validation, bootstrapping) and setting the number of repeats.</p>"),
-                      div(id=ns('box4_content'),
-                          panel_box_caret4$ui(ns("panel_box_caret4"))
-                      ))
-        ),
-        column(7,class="mp0",
-               div(
-                 uiOutput(ns("training_failed")),
-                 uiOutput(ns("training_failed0")),
-                 div(id=ns("use_wei"),
-                     box_caret(ns("6"),
-                               title=inline(div(class="check_title",
-                                                checkboxInput(ns("wei_use"),span("Use weights",tipright("Use case weights")),F)
-                               )),
-                               div(style="padding: 10px",
-                                   uiOutput(ns('panel_wei')),
-                               )
-                     )),
-                 box_caret(ns("5"),class="train_box box_deep",
-                           title="Summary",
-                           tip=tipright("<p>This panel provides a summary of the current selection of the model.</p><p>It serves as a quick reference for the user to review and confirm their chosen settings before running the analysis.</p>"),
-                           div(style="padding: 10px",
-                               div(style="position: absolute; top: 0px;right: 0px; padding: 20px",uiOutput(ns('print_train'))),
-                               uiOutput(ns('panel_green')),
-                           )
-                 ),
+              box_caret(ns('6b'),
+                        title="Current tuning",
+                        div(style="padding: 10px;",
+                            uiOutput(ns('print_interactions')),
+                            uiOutput(ns("print_grid"))
+                        ))
+       )
 
-                 box_caret(ns('6b'),
-                           title="Current tuning",
-                           div(style="padding: 10px;",
-                               uiOutput(ns('print_interactions')),
-                               uiOutput(ns("print_grid"))
-                           ))
-               )
-        ),
-        column(1,
-               div(class="train_button",
-                   actionButton(ns("run_train"),span("Train",icon("fas fa-angles-right"))),
-
-                   uiOutput(ns("validate_train"))
-               )
-
-        )
-    )
+)
 
   )
 
@@ -5474,7 +5481,7 @@ caret_models$server<-function(id,vals){
         req(ncol(x)>0)
         req(nrow(y)>0)
         req(ncol(y)>0)
-       # args<-list(x=x,y=y,model=model, len=vals$box_caret1_args$tuneLength)
+        # args<-list(x=x,y=y,model=model, len=vals$box_caret1_args$tuneLength)
         #saveRDS(args,"args.rds")
         #print(args)
         res<-run_gridcaret(x,y,model, len=vals$box_caret1_args$tuneLength)
@@ -5643,10 +5650,13 @@ caret_models$server<-function(id,vals){
       )
     })
     observe({
+      shinyjs::toggle("panel_ga",condition=vals$cmodel%in%'rfGA')
+    })
+    observe({
 
       shinyjs::toggle("panel_train",condition=!vals$cmodel%in%'rfGA')
       shinyjs::toggle("tab",condition=!vals$cmodel%in%'rfGA')
-      shinyjs::toggle("panel_ga",condition=vals$cmodel%in%'rfGA')
+
 
 
     })
@@ -5724,11 +5734,11 @@ caret_models$server<-function(id,vals){
           div(class="help_page",
               h4(model_library[[vals$cmodel]]),
               pickerInput_fromtop(ns("sel_help_model"),"Model",
-                          choices =names(train_functions2),
-                          selected=selected,
+                                  choices =names(train_functions2),
+                                  selected=selected,
 
-                          choicesOpt =list(subtext =model_labels3),
-                          options=shinyWidgets::pickerOptions(windowPadding="top")
+                                  choicesOpt =list(subtext =model_labels3),
+                                  options=shinyWidgets::pickerOptions(windowPadding="top")
               ),
               div(style="white-space: normal",
 
@@ -6159,7 +6169,7 @@ caret_train$ui<-function(id){
         radioButtons(ns('model_type'),"Model type:",choices=c("Classification","Regression"),inline =T)),
     div(
       div(
-        style="display: flex;gap: 10px;align-items: flex-start",class="setup_box",
+        style="display: flex;gap: 10px;align-items: flex-start; flex-flow: row wrap;",class="setup_box",
         #div(tags$div("X",class="trailab")),
         div(class="picker-flex picker-before-x",
             uiOutput(ns('data_x')),
@@ -6184,7 +6194,7 @@ caret_train$ui<-function(id){
       div(style="margin-left: 20px;margin-top: -5px",align="left",shinyWidgets::dropMenu(actionLink(ns("filter_x"),"+ select columns",style="font-size: 11px;font-style: italic "),uiOutput(ns("filter_var"))))
     ),
     div(
-      style="display: flex; gap: 10px; align-items: flex-start",class="setup_box",
+      style="display: flex; gap: 10px; align-items: flex-start; flex-flow: row wrap;",class="setup_box",
       id=ns("model_y_panel"),
       div(
         div(class="picker-flex picker-before-y",
@@ -6370,7 +6380,7 @@ caret_train$server<-function(id,vals=NULL){
       filter<-colnames(data)
       if(length(input$filter)>0){
         if(all(input$filter%in%colnames(data)))
-        filter<-input$filter
+          filter<-input$filter
       }
       data<-data[get_partition()$train,,drop=F]
 
@@ -6829,15 +6839,15 @@ cursor: none
 div(class="data_x",
     uiOutput(ns("data_x_active")),
     pickerInput_fromtop(ns("data_x"),
-                span("~ Training Datalist",tiphelp("Choose the Datalist containing your independent variables (X).")),
-                selected=vals$cur_data_sl,
-                choices=choices,
-                choicesOpt  =list(
-                  content=tips
-                ),
-                options=shinyWidgets::pickerOptions(
-                  header=checkboxInput(ns("show_nmodels"),actionLink(ns('show_nmodels_label'),span("Show trained models",tipright("Displays the number of saved models in each Datalist"))),value=F)
-                )
+                        span("~ Training Datalist",tiphelp("Choose the Datalist containing your independent variables (X).")),
+                        selected=vals$cur_data_sl,
+                        choices=choices,
+                        choicesOpt  =list(
+                          content=tips
+                        ),
+                        options=shinyWidgets::pickerOptions(
+                          header=checkboxInput(ns("show_nmodels"),actionLink(ns('show_nmodels_label'),span("Show trained models",tipright("Displays the number of saved models in each Datalist"))),value=F)
+                        )
 
 
 
@@ -6871,8 +6881,8 @@ div(class="data_x",
       selected<-get_selected_from_choices(vals$cur_response,choices)
 
       pickerInput_fromtop(ns("var_y"),
-                  span("Variable",tipright("Choose the response Variable (Y)")),
-                  choices = choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
+                          span("Variable",tipright("Choose the response Variable (Y)")),
+                          choices = choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     output$partition<-renderUI({
@@ -6968,10 +6978,10 @@ color: WhiteSmoke
         "
       )),
 pickerInput_fromtop(ns("model"),span("Model",tipright("Select the machine learning algorithm for model training. If there are saved models corresponding to the selected Training Datalist, they will be displayed in the Custom Name dropdown")),
-            options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"),
-            choices =grupos_modelos(),
-            selected=vals$cmodel,
-            choicesOpt =list(content =get_model_subtext())
+                    options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"),
+                    choices =grupos_modelos(),
+                    selected=vals$cmodel,
+                    choicesOpt =list(content =get_model_subtext())
 
 )
       )

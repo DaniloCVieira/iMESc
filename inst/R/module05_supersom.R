@@ -1,7 +1,6 @@
 #' @noRd
 
 
-
 split_vector_max_elements <- function(vec, max_length) {
   split(vec, ceiling(seq_along(vec) / max_length))
 }
@@ -228,7 +227,7 @@ table_results_tab3$ui<-function(id){
               div(
                 actionLink(ns("ss1_prev_property"),"<<")),
               div("Variable:",style="max-width: 150px",
-                pickerInput_fromtop(ns("ss1_variable_pproperty"),label = NULL,choices = NULL)
+                  pickerInput_fromtop(ns("ss1_variable_pproperty"),label = NULL,choices = NULL)
               ),
               div(actionLink(ns("ss1_next_property"),">>"))
 
@@ -251,13 +250,13 @@ table_results_tab3$ui<-function(id){
         div(
           div(id=ns("ss1_pclus_points_inputs"),
               pickerInput_fromtop(inputId = ns("ss1_pclus_points_palette"),
-                          label ="Palette",
-                          choices = NULL),
+                                  label ="Palette",
+                                  choices = NULL),
               pickerInput_fromtop(ns("ss1_pclus_points_factor"),"Factor",
-                          choices = NULL),
+                                  choices = NULL),
               pickerInput_fromtop(inputId = ns("ss1_pclus_symbol"),
-                          label = "Shape",
-                          choices = NULL),
+                                  label = "Shape",
+                                  choices = NULL),
               numericInput(ns("ss1_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
               checkboxInput(ns("show_legend"),'Show legend',T),
               textInput(ns("ss1_points_legend"),"Legend text","Observations")
@@ -273,10 +272,10 @@ table_results_tab3$ui<-function(id){
         ),
         div(id=ns('ss1_pclus_text_inputs'),
             pickerInput_fromtop(inputId = ns("ss1_pclus_text_palette"),
-                        label ="Palette",
-                        choices =  NULL),
+                                label ="Palette",
+                                choices =  NULL),
             pickerInput_fromtop(ns("ss1_pclus_text_factor"),"Factor",
-                        choices = NULL),
+                                choices = NULL),
             numericInput(ns("ss1_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
             checkboxInput(ns("text_repel"),"Repel Labels",F),
             numericInput(ns("max.overlaps"),"max.overlaps",value = 10,min = 1,step = 1),
@@ -293,7 +292,7 @@ table_results_tab3$ui<-function(id){
         tip = actionLink(ns("ss1_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
         div(id=ns('ss1_varfac_out'),
             pickerInput_fromtop(ns("ss1_vfm_type"),"Show correlation:",
-                        choices =list("Highest"='var', "Chull"="cor")
+                                choices =list("Highest"='var', "Chull"="cor")
 
             ),
 
@@ -301,12 +300,12 @@ table_results_tab3$ui<-function(id){
                 div(tipify(numericInput(ns("ss1_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
                 numericInput(ns("ss1_pclus.cex.var"), "Size", value = 1, min = 2),
                 pickerInput_fromtop(inputId = ns("ss1_p.clus.col.text"),
-                            label = "Color",
-                            NULL
+                                    label = "Color",
+                                    NULL
                 ),
                 pickerInput_fromtop(inputId = ns("ss1_var_bg"),
-                            label = "Background",
-                            choices =NULL),
+                                    label = "Background",
+                                    choices =NULL),
                 numericInput(ns("ss1_var_bg_transp"), "Transparency", value = 0, min = 2,),
                 div(actionLink(ns('down_pcorr_results'),"Download VFM results")),
                 div(actionLink(ns('create_vfm_results'),"Create Datalist using VFM"))
@@ -1188,10 +1187,10 @@ table_results_tab3$server<-function(id,vals){
     observeEvent(cur_propert(),{
       req(input$ss1_variable_pproperty)
       #req(isFALSE(stop_update_propperty()))
-     # stop_update_propperty(T)
+      # stop_update_propperty(T)
       choices<-colnames(ss1_getdata_layer())
       if(choices[cur_propert()]!=input$ss1_variable_pproperty)
-      updatePickerInput(session,'ss1_variable_pproperty', selected=choices[cur_propert()])
+        updatePickerInput(session,'ss1_variable_pproperty', selected=choices[cur_propert()])
       #stop_update_propperty(F)
     })
 
@@ -1200,7 +1199,7 @@ table_results_tab3$server<-function(id,vals){
       #stop_update_propperty(T)
       pic<-which(colnames(ss1_getdata_layer())%in%input$ss1_variable_pproperty)
       if(pic!=cur_propert())
-      cur_propert(pic)
+        cur_propert(pic)
       #stop_update_propperty(F)
     })
 
@@ -1461,25 +1460,25 @@ table_predict_som$ui<-function(id){
       ),
       div(
         div(id=ns("pred_result_options"),
-          box_caret(
-            ns('box_pred_results'),
-            title="Options",
-            color="#c3cc74ff",
-            div(
-              selectInput(ns('pred_results'),"Prediction results:",choices=c(
-                "Best-matching units"='unit.classif',
-                "Data"="predictions",
-                "Codebook"="unit.predictions"
-              )),
-              uiOutput(ns("pick_layer_result")),
-              uiOutput(ns("ui_pred_result_newdata")),
-              div(style="padding-top: 5px",
-                  uiOutput(ns("link_predsom_newdata")),
-                  uiOutput(ns("link_predsom_codebook"))
+            box_caret(
+              ns('box_pred_results'),
+              title="Options",
+              color="#c3cc74ff",
+              div(
+                selectInput(ns('pred_results'),"Prediction results:",choices=c(
+                  "Best-matching units"='unit.classif',
+                  "Data"="predictions",
+                  "Codebook"="unit.predictions"
+                )),
+                uiOutput(ns("pick_layer_result")),
+                uiOutput(ns("ui_pred_result_newdata")),
+                div(style="padding-top: 5px",
+                    uiOutput(ns("link_predsom_newdata")),
+                    uiOutput(ns("link_predsom_codebook"))
+                )
               )
-            )
 
-          )
+            )
         ),
         uiOutput(ns("pred_perf_options")),
         div(
@@ -1516,13 +1515,13 @@ table_predict_som$ui<-function(id){
             div(
               div(id=ns("ss2_pclus_points_inputs"),
                   pickerInput_fromtop(inputId = ns("ss2_pclus_points_palette"),
-                              label ="Palette",
-                              choices = NULL),
+                                      label ="Palette",
+                                      choices = NULL),
                   pickerInput_fromtop(ns("ss2_pclus_points_factor"),"Factor",
-                              choices = NULL),
+                                      choices = NULL),
                   pickerInput_fromtop(inputId = ns("ss2_pclus_symbol"),
-                              label = "Shape",
-                              choices = NULL),
+                                      label = "Shape",
+                                      choices = NULL),
                   numericInput(ns("ss2_pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
               )
             )
@@ -1536,10 +1535,10 @@ table_predict_som$ui<-function(id){
             ),
             div(id=ns('ss2_pclus_text_inputs'),
                 pickerInput_fromtop(inputId = ns("ss2_pclus_text_palette"),
-                            label ="Palette",
-                            choices =  NULL),
+                                    label ="Palette",
+                                    choices =  NULL),
                 pickerInput_fromtop(ns("ss2_pclus_text_factor"),"Factor",
-                            choices = NULL),
+                                    choices = NULL),
                 numericInput(ns("ss2_pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1)
             )
           ),
@@ -1553,7 +1552,7 @@ table_predict_som$ui<-function(id){
             tip = actionLink(ns("ss2_varfacmap"), tipify(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details")),
             div(id=ns('ss2_varfac_out'),
                 pickerInput_fromtop(ns("ss2_vfm_type"),"Show correlation:",
-                            choices =list("Highest"='var', "Chull"="cor")
+                                    choices =list("Highest"='var', "Chull"="cor")
 
                 ),
 
@@ -1561,12 +1560,12 @@ table_predict_som$ui<-function(id){
                     div(tipify(numericInput(ns("ss2_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
                     numericInput(ns("ss2_pclus.cex.var"), "Size", value = 1, min = 2),
                     pickerInput_fromtop(inputId = ns("ss2_p.clus.col.text"),
-                                label = "Color",
-                                NULL
+                                        label = "Color",
+                                        NULL
                     ),
                     pickerInput_fromtop(inputId = ns("ss2_var_bg"),
-                                label = "Background",
-                                choices =NULL),
+                                        label = "Background",
+                                        choices =NULL),
                     numericInput(ns("ss2_var_bg_transp"), "Transparency", value = 0, min = 2,),
                     div(actionLink(ns('down_pcorr_results_pred'),"Download VFM results")),
                     div(actionLink(ns('create_vfm_results_pred'),"Create Datalist using VFM"))
@@ -2564,7 +2563,7 @@ imesc_supersom$ui<-function(id, vals){
 padding-left: 3px;
                            margin: 0px
                            }
-                    .inline_pickers2 {display: flex}
+
                     .inline_pickers2 .shiny-input-container{
                      margin-right: 5px;
                     padding: 0px;
@@ -2605,11 +2604,11 @@ div(
          )
   ),
 
-  column(4,id=ns('som_models_panel'),
+  column(4,class="mp0",id=ns('som_models_panel'),
          uiOutput(ns("som_models_panel"))
   ),
 
-  column(4,id=ns('partition_panel'),
+  column(4,class="mp0",id=ns('partition_panel'),
          box_caret(ns('box_setup3'),
                    title="Partition",
                    color="#374061ff",
@@ -2635,108 +2634,137 @@ column(12,class="mp0",tabsetPanel(
     strong("1. Training"),
     div(
       div(
-        column(6,class="mp0",
-               box_caret(ns("box_setup4"),inline=F,
-                         color="#c3cc74ff",
-                         title="1.1. Set the grid",
-                         tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
-                                  actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
-                         div(
-                           div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
-                           div(id = ns("topocontrol"),
-                               div(style="display: flex;width: 100%",class="inline_pickers2",
+        column(
+          6,class="mp0",
+          box_caret(
+            ns("box_setup4"),inline=F,
+            color="#c3cc74ff",
+            title="1.1. Set the grid",
+            tip=span(actionLink(ns("somgridhelp"), tipify(icon("fas fa-question-circle"), "Click for more details")),
+                     actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+            div(
+              tags$style(
+                HTML(
+                  "
 
-                                   numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1),
-                                   numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1)
-                                   ,
-                                   pickerInput_fromtop(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
-                                   pickerInput_fromtop(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
-                                   pickerInput_fromtop(ns("toroidal"),label = "toroidal",choices = c(F, T))
-                               ),
-                               div(
-                                 style="text-align: center; width: 350px",
-                                 uiOutput(ns("showgrid"))
-                               )
-                           )
+.som_train {
+width: 100%;
+display: flex;flex-flow: row wrap;gap: 5px
+}
+.som_train .shiny-input-container{
+margin: 0px;
+padding: 0px;
+width: fit-content
+}
+.som_train .bootstrap-select:not(.input-group-btn){
+display: block;
+min-width:120px
+}
+.som_train input{
+max-width: 100px;
+
+}
+"
+                )
+              ),
+div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
+div(
+  id = ns("topocontrol"),
+  div(
+    style=" ;",class="inline_pickers2 som_grid",
+    numericInput(ns("xdim"),"xdim",value =5,min = 0,step = 1,width="70px"),
+    numericInput(ns("ydim"),"ydim",value = 5,min = 0,step = 1,width="70px"),
+    pickerInput_fromtop(ns("topo"),"Topology",choices = c("hexagonal", "rectangular")),
+    pickerInput_fromtop(ns("neighbourhood.fct"),label ="neigh.fct" ,choices = c("gaussian","bubble")),
+    pickerInput_fromtop(ns("toroidal"),label = "toroidal",choices = c(F, T))
+  ),
+  div(
+    style="text-align: center; width: 350px",
+    uiOutput(ns("showgrid"))
+  )
+
+)
 
 
 
-                         )
-               )
+            )
+
+          )
+
         ),
-        column(6,
-               box_caret(
-                 ns("box_setup5"),
-                 color="#c3cc74ff",
-                 inline=F,
-                 title="1.2. Set the training parameters",
-                 tip=span(actionLink(ns("supersomhelp"), tipify(
-                   icon("fas fa-question-circle"), "Click for more details"
-                 )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
-                 div(
-                   div(class="inline_pickers2",
-                       pickerInput_fromtop(ns("distmethod"),strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data")),
+column(6,class="mp0",
+       box_caret(
+         ns("box_setup5"),
+         color="#c3cc74ff",
+         inline=F,
+         title="1.2. Set the training parameters",
+         tip=span(actionLink(ns("supersomhelp"), tipify(
+           icon("fas fa-question-circle"), "Click for more details"
+         )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
+         div(
+           div(class="inline_pickers2 som_train",
+               pickerInput_fromtop(ns("distmethod"),div(style="",strong("dist.fcts",tipify(icon("fas fa-question-circle"),"Distance measure between each neuron and input data"))),
                                    choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
-                       pickerInput_fromtop(ns("normalizeDataLayers"),"normalizeDataLayers",
+               pickerInput_fromtop(ns("normalizeDataLayers"),"normalizeLayers",
                                    choices = c("TRUE","FALSE")),
-                       numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
-                       numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
+               numericInput(ns("rlen"),strong("rlen",tipify(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
+               numericInput(ns("seed"), strong("seed",tipify(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
+           ),
+           div(align = "center",
+               br(),
+               actionButton(
+                 ns("trainSOM"),
+                 h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
+           ),
+
+           div(
+             span(class="finesom_btn",
+                  tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
+             )),
+           div(id=ns("finetuning_som"),
+               div(id="finesom_out",class="map_control_style2",
+
+
+                   div(style="display: flex",
+                       numericInput(ns("a1"),
+                                    label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
+                       numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
                    ),
-                   div(align = "center",
-                       br(),
-                       actionButton(
-                         ns("trainSOM"),
-                         h4(icon("fas fa-braille"),"train SOM",icon("fas fa-arrow-circle-right")), style = "background: #05668D; color: white")
+
+                   div(style="display: flex",
+                       numericInput(ns("r1"),
+                                    label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
+                       numericInput(ns("r2"),
+                                    label = NULL,value = 0,step = 0.01 )
                    ),
-
-                   div(
-                     span(class="finesom_btn",
-                          tipify(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
-                     )),
-                   div(id=ns("finetuning_som"),
-                       div(id="finesom_out",class="map_control_style2",
-
-
-                           div(style="display: flex",
-                               numericInput(ns("a1"),
-                                            label =span(tiphelp("Learning rate: two numbers indicating the amount of change. Not used for the batch algorithm.","left"), "Alpha:"),value = 0.05,step = 0.01),
-                               numericInput(ns("a2"),label = NULL,value = 0.01,step = 0.01)
-                           ),
-
-                           div(style="display: flex",
-                               numericInput(ns("r1"),
-                                            label = span(tiphelp("the start and stop of the radius of the neighbourhood.  the radius will change linearly; as soon as the neighbourhood gets smaller than one only the winning unit will be updated.","left"),"Radius:"),value = 0),
-                               numericInput(ns("r2"),
-                                            label = NULL,value = 0,step = 0.01 )
-                           ),
-                           pickerInput_fromtop(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
-                           numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
-                       )
-
-                   )
-                 )
-
+                   pickerInput_fromtop(ns("mode"), span(tiphelp("type of learning algorithm","left"),"mode"), choices = c("online","batch", "pbatch")),
+                   numericInput(ns("maxna"),span("maxNA.fraction", tiphelp("the maximal fraction of values that may be NA to prevent the row to be removed. Not applicable for BrayCurtis.","right")),value = 0.001,step = 0.01)
                )
-        ),
-        bsTooltip(ns('resettopo'),"Reset parameters"),
-        bsTooltip(ns('resetsom'),"Reset parameters")
+
+           )
+         )
+
+       )
+),
+bsTooltip(ns('resettopo'),"Reset parameters"),
+bsTooltip(ns('resetsom'),"Reset parameters")
 
       ))
 
   ),
-  tabPanel(
-    value = "som_tab2",
-    strong("2. Results"),
-    div(table_results_som$ui(ns("som-results")),
-        uiOutput(ns('tab_result_out')))
+tabPanel(
+  value = "som_tab2",
+  strong("2. Results"),
+  div(table_results_som$ui(ns("som-results")),
+      uiOutput(ns('tab_result_out')))
 
-  ),
-  tabPanel(
-    value = "som_tab3",style="background: white",
-    strong("3. Predict"),
-    div(table_predict_som$ui(ns("som-predict")),
-        uiOutput(ns('tab_predict_out')))
-  )
+),
+tabPanel(
+  value = "som_tab3",style="background: white",
+  strong("3. Predict"),
+  div(table_predict_som$ui(ns("som-predict")),
+      uiOutput(ns('tab_predict_out')))
+)
 
 ))
 
@@ -3411,7 +3439,7 @@ imesc_supersom$server<-function (id,vals ){
                                 span(strong("Results:", tiphelp("SOM results. Click to see SOM results saved in the selected Datalist"))),
                                 choices=som_model_names(),
                                 selected=vals$cur_som_models),
-                    tipify( actionButton(ns("som_model_delete"),icon("fas fa-trash-alt")),"Remove model")
+                    div(style="font-size: 16px; margin-left: -10px; margin-top: 5px",tipify(actionLink(ns("som_model_delete"),icon("fas fa-trash-alt")),"Remove model"))
 
                   ),
                   uiOutput(ns("som_cur"))

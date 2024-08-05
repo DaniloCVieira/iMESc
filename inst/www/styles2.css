@@ -116,21 +116,17 @@ display: inline-block
   white-space: nowrap;
 }
 
-.half-drop-inline .shiny-input-container>div,.inline_pickers .shiny-input-container>div {
+.half-drop-inline .shiny-input-container>div {
 width:100%;
 }
-.half-drop-inline .form-group,.inline_pickers .form-group{
+.half-drop-inline .form-group {
 display:flex;
 align-items:center;
 margin:5px;
 margin-left:0px;
 padding-right:15px
 }
-.half-drop-inline .shiny-input-container>label,.inline_pickers .shiny-input-container>label {
-color: #05668D;
-margin-right:10px;
-white-space: nowrap;
-}
+
 .half-drop-inline .control-label {
 width:120px;
 height:30px;
@@ -875,10 +871,7 @@ padding-right: 5px;
 .box_title .read_shp i{
 font-size:14px
 }
-.shp_box .train_box label{
-color: #05668D;
-font-weight: bold
-}
+
 .inline_pickers .large-input .form-control {
 height: 30px;
 }

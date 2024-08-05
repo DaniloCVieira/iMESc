@@ -3,7 +3,7 @@ explainer_ggpair<-list()
 explainer_ggpair$ui<-function(id,title=NULL,tip=NULL){
   ns<-NS(id)
   div(
-    column(4,
+    column(4,class="mp0",
            box_caret(ns("36_a"),
                      title="Display Options",
 
@@ -31,7 +31,7 @@ explainer_ggpair$ui<-function(id,title=NULL,tip=NULL){
 
            )
     ),
-    column(5,
+    column(8,class="mp0",
            box_caret(ns("36_c"),
                      title=title,
                      tip=tipright(tip),
@@ -47,7 +47,7 @@ explainer_ggpair$ui<-function(id,title=NULL,tip=NULL){
 explainer_ggpair$server<-function(id,data,fun="plot_importance_ggpairs",vals){
   moduleServer(id,function(input,output,session){
 
-    print("ggpair_server")
+
     ns<-session$ns
     observeEvent(data,{
       choices=colnames(data)[-1]
@@ -115,7 +115,7 @@ rf_explainer$ui<-function(id){
         tabsetPanel(id=ns('rftab2_3'),
                     tabPanel("1. Measures",value="tab1",
                              div(
-                               column(4,
+                               column(4,class="mp0",
                                       box_caret(ns('30'),click=F,title="Analysis options",
                                                 div(
                                                   selectInput(ns('rfmeasure_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
@@ -125,7 +125,7 @@ rf_explainer$ui<-function(id){
                                                   ))
 
                                       )),
-                               column(6,
+                               column(8,class="mp0",
                                       box_caret(ns("31"),title="Importance Measures",
                                                 button_title=actionLink(ns('downcenter_rfdepth'),"Download",icon("download")),
 
@@ -144,7 +144,7 @@ rf_explainer$ui<-function(id){
                     ),
                     tabPanel("2. Min Depth Distr.",
                              value="tab2",
-                             column(4,
+                             column(4,class="mp0",
                                     box_caret(
                                       ns("32"),
                                       title="Display Options",
@@ -188,7 +188,7 @@ rf_explainer$ui<-function(id){
                                     )
 
                              ),
-                             column(6,
+                             column(8,class="mp0",
                                     box_caret(ns("33"),
                                               title="Minimal depth distribution",
                                               button_title=actionLink(ns('downp_prf'),"Download",icon("download")),
@@ -210,7 +210,7 @@ rf_explainer$ui<-function(id){
                     ),
                     tabPanel("3. Multi-way",
                              value="tab3",
-                             column(4,
+                             column(4,class="mp0",
                                     box_caret(ns("34"),
                                               title="Display Options",
                                               div(
@@ -244,7 +244,7 @@ rf_explainer$ui<-function(id){
                                               )
                                     )
                              ),
-                             column(6,
+                             column(8,class="mp0",
                                     box_caret(ns("35"),
                                               title="Multi-way importance",
                                               button_title=actionLink(ns('downp_mrf'),"Download",icon("download")),
@@ -277,7 +277,7 @@ rf_explainer$ui<-function(id){
                     tabPanel("5. Interactions",
                              value="tab5",
 
-                             div(column(4,
+                             div(column(4,class="mp0",
                                         box_caret(ns("38"),
                                                   title="Options",
 
@@ -298,7 +298,7 @@ rf_explainer$ui<-function(id){
                                                   )
                                         )
                              ),
-                             column(8,
+                             column(8,class="mp0",
                                     box_caret(ns("39"),
                                               tip=tipright("Investigate interactions with respect to the  set of most important variables"),
                                               title="Variable Interactions",
@@ -679,7 +679,7 @@ rf_explainer$server<-function(id,vals){
       links$source=links$source-1
       links$target=links$target-1
 
-
+      pal_y<-vals$newcolhabs[[input$sankey_paletteY]]
 
       links<-links[order(links$source, links$target),]
       links
@@ -708,9 +708,7 @@ rf_explainer$server<-function(id,vals){
     }
 
 
-    observe(
-      print(get_mdf())
-    )
+
 
     observe({
       shinyjs::toggle("sankey_var2",condition=input$sankey_values2!="None")
@@ -817,6 +815,7 @@ rf_explainer$server<-function(id,vals){
     })
 
     output$sankey_out<-renderUI({
+      validate(need())
       div(
         plotly::plotlyOutput(ns('sankey_plot'))
       )

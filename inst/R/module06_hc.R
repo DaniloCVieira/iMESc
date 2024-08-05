@@ -3,389 +3,389 @@ hc_module<-list()
 #' @export
 hc_module$ui<-function(id){
   ns<-NS(id)
-  div(
-    box_caret(ns("box_setup"),
-              title="Model setup",
-              color="#374061ff",
-              inline=F,
-              div(
-                div(style="display: flex; gap: 10px",
-                    pickerInput_fromtop(ns("data_hc"),
-                                        strong("Datalist:"),
-                                        choices = NULL),
-                    radioButtons(ns("model_or_data"), strong("Clustering target:"), choiceValues = c("data", "som codebook"), choiceNames = c("Numeric-Attribute", "SOM-codebook")),
-                    uiOutput(ns('som_model_name_out')),
-                    pickerInput_fromtop(ns("hc_fun"), strong("HC function:", actionLink(ns("help_hc_fun"), icon("fas fa-question-circle"))), choices = list("Hierarchical Clustering" = "hclust", "Agglomerative Nesting" = "agnes", "Divisive hierarchical clustering" = "diana")),
-                    div(id=ns("disthc_id"),
-                        pickerInput_fromtop(ns("disthc"), strong("Distance:"), choices = c('bray', "euclidean", 'jaccard'))
-                    ),
-                    pickerInput_fromtop(ns("method.hc0"),strong( "Method:"), choices = c("ward.D2", "ward.D", "single", "complete", "average", "mcquitty", "median", "centroid"))
-                )
-              )
-    ),
-    uiOutput(ns('teste')),
-    uiOutput(ns('hc_error')),
-    tabsetPanel(id=ns("tabs_view"),title=NULL,
-                #selected="tab4",
-                tabPanel("1. Dendrogram",value="tab1"),
-                tabPanel("2. Scree Plot",value="tab2"),
-                tabPanel("3. Cut Dendrogram",value="tab3")),
+  column(12,class="mp0",style="width: 100%",
+         box_caret(ns("box_setup"),
+                   title="Model setup",
+                   color="#374061ff",
+                   inline=F,
+                   fluidRow(style="display: flex; flex-flow: row wrap;",
+                            column(12,div(style="gap: 10px",class="som_grid",
+                                          pickerInput_fromtop(ns("data_hc"),
+                                                              strong("Datalist:"),
+                                                              choices = NULL),
+                                          radioButtons(ns("model_or_data"), strong("Clustering target:"), choiceValues = c("data", "som codebook"), choiceNames = c("Numeric-Attribute", "SOM-codebook"),width="150px"),
+                                          pickerInput_fromtop(ns("som_model_name"), strong("Som model:"), choices=NULL, selected=NULL),
+                                          pickerInput_fromtop(ns("hc_fun"), strong("HC function:", actionLink(ns("help_hc_fun"), icon("fas fa-question-circle"))), choices = list("Hierarchical Clustering" = "hclust", "Agglomerative Nesting" = "agnes", "Divisive hierarchical clustering" = "diana")),
+                                          div(id=ns("disthc_id"),
+                                              pickerInput_fromtop(ns("disthc"), strong("Distance:"), choices = c('bray', "euclidean", 'jaccard'))
+                                          ),
+                                          pickerInput_fromtop(ns("method.hc0"),strong( "Method:"), choices = c("ward.D2", "ward.D", "single", "complete", "average", "mcquitty", "median", "centroid"))
+                            ))
+                   )
+         ),
+         uiOutput(ns('teste')),
+         uiOutput(ns('hc_error')),
+         tabsetPanel(id=ns("tabs_view"),title=NULL,
+                     #selected="tab4",
+                     tabPanel("1. Dendrogram",value="tab1"),
+                     tabPanel("2. Scree Plot",value="tab2"),
+                     tabPanel("3. Cut Dendrogram",value="tab3")),
 
-    tabsetPanel(
-      id=ns("tabs"),
-      type="hidden",
-      #selected="tab4",
+         tabsetPanel(
+           id=ns("tabs"),
+           type="hidden",
+           #selected="tab4",
 
-      header=column(12,class="mp0",id=ns("Kcustom"),
-                    column(
-                      4,class="mp0",
-                      box_caret(
-                        ns("box_nclust"),
-                        title="Number of Clusters",
-                        color="#c3cc74ff",
-                        div(numericInput(ns("customKdata"),"Number of clusters: ",value = 3,step = 1),
-                            uiOutput(ns("saveHC"))),
-
-
-                      )
-                    )
-      ),
-      tabPanel(
-        "1. Dendrogram",
-        value="tab1",
-        column(
-          4,class="mp0",
-          box_caret(ns("box1_a"),
-                    title="Options",
-                    color="#c3cc74ff",
-                    div(textInput(ns("hc_title"), "Title", value =NULL),
-                        uiOutput(ns("labhc_out")))
-          )
-        ),
-
-        column(
-          8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
-          box_caret(ns("box1_b"),
-                    title="Plot",
-                    button_title=actionLink(ns("download_plot1"),"Download",icon("download")),
-
-                    div(
-                      div(id=ns("hcut_btn1"),class="save_changes",
-                          actionButton(ns("run_hc1"),"RUN >>")
-                      ),
-                      uiOutput(ns("hcdata_plot"))
-                    )
-          )
-        )
-      ),
-      tabPanel(
-        "2. Scree Plot",
-        value="tab2",
-        column(
-          4,class="mp0",
-          box_caret(
-            ns("box2_a"),
-            title="Options",
-            color="#c3cc74ff",
-            div(
-              div(style="display: flex",
-                  numericInput(ns("screeplot_hc_k"), span("k", tipright("maximum number of clusters to be tested")),NULL),
-                  div(id=ns('run_screeplot_hc_btn'),style="display: inline-block; vertical-align: top;", class="save_changes",actionButton(ns("run_screeplot_hc"), "Run screeplot"))
-              ),
-              div(style="margin-top: 20px; border-top: 1px solid gray",
-                  div(style="display: flex",
-                      checkboxInput(ns("show_smw_hc"), value = F,
-                                    strong(
-                                      "split moving window",
-                                      tipright("Performs split moving window to detect significant discontinuities in the relationship between the number of clusters and WSS values. Click for more information.")
-                                    )),
-                      div(id=ns('run_smw_hc_btn'),class="save_changes",actionButton(ns("run_smw_hc"),"RUN smw")),
-                      inline(uiOutput(ns("smw_validate")))
-                  ),
-                  div(id=ns("hc_smw_control"),
-                      # uiOutput("smw_hc_seed_out"),
-                      uiOutput(ns("smw_hc_w_out")),
-                      numericInput(ns("smw_hc_rand"),"N randomizations",50),
-                      numericInput(ns("smw_hc_tol"), span("tol", tiphelp("Adjusts sensitivity when identifying potential breakpoints. If the dissimilarity score (DS) exceeds -tol- times the standard deviation, a breakpoint is suggested.")), 1.5, step=0.1)
-                  )),
-              div(
-                actionLink(ns('down_results_screeplot'),"Download Results")
-              )
-            )
-
-          )
-        ),
-
-        column(
-          8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
-          box_caret(ns("box2_b"),
-                    title="Plot",
-                    button_title=actionLink(ns("download_plot2"),"Download",icon("download")),
-                    div(
-                      uiOutput(ns('smw_error')),
-                      uiOutput(ns('smw_error2')),
-                      uiOutput(ns("hc_tab2_out")))
-          )
-        )
-
-      ),
-      tabPanel(
-        '3. Cut Dendrogram',
-        value="tab3",
-        column(
-          4,class="mp0",style="margin-left: -1px; padding-right: 3px",
-          div(style="overflow-y: auto;height: calc(100vh - 200px); padding-left: 1px",
-              box_caret(
-                ns("box3_a"),
-                title="Options",
-                color="#c3cc74ff",
-                div(
-                  div(
-
-                    div(style='border-bottom: 1px solid gray; border-top: 1px solid gray; padding-bottom: 5px',
-                        div(
-                          checkboxInput(ns("hc_sort"),span("Sort clusters",tiphelp("Sort clusters by a  variable")),value=F),
-                          div(style="margin-left: 15px;",
-                              uiOutput(ns("hc_sort_datalist")) ,
-
-                              uiOutput(ns("hc_ord_factor")))
-
-                        )
-                    ),
-                    pickerInput_fromtop(inputId = ns("hcdata_palette"),label = "HC Palette:",NULL),
-                    pickerInput_fromtop(ns("hcut_labels"),"Factor",NULL),
-                    div(
-                      pickerInput_fromtop(ns("hcut_theme"),"Theme:",c('theme_minimal','theme_grey','theme_linedraw','theme_light','theme_bw','theme_classic')),
-                      numericInput(ns("hcut_cex"),"Size",value = 12,step = 1),
-                      numericInput(ns("hcut_lwd"),"Line width",value = .5,step = .5),
-                      textInput(ns("hcut_main"),"Title","Cluster Dendrogram"),
-                      textInput(ns("hcut_ylab"),"y label","Height"),
-                      textInput(ns("hcut_xlab"),"x label","Observations"),
-                      numericInput(ns("hcut_xlab_adj"),"xlab v-adj",value = 30,step = 1),
-                      numericInput(ns("hcut_offset"),"offset",value = -.1,step = 0.05),
-                      radioButtons(ns("hcut_legend_type"),"Legend:",c("inside","outside"), inline=T)
-                    )
-                  )
-                )
-
-              )
-          )),
-
-        column(
-          8,class="mp0",style="position: absolute; right: 12px; padding-left: 15px",
-          box_caret(ns("box3_b"),
-                    title="Plot",
-                    button_title=actionLink(ns("download_plot3"),"Download",icon("download")),
-                    div(
-                      div(id=ns("hcut_btn"),class="save_changes",
-                          actionButton(ns("run_hc"),"RUN >>")
-                      ),
-
-                      uiOutput(ns("hcut_plot"))
-                    )
-          )
-        )),
-      tabPanel('4. Codebook clusters',
-               value="tab4",
-               column(
-                 4,class="mp0",style="margin-left: -1px; padding-right: 3px",
-                 div(style="overflow-y: auto;height: calc(100vh - 200px); padding-left: 1px",
-                     box_caret(
-                       ns("box_4mapping"),
-                       color="#c3cc74ff",
-                       tip=tiphelp("Add predictions from new data to the trained SOM", "bottom"),
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-                                  checkboxInput(ns("hcsom_newdata") ,label =strong(span("Predict")),F,width="80px")
-                       ),
-                       div(
-                         uiOutput(ns("hc_save_tab4")),
-                         uiOutput(ns("hcsom_newdata_mess")),
-                         uiOutput(ns("out_hcsom_whatmap")))
-                     ),
-                     box_caret(
-                       ns("box4_a"),
-                       title="Neurons",
-                       color="#c3cc74ff",
-                       div(
-
-                         checkboxInput(ns("fill_neurons"),"Fill",T),
-                         pickerInput_fromtop(ns("bg_palette"),label ="Palette",NULL),
-                         div(id=ns("neu_options"),
+           header=column(12,class="mp0",id=ns("Kcustom"),
+                         column(
+                           4,class="mp0",
+                           box_caret(
+                             ns("box_nclust"),
+                             title="Number of Clusters",
+                             color="#c3cc74ff",
+                             div(numericInput(ns("customKdata"),"Number of clusters: ",value = 3,step = 1),
+                                 uiOutput(ns("saveHC"))),
 
 
-                             numericInput(ns("pcodes_bgalpha"),"Lightness",value = 0,min = 0,max = 1,step = .1),
-                             pickerInput_fromtop(ns("pclus_border"),label ='Border:',choices = NULL),
-                         ),
-                         numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1),
-                         textInput(ns("neuron_legend_text"),"Legend text","Group")
+                           )
+                         )
+           ),
+           tabPanel(
+             "1. Dendrogram",
+             value="tab1",
+             column(
+               4,class="mp0",
+               box_caret(ns("box1_a"),
+                         title="Options",
+                         color="#c3cc74ff",
+                         div(textInput(ns("hc_title"), "Title", value =NULL),
+                             uiOutput(ns("labhc_out")))
+               )
+             ),
 
-                       )),
-                     box_caret(
-                       ns("box4_points"),
-                       color="#c3cc74ff",
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-                                  checkboxInput(ns("pclus_addpoints"),"Points",value=T,width="80px")
-                       ),
-                       div(id=ns("pclus_points_inputs"),
-                           pickerInput_fromtop(inputId = ns("pclus_points_palette"),label ="Palette",choices =NULL),
-                           div(
-                             id=ns("options_points_factor"),
-                             pickerInput_fromtop(ns("pclus_points_factor"),"Factor",
-                                                 choices = NULL),
-                             tags$div(id=ns("color_factor"),
-                                      class="form-group shiny-input-container",
-                                      tags$label(class = "control-label", " + Factor"),
-                                      tags$div(class="dummy-input",
-                                               "Choose a gradient palette for adding a factor",style="color: gray"
-                                      )
-                             ),
+             column(
+               8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
+               box_caret(ns("box1_b"),
+                         title="Plot",
+                         button_title=actionLink(ns("download_plot1"),"Download",icon("download")),
 
-                             pickerInput_fromtop(inputId = ns("pclus_symbol"),label = "Shape",choices=NULL),
-                             numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
-                             checkboxInput(ns("pclus_show_legend"),"Show legend",T),
-                             textInput(ns("pclus_points_legend_text"),"Legend text","Observations"),
-
-                           ))
-                     ),
-                     box_caret(
-                       ns("box4_text"),
-                       color="#c3cc74ff",
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-                                  checkboxInput(ns("pclus_addtext"),"Labels",value=F,width="80px")
-                       ),
-                       div(id=ns('pclus_addtext_out'),
-                           pickerInput_fromtop(ns("pclus_text_palette"),label ="Palette",NULL),
-                           pickerInput_fromtop(ns("pclus_text_factor"),"Factor",choices = NULL),
-                           numericInput(ns("pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
-                           checkboxInput(ns("text_repel"),"Repel Labels",F),
-                           numericInput(ns("max.overlaps"),"max.overlaps",value = 10,min = 1,step = 1)
-                       )),
-                     box_caret(
-                       ns("box4_vfm"),
-                       color="#c3cc74ff",
-                       button_title=tipify(actionLink(ns("varfacmap"), icon("fas fa-question-circle")),"Click for details","right"),
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-
-                                  checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="210px"),
-
-                       ),
-                       div(id=ns('varfac_out'),
-                           pickerInput_fromtop(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Chull"="cor","Cluster"="cor_hc")),
-
-                           numericInput(ns("npic"), span(tiphelp("Number of variables to display"),"Number"), value = 10, min = 2),
-                           numericInput(ns("pclus.cex.var"), "Var size", value = 1, min = 2),
-                           div(class="palette",
-                               pickerInput_fromtop(ns("p.clus.col.text"),label = "Var text color",choices =NULL )),
-                           pickerInput_fromtop(ns("var_bg"),label = "Var background",choices = NULL),
-                           numericInput(ns("var_bg_transp"), "Var transparency", value = 0, min = 2))
-                     ),
-                     box_caret(
-                       ns("box_var_pie"),
-                       color="#c3cc74ff",
-                       button_title=tipify(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right"),
-                       title=span(style="display: inline-block",
-                                  class="checktitle",
-
-                                  checkboxInput(ns("var_pie"),strong("Variable pies"),value =F,width="210px"),
-
-                       ),
-
-                       div(id=ns('var_pie_out'),
-                           pickerInput_fromtop(ns("var_pie_type"),"Show:",choices =list("Top importance by cluster"='top_hc', "Top importance"="top","Top weight"="top_w","Manual"="manual")),
-                           pickerInput_fromtop(ns("var_pie_layer"),"Layer",NULL),
-                           div(class="virtual-130",
-                               virtualPicker(ns("var_pie_manual"),"variables selected")
+                         div(
+                           div(id=ns("hcut_btn1"),class="save_changes",
+                               actionButton(ns("run_hc1"),"RUN >>")
                            ),
+                           uiOutput(ns("hcdata_plot"))
+                         )
+               )
+             )
+           ),
+           tabPanel(
+             "2. Scree Plot",
+             value="tab2",
+             column(
+               4,class="mp0",
+               box_caret(
+                 ns("box2_a"),
+                 title="Options",
+                 color="#c3cc74ff",
+                 div(
+                   div(style="display: flex",
+                       numericInput(ns("screeplot_hc_k"), span("k", tipright("maximum number of clusters to be tested")),NULL),
+                       div(id=ns('run_screeplot_hc_btn'),style="display: inline-block; vertical-align: top;", class="save_changes",actionButton(ns("run_screeplot_hc"), "Run screeplot"))
+                   ),
+                   div(style="margin-top: 20px; border-top: 1px solid gray",
+                       div(style="display: flex",
+                           checkboxInput(ns("show_smw_hc"), value = F,
+                                         strong(
+                                           "split moving window",
+                                           tipright("Performs split moving window to detect significant discontinuities in the relationship between the number of clusters and WSS values. Click for more information.")
+                                         )),
+                           div(id=ns('run_smw_hc_btn'),class="save_changes",actionButton(ns("run_smw_hc"),"RUN smw")),
+                           inline(uiOutput(ns("smw_validate")))
+                       ),
+                       div(id=ns("hc_smw_control"),
+                           # uiOutput("smw_hc_seed_out"),
+                           uiOutput(ns("smw_hc_w_out")),
+                           numericInput(ns("smw_hc_rand"),"N randomizations",50),
+                           numericInput(ns("smw_hc_tol"), span("tol", tiphelp("Adjusts sensitivity when identifying potential breakpoints. If the dissimilarity score (DS) exceeds -tol- times the standard deviation, a breakpoint is suggested.")), 1.5, step=0.1)
+                       )),
+                   div(
+                     actionLink(ns('down_results_screeplot'),"Download Results")
+                   )
+                 )
 
-                           numericInput(ns("var_pie_n"), span(tipright("Number of variables to display"),"Number"), value = 10, min = 2),
-                           pickerInput_fromtop(ns("var_pie_bg"),label = "Palette",choices = NULL),
-                           numericInput(ns("var_pie_transp"), "Transparency", value = 0, min = 2))
-                     ),
+               )
+             ),
 
+             column(
+               8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
+               box_caret(ns("box2_b"),
+                         title="Plot",
+                         button_title=actionLink(ns("download_plot2"),"Download",icon("download")),
+                         div(
+                           uiOutput(ns('smw_error')),
+                           uiOutput(ns('smw_error2')),
+                           uiOutput(ns("hc_tab2_out")))
+               )
+             )
 
-                     box_caret(
-                       ns("box4_more"),
-                       title = "General options",
-                       color="#c3cc74ff",
+           ),
+           tabPanel(
+             '3. Cut Dendrogram',
+             value="tab3",
+             column(
+               4,class="mp0",style="margin-left: -1px; padding-right: 3px",
+               div(style="overflow-y: auto;height: calc(100vh - 200px); padding-left: 1px",
+                   box_caret(
+                     ns("box3_a"),
+                     title="Options",
+                     color="#c3cc74ff",
+                     div(
                        div(
-                         numericInput(ns("base_size"),"Base size",value = 12),
-                         textInput(ns("hcs_title"), "Title: ", ""),
-                         checkboxInput(ns("hcs_theme"),label = "show neuron coordinates",value = F),
-                         div(actionLink(ns('create_codebook'),"Create Datalist with the Codebook and HC class")),
-                         div(tipify(downloadLink(ns('down_hc_model'),"Download HC model", style="button_active"),"Download file as .rds"))
+
+                         div(style='border-bottom: 1px solid gray; border-top: 1px solid gray; padding-bottom: 5px',
+                             div(
+                               checkboxInput(ns("hc_sort"),span("Sort clusters",tiphelp("Sort clusters by a  variable")),value=F),
+                               div(style="margin-left: 15px;",
+                                   uiOutput(ns("hc_sort_datalist")) ,
+
+                                   uiOutput(ns("hc_ord_factor")))
+
+                             )
+                         ),
+                         pickerInput_fromtop(inputId = ns("hcdata_palette"),label = "HC Palette:",NULL),
+                         pickerInput_fromtop(ns("hcut_labels"),"Factor",NULL),
+                         div(
+                           pickerInput_fromtop(ns("hcut_theme"),"Theme:",c('theme_minimal','theme_grey','theme_linedraw','theme_light','theme_bw','theme_classic')),
+                           numericInput(ns("hcut_cex"),"Size",value = 12,step = 1),
+                           numericInput(ns("hcut_lwd"),"Line width",value = .5,step = .5),
+                           textInput(ns("hcut_main"),"Title","Cluster Dendrogram"),
+                           textInput(ns("hcut_ylab"),"y label","Height"),
+                           textInput(ns("hcut_xlab"),"x label","Observations"),
+                           numericInput(ns("hcut_xlab_adj"),"xlab v-adj",value = 30,step = 1),
+                           numericInput(ns("hcut_offset"),"offset",value = -.1,step = 0.05),
+                           radioButtons(ns("hcut_legend_type"),"Legend:",c("inside","outside"), inline=T)
+                         )
                        )
                      )
 
-                 )),
-               column(
-                 8,class="mp0",style="right: 12px;margin-top: -80px; padding-left: 15px",
-                 box_caret(
-                   ns("box4_b"),
-                   title="Plot",
-                   button_title=actionLink(ns("download_plot4"),"Download",icon("download")),
-                   div(
-                     id=ns("hc_tab4_out"),
-                     div(
-                       div(id=ns("run_bmu_btn"),
-                           actionButton(ns("run_bmu"),"RUN >>")
-                       ),
-                       div(
-                         style="position: absolute;top: 25px; right: 0px",
-                         uiOutput(ns("importance_results")),
-                         uiOutput(ns("create_importance_results"))
-
-
-                       )
-                     ),
-                     plotOutput(ns("BMU_PLOT")),
-
-
                    )
+               )),
+
+             column(
+               8,class="mp0",style="position: absolute; right: 12px; padding-left: 15px",
+               box_caret(ns("box3_b"),
+                         title="Plot",
+                         button_title=actionLink(ns("download_plot3"),"Download",icon("download")),
+                         div(
+                           div(id=ns("hcut_btn"),class="save_changes",
+                               actionButton(ns("run_hc"),"RUN >>")
+                           ),
+
+                           uiOutput(ns("hcut_plot"))
+                         )
+               )
+             )),
+           tabPanel('4. Codebook clusters',
+                    value="tab4",
+                    column(
+                      4,class="mp0",style="margin-left: -1px; padding-right: 3px",
+                      div(style="overflow-y: auto;height: calc(100vh - 200px); padding-left: 1px",
+                          box_caret(
+                            ns("box_4mapping"),
+                            color="#c3cc74ff",
+                            tip=tiphelp("Add predictions from new data to the trained SOM", "bottom"),
+                            title=span(style="display: inline-block",
+                                       class="checktitle",
+                                       checkboxInput(ns("hcsom_newdata") ,label =strong(span("Predict")),F,width="80px")
+                            ),
+                            div(
+                              uiOutput(ns("hc_save_tab4")),
+                              uiOutput(ns("hcsom_newdata_mess")),
+                              uiOutput(ns("out_hcsom_whatmap")))
+                          ),
+                          box_caret(
+                            ns("box4_a"),
+                            title="Neurons",
+                            color="#c3cc74ff",
+                            div(
+
+                              checkboxInput(ns("fill_neurons"),"Fill",T),
+                              pickerInput_fromtop(ns("bg_palette"),label ="Palette",NULL),
+                              div(id=ns("neu_options"),
+
+
+                                  numericInput(ns("pcodes_bgalpha"),"Lightness",value = 0,min = 0,max = 1,step = .1),
+                                  pickerInput_fromtop(ns("pclus_border"),label ='Border:',choices = NULL),
+                              ),
+                              numericInput(ns("border_width"),"Border width",value = 0.5,step=0.1),
+                              textInput(ns("neuron_legend_text"),"Legend text","Group")
+
+                            )),
+                          box_caret(
+                            ns("box4_points"),
+                            color="#c3cc74ff",
+                            title=span(style="display: inline-block",
+                                       class="checktitle",
+                                       checkboxInput(ns("pclus_addpoints"),"Points",value=T,width="80px")
+                            ),
+                            div(id=ns("pclus_points_inputs"),
+                                pickerInput_fromtop(inputId = ns("pclus_points_palette"),label ="Palette",choices =NULL),
+                                div(
+                                  id=ns("options_points_factor"),
+                                  pickerInput_fromtop(ns("pclus_points_factor"),"Factor",
+                                                      choices = NULL),
+                                  tags$div(id=ns("color_factor"),
+                                           class="form-group shiny-input-container",
+                                           tags$label(class = "control-label", " + Factor"),
+                                           tags$div(class="dummy-input",
+                                                    "Choose a gradient palette for adding a factor",style="color: gray"
+                                           )
+                                  ),
+
+                                  pickerInput_fromtop(inputId = ns("pclus_symbol"),label = "Shape",choices=NULL),
+                                  numericInput(ns("pclus_points_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+                                  checkboxInput(ns("pclus_show_legend"),"Show legend",T),
+                                  textInput(ns("pclus_points_legend_text"),"Legend text","Observations"),
+
+                                ))
+                          ),
+                          box_caret(
+                            ns("box4_text"),
+                            color="#c3cc74ff",
+                            title=span(style="display: inline-block",
+                                       class="checktitle",
+                                       checkboxInput(ns("pclus_addtext"),"Labels",value=F,width="80px")
+                            ),
+                            div(id=ns('pclus_addtext_out'),
+                                pickerInput_fromtop(ns("pclus_text_palette"),label ="Palette",NULL),
+                                pickerInput_fromtop(ns("pclus_text_factor"),"Factor",choices = NULL),
+                                numericInput(ns("pclus_text_size"),"Size",value = 1,min = 0.1,max = 3,step = .1),
+                                checkboxInput(ns("text_repel"),"Repel Labels",F),
+                                numericInput(ns("max.overlaps"),"max.overlaps",value = 10,min = 1,step = 1)
+                            )),
+                          box_caret(
+                            ns("box4_vfm"),
+                            color="#c3cc74ff",
+                            button_title=tipify(actionLink(ns("varfacmap"), icon("fas fa-question-circle")),"Click for details","right"),
+                            title=span(style="display: inline-block",
+                                       class="checktitle",
+
+                                       checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="210px"),
+
+                            ),
+                            div(id=ns('varfac_out'),
+                                pickerInput_fromtop(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Chull"="cor","Cluster"="cor_hc")),
+
+                                numericInput(ns("npic"), span(tiphelp("Number of variables to display"),"Number"), value = 10, min = 2),
+                                numericInput(ns("pclus.cex.var"), "Var size", value = 1, min = 2),
+                                div(class="palette",
+                                    pickerInput_fromtop(ns("p.clus.col.text"),label = "Var text color",choices =NULL )),
+                                pickerInput_fromtop(ns("var_bg"),label = "Var background",choices = NULL),
+                                numericInput(ns("var_bg_transp"), "Var transparency", value = 0, min = 2))
+                          ),
+                          box_caret(
+                            ns("box_var_pie"),
+                            color="#c3cc74ff",
+                            button_title=tipify(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right"),
+                            title=span(style="display: inline-block",
+                                       class="checktitle",
+
+                                       checkboxInput(ns("var_pie"),strong("Variable pies"),value =F,width="210px"),
+
+                            ),
+
+                            div(id=ns('var_pie_out'),
+                                pickerInput_fromtop(ns("var_pie_type"),"Show:",choices =list("Top importance by cluster"='top_hc', "Top importance"="top","Top weight"="top_w","Manual"="manual")),
+                                pickerInput_fromtop(ns("var_pie_layer"),"Layer",NULL),
+                                div(class="virtual-130",
+                                    virtualPicker(ns("var_pie_manual"),"variables selected")
+                                ),
+
+                                numericInput(ns("var_pie_n"), span(tipright("Number of variables to display"),"Number"), value = 10, min = 2),
+                                pickerInput_fromtop(ns("var_pie_bg"),label = "Palette",choices = NULL),
+                                numericInput(ns("var_pie_transp"), "Transparency", value = 0, min = 2))
+                          ),
+
+
+                          box_caret(
+                            ns("box4_more"),
+                            title = "General options",
+                            color="#c3cc74ff",
+                            div(
+                              numericInput(ns("base_size"),"Base size",value = 12),
+                              textInput(ns("hcs_title"), "Title: ", ""),
+                              checkboxInput(ns("hcs_theme"),label = "show neuron coordinates",value = F),
+                              div(actionLink(ns('create_codebook'),"Create Datalist with the Codebook and HC class")),
+                              div(tipify(downloadLink(ns('down_hc_model'),"Download HC model", style="button_active"),"Download file as .rds"))
+                            )
+                          )
+
+                      )),
+                    column(
+                      8,class="mp0",style="right: 12px;margin-top: -80px; padding-left: 15px",
+                      box_caret(
+                        ns("box4_b"),
+                        title="Plot",
+                        button_title=actionLink(ns("download_plot4"),"Download",icon("download")),
+                        div(
+                          id=ns("hc_tab4_out"),
+                          div(
+                            div(id=ns("run_bmu_btn"),
+                                actionButton(ns("run_bmu"),"RUN >>")
+                            ),
+                            div(
+                              style="position: absolute;top: 25px; right: 0px",
+                              uiOutput(ns("importance_results")),
+                              uiOutput(ns("create_importance_results"))
+
+
+                            )
+                          ),
+                          plotOutput(ns("BMU_PLOT")),
+
+
+                        )
+
+                      )
+                    )
+
+
+           ),
+           tabPanel(
+             '5. Codebook screeplot',
+             value='tab5',
+             column(
+               4,class="mp0",
+               box_caret(
+                 ns("box5_a"),
+                 title="Options",
+
+                 color="#c3cc74ff",
+                 div(
+                   numericInput(ns("mapcode_loop_K"), "K", 20),
+                   checkboxGroupInput(ns("show_mapcode_errors"), 'Show error: ',
+                                      choices = c("Within Sum of Squares", "Dendrogram Height"), selected=c("Within Sum of Squares", "Dendrogram Height")),
+                   textInput(ns('code_screeplot_title'), "Title", ""),
+                   pickerInput_fromtop(ns('code_screeplot_agg'), "Aggregate Errors", c("Mean", "Median", "Sum"))
 
                  )
+
                )
+             ),
 
+             column(
+               8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
+               box_caret(ns("box5_b"),
+                         title="Plot",
+                         button_title=actionLink(ns("download_plot5"),"Download",icon("download")),
+                         div(
+                           actionButton(ns("mapcode_loop_go"), "Run loop"),
+                           uiOutput(ns("plot5")))
+               )
+             )
 
-      ),
-      tabPanel(
-        '5. Codebook screeplot',
-        value='tab5',
-        column(
-          4,class="mp0",
-          box_caret(
-            ns("box5_a"),
-            title="Options",
-
-            color="#c3cc74ff",
-            div(
-              numericInput(ns("mapcode_loop_K"), "K", 20),
-              checkboxGroupInput(ns("show_mapcode_errors"), 'Show error: ',
-                                 choices = c("Within Sum of Squares", "Dendrogram Height"), selected=c("Within Sum of Squares", "Dendrogram Height")),
-              textInput(ns('code_screeplot_title'), "Title", ""),
-              pickerInput_fromtop(ns('code_screeplot_agg'), "Aggregate Errors", c("Mean", "Median", "Sum"))
-
-            )
-
-          )
-        ),
-
-        column(
-          8,class="mp0",style="position: absolute; right: 0px; padding-left: 6px",
-          box_caret(ns("box5_b"),
-                    title="Plot",
-                    button_title=actionLink(ns("download_plot5"),"Download",icon("download")),
-                    div(
-                      actionButton(ns("mapcode_loop_go"), "Run loop"),
-                      uiOutput(ns("plot5")))
-          )
-        )
-
-      )
-    )
+           )
+         )
   )
 }
 
@@ -1635,11 +1635,16 @@ hc_module$server<-function(id, vals){
       )
     })
 
-    output$som_model_name_out<-renderUI({
-      choices= names(attr(getdata_hc(), "som"))
 
-      pickerInput_fromtop(ns("som_model_name"), strong("Som model:"), choices=choices, selected=vals$cur_som_model_name)
+    observe({
+      choices= names(attr(getdata_hc(), "som"))
+      selected=vals$cur_som_model_name
+
+      selected<-get_selected_from_choices(selected,choices)
+
+      updatePickerInput(session,'som_model_name',selected=selected,choices=choices)
     })
+
 
     observeEvent(ignoreInit = T,input$download_plot3,{
       vals$hand_plot<-"generic_gg"
@@ -2023,8 +2028,9 @@ hc_module$server<-function(id, vals){
     })
     observe({
       shinyjs::toggle('disthc_id',condition=input$model_or_data=="data")
-      shinyjs::toggle('som_model_name_out',condition=input$model_or_data=="som codebook")
+
     })
+    observe({ shinyjs::toggle('som_model_name',condition=input$model_or_data=="som codebook")})
     observe({
       shinyjs::toggle("hc_side4",condition = input$model_or_data == "som codebook")
     })
@@ -2183,4 +2189,5 @@ hc_module$server<-function(id, vals){
 
   })
 }
+
 

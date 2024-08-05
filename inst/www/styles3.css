@@ -32,17 +32,7 @@ observeEvent(
 .setup_60{
 height: 50px;
 }
-.train_box{
-background: #f9f9f9ff;
-margin-left: 0px;
-margin-right: 5px;
-box-shadow: 0 1px 3px gray;
-border-bottom-right-radius: 10px;
-padding: 10px;
-margin-bottom: 5px;
-box-sizing: border-box;
-position: relative;
-}
+
 .radio_search .btn{
 height: 22px;
 padding-top: 0px;
@@ -55,13 +45,6 @@ margin-left: -5px;
 padding-left: 15px;
 padding-top: 10px;
 background: white
-}
-.train_button .btn{
-border-radius: 4px;
-border: 0px;
- box-shadow: 0px 1px 3px 0px black  ;
-box-sizing: border-box;
-background:  #05668D; color: white; margin: 0px; font-size: 16px; position: absolute;left: 0px; margin-top: 8px
 }
 
 .ashow:before {
@@ -78,10 +61,7 @@ margin-right: -10px;
 font-weight: bold;
 background:#ecececff
 }
-.train_box .shiny-input-container label{
-font-weight: normal;
-color: #2F4F4F
-}
+
 
 
 .radio_search .btn.active{
@@ -111,10 +91,6 @@ color: white;
 }
 
 .box_title a ,.box_title i{
-color: #a6a6a6ff;
-}
-.train_box i {
-border-radius: 50%;
 color: #a6a6a6ff;
 }
 
@@ -191,20 +167,7 @@ min-width: 150px;
 
 
 
-.inline_pickers .form-control, .inline_pickers .selectize-input,.inline_pickers .dropdown .btn,.inline_pickers .shiny-input-container,.inline_pickers .form-group,.inline_pickers .selectize-control.multi .selectize-input.has-items {
-min-height: 25px;
 
-padding: 1px;
-padding-left: 3px;
-border-radius: 0px
-}
-.inline_pickrs label{
-  color: #05668D;;
-}
-.inline_pickers .shiny-input-select>div>div {
-margin: 0px;padding 0px;
-}
-.setup_box .selectize-input,.setup_box .btn {min-height: 30px;max-height: 30px;height-height: 30px;border-radius: 0px;padding-top: 4px}
 
 .setup_box .control-label{margin: 0px}
 .setup_box .shiny-input-container label{
@@ -281,10 +244,7 @@ padding: 0px
 color:#333;
 
 }
-.model_setup .train_box{
-background:  #e6e6e6;
-box-shadow: 0 1px 3px #748cccff;
-}
+
 .icon-box{background: ",color,";width: 26px;height: 22px; position: absolute; top: 0px; left: 0px;box-sizing: content-box;padding-top: 5px}
 
 .icon-gray {
@@ -341,23 +301,6 @@ content: 'off'
 
 
 
-.inline_pickers .form-control{
-  height: 25px;
-
-}
-
-
-.inline_pickers .form-group{
-  margin: 3px;
-
-}
-
-
-.inline_pickers  .checkbox, .inline_pickers  .radio {
-      margin-top: 3px;
-    margin-bottom: 3px;
-}
-.checktitle .form-group {max-height: 10px;padding: 0px;margin: 0px}
 
 .bank_attr i {
   color:#333;
@@ -396,14 +339,8 @@ background: #7bcc7dff;
 color: white
 }
 
-.inline_pickers .dropdown .btn-default{
-  background:white;
-  border: 0px;
-}
-.inline_pickers .dropdown .btn{
-  padding: 0px;
-}
 
+.checktitle .form-group {max-height: 10px;padding: 0px;margin: 0px}
 
 .picker-before-x:before{
              border: 1px solid red
@@ -440,7 +377,122 @@ padding: 0px;
 .zoom_leaflet .modal-footer{
   padding: 0px;
 }
+
+
+.train_button .btn{
+border-radius: 4px;
+border: 0px;
+ box-shadow: 0px 1px 3px 0px black  ;
+box-sizing: border-box;
+background:  #05668D; color: white; margin: 0px; font-size: 16px; position: absolute;right: 0px; margin-top: 8px;z-index: 999
+}
 .spatial_tools .spatial_setup .train_box {
   padding-bottom: 5px;
   margin-bottom: 2px;
+}
+.model_setup .train_box{
+background:  #e6e6e6;
+box-shadow: 0 1px 3px #748cccff;
+}
+.train_box i {
+border-radius: 50%;
+color: #a6a6a6ff;
+}
+.train_box{
+background: #f9f9f9ff;
+margin-left: 0px;
+margin-right: 5px;
+box-shadow: 0 1px 3px gray;
+border-bottom-right-radius: 10px;
+padding: 10px;
+margin-bottom: 5px;
+box-sizing: border-box;
+position: relative;
+}
+.shp_box .train_box label{
+color: #05668D;
+font-weight: bold
+}
+.train_box .shiny-input-container label{
+font-weight: normal;
+color: #2F4F4F
+}
+
+
+.inline_pickers .dropdown .btn-default{
+  background:white;
+  border: 0px;
+}
+.inline_pickers .dropdown .btn{
+  padding: 0px;
+}
+.inline_pickers .form-control, .inline_pickers .selectize-input,.inline_pickers .dropdown .btn,.inline_pickers .shiny-input-container,.inline_pickers .form-group,.inline_pickers .selectize-control.multi .selectize-input.has-items {
+min-height: 25px;
+
+padding: 1px;
+padding-left: 3px;
+border-radius: 0px
+}
+.inline_pickers label{
+  color: #05668D;;
+}
+.half-drop-inline .shiny-input-container>label,.inline_pickers .shiny-input-container>label {
+color: #05668D;
+margin-right:10px;
+white-space: nowrap;
+}
+
+.inline_pickers .shiny-input-select>div>div {
+margin: 0px;padding 0px;
+}
+.setup_box .selectize-input,.setup_box .btn {min-height: 30px;max-height: 30px;height-height: 30px;border-radius: 0px;padding-top: 4px}
+
+.inline_pickers .form-control{
+  height: 25px;
+
+}
+.inline_pickers .form-group{
+  margin: 3px;
+
+}
+.inline_pickers  .checkbox, .inline_pickers  .radio {
+      margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.inline_pickers .form-group{
+display:flex;
+
+align-items:center;
+margin:5px;
+margin-left:0px;
+padding-right:15px
+}
+.inline_pickers .shiny-input-container>div {
+width:100%;
+}
+.som_grid{
+width: 100%;
+display: flex;flex-flow: row wrap;gap: 2px;margin-bottom: 15px
+}
+.som_grid .form-control{
+width: fit-content
+}
+.som_grid :not(.input-group)>.bootstrap-select.form-control:not([class*=col-]) {
+ width: fit-content
+}
+.som_grid .bootstrap-select:not(.input-group-btn){
+display: block
+}
+.som_grid .bootstrap-select>.dropdown-toggle  {
+   width: fit-content
+}
+.som_grid .shiny-input-container{
+margin: 0px;
+padding: 0px;
+width: fit-content
+}
+.som_grid input{
+max-width: 70px;
+
 }

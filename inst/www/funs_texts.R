@@ -606,81 +606,96 @@ datalist_render<-function(datalist=NULL,bagdata=F,width="90px"){
   layer_shape=attr(data,"layer_shape")
   data.factors=attr(data,"data.factors")
   transf=attr(data,"transf")
-   div(
-     column(12,style="background: #e6e6e6ff;color: black;border: 1px dashed black;margin: 10px 10px 10px 10px",
-            h5(strong("Datalist:"),if(length(datalist_name)>0) {em(datalist_name, style="color: #05668D")})),
-     column(12,
-       if(length(transf)>0){
-         splitLayout(
-           absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width='90px'),
-          get_change_attr(data),
-           cellWidths = c("16%",'84%')
-         )},
+  div(tags$style(HTML(
+    "
+    .rdl{
+        width: fit-content
+    }
+       .rdl_name h5{
+    background: #e6e6e6ff;
+    color: black;
+    border: 1px dashed black;
+    padding: 10px;
+
+       }
+
+    .rdl_items h5{
+    color: #05668D
+    }
+    .rdl_items h5 div:before{
+    color: green;
+    width: 40px;
+    margin-right: 5px;
+    padding-bottom: 5px;
+    content:' ';
+    display: inline-block;
+    border-top: 1px dashed black
+    }
 
 
-     ),
-     column(12,
-            if(length(data)>0) {
-              splitLayout(
-                absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width=width),
-                column(12,style="color:  gray",
-                       p(h5(p("Data-Attribute"), style="color: #05668D")),
-                       p(em("n.obs:",nrow(data), ";","nvar-numeric:", ncol(data), )),
-                       if(length(data.factors>0)){
-                         em("nvar-factors:", ncol(data.factors))
-                       }
+
+    .rdl_blocks{
+    color: gray;
+    padding-left: 20px
+    }
+    .rdl_in{
+    padding-left: 45px
+    }
+
+    "
+  )),
+  div(class="rdl",
+
+      div(class="rdl_name",
+          h5(strong("Datalist:"),if(length(datalist_name)>0) {em(datalist_name)})
+      ),
+      div(class="rdl_items",
+
+          if(length(data)>0){
+            div(class="rdl_blocks",
+                h5(div("Data-Attribute")),
+                div(class="rdl_in",
+                    em(paste0("n.obs:",nrow(data), ";"),
+                       paste0("nvar-numeric:", ncol(data)), )
+                )
+            )},
+          if(length(factors)>0){
+            div(class="rdl_blocks",
+                h5(div("Factor-Attribute")),
+                div(class="rdl_in",
+                    em(paste0("n.obs:",nrow(factors), ";"),
+                       paste0("nvar:", ncol(factors)))
+                )
+            )},
+          if(length(coords)>0){
+            div(
+              class="rdl_blocks",
+              div(h5(div("Coords-Attribute"))),
+              div(class="rdl_in",
+                  em(paste0("n.obs:",nrow(coords), ";"),
+                     paste0("nvar:", ncol(coords)))
+              )
 
 
-                ),
-                cellWidths = c("16%",'84%')
-              )}),
-     column(12,
-            if(length(factors)>0) {
-              splitLayout(
-                absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width=width),
-                column(12,style="color:  gray",
-                       (h5(p("Factor-Attribute"), style="color: #05668D")),
-                       em("n.obs:",nrow(factors), ";", "nvar:", ncol(factors))
-                ),
-                cellWidths = c("16%",'84%')
-              )}
-     ),
-     column(12,
-            if(length(coords)>0) {
-              splitLayout(
-                absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width=width),
-                column(12,style="color:  gray",
-                       p(h5(p("Coords-Attribute"), style="color: #05668D")),
-                       em("n.obs:",nrow(coords), ";", "nvar:", ncol(coords))
-                ),
-                cellWidths = c("16%",'84%')
-              )}
-     ),
-     column(12,
-            if(length(base_shape)>0) {
-              splitLayout(
-                absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width=width),
-                column(12,style="color:  gray",
-                       p(h5(p("Base-shape-Attribute"), style="color: #05668D")),
-                       em("sf object")
-                ),
-                cellWidths = c("16%",'84%')
-              )}
-     ),
-     column(12,
-            if(length(layer_shape)>0) {
-              splitLayout(
-                absolutePanel(style="; height:20px; border-bottom: 1px dashed black;", width=width),
-                column(12,style="color:  gray",
-                       p(h5(p("Layer-shape-Attribute"), style="color: #05668D")),
-                       em("sf object")
-                ),
-                cellWidths = c("16%",'84%')
-              )}
-     )
+            )},
+          if(length(base_shape)>0){
+            div(
+              class="rdl_blocks",
+              div(h5(div("Base-shape-Attribute"))),
+              div(class="rdl_in",
+                  em("sf object"))
+
+            )},
+          if(length(layer_shape)>0){
+            div(class="rdl_blocks",
+                div(h5(div("Layer-shape-Attribute"))),
+                div(class="rdl_in",
+                    em("sf object"))
+            )}
 
 
-   )
+      ))
+  )
 
 }
 

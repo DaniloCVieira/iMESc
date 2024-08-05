@@ -628,7 +628,7 @@ tool1$server<-function(id,vals){
       }
 
       if(input$up_or_ex=="example"){
-        splitLayout(
+        div(style="display: flex; gap: 10px",
           datalist_render(getdatalist()[[1]],F,width="60px"),
           datalist_render(getdatalist_envi()[[1]],F,width="60px")
         )

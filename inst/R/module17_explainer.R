@@ -338,7 +338,7 @@ rf_explainer$ui<-function(id){
                                 id=ns("sankey_tab"),
                                 header=span(actionButton(ns('run_sankey_ploly'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px"),actionButton(ns('run_sankey_gg'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
                                 tabPanel("plotly",
-                                         uiOutput(ns("sankey_out"))
+                                         uiOutput(ns("sankey_plotly"))
                                 ),
                                 tabPanel("ggplot",
                                          uiOutput(ns("sankey_gg"))
@@ -405,6 +405,7 @@ rf_explainer$server<-function(id,vals){
       pal_middle<-vals$newcolhabs[[input$sankey_var2]](1)
       pal_links<-vals$newcolhabs[[input$sankey_palette_links]]
 
+
       df <- md %>%make_long(colnames)
       sy<-get_sankey_Y()
       cols_y<-pal_y(100)[cut(sy$metric_value,100)]
@@ -443,6 +444,8 @@ rf_explainer$server<-function(id,vals){
 
         df0$node<-factor(df$node,levels=c(unique(sy$Y,md$variable)))
         #df0$color[1:736]<-"#F1CA3AFF"
+
+
         p<-ggplot(df, aes(x = x,
                           group=x,
                           next_x = next_x,
@@ -452,10 +455,12 @@ rf_explainer$server<-function(id,vals){
                           fill = factor(color))) +
           geom_sankey(flow.alpha = 0.5)+
           theme_sankey(base_size = 16) +
-          scale_fill_manual(guide="none",values=c(pal_y(10),"transparent"),aesthetics='fill',labels = c(paste0(sort(round(sy$metric_value,2))),""))+
+          scale_fill_manual(guide="none",values=c(pal_y(length(unique(df$color)))),aesthetics='fill',labels = c(paste0(sort(round(sy$metric_value,2))),""))+
           geom_sankey_label(size = input$sankey_size, color = 1,
 
                             fill=c(cols_y,cols_end),show.legend =F)
+
+        p
         yrange=layer_scales(p)$y$range$range
         xrange<-seq_along(layer_scales(p)$x$range$range)
         y_ann<-scales::rescale(seq_along(round(mean_var,2)),c(yrange[1],yrange[2]))
@@ -467,12 +472,13 @@ rf_explainer$server<-function(id,vals){
         if(isTRUE(input$sankey_showlegend)){
           p<-p + annotate("text", x = xrange[2]*1.1, y = y_ann,label =label, parse = TRUE,size=input$sankey_legsize)+
             guides(fill = guide_legend(
-              title = unique(sy$metrics_name)[1],
-              override.aes = list(
-                fill=c(pal_y(length(sy$metric_value)),"transparent"),
-                labels=c(sort(sy$metric_value),"")
-              )
-            ))}
+              title = unique(sy$metrics_name)[1]
+
+            ))
+
+
+        }
+        #override.aes = list(fill=c(pal_y(length(sy$metric_value)),"transparent"),labels=c(sort(sy$metric_value),""))
         p+xlab("")+ylab("")+
           theme(
             legend.text = element_text(size=10),
@@ -486,9 +492,18 @@ rf_explainer$server<-function(id,vals){
 
     })
 
-    output$sankey_gg<-renderUI({
-      validate(need(is_installed("devtools"),"Requires DevTools package. Please close iMESc and install the package manually in R"))
 
+
+
+
+
+
+
+    output$sankey_gg<-renderUI({
+      validate(need(length(measures())>0,"The Measure Importance must be calculated in the '1. Measures' tab."))
+      validate(need(is_installed("devtools"),"Requires DevTools package. Please close iMESc and install the package manually in R"))
+      validate(need(length(get_rfs()) > 1, "You must have more than one Random Forest model saved in the Datalist."))
+      validate(need(length(get_all_mdd()) > 1, "You must calculate the Measures for more than one model."))
       devtools::source_url('https://raw.githubusercontent.com/davidsjoberg/ggsankey/main/R/sankey.R')
       p<- withProgress(gg_sankey(),NA,NA,message="Creating Sankey...")
       renderPlot({
@@ -498,21 +513,23 @@ rf_explainer$server<-function(id,vals){
     })
 
 
-    get_rfs<-function(){
+    get_rfs<-reactive({
       data_x<-vals$cur_data_sl
       req(data_x)
       rfs<-attr(vals$saved_data[[data_x]],"rf")
+
       rfs
-    }
-    get_all_mdd<-function(){
+    })
+    get_all_mdd<-reactive({
       rfs<-get_rfs()
       md<-lapply(rfs,function(x){
         data.frame(attr(x[[1]],'mindepth')[[2]])
 
       })
+      md<-md[sapply(md,nrow)>0]
       md
 
-    }
+    })
     get_sankey_Y<-function(){
 
       rfs<-get_rfs()
@@ -520,15 +537,17 @@ rf_explainer$server<-function(id,vals){
         attr(x[[1]],'supervisor')
       })
       metric_value<-sapply(rfs,function(x){
-        x$m$results[rownames(x$m$bestTune),x$m$metric]
+        x$m$results[rownames(x$m$bestTune),input$sankey_metric]
       })
       metrics_name<-sapply(rfs,function(x){
-        x$m$metric
+        input$sankey_metric
       })
 
       mdd_true<-which(sapply(rfs,function(x){length(attr(x[[1]],'mindepth')[[2]])})>0)
       data.frame(Y=yss,metric_value,metrics_name)[mdd_true,]
     }
+
+
 
     get_sankey_nodes<-function(){
       pal_end<-vals$newcolhabs[[input$sankey_palette]]
@@ -720,13 +739,22 @@ rf_explainer$server<-function(id,vals){
     output$sankey_side<-renderUI({
       md<-get_all_mdd()
 
+      req(length(get_all_mdd())>1)
 
       choices<-unlist(sapply(md,colnames))
       choices<-unique(choices[!choices%in%"variable"])
       names(choices)<-NULL
       choices2<-do.call(rbind,md)$variable
+      m$results
 
+      m<-get_rfs()[[1]]$m
+      choices_metric<-if(m$modelType=="Classification"){
+        c("Accuracy","Kappa")
+      } else{
+        c('Rsquared','RMSE',"MAE")
+      }
       div(
+        pickerInput_fromtop(session$ns("sankey_metric"),"Metric",choices_metric),
         pickerInput_fromtop(session$ns("sankey_values"),"End Value",choices),
         pickerInput_fromtop(session$ns("sankey_values2"),"Middle value",c("None",choices)),
         checkboxInput(ns('sankey_cuton'),"Cut middle values"),
@@ -814,8 +842,13 @@ rf_explainer$server<-function(id,vals){
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Sankey GGplot", name_c="sankey_gg")
     })
 
-    output$sankey_out<-renderUI({
-      validate(need())
+
+
+
+    output$sankey_plotly<-renderUI({
+      validate(need(length(get_rfs()) > 1, "You must have more than one Random Forest model saved in the Datalist."))
+      validate(need(length(get_all_mdd()) > 1, "You must calculate the Measures for more than one model."))
+
       div(
         plotly::plotlyOutput(ns('sankey_plot'))
       )
@@ -849,7 +882,7 @@ rf_explainer$server<-function(id,vals){
       links<-get_sankey_links()
       get_sankey_links()$color
 
-      fig <- plot_ly(
+      fig <- plotly::plot_ly(
         type = "sankey",
         domain = list(
           x =  c(0,1),
@@ -863,7 +896,7 @@ rf_explainer$server<-function(id,vals){
           label = nodes$name,
           color = nodes$color,
           # value=nodes$value,
-          customdata = abind(nodes),
+          customdata = abind::abind(nodes),
           x=nodes$x,
           y=nodes$y,
           #customInfo =nodes$metric_tag,
@@ -951,14 +984,20 @@ rf_explainer$server<-function(id,vals){
     })
 
 
-
-
     observeEvent( model(),{
-      updateTextInput(session,'title_prf',value=paste0(
-        attr( model(),"Y"),"~",attr( model(),"Datalist")
-      ))
+      m<-model()
+      #value=paste0(attr( model(),"Y"),"~",attr( model(),"Datalist"))
+      if(m$modelType=="Regression"){
+        value=paste0(" R²=",round(m$results[ rownames(m$bestTune),"Rsquared"],2))} else{
+          value=paste0(" Acc=",round(m$results[ rownames(m$bestTune),"Accuracy"],2))
+        }
+
+      value=paste0(attr( model(),"supervisor"),";",value)
+      updateTextInput(session,'title_prf',value=value)
 
     })
+
+
 
     data_x<-reactive(attr( model(),"Datalist"))
     model_name<-reactive(attr( model(),"model_name"))
@@ -1033,6 +1072,7 @@ rf_explainer$server<-function(id,vals){
 
 
     output$out_between<-renderUI({
+      validate(need(length(measures())>0,"The Measure Importance must be calculated in the '1. Measures' tab."))
       explainer_ggpair$server("between",get_measure_table(),fun="plot_importance_ggpairs",vals)
       NULL
     })
@@ -1111,8 +1151,14 @@ rf_explainer$server<-function(id,vals){
 
       res
     })
+
+    measures<-reactive({
+      measures<-attr(attr(vals$saved_data[[data_x()]],"rf")[[model_name()]][[1]],"mindepth")
+    })
     output$feature_plot<-
       renderUI({
+
+        validate(need(length(measures())>0,"The Measure Importance must be calculated in the '1. Measures' tab."))
         renderPlot({
           p<-prf.reactive()
           p
@@ -1168,15 +1214,17 @@ rf_explainer$server<-function(id,vals){
     })
 
     output$rf_multi_out<-renderPlot({
+      validate(need(length(measures())>0,"The Measure Importance must be calculated in the '1. Measures' tab."))
       rf_multi()
     })
 
 
     observeEvent(input$downp_prf,ignoreInit = T,{
+      model_name<-attr(model(),"model_name")
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       generic=prf.reactive()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Minimal depth distribution", name_c="min-depth-plot")
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Minimal depth distribution", name_c=paste0("min-depth-plot-",model_name))
     })
     observeEvent(input$downp_mrf,ignoreInit = T,{
       vals$hand_plot<-"generic_gg"
@@ -1305,6 +1353,7 @@ rf_explainer$server<-function(id,vals){
 
     })
     output$rf_inter_out<-renderPlot({
+      validate(need(length(measures())>0,"The Measure Importance must be calculated in the '1. Measures' tab."))
       inter_plot()
     })
 
@@ -1356,3 +1405,4 @@ rf_explainer$server<-function(id,vals){
 
   })
 }
+

@@ -900,6 +900,7 @@ tool2_tab2$server<-function(id,vals){
       req(isTRUE(go_merge()))
       req(isFALSE(stop_merge()))
       withProgress({
+
         df<-do.call(imesc_merge,merge_args())
         df_coords<-do.call(imesc_merge,merge_args_coords())[rownames(df),1:2]
         df_factors<-do.call(imesc_merge,merge_args_factors())[rownames(df),,drop=F]

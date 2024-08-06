@@ -241,11 +241,14 @@ imesc_row_bind <- function(to_merge, fill = TRUE) {
 
   return(final_bind)
 }
+
 imesc_merge<-function(to_merge,mergeby="row",fill=T){
   if(mergeby== "row") {
     imesc_row_bind(to_merge,fill)
   } else{
-    imesc_column_bind(to_merge,fill)
+    res<-imesc_column_bind(to_merge,fill)
+    colnames(res)<-make.unique(unlist(sapply(to_merge,function(x) colnames(x))))
+    res
   }
 }
 

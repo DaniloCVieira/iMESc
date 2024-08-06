@@ -1935,7 +1935,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       choices2<-colnames(data)
       selected2=vals$cur_s3d_points_zcolor
       selected2=get_selected_from_choices(selected2,choices2)
-      selectInput(ns("s3d_points_zcolor"),"Variable", choices2,selected=selected2,options=shinyWidgets::pickerOptions(liveSearch=T) )
+      selectInput(ns("s3d_points_zcolor"),"Variable", choices2,selected=selected2 )
     })
 
 
@@ -2594,7 +2594,7 @@ div(style="display: flex",
       choices<-colnames(data)
       selected=vals$cur_surf_ap_vars
       selected=get_selected_from_choices(selected,choices)
-      choices2<-c("Z-Value",colnames(attr(data,"factors")))
+      choices2<-c("Z-Value",colnames(cbind(data,attr(data,"factors"))))
       selected2=vals$cur_surf_ap_colfac
       selected2=get_selected_from_choices(selected2,choices2)
 
@@ -2704,7 +2704,7 @@ div(style="display: flex",
         cut_var<-cut(var[,1],length(unique(var[,1])))
         points$color<-pal(nlevels(cut_var))[cut_var]
       } else{
-        cut_var<-attr(data0,"factors")[,input$surf_ap_colfac]
+        cut_var<-cbind(data0,attr(data0,"factors"))[,input$surf_ap_colfac]
         points$color<-pal(nlevels(cut_var))[cut_var]
       }
 
@@ -3716,12 +3716,12 @@ div(style="display: flex",
         p1<-vals$saved_maps[[input$saved_maps]]
         z<- attr(p1,"data_z")
         n<-breaks_args1()$nbreaks
-        values<-pretty(z,n=n)
+        values<-pretty(na.omit(z),n=n)
         values<-paste(values,collapse = ",")
 
       } else{
         req(is.numeric(vals$data_map[,1]))
-        z<-vals$data_map[,1]
+        z<-na.omit(vals$data_map[,1])
         n<-breaks_args1()$nbreaks
         req(z)
         req(n)

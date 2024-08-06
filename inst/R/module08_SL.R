@@ -1,5 +1,6 @@
 
 
+
 module_save_changes<-list()
 module_save_changes$ui<-function(id,vals=NULL){
   ns<-NS(id)
@@ -3140,9 +3141,9 @@ pd$ui<-function(id){
                        div(class="radio_search radio-btn-green",
                            radioGroupButtons(ns("rf_useinter"), span(tipright("<li> <code> Custom Variables</code>: custom defining x and y ;</li> <li> <code> Interaction Frame </code>: only available for Random Forest after running Interactions (randomFlorestExplainer). Allow use a list ranked by most frequent interactions; </li>"),"Use:"), choices=c("Interaction Frame","Custom Variables"))),
 
-                       selectInput(ns("rf_interaction"), "Interaction:", choices=NULL),
-                       selectInput(ns("rf_grid_var1"), "Variable 1", choices=NULL),
-                       selectInput(ns("rf_grid_var2"), "Variable 2", choices=NULL),
+                       pickerInput(ns("rf_interaction"), "Interaction:", choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=T)),
+                       pickerInput(ns("rf_grid_var1"), "Variable 1", choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=T)),
+                       pickerInput(ns("rf_grid_var2"), "Variable 2", choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=T)),
 
                        pickerInput_fromtop(ns("rf_biplotclass"), "+ Class", choices=NULL,multiple = T,
                                            options=shinyWidgets::pickerOptions(windowPadding="top")),
@@ -3229,8 +3230,8 @@ pd$server<-function(id,model,vals){
 
 
 
-    updateSelectInput(session,'rf_grid_var1',choices=colnames(getdata_model(model)))
-    updateSelectInput(session,'rf_grid_var2',choices=colnames(getdata_model(model)),selected=colnames(getdata_model(model))[2])
+    updatePickerInput(session,'rf_grid_var1',choices=colnames(getdata_model(model)))
+    updatePickerInput(session,'rf_grid_var2',choices=colnames(getdata_model(model)),selected=colnames(getdata_model(model))[2])
     updatePickerInput(session,'rf_biplotclass',choices=model$levels,selected=model$levels[1])
 
 
@@ -3285,7 +3286,7 @@ pd$server<-function(id,model,vals){
       frame<-interframe()
       pic<-which(frame[,1]==frame[,2])
       choices<-frame$interaction[-pic]
-      updateSelectInput(session,'rf_interaction',choices=choices)
+      updatePickerInput(session,'rf_interaction',choices=choices)
     })
     observeEvent(picvars_pd(),{
       updateTextInput(session,'xlab_pd',value=picvars_pd()$var1)
@@ -4088,12 +4089,12 @@ model_results$server<-function(id,vals){
     })
 
 
-    observe({
+    observeEvent(vals$cmodel,{
       req(vals$cmodel)
       removeTab('tab2',"rfe")
       req(vals$cmodel)
       if(vals$cmodel=='rf'){
-        insertTab('tab2',  select = FALSE,
+        insertTab('tab2',
                   tabPanel("2.7. randomForestExplainer",
                            value="rfe",
                            div(style="margin-top: -10px",
@@ -6172,7 +6173,7 @@ caret_train$ui<-function(id){
         style="display: flex;gap: 10px;align-items: flex-start; flex-flow: row wrap;",class="setup_box",
         #div(tags$div("X",class="trailab")),
         div(class="picker-flex picker-before-x",
-            uiOutput(ns('data_x')),
+            uiOutput(ns('data_x_out')),
 
         ),
         div(style="display: flex;gap: 10px;",
@@ -6198,7 +6199,7 @@ caret_train$ui<-function(id){
       id=ns("model_y_panel"),
       div(
         div(class="picker-flex picker-before-y",
-            uiOutput(ns('data_y')),
+            uiOutput(ns('data_y_out')),
 
         ),
         div(style="margin-left: 20px;margin-top: -5px",align="left",actionLink(ns("gotrain_loop"),"+ Train all",style="font-size: 11px;font-style: italic "))
@@ -6668,7 +6669,7 @@ caret_train$server<-function(id,vals=NULL){
       choices<-names(available_models())
 
       selected<-get_selected_from_choices(vals$cur_model_name,choices)
-      pickerInput_fromtop(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected)
+      pickerInput_fromtop(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
 
@@ -6719,8 +6720,8 @@ caret_train$server<-function(id,vals=NULL){
 
 
 
-    output$data_y<-renderUI({
-      pickerInput_fromtop(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y)
+    output$data_y_out<-renderUI({
+      pickerInput_fromtop(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
 
@@ -6774,7 +6775,7 @@ caret_train$server<-function(id,vals=NULL){
       tips
     }
 
-    output$data_x<-renderUI({
+    output$data_x_out<-renderUI({
 
 
       dflist<-get_dfmodels()
@@ -6846,6 +6847,7 @@ div(class="data_x",
                           content=tips
                         ),
                         options=shinyWidgets::pickerOptions(
+                          liveSearch=T,
                           header=checkboxInput(ns("show_nmodels"),actionLink(ns('show_nmodels_label'),span("Show trained models",tipright("Displays the number of saved models in each Datalist"))),value=F)
                         )
 

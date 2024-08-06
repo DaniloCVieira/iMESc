@@ -814,7 +814,9 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   }
   colnames(coords)<-c("x","y")
   var<-colnames(data)
-  df<-cbind(coords,z=data[,var])
+  df<-na.omit(cbind(coords,z=data[,var]))
+  coords<-df[,1:2]
+  data<-data[rownames(coords),,drop=F]
   if(is.factor(df[,3])){
     cols<-newcolhabs[[palette]](nlevels(df[,3]))
     cols<-cols[levels(df[,3])%in%df[,3]]

@@ -201,14 +201,6 @@ k_means_module$server<-function (id,vals){
 
 
 
-    output$cluster_print<-renderUI({
-      data<-vals$saved_data[[input$data_kmeans]]
-      factors<-attr(data,"factors")
-      div(
-        renderPrint(str(factors))
-      )
-    })
-
 
 
     box_caret_server("box_setup")

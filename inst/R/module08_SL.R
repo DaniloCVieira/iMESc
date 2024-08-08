@@ -3162,7 +3162,10 @@ pd$ui<-function(id){
                                              choices =NULL,
                                              options=shinyWidgets::pickerOptions(windowPadding="top")),
                          textInput(ns("title_pd"),"Title:", value=NULL),
-                         textInput(ns("legend_pd"),"Legend:", value="Partial dependence (prob)"),
+                         numericInput(ns('title_pd_size'),
+                                      "Title size:",12),
+
+                         textInput(ns("legend_pd"),"Legend:", value=NULL),
                          textInput(ns("xlab_pd"),"X label:", value=NULL),
                          textInput(ns("ylab_pd"),"Y label:", value=NULL),
 
@@ -3210,6 +3213,11 @@ pd$server<-function(id,model,vals){
 
     ns<-session$ns
     m<-model
+
+    observe({
+     value<- if(m$modelType=="Regression"){"Value"} else{"Prob"}
+      updateTextInput(session,"legend_pd",value=value)
+    })
 
     box_caret_server('41_a')
     box_caret_server('41_b')
@@ -3307,7 +3315,7 @@ pd$server<-function(id,model,vals){
       list(var1=var1,var2=var2)
     })
 
-    fun_pd<-function(picvars_pd, model,rfbi_grid,rf_biplotclass){
+    fun_pd<-function(picvars_pd, model,rfbi_grid,rf_biplotclass=NULL){
       m<-model
       req(m)
       var1=picvars_pd$var1
@@ -3388,44 +3396,70 @@ pd$server<-function(id,model,vals){
             extensions = c("FixedHeader"))
       )
     })
-
-    pd_biplot<-reactive({
-
-      pd<-get_pd()
+    pd_plot<-function(model,pd,rf_biplotclass,pd_palette,legend_pd,pd_size_plot,ylab_pd,xlab_pd,axis.size,title_pd,axis.text.size,title_size=12){
       req(pd)
-
       m<-model
       req(m)
       if(model$modelType=="Classification"){
-        if(length(input$rf_biplotclass)>1){
+        if(length(rf_biplotclass)>1){
 
-          p1<-plot_pd_groups(pd,model,NULL,newcolhabs = vals$newcolhabs, pd_palette =input$pd_palette )
+          p1<-plot_pd_groups(pd,model,NULL,newcolhabs = vals$newcolhabs, pd_palette =pd_palette )
 
         } else{
-          p1<-autoplot(pd, contour = TRUE, main = paste("Class:",input$rf_biplotclass),legend.title = input$legend_pd)
+          p1<-autoplot(pd, contour = TRUE, main = paste("Class:",rf_biplotclass),legend.title = legend_pd)
         }
       } else {
         p1<-autoplot(pd, contour = TRUE, main = "",legend.title = "Partial\ndependence")}
       suppressWarnings({
 
-        p1<-p1 + scale_fill_gradientn(colours =scale_color_2(input$pd_palette,vals$newcolhabs),name=input$legend_pd)
+        p1<-p1 + scale_fill_gradientn(colours =scale_color_2(pd_palette,vals$newcolhabs),name=legend_pd)
 
 
       })
 
 
 
-      p1<-p1+theme_bw(base_size = input$pd_size_plot)
-      p1<-p1+ ggtitle(input$title_pd)
-      p1<-p1+labs(y = input$ylab_pd, x=input$xlab_pd)
+      p1<-p1+theme_bw(base_size = pd_size_plot)
+      p1<-p1+ ggtitle(title_pd)
+      p1<-p1+labs(y = ylab_pd, x=xlab_pd)
       p1<-p1+
-        theme(axis.text=element_text(size=input$axis.size*10),
+        theme(axis.text=element_text(size=axis.size*10),
+              plot.title=element_text(size=title_size),
 
-              axis.title=element_text(size=input$axis.text.size*10)
+
+              axis.title=element_text(size=axis.text.size*10)
         )
 
       p1
 
+
+    }
+
+    observeEvent(model_name,{
+      updateTextInput(session,'title_pd',value="model_name")
+    })
+    pd_args<-reactive({
+      list(
+        model=model,
+        pd=get_pd(),
+        rf_biplotclass=input$rf_biplotclass,
+        pd_palette=input$pd_palette,
+        legend_pd=input$legend_pd,
+        pd_size_plot=input$pd_size_plot,
+        title_pd=input$title_pd,
+        title_size=input$title_pd_size,
+        ylab_pd=input$ylab_pd,
+        xlab_pd=input$xlab_pd,
+        axis.size=input$axis.size,
+        axis.text.size=input$axis.text.size
+
+      )
+    })
+
+    pd_biplot<-reactive({
+      args<-pd_args()
+
+      do.call(pd_plot,args)
     })
     output$pd_plot<-renderPlot({
       validate(need(inherits(model,"train"),"No trained  models found"))
@@ -3434,8 +3468,9 @@ pd$server<-function(id,model,vals){
     observeEvent(input$down_plot_pd,ignoreInit = T,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
+      name_c=paste0("pd-",model_name)
       generic=pd_biplot()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Partial Dependendence Plot", name_c="pd-plot")
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Partial Dependendence Plot",  name_c=name_c)
     })
 
   })

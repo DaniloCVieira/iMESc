@@ -381,7 +381,7 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
         res$J<-H/log(S)}
 
       if("Dom_rel"%in%choices){res$Dom_rel<-apply(decostand(abund, "total"),1,sort,T)[1,]}
-      if("Skewness"%in%choices){res$Skewness=apply(abund,1,skewness)}
+      if("Skewness"%in%choices){res$Skewness=apply(abund,1,fun_pdskewness)}
       if ("Chao1" %in% choices) {
         trychao<-try( res$Chao1 <- vegan::estimateR(abund)["S.chao1",] )
         vals$trychao<-NULL

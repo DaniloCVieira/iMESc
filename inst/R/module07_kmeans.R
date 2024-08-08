@@ -30,7 +30,7 @@ k_means_module$ui<-function(id){
                 actionButton(ns("kmeans_run"),"RUN >>")),
             uiOutput(ns("kmeans_models_out")),
             div(style="margin-top:20px",
-              actionButton(ns("trash_kmeans"),icon("far fa-trash-alt"))
+                actionButton(ns("trash_kmeans"),icon("far fa-trash-alt"))
             ),
             div(
               style="margin-top: 20px;display: flex",
@@ -52,14 +52,14 @@ k_means_module$ui<-function(id){
             4,class='mp0',style="overflow: auto; height: calc(100vc - 200px)",
 
             div(
-                box_caret(ns("box_a"),
-                          title="Options",
-                          color="#c3cc74ff",
-                          div(
-                            div(id="save_kmeansbtn",
-                                uiOutput(ns("save_kmeans"))
-                            ),
-                            div(id=ns("options_plotdata"),
+              box_caret(ns("box_a"),
+                        title="Options",
+                        color="#c3cc74ff",
+                        div(
+                          div(id="save_kmeansbtn",
+                              uiOutput(ns("save_kmeans"))
+                          ),
+                          div(id=ns("options_plotdata"),
 
                               radioButtons(ns("dot_label_clus"), 'Display', choices=c("symbols","labels"), inline=T),
                               checkboxInput(ns("hc_sort"),span("Sort clusters",tiphelp("Sort clusters by a  variable")),value=F),
@@ -83,11 +83,12 @@ k_means_module$ui<-function(id){
                               )
 
 
-                            ),
-                            actionLink(ns('psom_create_codebook'),"+ Create Datalist with the Codebook and kmeans class"),
-                            #  uiOutput(ns('side_som')),
-                            uiOutput(ns("kmeans_down_model")))
-                )
+                          ),
+                          actionLink(ns('psom_create_codebook'),"+ Create Datalist with the Codebook and kmeans class"),
+                          uiOutput(ns("cluster_print")),
+                          #  uiOutput(ns('side_som')),
+                          uiOutput(ns("kmeans_down_model")))
+              )
             ),
             div(id=ns("options_plotsom"),
 
@@ -162,7 +163,8 @@ k_means_module$ui<-function(id){
                     textInput(ns("hcs_title"), "Title: ", ""),
                     checkboxInput(ns("hcs_theme"),label = "show neuron coordinates",value = F),
                     # div(actionLink(ns('create_codebook'),"Create Datalist with the Codebook and HC class")),
-                    #  div(tipify(downloadLink(ns('down_hc_model'),"Download HC model", style="button_active"),"Download file as .rds"))
+                    #  div(tipify(downloadLink(ns('down_hc_model'),"Download HC model", style="button_active"),"Download file as .rds")),
+
                   )
                 )
 
@@ -199,6 +201,13 @@ k_means_module$server<-function (id,vals){
 
 
 
+    output$cluster_print<-renderUI({
+      data<-vals$saved_data[[input$data_kmeans]]
+      factors<-attr(data,"factors")
+      div(
+        renderPrint(str(factors))
+      )
+    })
 
 
 
@@ -656,7 +665,7 @@ k_means_module$server<-function (id,vals){
         choices<-choices[1]
       }
       choices
-        })
+    })
 
 
 
@@ -684,6 +693,7 @@ k_means_module$server<-function (id,vals){
     })
 
     output$kmeans_models_out<-renderUI({
+      req(input$data_kmeans)
       ns<-session$ns
       data<-vals$saved_data[[input$data_kmeans]]
       choices<-names(attr(data,"kmeans"))
@@ -749,36 +759,36 @@ k_means_module$server<-function (id,vals){
     output$kmeans_tab2_out<-renderUI({
 
       div(
-       column(
-         4,class='mp0',
-         box_caret(
-           ns("box2"),
-           title="Analysis options",
-           color="#c3cc74ff",
-           div(
+        column(
+          4,class='mp0',
+          box_caret(
+            ns("box2"),
+            title="Analysis options",
+            color="#c3cc74ff",
+            div(
 
-             pickerInput(ns("kmeans_oc"),"Method",c("Elbow","Gap Statistic","Silhouette")),
-             numericInput(ns("k.max"),span("K.max:",tiphelp("the maximum number of clusters to consider, must be at least two","right")),24,step=1,width='100px'),
-             numericInput(ns("oc_boot"),span("oc_boot:", tiphelp("number of Monte Carlo (bootstrap) samples","right")),50,step=1),
-               actionButton(ns("oc_run"),"RUN >>"),
-
-
-             uiOutput(ns("oc_gap")),
-             uiOutput(ns("oc_sil")),
-             uiOutput(ns("oc_ss"))
-           ),
+              pickerInput(ns("kmeans_oc"),"Method",c("Elbow","Gap Statistic","Silhouette")),
+              numericInput(ns("k.max"),span("K.max:",tiphelp("the maximum number of clusters to consider, must be at least two","right")),24,step=1,width='100px'),
+              numericInput(ns("oc_boot"),span("oc_boot:", tiphelp("number of Monte Carlo (bootstrap) samples","right")),50,step=1),
+              actionButton(ns("oc_run"),"RUN >>"),
 
 
-         )
-       ),
-       column(
-         8,class="mp0",
-         box_caret(
-           ns("box2b"),
-           title="Plot",
-           plotOutput(ns("oc_elbow_out"))
-         )
-       )
+              uiOutput(ns("oc_gap")),
+              uiOutput(ns("oc_sil")),
+              uiOutput(ns("oc_ss"))
+            ),
+
+
+          )
+        ),
+        column(
+          8,class="mp0",
+          box_caret(
+            ns("box2b"),
+            title="Plot",
+            plotOutput(ns("oc_elbow_out"))
+          )
+        )
       )
     })
 
@@ -908,11 +918,16 @@ k_means_module$server<-function (id,vals){
     })
 
     output$pdata_plot_box<-  renderPlot({
+      #saveRDS(reactiveValuesToList(input),"input.rds")
+      #saveRDS(reactiveValuesToList(vals),"vals.rds")
+      #input<-readRDS('input.rds')
+      #vals<-readRDS("vals.rds")
       req(input$model_or_data=="data")
-      target<-attr(getkmodel(),"data")
-      req(input$data_kmeans)
+      cluster<-getkmodel()
+      #req(input$data_kmeans)
       data<-vals$saved_data[[input$data_kmeans]]
-      clu<-vals$kmeans_clusters
+      clu<-vals$k_means_results$cluster$cluster
+      req(clu)
       pbox(data.frame(Cluster=clu,data), newcolhabs=vals$newcolhabs, palette="turbo")
       colors<-vals$newcolhabs[['turbo']] (nlevels(clu))[clu]
       points(data.frame(Cluster=clu,data),col="black",bg=colors, pch=21)
@@ -1147,12 +1162,27 @@ k_means_module$server<-function (id,vals){
       req(input$data_kmeans)
       datao<-vals$saved_data[[input$data_kmeans]]
       factors<-attr(datao,"factors")
-      hc<-as.factor(vals$kmeans_clusters)
+
+      if(is.null(vals$kmeans_clusters)){
+        hc<-as.factor(vals$k_means_results$cluster$cluster)
+
+      } else{
+        hc<-as.factor(vals$kmeans_clusters)
+      }
+
       fac<-as.list(factors)
       fac<-lapply(fac,function(x) as.character(x))
 
-      cluster_already<-which(sapply(fac, function(x) identical(as.character(x), as.character(hc))))
-      names(cluster_already)
+
+      pic<-sapply(fac, function(x) identical(as.character(x), as.character(hc)))
+      if(length(pic)>0){
+        cluster_already<-which(pic)
+        names(cluster_already)
+      } else{
+        NULL
+      }
+
+
     })
 
     output$save_kmeans<-renderUI({
@@ -1211,7 +1241,8 @@ k_means_module$server<-function (id,vals){
 
 
     observeEvent(ignoreInit=T,input$kmeans_run,{
-
+      vals$kmeans_clusters<-NULL
+      vals$k_means_results<-NULL
 
       req(input$data_kmeans)
       updatePickerInput(session,"kmeans_models",choices=c("new kmeans (unsaved)",names(attr(vals$saved_data[[input$data_kmeans]],"kmeans"))), selected='new kmeans (unsaved)')
@@ -1300,12 +1331,22 @@ k_means_module$server<-function (id,vals){
       res
 
     })
+
+
+
     savekmeans<-reactive({
-      temp<-vals$kmeans_clusters
-      if(input$hand_save=="create"){
-        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$newdatalist]<-as.factor(temp)
+      if(is.null(vals$kmeans_clusters)){
+        temp<-vals$k_means_results$cluster$cluster
       } else{
-        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$over_datalist]<-as.factor(temp)
+        temp<-vals$kmeans_clusters
+      }
+
+      req(temp)
+
+      if(input$hand_save=="create"){
+        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$newdatalist]<-as.factor(unlist(temp))
+      } else{
+        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$over_datalist]<-as.factor(unlist(temp))
       }
       removeClass('save_kmeansbtn','save_changes')
       #shinyjs::hide('save_kmeans')
@@ -1461,3 +1502,4 @@ k_means_module$server<-function (id,vals){
 
   })
 }
+

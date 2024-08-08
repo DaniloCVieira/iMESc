@@ -903,7 +903,13 @@ tool2_tab2$server<-function(id,vals){
 
         df<-do.call(imesc_merge,merge_args())
         df_coords<-do.call(imesc_merge,merge_args_coords())[rownames(df),1:2]
-        df_factors<-do.call(imesc_merge,merge_args_factors())[rownames(df),,drop=F]
+        args_fac<-merge_args_factors()
+        df_factors<-do.call(imesc_merge,args_fac)[rownames(df),,drop=F]
+        df_factors<-data.frame(lapply(df_factors,function(x) as.factor(x)))
+        rownames(df_factors)<-rownames(df)
+        #lapply(merge_args_factors$tomerge)
+        #lapply(df_factors,function)
+
         df<-data_migrate(merge_args()$to_merge[[1]],df)
         attr(df,"factors")<-df_factors
         attr(df,"coords")<-df_coords

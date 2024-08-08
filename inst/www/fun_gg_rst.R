@@ -11,6 +11,9 @@ validate_data<-function(data){
       if(ncol(coords)!=2){
         res<-"Error in Coordinates: Number of columns not equal 2"
       }
+      if(anyNA(coords)){
+        res<-"Error in Coordinates: NAs not allowed"
+      }
     }
   }
   res
@@ -19,9 +22,13 @@ validate_data<-function(data){
 #' @export
 validate_data2<-function(data){
   coords<-attr(data,"coords")
-  all(c(data_ok=length(data)>0,
-        coords_ok=length(coords)>0,
-        coords_ok2=ncol(coords)==2))
+  all(c(
+    data_ok=length(data)>0,
+    coords_ok=length(coords)>0,
+    coords_ok2=ncol(coords)==2,
+    coords_ok3=!anyNA(coords)
+  ))
+
 
 
 }
@@ -52,14 +59,14 @@ get_data_map<-function(saved_data,name,attr,var,filter,filter_level){
   return(final_data)
 }
 #' @export
-breaks_interval<-function(z,num_breaks=5){
-  num_breaks=num_breaks-1
-  need(num_breaks!=0,"Breaks should be higher than 2") |> validate()
-  if(num_breaks==1){
+breaks_interval<-function(z,nbreaks=5){
+  nbreaks=nbreaks-1
+  need(nbreaks!=0,"Breaks should be higher than 2") |> validate()
+  if(nbreaks==1){
     return(range(z))
   }
 
-  seq(min(z),max(z),length.out=num_breaks)
+  seq(min(z),max(z),length.out=nbreaks)
 }
 col_factor_map<-function(newcolhabs,pal,data,reverse_palette){
 
@@ -80,7 +87,22 @@ col_factor_map<-function(newcolhabs,pal,data,reverse_palette){
 
 
 #' @export
-gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius,num_breaks,light=0){
+breaks_label<-function(breaks,z){
+  breaks<-as.numeric(breaks)
+  res<-c()
+
+  mi<-round(min(z),decimal_places(as.numeric(breaks)))
+  bb<-c(mi,breaks)
+  for(i in 1:c(length(breaks))){
+    res[i]<-paste0("[",bb[[i]],", ",bb[[i+1]],"]")
+  }
+  res
+}
+
+gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,custom_breaks,min_radius,max_radius, scale_radius,num_breaks,light=0){
+  breaks<-as.numeric(custom_breaks)
+  colnames(rasterpoints)<-c('x','y','z')
+
   if(is.factor(rst[,1])){
     range<-c(max_radius,max_radius)
   } else{
@@ -101,28 +123,35 @@ gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palet
       paste(x[1],"-",x[2])
     })
 
+
+
+
+    #plot(1,col=colors[length(colors)/2],pch=16,cex=15)
+    col_leg<-colorBin(colors,domain=rasterpoints$z)(breaks)
+
+    if(length(breaks)==1){
+      colors<-col_leg
+      colors<-adjustcolor(lighten(colors,light),fillOpacity)
+    }
+    col_leg<-adjustcolor(lighten(col_leg,light),fillOpacity)
     p<-p+
       geom_point(aes(x,y,size=z, color=z),data=rasterpoints)+
-      scale_colour_gradientn(guide="none",
-                             colours=colors,
-                             breaks =breaks[-1],
-
-                             limits = range(pretty(breaks)))+
+      scale_colour_gradientn(
+        guide="none",colours=colors,breaks =breaks, limits = range(c(breaks,rst[,1])))+
       scale_radius(range=range,
-                 guide="none",
-                 breaks =breaks[-1],
-                 name=colnames(rst[,1]),
-                 labels=break_labels,
-                 limits = range(pretty(breaks)) )+
-      guides(
-        size = guide_legend(
-          override.aes = list(
-            colour = as.list(adjustcolor( scales::col_numeric(colors0, domain=NULL)(breaks[-1]),fillOpacity)),
-            breaks=breaks[-1]
-          )
+                   breaks,
+                   name=colnames(rst[,1]),
+                   labels=breaks_label(breaks,rasterpoints$z),
+                   limits = range(c(breaks,rst[,1])),
+                   )      +
+      guides(size = guide_legend(
+        override.aes = list(
+          color=col_leg
         )
-      )
+      ))
   }
+
+
 
 
   p
@@ -130,32 +159,49 @@ gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palet
 
 
 }
+
 #' @export
 
-rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o,light=0){
+
+decimal_places<-function(x){
+  sp<-do.call(rbind,strsplit(as.character(format(x, scientific=F)),"\\."))
+  if(ncol(sp)==2){
+    max(sapply(sp[,2],nchar))
+
+  } else{
+    1
+  }
+}
+
+
+
+rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o,light=0,custom_breaks){
+
 
   name<-attr(rst,'z_name')
-  if(isTRUE(factor)){levs<-levels(data_o[,1])
-  colhabs= lighten(newcolhabs[[pal]](length(levs)),light)
-  colhabs<-colhabs[levs%in%rasterpoints$z]
-  colhabs=adjustcolor(colhabs,fillOpacity)
+  if(isTRUE(factor)){
+    levs<-levels(data_o[,1])
+    colhabs= lighten(newcolhabs[[pal]](length(levs)),light)
+    colhabs<-colhabs[levs%in%rasterpoints$z]
+    colhabs=adjustcolor(colhabs,fillOpacity)
 
-   # cols<-cols[levels(data[,1])%in%data[,1]]
-   # cols<-cols[as.factor(z_factor)]
+    # cols<-cols[levels(data[,1])%in%data[,1]]
+    # cols<-cols[as.factor(z_factor)]
 
     if(isTRUE(reverse_palette)){
       colhabs<-rev(colhabs)
     }
-    p<- p+ geom_tile(data = rasterpoints , aes(x = x, y = y, fill =  rasterpoints$z))+   scale_fill_manual(values=c(colhabs), name=name, drop=F,breaks=breaks)
-  } else{
+    p<- p+ geom_tile(data = rasterpoints , aes(x = x, y = y, fill =  z))+   scale_fill_manual(values=c(colhabs), name=name, drop=F,breaks=breaks)
 
-    p=p+geom_tile(data = rasterpoints , aes(x = x, y = y, fill = z))+scale_fill_gradientn(colours =scale_color_2(pal,newcolhabs, fillOpacity,reverse_palette),name=name,breaks=breaks, limits=range(breaks))
+  } else{
+    round<-decimal_places(custom_breaks)
+    p=p+geom_tile(data = rasterpoints , aes(x = x, y = y, fill = z))+scale_fill_gradientn(colours =scale_color_2(pal,newcolhabs, fillOpacity,reverse_palette),name=name,breaks=breaks, limits=range(breaks), labels=round(as.numeric(custom_breaks),round))
 
   }
   return(p)
 }
 #' @export
-get_pie_gg<-function(rst,factor_chart=1,buffer_zize=1,fun="sum",min_radius=1,max_radius=2,newcolhabs, pal){
+get_pie_gg<-function(rst,factor_chart=1,buffer_zize=1,fun="sum",min_radius=1,max_radius=2,newcolhabs, pal,fillOpacity, light){
 
   df0<-get_chart_data(rst,factor_chart, distance=buffer_zize, fun=fun)
   df<-data.frame(df0)
@@ -172,14 +218,15 @@ get_pie_gg<-function(rst,factor_chart=1,buffer_zize=1,fun="sum",min_radius=1,max
     colors <- newcolhabs[[pal]](ncol(facddf))
     width = scales::rescale(rowSums(facddf),c(min_radius,max_radius))
   }
+  colors<-adjustcolor(lighten(colors,light),fillOpacity)
   colnames(facddf)<-gsub("_split_",".",colnames(facddf))
   res<-cbind(df[,1:2],facddf)
   attr(res,"color")<-colors
   res
 }
 #' @export
-gg_pie<-function(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity){
-  pie_data<-get_pie_gg(rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs, pal,light=0)
+gg_pie<-function(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity, light){
+  pie_data<-get_pie_gg(rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs, pal,fillOpacity,light=light)
   if(is.factor(rst[,1])){
     colpie<-attr(pie_data,"color")
   } else{
@@ -191,7 +238,10 @@ gg_pie<-function(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcol
   if(isTRUE(reverse_palette)){
     colpie<-rev(colpie)
   }
-  p<-p+ geom_scatterpie(aes(x=x, y=y), data=pie_data,
+  y<-pie_data$y
+  x<-pie_data$x
+  library(scatterpie)
+  p<-p+ geom_scatterpie(mapping=aes(x=x, y=y), data=pie_data,
                      cols=colnames(pie_data)[-c(1:2)],
                      color=NA)+
     scale_fill_manual(name=colnames(rst[,1]),values = colpie,drop=F)

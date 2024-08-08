@@ -111,250 +111,291 @@ rf_explainer<-list()
 rf_explainer$ui<-function(id){
   ns<-NS(id)
   div(
-    div(class="rfexpainer nav_caret",
-        tabsetPanel(id=ns('rftab2_3'),
-                    tabPanel("1. Measures",value="tab1",
-                             div(
-                               column(4,class="mp0",
-                                      box_caret(ns('30'),click=F,title="Analysis options",
-                                                div(
-                                                  selectInput(ns('rfmeasure_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
-                                                  div(class="normal-checkbox",
-                                                      checkboxGroupInput(ns('rf_measures'),span(tipright(" the measures of importance to be used"),'measures:'),choices=c("mean_min_depth",
-                                                                                                                                                                          "accuracy_decrease","gini_decrease" ,"no_of_nodes","times_a_root"),selected=c("mean_min_depth","accuracy_decrease","gini_decrease" ,"no_of_nodes","times_a_root"))
-                                                  ))
+    div(
+      class="rfexpainer nav_caret",
+      tabsetPanel(
+        id=ns('rftab2_3'),
+        tabPanel("1. Measures",value="tab1",
+                 div(
+                   column(4,class="mp0",
+                          box_caret(ns('30'),click=F,title="Analysis options",
+                                    div(
+                                      selectInput(ns('rfmeasure_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
+                                      div(class="normal-checkbox",
+                                          checkboxGroupInput(ns('rf_measures'),span(tipright(" the measures of importance to be used"),'measures:'),choices=c("mean_min_depth",
+                                                                                                                                                              "accuracy_decrease","gini_decrease" ,"no_of_nodes","times_a_root"),selected=c("mean_min_depth","accuracy_decrease","gini_decrease" ,"no_of_nodes","times_a_root"))
+                                      ))
 
-                                      )),
-                               column(8,class="mp0",
-                                      box_caret(ns("31"),title="Importance Measures",
-                                                button_title=actionLink(ns('downcenter_rfdepth'),"Download",icon("download")),
+                          )),
+                   column(8,class="mp0",
+                          box_caret(ns("31"),title="Importance Measures",
+                                    button_title=actionLink(ns('downcenter_rfdepth'),"Download",icon("download")),
 
-                                                div(
-                                                  div(
-                                                    actionLink(ns('run_measures'),span("Click to Measure Importance ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
-                                                  ),
-                                                  uiOutput(ns("rf_measure_out"))
-                                                )
-
-                                      )
-                               )
-                             )
-
-
-                    ),
-                    tabPanel("2. Min Depth Distr.",
-                             value="tab2",
-                             column(4,class="mp0",
-                                    box_caret(
-                                      ns("32"),
-                                      title="Display Options",
-                                      click=F,
+                                    div(
                                       div(
-
-                                        div(
-                                          div(class="radio_search radio-btn-green",
-                                              radioGroupButtons(ns("rf_depth"), "Display:", choiceNames =c("significant","User-defined","All"),choiceValues =c("sigs","user","all"))
-                                          ),
-                                          numericInput(ns("n_var_rf"),span(tipright("The maximal number of variables with lowest mean minimal depth to be used for plotting"),
-                                                                           'Number of variables:'),value = 10,step = 1),
-                                          numericInput(ns('depth_min_no_of_trees'),span(tipright("The minimal number of trees in which a variable has to be used for splitting to be used for plotting"),'Min_n_trees:'),value=0,step=1),
-                                          selectInput(ns('depth_mean_sample'),span(tipright("The sample of trees on which mean minimal depth is calculated"),'Mean_sample:'),choices=c( "top_trees","all_trees","relevant_trees"), selected= "top_trees"),
-                                          numericInput(ns("sigprf"), span(tipright("Significance level"),'Sig:'), 0.05, step=.05, max=1, min=0)
-                                        ))
-                                    ),
-                                    box_caret(
-                                      ns("32_2"),
-                                      title="Plot Options",
-                                      click=F,
-                                      div(
-                                        div(
-                                          uiOutput(ns("mdd_palette")),
-                                          numericInput(ns("labrfsize"),"Base size:", value=10),
-                                          textInput(ns("title_prf"),"Title:", value=NULL),
-
-                                          textInput(ns("xlab_prf"),"X label:", value="Variable"),
-                                          textInput(ns("ylab_prf"),"Y label:", value="Number of Trees"),
-
-                                          numericInput(ns('prf_axis_size'),"Axis size", 12),
-                                          numericInput(ns('prf_label_axis_size'),"Label axis size", 12),
-
-                                          numericInput(ns("size_mmd"),"Text-in size:", value=4),
-                                          div(style="display: flex;max-width: 75%",
-                                              numericInput(ns('plot_height'),"Dim:", 300),
-                                              numericInput(ns('plot_width'),"x", 400),div("pixels",style="padding-top: 10px")
-                                          )
-
-                                        ))
+                                        actionLink(ns('run_measures'),span("Click to Measure Importance ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
+                                      ),
+                                      uiOutput(ns("rf_measure_out"))
                                     )
 
-                             ),
-                             column(8,class="mp0",
-                                    box_caret(ns("33"),
-                                              title="Minimal depth distribution",
-                                              button_title=actionLink(ns('downp_prf'),"Download",icon("download")),
-                                              div(
-                                                div(
-                                                  style="position: absolute; top: 27px;right: 0px;padding: 5px;background:white;padding-top:0px",
-                                                  tipify(
-                                                    actionLink(ns('create_rf'),span("Create Datalist"),icon("fas fa-file-signature")),
-                                                    "Create a datalist with the variables selected in the Random Forest Explainer.","right"
-                                                  )
-                                                ),
-                                                uiOutput(ns("feature_plot"))
-                                              )
-
-                                    )
-                             )
-
-
-                    ),
-                    tabPanel("3. Multi-way",
-                             value="tab3",
-                             column(4,class="mp0",
-                                    box_caret(ns("34"),
-                                              title="Display Options",
-                                              div(
-                                                div(
-                                                  class="map_control_style",style="color: #05668D",
-                                                  div(
-                                                    class="radio_search radio-btn-green",
-                                                    radioGroupButtons(ns("rf_sigmulti"), "Display:", choiceNames =c("significant","User-defined","All"),choiceValues =c("sigs","user","all"))
-                                                  ),
-                                                  numericInput(ns('multi_no_of_labels'),span(tipright("The approximate number of best variables (according to all measures plotted) to be labeled (more will be labeled in case of ties)"),'No_of_labels'),value=10,step=1),
-                                                  selectInput(ns('multi_x_measure'),span(tipright("The measure of importance to be shown on the X axis"),'X:'),choices=NULL),
-                                                  selectInput(ns('multi_y_measure'),span(tipright("The measure of importance to be shown on the Y axis"),'Y:'),choices=NULL),
-                                                  selectInput(ns('multi_z_measure'),span(tipright("Optional measure for gradient color scale"),'z:'),choices=NULL),
-                                                )
-                                              )
-                                    ),
-                                    box_caret(ns("34_2"),
-                                              title="Plot Options",
-                                              div(
-                                                div(
-                                                  uiOutput(ns("interframe_palette")),
-                                                  numericInput(ns('max.overlaps'),span(tipright("Exclude text labels that overlap too many things"),'max.overlaps:'),10),
-                                                  numericInput(ns("sigmrf"), span(tipright("Significance level"),'Sig:'), 0.05),
-                                                  textInput(ns("interframe_title"),"Title:", value="Multi-way importance"),
-                                                  checkboxInput(ns("interframe_logy"),"Log Y axis:", T),
-                                                  checkboxInput(ns("interframe_logx"),"Log X axis:", F),
-                                                  numericInput(ns("interframe_size"),"Base size:", value=2),
-                                                  numericInput(ns("interframe_label_size"),"Label axis size:", value=5),
-                                                  numericInput(ns("interframe_axis_size"),"Axis size:", value=12)
-                                                )
-                                              )
-                                    )
-                             ),
-                             column(8,class="mp0",
-                                    box_caret(ns("35"),
-                                              title="Multi-way importance",
-                                              button_title=actionLink(ns('downp_mrf'),"Download",icon("download")),
-                                              plotOutput(ns("rf_multi_out"))))
-
-
-
-                    ),
-                    tabPanel("4. Relationships",
-                             value="tab4",
-                             tabsetPanel(
-                               tabPanel("4.1 Between importances",
-                                        explainer_ggpair$ui(ns('between'),
-                                                            title="Between importances",
-                                                            tip="Plot selected importance measures pairwise against each other"),
-                                        uiOutput(ns("out_between"))
-
-
-                               ),
-                               tabPanel('4.2 Between rankings',
-                                        explainer_ggpair$ui(ns('rank'),
-                                                            title="Between rankings",
-                                                            tip="Plot against each other rankings of variables according to various measures of importance"),
-                                        uiOutput(ns("out_rank"))
-
-
-                               )
-                             )
-                    ),
-                    tabPanel("5. Interactions",
-                             value="tab5",
-
-                             div(column(4,class="mp0",
-                                        box_caret(ns("38"),
-                                                  title="Options",
-
-                                                  div(
-                                                    div(
-                                                      actionLink(ns('go_rfinter'),span("Click to Run ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
-                                                    ),
-                                                    numericInput(ns('rfinter_k'),span(tipright("The number of variables to extract"),'k'),value=5,step=1),
-                                                    selectInput(ns('rfinter_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
-                                                    selectInput(ns('uncond_mean_sample'),span(tipright("The sample of trees on which unconditional mean minimal depth is calculated"),'unc_mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='mean_sample'),
-                                                    numericInput(ns('rfinter_k2'),span(tipright("The number of best interactions to plot, if empty then all plotted"),'N inter'),value=30,step=1),
-                                                    uiOutput(ns('inter_palette')),
-
-                                                    numericInput(ns("inter_size_plot"),"Size:", value=10),
-                                                    numericInput(ns("inter_labang"),"Label rotation (x):", value=-90),
-                                                    div(tipify(actionLink(ns('create_rfinter'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the variables included in the N most frequent interactions in the RF","right"))
-
-                                                  )
-                                        )
-                             ),
-                             column(8,class="mp0",
-                                    box_caret(ns("39"),
-                                              tip=tipright("Investigate interactions with respect to the  set of most important variables"),
-                                              title="Variable Interactions",
-                                              button_title=actionLink(ns('down_plot_inter'),"Download",icon("download")),
-                                              plotOutput(ns("rf_inter_out"))),
-
-                                    box_caret(ns("40"),
-                                              title="Table",
-                                              button_title=actionLink(ns('down_table_inter'),"Download",icon("download")),
-                                              uiOutput(ns("rf_inter_tab")))),
-
-                             )
-                    ),
-                    tabPanel(
-                      "6. Sankey plot",  value="tab6",
-                      div(
-
-                        column(
-                          4,class="mp0",
-                          box_caret(
-                            ns("box1"),
-                            title="Options",
-                            div(
-                              uiOutput(ns("sankey_side")),
-                              uiOutput(ns("sankey_print"))
-                            )
                           )
+                   )
+                 )
+
+
+        ),
+        tabPanel("2. Min Depth Distr.",
+                 value="tab2",
+                 column(4,class="mp0",
+                        box_caret(
+                          ns("32"),
+                          title="Display Options",
+                          click=F,
+                          div(
+
+                            div(
+                              div(class="radio_search radio-btn-green",
+                                  radioGroupButtons(ns("rf_depth"), "Display:", choiceNames =c("significant","User-defined","All"),choiceValues =c("sigs","user","all"))
+                              ),
+                              numericInput(ns("n_var_rf"),span(tipright("The maximal number of variables with lowest mean minimal depth to be used for plotting"),
+                                                               'Number of variables:'),value = 10,step = 1),
+                              numericInput(ns('depth_min_no_of_trees'),span(tipright("The minimal number of trees in which a variable has to be used for splitting to be used for plotting"),'Min_n_trees:'),value=0,step=1),
+                              selectInput(ns('depth_mean_sample'),span(tipright("The sample of trees on which mean minimal depth is calculated"),'Mean_sample:'),choices=c( "top_trees","all_trees","relevant_trees"), selected= "top_trees"),
+                              numericInput(ns("sigprf"), span(tipright("Significance level"),'Sig:'), 0.05, step=.05, max=1, min=0)
+                            ))
                         ),
-                        column(
-                          8,class="mp0",
-                          box_caret(
-                            ns("box2"),
-                            title="Plot",
-                            button_title = actionLink(ns('down_gg_sankey'),"Download",icon("download")),
+                        box_caret(
+                          ns("32_2"),
+                          title="Plot Options",
+                          click=F,
+                          div(
                             div(
-                              tabsetPanel(
-                                id=ns("sankey_tab"),
-                                header=span(actionButton(ns('run_sankey_ploly'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px"),actionButton(ns('run_sankey_gg'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                                tabPanel("plotly",
-                                         uiOutput(ns("sankey_plotly"))
-                                ),
-                                tabPanel("ggplot",
-                                         uiOutput(ns("sankey_gg"))
-                                )
-                              )
-                            )
+                              uiOutput(ns("mdd_palette")),
+                              numericInput(ns("labrfsize"),"Base size:", value=10),
+                              textInput(ns("title_prf"),"Title:", value=NULL),
 
-                          )
+                              textInput(ns("xlab_prf"),"X label:", value="Variable"),
+                              textInput(ns("ylab_prf"),"Y label:", value="Number of Trees"),
+
+                              numericInput(ns('prf_axis_size'),"Axis size", 12),
+                              numericInput(ns('prf_label_axis_size'),"Label axis size", 12),
+
+                              numericInput(ns("size_mmd"),"Text-in size:", value=4),
+                              div(style="display: flex;max-width: 75%",
+                                  numericInput(ns('plot_height'),"Dim:", 300),
+                                  numericInput(ns('plot_width'),"x", 400),div("pixels",style="padding-top: 10px")
+                              )
+
+                            ))
                         )
 
-                      )
+                 ),
+                 column(8,class="mp0",
+                        box_caret(ns("33"),
+                                  title="Minimal depth distribution",
+                                  button_title=actionLink(ns('downp_prf'),"Download",icon("download")),
+                                  div(
+                                    div(
+                                      style="position: absolute; top: 27px;right: 0px;padding: 5px;background:white;padding-top:0px",
+                                      tipify(
+                                        actionLink(ns('create_rf'),span("Create Datalist"),icon("fas fa-file-signature")),
+                                        "Create a datalist with the variables selected in the Random Forest Explainer.","right"
+                                      )
+                                    ),
+                                    uiOutput(ns("feature_plot"))
+                                  )
+
+                        )
+                 )
+
+
+        ),
+        tabPanel("3. Multi-way",
+                 value="tab3",
+                 column(4,class="mp0",
+                        box_caret(ns("34"),
+                                  title="Display Options",
+                                  div(
+                                    div(
+                                      class="map_control_style",style="color: #05668D",
+                                      div(
+                                        class="radio_search radio-btn-green",
+                                        radioGroupButtons(ns("rf_sigmulti"), "Display:", choiceNames =c("significant","User-defined","All"),choiceValues =c("sigs","user","all"))
+                                      ),
+                                      numericInput(ns('multi_no_of_labels'),span(tipright("The approximate number of best variables (according to all measures plotted) to be labeled (more will be labeled in case of ties)"),'No_of_labels'),value=10,step=1),
+                                      selectInput(ns('multi_x_measure'),span(tipright("The measure of importance to be shown on the X axis"),'X:'),choices=NULL),
+                                      selectInput(ns('multi_y_measure'),span(tipright("The measure of importance to be shown on the Y axis"),'Y:'),choices=NULL),
+                                      selectInput(ns('multi_z_measure'),span(tipright("Optional measure for gradient color scale"),'z:'),choices=NULL),
+                                    )
+                                  )
+                        ),
+                        box_caret(ns("34_2"),
+                                  title="Plot Options",
+                                  div(
+                                    div(
+                                      uiOutput(ns("interframe_palette")),
+                                      numericInput(ns('max.overlaps'),span(tipright("Exclude text labels that overlap too many things"),'max.overlaps:'),10),
+                                      numericInput(ns("sigmrf"), span(tipright("Significance level"),'Sig:'), 0.05),
+                                      textInput(ns("interframe_title"),"Title:", value="Multi-way importance"),
+                                      checkboxInput(ns("interframe_logy"),"Log Y axis:", T),
+                                      checkboxInput(ns("interframe_logx"),"Log X axis:", F),
+                                      numericInput(ns("interframe_size"),"Base size:", value=2),
+                                      numericInput(ns("interframe_label_size"),"Label axis size:", value=5),
+                                      numericInput(ns("interframe_axis_size"),"Axis size:", value=12)
+                                    )
+                                  )
+                        )
+                 ),
+                 column(8,class="mp0",
+                        box_caret(ns("35"),
+                                  title="Multi-way importance",
+                                  button_title=actionLink(ns('downp_mrf'),"Download",icon("download")),
+                                  plotOutput(ns("rf_multi_out"))))
 
 
 
+        ),
+        tabPanel("4. Relationships",
+                 value="tab4",
+                 tabsetPanel(
+                   tabPanel("4.1 Between importances",
+                            explainer_ggpair$ui(ns('between'),
+                                                title="Between importances",
+                                                tip="Plot selected importance measures pairwise against each other"),
+                            uiOutput(ns("out_between"))
+
+
+                   ),
+                   tabPanel('4.2 Between rankings',
+                            explainer_ggpair$ui(ns('rank'),
+                                                title="Between rankings",
+                                                tip="Plot against each other rankings of variables according to various measures of importance"),
+                            uiOutput(ns("out_rank"))
+
+
+                   )
+                 )
+        ),
+        tabPanel(
+          "5. Interactions",
+          value="tab5",
+
+          div(
+            column(
+              4,class="mp0",
+              box_caret(
+                ns("38"),
+                title="Setup",
+                color="#c3cc74ff",
+                div(
+                  div(
+                    actionLink(ns('go_rfinter'),span("Click to Run ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
+                  ),
+                  numericInput(ns('rfinter_k'),span(tipright("The number of variables to extract"),'k'),value=5,step=1),
+                  selectInput(ns('rfinter_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
+                  selectInput(ns('uncond_mean_sample'),span(tipright("The sample of trees on which unconditional mean minimal depth is calculated"),'unc_mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='mean_sample'),
+                  numericInput(ns('rfinter_k2'),span(tipright("The number of best interactions to plot, if empty then all plotted"),'N inter'),value=30,step=1),
+                  div(tipify(actionLink(ns('create_rfinter'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the variables included in the N most frequent interactions in the RF","right"))
+                )
+
+              ),
+              box_caret(
+                ns("inter_plotoptions"),
+                title="Plot options",
+                color="#c3cc74ff",
+                div(
+                  uiOutput(ns('inter_palette')),
+
+                  textInput(ns("inter_title"),strong("Title:"),NULL),
+                    div(style="padding-left: 40px",
+                      numericInput(ns("int_cex.title"),'Size',13),
+                      pickerInput_fromtop(ns("int_font.title"),'Font:',c("plain", "bold", "italic", "bold.italic")),
+
+                  ),
+                  textInput(ns("inter_subtitle"),strong("Title"),NULL),
+                  div(style="padding-left: 40px",
+
+                      numericInput(ns("int_cex.subtitle"),'Size:',9),
+                      pickerInput_fromtop(ns("int_font.subtitle"),'Font:',c("plain", "bold", "italic", "bold.italic"),selected="italic")
+                  ),
+
+                  numericInput(ns("int_cex.axes"),'Axis size',11),
+                  numericInput(ns("int_cex.lab"),'Axis label size',11),
+                  numericInput(ns("inter_size_plot"),"Size:", value=10),
+                  numericInput(ns("inter_labang"),"Label rotation (x):", value=-90),
+
+
+
+                )
+
+              )
+
+            ),
+            column(
+              8,class="mp0",
+              box_caret(
+                ns("39"),
+                tip=tipright("Investigate interactions with respect to the  set of most important variables"),
+                title="Variable Interactions",
+                button_title=actionLink(ns('down_plot_inter'),"Download",icon("download")),
+                plotOutput(ns("rf_inter_out"))
+              ),
+
+              box_caret(ns("40"),
+                        title="Table",
+                        button_title=actionLink(ns('down_table_inter'),"Download",icon("download")),
+                        uiOutput(ns("rf_inter_tab")))
+            ),
+
+
+          )
+
+        ),
+        tabPanel(
+          "6. Sankey plot",  value="tab6",
+          div(
+
+            column(
+              4,class="mp0",
+              box_caret(
+                ns("box1"),
+                title="Options",
+                div(
+                  uiOutput(ns("sankey_side")),
+                  uiOutput(ns("sankey_print"))
+                )
+              )
+            ),
+            column(
+              8,class="mp0",
+              box_caret(
+                ns("box2"),
+                title="Plot",
+                button_title = actionLink(ns('down_gg_sankey'),"Download",icon("download")),
+                div(
+                  tabsetPanel(
+                    id=ns("sankey_tab"),
+                    header=span(actionButton(ns('run_sankey_ploly'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px"),actionButton(ns('run_sankey_gg'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
+                    tabPanel("plotly",
+                             uiOutput(ns("sankey_plotly"))
+                    ),
+                    tabPanel("ggplot",
+                             uiOutput(ns("sankey_gg"))
                     )
+                  )
+                )
+
+              )
+            )
+
+          )
+
+
+
         )
+
+      )
+
     ))
 }
 
@@ -1125,7 +1166,7 @@ rf_explainer$server<-function(id,vals){
 
 
       res_multi=get_measures()
-      mean_scale<-if(isFALSE(input$mean_scale)){F}else{T}
+
       args<-list(
         res_multi=res_multi, sigs =rf_depth,
         sig.value=input$sigprf,
@@ -1344,8 +1385,18 @@ rf_explainer$server<-function(id,vals){
       if(is.na(k2)){
         k2<-NULL
       }
-      p<-randomForestExplainer::plot_min_depth_interactions(interframe(),k=k2)+scale_fill_gradientn(colours =scale_color_2(input$inter_palette,vals$newcolhabs)) +
-        theme_bw(base_size = input$inter_size_plot)+theme(axis.text.x=element_text(angle = input$inter_labang, hjust = 0))
+      p<-randomForestExplainer::plot_min_depth_interactions(interframe(),k=k2,main="")+scale_fill_gradientn(colours =scale_color_2(input$inter_palette,vals$newcolhabs)) +
+        theme_bw(base_size = input$inter_size_plot)+
+        theme(
+          plot.title=element_text(size=input$int_cex.title,face=input$int_font.title),
+          plot.subtitle=element_text(size=input$int_cex.subtitle,face=input$int_font.subtitle),
+          axis.text=element_text(size=input$int_cex.axes),
+          axis.title=element_text(size=input$int_cex.lab),
+          axis.text.x=element_text(angle = input$inter_labang, hjust = 0)
+        )+
+        ggtitle(input$inter_title,subtitle =input$inter_subtitle)
+
+
       vals$rf_inter<-p
       p
 
@@ -1367,10 +1418,24 @@ rf_explainer$server<-function(id,vals){
 
 
     observeEvent(input$down_plot_inter,ignoreInit = T,{
+      model_name<-attr(model(),"model_name")
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       generic=inter_plot()
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Interactions Plot", name_c="inter-plot")
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Interactions Plot", name_c=paste0("inter-",model_name))
+    })
+
+
+    observeEvent(input$rfinter_k2,{
+
+      updateTextInput(session,"inter_subtitle",value=paste0("Mean minimal depth for ",paste0(input$rfinter_k2, " most frequent interactions")))
+
+    })
+    observe({
+
+      model_name<-attr( model(),'model_name')
+      updateTextInput(session,'inter_title',value=model_name)
+
     })
 
     observeEvent(input$create_rfinter,ignoreInit = T,{
@@ -1400,6 +1465,7 @@ rf_explainer$server<-function(id,vals){
       vals$saved_data[[data_x()]][, pic]
     })
     sapply(c(as.character(30:43),'32_2'),function(x)  box_caret_server(x))
+    box_caret_server("inter_plotoptions")
 
 
 

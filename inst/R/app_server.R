@@ -7,6 +7,7 @@
 #' @importFrom Metrics mae mape mse rmse
 #' @importFrom vegan ordiplot rda scores decostand vegdist metaMDS specnumber diversity rrarefy ordiArrowTextXY estimateR fisher.alpha
 #' @importFrom mice mice complete
+#' @importFrom colorspace darken
 #' @importFrom tibble rownames_to_column
 #' @importFrom foreach `%dopar%` `%:%` foreach
 #' @importFrom shinycssloaders withSpinner
@@ -574,7 +575,7 @@ app_server<-function(input, output, session) {
     validate_data(vals$data_map)
   })
   output$invalid_data_map<-renderUI({
-    column(12, em(validate_data_map(),style="color: gray"))
+    embrown(strong(validate_data_map()))
   })
   observeEvent(validate_data_map(),{
     if(isTRUE(validate_data_map())){
@@ -603,8 +604,8 @@ app_server<-function(input, output, session) {
     tosave$saved_ensemble<-vals$saved_ensemble
     tosave$screeplot_results<-vals$screeplot_results
 
-    saveRDS(reactiveValuesToList(input),"input.rds")
-    saveRDS(tosave,"savepoint.rds")
+    #saveRDS(reactiveValuesToList(input),"input.rds")
+    #saveRDS(tosave,"savepoint.rds")
     beep(10)
 
   })

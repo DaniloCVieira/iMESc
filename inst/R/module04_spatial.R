@@ -1,3 +1,4 @@
+
 #' @noRd
 #'
 #' @importFrom gstat vgm gstat variogramLine
@@ -73,26 +74,26 @@ ll_data<-list()
 ll_data$ui<-function(id){
   ns<-NS(id)
   div(class="spatial_tools spatial_setup",
-    id=ns('map_setup'),
-    box_caret(ns("box_setup"),
-              title="Data setup",
-              color="#374061ff",
-              inline=F,
-              div(
+      id=ns('map_setup'),
+      box_caret(ns("box_setup"),
+                title="Data setup",
+                color="#374061ff",
+                inline=F,
+                div(
 
-                div(class="inline_pickers2",
-                    pickerInput_fromtop(ns("data_map"),"Datalist:",
-                                choices =NULL,inline=T),
-                    pickerInput_fromtop(ns("choices_map"),"Attribute:",
-                                choices = c("Numeric-Attribute","Factor-Attribute"),inline=T),
-                    pickerInput_fromtop(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
-                    pickerInput_fromtop(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
-                    pickerInput_fromtop(ns("level_filter"),label = "Level",choices = NULL,inline=T)
+                  div(class="inline_pickers2",
+                      pickerInput_fromtop(ns("data_map"),"Datalist:",
+                                          choices =NULL,inline=T),
+                      pickerInput_fromtop(ns("choices_map"),"Attribute:",
+                                          choices = c("Numeric-Attribute","Factor-Attribute"),inline=T),
+                      pickerInput_fromtop(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
+                      pickerInput_fromtop(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
+                      pickerInput_fromtop(ns("level_filter"),label = "Level",choices = NULL,inline=T)
+
+                  )
 
                 )
-
-              )
-    )
+      )
   )
 
 
@@ -240,8 +241,8 @@ ll_colors$ui<-function(id){
     div(
       tags$div(
         pickerInput_fromtop(inputId = ns("palette"),
-                    label ="Palette",
-                    NULL),
+                            label ="Palette",
+                            NULL),
         numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1),
         numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1)
 
@@ -351,8 +352,8 @@ ll_pie$ui<-function(id){
                             0.001)
              ),
              div(pickerInput_fromtop(ns("factor_chart") ,
-                             label ="factor",
-                             NULL))
+                                     label ="factor",
+                                     NULL))
 
     )
   )
@@ -393,72 +394,72 @@ ll_shapes$ui<-function(id,sf_in,base_on=T, surface=F,stack=F){
   div(
     if(isFALSE(stack))
       div(id=ns("show_base"),
-        box_caret(ns("box_base"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("base_shape") ,label =strong("Base Shape"),base_on,width="150px")
-                  ),
-                  div(
-                    id=ns("base_options"),
-
-                    if(isTRUE(surface))
-                      uiOutput(ns("base_z_out")),
-
-                    colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
-
-                    div(style="display: flex; align-items:  baseline ;  justify-content:flex-start",
-                        checkboxInput(ns("base_fill") ,"Fill",T,width="40px"),
-                        numericInput(ns("base_fillOpacity") ,label ="Opacity",1, min=0,max=1)
-
-
+          box_caret(ns("box_base"),
+                    color="#c3cc74ff",
+                    title=span(style="display: inline-block",
+                               class="checktitle",
+                               checkboxInput(ns("base_shape") ,label =strong("Base Shape"),base_on,width="150px")
                     ),
-                    div(id=ns('base_border'),
-                        checkboxInput(ns("base_stroke") ,label ="Border",T,width="65px"),
-                        div(style="padding-left: 20px",
+                    div(
+                      id=ns("base_options"),
+
+                      if(isTRUE(surface))
+                        uiOutput(ns("base_z_out")),
+
+                      colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
+
+                      div(style="display: flex; align-items:  baseline ;  justify-content:flex-start",
+                          checkboxInput(ns("base_fill") ,"Fill",T,width="40px"),
+                          numericInput(ns("base_fillOpacity") ,label ="Opacity",1, min=0,max=1)
 
 
-                            colourpicker::colourInput(ns("base_border_color"),"Color","darkgray")
-                            ,
-                            numericInput(ns("base_weight"),'Width',min=0,0.5,step=.5)
+                      ),
+                      div(id=ns('base_border'),
+                          checkboxInput(ns("base_stroke") ,label ="Border",T,width="65px"),
+                          div(style="padding-left: 20px",
 
 
-                        )),
-                  )
-        )
+                              colourpicker::colourInput(ns("base_border_color"),"Color","darkgray")
+                              ,
+                              numericInput(ns("base_weight"),'Width',min=0,0.5,step=.5)
+
+
+                          )),
+                    )
+          )
       ),
 
     div(id=ns("show_layer"),
-      box_caret(ns("box_layer"),
-                color="#c3cc74ff",
-                title=span(style="display: inline-block",
-                           class="checktitle",
-                           checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),base_on,width="150px")
-                ),
-                div(
-                  id=ns("layer_options"),
-                  if(isTRUE(surface))
-                    uiOutput(ns('layer_z_out')),
-
-                  colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
-                  div(style="display: flex; align-items:  baseline; ",
-                      checkboxInput(ns("layer_fill") ,label ="Fill",T,width="40px"),
-                      numericInput(ns("layer_fillOpacity") ,label ="Opacity",1, min=0,max=1)
-
+        box_caret(ns("box_layer"),
+                  color="#c3cc74ff",
+                  title=span(style="display: inline-block",
+                             class="checktitle",
+                             checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),base_on,width="150px")
                   ),
-                  div(id=ns('layer_border'),
-                      checkboxInput(ns("layer_stroke") ,label ="Border",T,width="65px"),
-                      div(style="padding-left: 20px",
+                  div(
+                    id=ns("layer_options"),
+                    if(isTRUE(surface))
+                      uiOutput(ns('layer_z_out')),
+
+                    colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
+                    div(style="display: flex; align-items:  baseline; ",
+                        checkboxInput(ns("layer_fill") ,label ="Fill",T,width="40px"),
+                        numericInput(ns("layer_fillOpacity") ,label ="Opacity",1, min=0,max=1)
+
+                    ),
+                    div(id=ns('layer_border'),
+                        checkboxInput(ns("layer_stroke") ,label ="Border",T,width="65px"),
+                        div(style="padding-left: 20px",
 
 
-                          colourpicker::colourInput(ns("layer_border_color"),"Color","gray20")
-                          ,
-                          numericInput(ns("layer_weight"),'Width',min=0,0.5,step=.5)
+                            colourpicker::colourInput(ns("layer_border_color"),"Color","gray20")
+                            ,
+                            numericInput(ns("layer_weight"),'Width',min=0,0.5,step=.5)
 
 
-                      ))
-                )
-      )
+                        ))
+                  )
+        )
     )
   )
 }
@@ -510,8 +511,23 @@ map_ggoptions$ui<-function(id){
     numericInput(ns("cex_scabar"),label="Size Scalebar",value=0.7)
   )
 }
-map_labels$server_update<-function(id,vals,scatter3d=F){
+map_labels$server_update<-function(id,vals,scatter3d=F,surface=F){
   moduleServer(id,function(input,output,session){
+
+
+    observe({
+      if(isTRUE(surface)){
+
+        if(isTRUE(vals$cur_surf_addpoints)){
+          updateTextInput(session,'main',value=vals$cur_surf_ap_colfac)
+        } else{
+          updateTextInput(session,'main',value=attr(vals$cur_rst,"z_name"))
+        }
+      } else{
+        updateTextInput(session,'main',value=colnames(vals$data_map))
+      }
+    })
+
 
     if(isTRUE(scatter3d)){
       updateTextInput(session,'zlab',value=colnames(vals$data_map))
@@ -520,7 +536,7 @@ map_labels$server_update<-function(id,vals,scatter3d=F){
     }
 
 
-    updateTextInput(session,'main',value=attr(vals$cur_rst,"z_name"))
+
     return(NULL)
   })
 }
@@ -771,41 +787,41 @@ ll_options<-list()
 ll_options$ui<-function(id){
   ns<-NS(id)
   div(class="mp0",
-    div(class="map_providers",style="display: flex; align-items: center",
+      div(class="map_providers",style="display: flex; align-items: center",
 
-        selectInput(ns("providers"),
-                    label ="+ Map Style",
-                    selected="Stadia.StamenTerrain",
-                    choices =c('OpenStreetMap.Mapnik',
-                               'OpenStreetMap.DE',
-                               'OpenStreetMap.France',
-                               'OpenStreetMap.HOT',
-                               'OPNVKarte',
-                               'Stadia.AlidadeSmooth',
-                               'Stadia.OSMBright',
-                               'Stadia.Outdoors',
-                               'Stadia.StamenWatercolor',
-                               'Stadia.StamenTerrain',
-                               'Stadia.StamenTerrainBackground',
+          selectInput(ns("providers"),
+                      label ="+ Map Style",
+                      selected="Stadia.StamenTerrain",
+                      choices =c('OpenStreetMap.Mapnik',
+                                 'OpenStreetMap.DE',
+                                 'OpenStreetMap.France',
+                                 'OpenStreetMap.HOT',
+                                 'OPNVKarte',
+                                 'Stadia.AlidadeSmooth',
+                                 'Stadia.OSMBright',
+                                 'Stadia.Outdoors',
+                                 'Stadia.StamenWatercolor',
+                                 'Stadia.StamenTerrain',
+                                 'Stadia.StamenTerrainBackground',
 
-                               'CyclOSM',
+                                 'CyclOSM',
 
-                               'Esri.WorldStreetMap',
-                               'Esri.WorldTopoMap',
-                               'Esri.WorldImagery',
-                               'MtbMap',
+                                 'Esri.WorldStreetMap',
+                                 'Esri.WorldTopoMap',
+                                 'Esri.WorldImagery',
+                                 'MtbMap',
 
-                               'Esri.OceanBasemap',
-                               'Esri.NatGeoWorldMap',
-                               'Esri.WorldPhysical',
-                               'USGS.USImagery'
-                    ),
-                    width='220px'),
-         numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
+                                 'Esri.OceanBasemap',
+                                 'Esri.NatGeoWorldMap',
+                                 'Esri.WorldPhysical',
+                                 'USGS.USImagery'
+                      ),
+                      width='220px'),
+          numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
 
 
 
-    )
+      )
   )
 
 }
@@ -1076,7 +1092,7 @@ shapes_extra$ui<-function(id,data_map=NULL){
                            numericInput(ns(paste0("ssextra_layer_lighten",i)),
                                         'Transp',value=0.6,  min=0, max=1,step=0.1),
                            pickerInput_fromtop(ns(paste0("feat_extra",i)),
-                                       paste("Label",i),choices=c("None",atributos_shp)),
+                                               paste("Label",i),choices=c("None",atributos_shp)),
                            numericInput(ns(paste0("feat_extra_size",i)),
                                         'size',value=2,  min=0, max=1, step=0.1),
                            uiOutput(ns("data_depth"))
@@ -1197,7 +1213,7 @@ showlabels$ui<-function(id,surface=F){
                          div(
 
                            pickerInput_fromtop(ns("datalist"),"Datalist:",
-                                       choices =NULL),
+                                               choices =NULL),
                            uiOutput(ns("z_label_value"))
 
                          )
@@ -1231,7 +1247,7 @@ showlabels$server_update<-function(id,vals,selected_labels=NULL,surface=F){
       selected=get_selected_from_choices(selected,choices)
 
       pickerInput_fromtop(ns("z_label_value"),"Z-Value:",
-                  choices =choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
+                          choices =choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
 
     observeEvent(vals$saved_data,{
@@ -1449,6 +1465,8 @@ ll_vgm$server<-function(id,vals){
     }
 
     get_autofit<-reactive({
+      req(vals$data_map)
+      req(!anyNA(attr(vals$data_map,"coords")))
       req(is.numeric( vals$data_map[,1]))
       req(isTRUE(run_autofit()))
       data<-data()
@@ -1552,181 +1570,189 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
   if(isTRUE(surface)){
     title_colors<-"Z-Control"
   }
-  div(
-    class="inline_pickers",
-    div(
-      column(
-        4,class="mp0",style="height: 80vh;overflow-y: auto",
+  div(style="margin-top: 5px",
+      class="inline_pickers",
+      div(
+        column(
+          4,class="mp0",style="height: 80vh;overflow-y: auto",
 
-        div(
-          if(isTRUE(interp)|raster){
-            box_caret(
-              ns("box_interp"),
-              color="#c3cc74ff",
-              title="Model",
-              div(
-                if(isTRUE(raster)){
-                  div(
-                    numericInput(ns("raster_resolution"),span("Resolution",tipright("Define the resolution of the raster. Higher values will result in a coarser raster with less detail, while lower values will produce a finer raster with more detail.")),0.1,step=0.01),
-                    checkboxInput(ns("down_grade_raster"),span("Aggregate resolution",tipright("Downscales the final raster by the specified factor. This reduces the resolution, aggregating the data by a specified factor.")))
-                  )
-                }
-                ,
-                div(style="padding-left: 25px",
-                    numericInput(ns("down_grade"),"Factor",3)
-                ),
-                if(isTRUE(interp)){
-                  div(
-                    ll_interp$ui(ns('interp1'), coki=coki),
-                    uiOutput(ns("interp1_out"))
-                  )
-                }
-
-              )
-
-            )
-          },
-          if(isTRUE(surface)){
-            box_caret(
-              ns("surface_savedmaps"),
-              title="Saved maps",
-              color="#c3cc74ff",
-              uiOutput(ns('surface_saved_maps'))
-            )
-          },
-          if(isTRUE(stack)){
-            box_caret(
-              ns("stack_control"),
-              title="Saved maps",
-              color="#c3cc74ff",
-              div(
-                uiOutput(ns('stack_layers'))
-              )
-            )
-          },
-          box_caret(ns("box_color"),
-                    color="#c3cc74ff",
-                    title=title_colors,
+          div(
+            if(isTRUE(interp)|raster){
+              box_caret(
+                ns("box_interp"),
+                color="#c3cc74ff",
+                title="Model",
+                div(
+                  if(isTRUE(raster)){
                     div(
-                      ll_colors$ui(ns('color1')),
-                      div(id=ns("show_breaks"),
-
-                          ll_breaks$ui(ns('breaks1')),
-                          uiOutput(ns("custom_breaks"))
-                      )
-                    )),
-          if(isTRUE(surface)) {
-
-            div(
-              box_caret(
-                ns("surface_Points"),
-
-                title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("surf_addpoints"),strong("Points"), F,width="100px")),
-
-                color="#c3cc74ff",
-                div(style="padding-left: 10px",
-                    uiOutput(ns("surf_ap_datalist"))
-                )
-
-              )
-            )
-
-          },
-
-          if(isTRUE(circles)|isTRUE(pie))
-            box_caret(ns("box_circles"),
-                      color="#c3cc74ff",
-                      title=inline(uiOutput(ns("box_circles_title"))),
-
-                      div(
-                        if(isTRUE(circles)){
-                          ll_circles$ui(ns('circles1'))
-                        },
-                        if(isTRUE(radius)){
-                          ll_radius$ui(ns('radius1'))
-                        },
-                        if(isTRUE(pie)){
-                          div(
-
-                            ll_pie$ui(ns("pie1")),
-                            uiOutput(ns("pie_out"))
-                          )
-                        },
-                      )
-
-            ),
-          uiOutput(ns('scatter3d_points')),
-          if(isFALSE(stack))
-            showlabels$ui(ns('leaflet_label_map'),surface),
-          uiOutput(ns('surface_3d_control')),
-
-          if(isFALSE(scatter3d))
-            div(
-              id=ns("shapes_leaflet"),
-              ll_shapes$ui(ns("shapes1"),sf_in,base_on=F, surface=surface,stack=stack)
-            ),
-
-          div(id=ns("map_labels_id"),
-              box_caret(
-                ns("box_map_labels"),
-                color="#c3cc74ff",
-                title="Title and Labels",
-                hide_content=T,
-                div(map_labels$ui(ns("map_labelss"), surface,stack,scatter3d))
-
-              )
-          ),
-          div(id=ns("map_coords"),
-              box_caret(
-                ns("box_coords"),
-                color="#c3cc74ff",
-                title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("show_coords"),label=strong("Coordinates"),value=FALSE,width="150px")),
-                hide_content=F,
-                div(
-                  id=ns('coords_options'),
-                  map_coords$ui(ns("map_coords")))
-
-              )
-
-          ),
-          div(id=ns("map_ggoptions"),
-              box_caret(
-                ns("box_ggoptions"),
-                color="#c3cc74ff",
-                title="Additional options",
-                hide_content=T,
-                div(
-                  map_ggoptions$ui(ns("map_ggoptions"))
-                )
-
-              )
-          ),
-          uiOutput(ns('extraLayers_output'))
-
-        )
-      ),
-      column(
-        8,class="mp0",
-        div(style="position: absolute; right:0px; top: 30px ",
-        ),
-        box_caret(ns("boxmap"),
-                  title="Plot Engenier:",
-                  button_title=div(
-                    div(id=ns("down_btn_ll"),
-                        ll_down_plot$ui(ns("save_png"))),
-                    hidden(div(id=ns("down_btn_plotly"),
-                               actionLink(ns("down_plotly"),"Download",icon("download")))),
-
-                    hidden(div(id=ns("down_btn_gg"),
-                               actionLink(ns("down_ggplot"), "Download",icon("download")))),
-                    hidden(div(id=ns("down_btn_generic"),
-                               tipify(actionLink(ns("down_plot3D_btn"), "Download",icon("download")),"Download")
-                    ))
-
+                      numericInput(ns("raster_resolution"),span("Resolution",tipright("Define the resolution of the raster. Higher values will result in a coarser raster with less detail, while lower values will produce a finer raster with more detail.")),0.1,step=0.01),
+                      checkboxInput(ns("down_grade_raster"),span("Aggregate resolution",tipright("Downscales the final raster by the specified factor. This reduces the resolution, aggregating the data by a specified factor.")))
+                    )
+                  }
+                  ,
+                  div(style="padding-left: 25px",
+                      numericInput(ns("down_grade"),"Factor",3)
                   ),
-                  fluidRow(div(style="margin-top:-30px;margin-left: 130px",
-                               tags$style(HTML(
-                                 "
+                  if(isTRUE(interp)){
+                    div(
+                      ll_interp$ui(ns('interp1'), coki=coki),
+                      uiOutput(ns("interp1_out"))
+                    )
+                  }
+
+                )
+
+              )
+            },
+            if(isTRUE(surface)){
+              box_caret(
+                ns("surface_savedmaps"),
+                title="Saved maps",
+                color="#c3cc74ff",
+                uiOutput(ns('surface_saved_maps'))
+              )
+            },
+            if(isTRUE(stack)){
+              box_caret(
+                ns("stack_control"),
+                title="Saved maps",
+                color="#c3cc74ff",
+                div(
+                  uiOutput(ns('stack_layers'))
+                )
+              )
+            },
+            box_caret(ns("box_color"),
+                      color="#c3cc74ff",
+                      title=title_colors,
+                      div(
+                        ll_colors$ui(ns('color1')),
+                        div(id=ns("show_breaks"),
+
+                            ll_breaks$ui(ns('breaks1')),
+                            uiOutput(ns("custom_breaks"))
+                        )
+                      )),
+            if(isTRUE(surface)) {
+
+              div(
+                box_caret(
+                  ns("surface_Points"),
+
+                  title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("surf_addpoints"),strong("Points"), F,width="100px")),
+
+                  color="#c3cc74ff",
+                  div(style="padding-left: 10px",
+                      uiOutput(ns("surf_ap_datalist")),
+                      div(id=ns("legendplot3D"),
+                          numericInput(ns('surf_y.intersp'),'Legend y.intersp',1.5),
+                          numericInput(ns('surf_inset_x'),'Legend inset_x',0),
+                          numericInput(ns('surf_inset_y'),'Legend inset_y',0)
+                      ),
+                      numericInput(ns('surf_ap_size'),"Size",1.5),
+                      checkboxInput(ns("surf_z_scale"),"Scale Size", F ),
+                      uiOutput(ns("surf_z_scale_args"))
+                  )
+
+                )
+              )
+
+            },
+
+            if(isTRUE(circles)|isTRUE(pie))
+              box_caret(ns("box_circles"),
+                        color="#c3cc74ff",
+                        title=inline(uiOutput(ns("box_circles_title"))),
+
+                        div(
+                          if(isTRUE(circles)){
+                            ll_circles$ui(ns('circles1'))
+                          },
+                          if(isTRUE(radius)){
+                            ll_radius$ui(ns('radius1'))
+                          },
+                          if(isTRUE(pie)){
+                            div(
+
+                              ll_pie$ui(ns("pie1")),
+                              uiOutput(ns("pie_out"))
+                            )
+                          },
+                        )
+
+              ),
+            uiOutput(ns('scatter3d_points')),
+            if(isFALSE(stack))
+              showlabels$ui(ns('leaflet_label_map'),surface),
+            uiOutput(ns('surface_3d_control')),
+
+            if(isFALSE(scatter3d))
+              div(
+                id=ns("shapes_leaflet"),
+                ll_shapes$ui(ns("shapes1"),sf_in,base_on=F, surface=surface,stack=stack)
+              ),
+
+            div(id=ns("map_labels_id"),
+                box_caret(
+                  ns("box_map_labels"),
+                  color="#c3cc74ff",
+                  title="Title and Labels",
+                  hide_content=T,
+                  div(map_labels$ui(ns("map_labelss"), surface,stack,scatter3d))
+
+                )
+            ),
+            div(id=ns("map_coords"),
+                box_caret(
+                  ns("box_coords"),
+                  color="#c3cc74ff",
+                  title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("show_coords"),label=strong("Coordinates"),value=FALSE,width="150px")),
+                  hide_content=F,
+                  div(
+                    id=ns('coords_options'),
+                    map_coords$ui(ns("map_coords")))
+
+                )
+
+            ),
+            div(id=ns("map_ggoptions"),
+                box_caret(
+                  ns("box_ggoptions"),
+                  color="#c3cc74ff",
+                  title="Additional options",
+                  hide_content=T,
+                  div(
+                    map_ggoptions$ui(ns("map_ggoptions"))
+                  )
+
+                )
+            ),
+            uiOutput(ns('extraLayers_output'))
+
+          )
+        ),
+        column(
+          8,class="mp0",
+          div(style="position: absolute; right:0px; top: 30px ",
+          ),
+          box_caret(ns("boxmap"),
+                    title="Plot Engenier:",
+                    button_title=div(
+                      div(id=ns("down_btn_ll"),
+                          ll_down_plot$ui(ns("save_png"))),
+                      hidden(div(id=ns("down_btn_plotly"),
+                                 actionLink(ns("down_plotly"),"Download",icon("download")))),
+
+                      hidden(div(id=ns("down_btn_gg"),
+                                 actionLink(ns("down_ggplot"), "Download",icon("download")))),
+                      hidden(div(id=ns("down_btn_generic"),
+                                 tipify(actionLink(ns("down_plot3D_btn"), "Download",icon("download")),"Download")
+                      ))
+
+                    ),
+                    fluidRow(div(style="margin-top:-30px;margin-left: 130px",
+                                 tags$style(HTML(
+                                   "
                 .navmap2 .navbar{
 
                 width: fit-content
@@ -1743,7 +1769,7 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
             max-height: 26px;
 
             }"
-                               )),
+                                 )),
             div(
               class="navmap2",
               navbarPage(
@@ -1775,12 +1801,12 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
                   tabPanel("Leaflet",value="leaflet",
 
                            div(id=ns("zoom_leaflet_btn"),
-                           div(style="position: absolute; top: 150px; left: 40px; z-index: 9999",
-                               actionLink(ns("zoom_leaflet"),icon("magnifying-glass-plus",style="color: #05668D;"),style="font-size: 18px;")
-                           ),
-                           div(style="display: flex; position: absolute;top: 30px; right: 0px;gap: 15px; align-items: center",ll_options$ui(ns("options1"))
+                               div(style="position: absolute; top: 150px; left: 40px; z-index: 9999",
+                                   actionLink(ns("zoom_leaflet"),icon("magnifying-glass-plus",style="color: #05668D;"),style="font-size: 18px;")
+                               ),
+                               div(style="display: flex; position: absolute;top: 30px; right: 0px;gap: 15px; align-items: center",ll_options$ui(ns("options1"))
 
-                           )),
+                               )),
                            bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
 
                            leaflet::leafletOutput(ns("plot_from_leaflet"),width="50vw")),
@@ -1812,10 +1838,10 @@ ll_map$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F, coki=F, sh
 
 
 
-                  )))
+                    )))
 
+        )
       )
-    )
   )
 }
 ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surface=F,stack=F,scatter3d=F){
@@ -2050,7 +2076,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       }
       n_colors<-if(is.factor(col_fac)){nlevels(col_fac)}else{5}
       if(is.numeric(col_fac)){
-        col_fac<-cut(col_fac,5)
+        col_fac<-cut(col_fac,5,include.lowest = T)
       }
       colors<-pal(n_colors)
       reverse_palette<-color_args1()$reverse_palette
@@ -2073,7 +2099,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
         req(input$s3d_points_z_scale_vars%in%colnames(data_size))
         tosize<-data_size[,input$s3d_points_z_scale_vars]
         points$size_value<-tosize
-        # print(class(tosize))
+
         newsize<-scales::rescale(tosize,c(input$s3d_points_minsize,input$s3d_points_size))
 
 
@@ -2223,6 +2249,8 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       p1
 
     }
+
+
     get_args_scatter3d<-reactive({
 
       points<-get_plot3Dpoints()
@@ -2234,16 +2262,12 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
       args
     })
     run_map_scatter3d_plotly<-eventReactive(input$run_map,ignoreInit = T,{
+      print("go")
 
 
       req(isTRUE(scatter3d))
       req(input$mode_plot=="plotly")
-
       args<-get_args_scatter3d()
-
-
-
-
       do.call(scatter_3dplotly,args)
 
     })
@@ -2310,6 +2334,7 @@ ll_map$server<-function(id, raster=F, interp=F, coki=F,pie=F,circles=F,vals,surf
 
     observeEvent(rst(),{
       r<-rst()
+      vals$cur_raster<-r
       req(r)
       if(!all(is.na(r@data@values))){
         vals$vgm_error<-NULL
@@ -2463,14 +2488,14 @@ min-height:24px
 div(style="display: flex",
     div(paste0(i,"break-stk-ord"),style="width: 0px; height: 0px;color: transparent"),
     pickerInput_fromtop(ns(paste0('stack_layer',i)),NULL,choices=names(vals$saved_maps),selected=names(vals$saved_maps)[i],
-                options=list(container="body"),
-                width="80%"
+                        options=list(container="body"),
+                        width="80%"
 
     ),
     pickerInput_fromtop(ns(paste0("stack_pal",i)),NULL, choices =  vals$colors_img$val,   options=list(container="body"),
-                selected=vals$colors_img$val[-2][i],
-                choicesOpt = list(
-                  content =  vals$colors_img$img ),width="30px"
+                        selected=vals$colors_img$val[-2][i],
+                        choicesOpt = list(
+                          content =  vals$colors_img$img ),width="30px"
     )
 )
         )
@@ -2559,9 +2584,18 @@ div(style="display: flex",
         ),
         selectInput(ns("saved_maps2"),"Saved map (Color)", names(vals$saved_maps)),
 
-        uiOutput(ns("print_ap_color"))
+        uiOutput(ns("print_ap_color")),
+
+
+
+
+
+
       )
     })
+
+
+
     output$surf_ap_datalist<-renderUI({
       req(isTRUE(input$surf_addpoints))
 
@@ -2575,15 +2609,18 @@ div(style="display: flex",
     observeEvent(input$surf_ap_datalist,{
       vals$cur_surf_ap_datalist<-input$surf_ap_datalist
     })
-    observeEvent(input$surf_ap_vars,{
-      vals$cur_surf_ap_vars<-input$surf_ap_vars
-    })
+
 
 
 
     observeEvent(input$surf_ap_z_scale_datalist,{
       vals$cur_surf_ap_z_scale_datalist<-input$surf_ap_z_scale_datalist
     })
+    observeEvent(input$surf_addpoints,{
+      vals$cur_surf_addpoints<-input$surf_addpoints
+    })
+
+
 
     output$surf_ap_vars<-renderUI({
       req(input$surf_ap_datalist)
@@ -2608,16 +2645,19 @@ div(style="display: flex",
         selectInput(ns("surf_ap_colfac"),"Z-Color", choices2,selected=selected2 ),
 
         pickerInput_fromtop(ns("surf_ap_palette"), "Palette",choices =  vals$colors_img$val,
-                    choicesOpt = list(
-                      content =  vals$colors_img$img )
-        ),
-        numericInput(ns('surf_ap_size'),"Size",1.5),
-        checkboxInput(ns("surf_z_scale"),"Scale Size", F ),
-        uiOutput(ns("surf_z_scale_args")),
+                            choicesOpt = list(
+                              content =  vals$colors_img$img )
+        )
+
+
 
 
       )
     })
+
+
+
+    observe(shinyjs::toggle("legendplot3D", condition=input$mode_plot=="plot3D"))
 
 
     observe({
@@ -2686,6 +2726,7 @@ div(style="display: flex",
       points
     })
     get_surfpoints<-reactive({
+
       if(isFALSE(input$surf_addpoints)){
         return(NULL)
       }
@@ -2701,14 +2742,18 @@ div(style="display: flex",
 
       if(input$surf_ap_colfac=="Z-Value"){
 
-        cut_var<-cut(var[,1],length(unique(var[,1])))
+        cut_var<-cut(var[,1],length(unique(var[,1])),include.lowest = T)
         points$color<-pal(nlevels(cut_var))[cut_var]
       } else{
         cut_var<-cbind(data0,attr(data0,"factors"))[,input$surf_ap_colfac]
+        if(is.numeric(cut_var)){
+          cut_var<-cut(cut_var,5,include.lowest = T)
+
+        }
         points$color<-pal(nlevels(cut_var))[cut_var]
       }
 
-
+      points$size_value<-input$surf_ap_size
       points$size<-input$surf_ap_size
       if(isTRUE(input$surf_z_scale)){
         req(input$surf_ap_z_scale_datalist)
@@ -2717,7 +2762,7 @@ div(style="display: flex",
         size<-data_size[,input$surf_ap_z_scale_vars]
 
         newsize<-scales::rescale(size,c(input$surf_ap_minsize,input$surf_ap_size))
-
+        points$size_value<-size
 
         points$size<-newsize
       }
@@ -3268,7 +3313,9 @@ div(style="display: flex",
         tictype=input$surf_tick,
         wlegend=input$surface_width.legend,
         hlegend=input$surface_height.legend,
-
+        y.intersp=input$surf_y.intersp,
+        inset_x=input$surf_inset_x,
+        inset_y=input$surf_inset_y,
         shape_args=shape_args,
         addpoints=get_surfpoints(),
         addtext=get_surftext(),
@@ -3334,10 +3381,7 @@ div(style="display: flex",
     run_map_surface_plot3D<-eventReactive(input$run_map,ignoreInit = T,{
       req(isTRUE(surface))
       req(input$mode_plot=="plot3D")
-
-
       args<-get_args_surface()
-
       withProgress(min=NA,max=NA,message="Running",{
         do.call(get_4D,args)
       })
@@ -3345,37 +3389,34 @@ div(style="display: flex",
 
     })
     run_map_surface_plotly<-eventReactive(input$run_map,ignoreInit = T,{
+      try({
 
-      req(isTRUE(surface))
-      req(input$mode_plot=="plotly")
-
-      args<-get_args_surface()
-      req(args)
-      shinyjs::removeClass("run_map_btn", "save_changes")
-
-      do.call(surface_plotly,args)
-
+        req(isTRUE(surface))
+        req(input$mode_plot=="plotly")
+        args<-get_args_surface()
+        req(args)
+        shinyjs::removeClass("run_map_btn", "save_changes")
+        do.call(surface_plotly,args)
+      })
     })
     run_map_stack_plotly<-eventReactive(input$run_map,ignoreInit = T,{
-
-      req(isTRUE(stack))
-      req(input$mode_plot=="plotly")
-
-      args<-get_args_stack()
-      req(args)
-      shinyjs::removeClass("run_map_btn", "save_changes")
-      withProgress(do.call(stack_plotly,args),min=NA,max=NA,message="Running...")
-
-
+      try({
+        req(isTRUE(stack))
+        req(input$mode_plot=="plotly")
+        args<-get_args_stack()
+        req(args)
+        shinyjs::removeClass("run_map_btn", "save_changes")
+        withProgress(do.call(stack_plotly,args),min=NA,max=NA,message="Running...")
+      })
     })
 
     run_map_stack_plot3D<-eventReactive(input$run_map,ignoreInit = T,{
-      req(isTRUE(stack))
-      req(input$mode_plot=="plot3D")
-
-      args<-get_args_stack()
-      do.call(stack_plot3D,args)
-
+      try({
+        req(isTRUE(stack))
+        req(input$mode_plot=="plot3D")
+        args<-get_args_stack()
+        do.call(stack_plot3D,args)
+      })
     }
     )
 
@@ -3384,10 +3425,12 @@ div(style="display: flex",
       req(input$mode_plot=="plot3D")
       req(isTRUE(stack))
       renderPlot({
-        run_map_stack_plot3D()
-        persp<-recordPlot()
-        vals$map_res<-persp
-        vals$map_res
+        try({
+          run_map_stack_plot3D()
+          persp<-recordPlot()
+          vals$map_res<-persp
+          vals$map_res
+        })
       })
     })
 
@@ -3398,10 +3441,12 @@ div(style="display: flex",
       req(input$mode_plot=="plot3D")
       req(isTRUE(surface))
       renderPlot({
-        run_map_surface_plot3D()
-        persp<-recordPlot()
-        vals$map_res<-persp
-        vals$map_res
+        try({
+          run_map_surface_plot3D()
+          persp<-recordPlot()
+          vals$map_res<-persp
+          vals$map_res
+        })
       })
     })
 
@@ -3644,6 +3689,9 @@ div(style="display: flex",
                      zlab="",main=NULL,plot.title_size=1,
                      axis.title_size=1,
                      axis.text_size=1,
+                     y.intersp=1,
+                     inset_x=-0.25,
+                     inset_y=0,
                      ...)
     {
 
@@ -3695,6 +3743,32 @@ div(style="display: flex",
         text(trans3d(addtext$x , y=addtext$y, z=addtext$z,  pmat=pmat),col=addtext$color , cex=addtext$size/5, labels=addtext$label)
 
       }
+      if(!is.null(addpoints)){
+        zsize<-addpoints$size
+        lev_legend<-levels(cut(zsize,length(unique(addpoints$color))))
+        lev_legend<-gsub("\\(","",lev_legend)
+        lev_legend<-gsub("\\]","",lev_legend)
+        x<-lev_legend[1]
+        lev_legend<-sapply(lev_legend, function(x) {
+          paste0(rev(strsplit(x,",")[[1]]),collapse=" - ")
+        })
+        par(xpd=T)
+        usr<-par("usr")
+
+        y_legend<-seq(usr[2],usr[3],len=10)[1:length(lev_legend)]
+        x_legend<-rep(usr[2],length(lev_legend))
+
+        zval<-addpoints$size_value
+
+        cut_var<-cut(round(zval,2),length(unique(addpoints$color)),include.lowest =T)
+        zval_legend<-as.character(sapply(split(zval,cut_var),function(x) {
+          paste0(paste0(rev(round(range(x,na.rm=T),2)),collapse=" - "))
+        }))
+
+
+        legend("topright",legend=rev(zval_legend),pch=16,pt.cex=seq(max(zsize,na.rm=T),min(zsize,na.rm=T),len=length(lev_legend)),col=rev(unique(addpoints$color)),y.intersp=y.intersp,inset=c(inset_x,inset_y),bty="n")
+
+      }
 
 
 
@@ -3710,27 +3784,86 @@ div(style="display: flex",
     box_caret_server('box_interp')
 
 
+
+
+    observe({
+
+      if(!is.null(vals$cur_raster)){
+        if(isTRUE(raster)|isTRUE(interp)){
+          run_map(F)
+          n<-breaks_args1()$nbreaks
+          z<-vals$cur_raster
+          req(!inherits(z@data@values,"try-error"))
+          z<-na.omit(z@data@values)
+          if(!length(z)>0){
+            values<-0
+          } else{
+            values<-get_breaks_input(z,n)
+          }
+          updateTextInput(session,'custom_breaks',value=values)
+          run_map("wait")
+        }
+      }
+
+    })
+
+
+    observeEvent(run_map(),{
+      req(run_map()=="wait")
+      delay(1000,run_map(T))
+    })
+
+
+
+
+    get_breaks_input<-function(z,n){
+      bbreaks <- unique(seq(min(z), max(z), length.out = n))
+      if(length(bbreaks)==1){
+        values<-cutted<-bbreaks
+      }else{
+        cutted<-cut(na.omit(bbreaks),breaks=bbreaks,include.lowest = T)
+        values<-cutted_to_numeric(cutted)
+        values<-paste(values,collapse = ",")
+      }
+
+
+    }
+
+
     output$custom_breaks<-renderUI({
+
+
       if(isTRUE(surface)){
         req(input$saved_maps)
         p1<-vals$saved_maps[[input$saved_maps]]
         z<- attr(p1,"data_z")
-        n<-breaks_args1()$nbreaks
-        values<-pretty(na.omit(z),n=n)
-        values<-paste(values,collapse = ",")
+
 
       } else{
         req(is.numeric(vals$data_map[,1]))
         z<-na.omit(vals$data_map[,1])
-        n<-breaks_args1()$nbreaks
-        req(z)
-        req(n)
 
-        values<-scales::cbreaks(range(na.omit(z)), breaks =scales::extended_breaks(n))$breaks
-        values[which.min(values)]<-min(z)
-        values[which.max(values)]<-max(z)
-        values<-paste(values,collapse = ",")
+      }
+      n<-breaks_args1()$nbreaks
+      req(z)
+      req(n)
 
+
+      #z<-savepoint$saved_data$asvs_pmc_log10$ASV5
+      #n=5
+      bbreaks <- unique(seq(min(z), max(z), length.out = n))
+      if(length(bbreaks)==1){
+        values0<-values<-cutted<-bbreaks
+      }else{
+        cutted<-cut(na.omit(bbreaks),breaks=bbreaks,include.lowest = T)
+        values0<-values<-cutted_to_numeric(cutted)
+        values<-paste(values,collapse = ", ")
+      }
+
+      if(length(unique(z))<length(values0)){
+        round<-decimal_places(as.numeric(values0))
+        values<-round(unique(z),round)
+        values<-paste(values,collapse = ", ")
       }
 
 
@@ -3777,8 +3910,7 @@ div(style="display: flex",
       req(model)
       vals$g_final<-vals$interp_gstat
       req(vals$g_final)
-      #vc<-readRDS('vc.rds')
-      # input<-readRDS('input.rds')
+
       #div(actionLink(session$ns("down_gg_vgm"), icon("download"),icon=icon('image'))),
       column(12,style="display: flex",
              renderPlot({
@@ -3874,12 +4006,17 @@ div(style="display: flex",
         attr(rst,"method")<-args$interp_type
 
 
+        vals$cur_raster<-rst
+
         rst(rst)
       } else{
         rst(NULL)
       }
 
     })
+
+
+
 
     condition_cokrige<-reactive({
       is.factor(vals$data_map[,1])|
@@ -3928,6 +4065,7 @@ div(style="display: flex",
 
 
         }
+        vals$cur_raster<-rst
         rst(rst)
       }
     })
@@ -4012,8 +4150,8 @@ div(style="display: flex",
         req(input$custom_breaks)
         args$custom_breaks<-strsplit(input$custom_breaks,",")[[1]]
       }
-
-
+      args$data_o<-vals$data_map
+      args$factor<-is.factor(vals$data_map[,1])
       args[unique(names(args))]
     })
 
@@ -4060,9 +4198,9 @@ div(style="display: flex",
     })
 
 
-    observeEvent(vals$data_map,{
+    observe({
       #req(vals$data_map)
-      map_labels$server_update("map_labelss",vals,scatter3d)
+      map_labels$server_update("map_labelss",vals,scatter3d,surface)
     })
 
 
@@ -4205,8 +4343,18 @@ div(style="display: flex",
       }
     })
 
+
+
+    run_map<-reactiveVal(F)
     observeEvent(input$run_map,ignoreInit = T,{
+      run_map(F)
+      run_map(T)
+    })
+
+    observeEvent(run_map(),{
+      req(isTRUE(run_map()))
       req(isFALSE(surface))
+
 
       if (isTRUE(raster)) {
 
@@ -4238,22 +4386,25 @@ div(style="display: flex",
     })
     observeEvent(args_map1(), {
       args<-args_map1()
-
       validate(need(!inherits(args_map1()$rst,"try-error"),args_map1()$rst[1]))
 
 
-      map_result1(do.call(map_discrete, args))
+
+      p<-try({do.call(map_discrete, args)})
+      req(!inherits(p,"try-error"))
+
+      map_result1(p)
       map_result1_final(map_result1())
     })
+
+
+
+
     observeEvent(args_map2(), {
       args<-args_map2()
-      args$factor<-is.factor(vals$data_map[,1])
-      args$data_o<-vals$data_map
-
-
-
-
-      map_result2(do.call(gg_rst, args))
+      p<-try({do.call(gg_rst, args)})
+      req(!inherits(p,"try-error"))
+      map_result2(p)
       map_result2_final(map_result2())
     })
     map_result1<-reactiveVal()
@@ -4347,8 +4498,8 @@ llet<-list()
 llet$ui<-function(id){
   ns<-NS(id)
   div( class="spatial_tools",
-    tags$style(HTML(
-      "
+       tags$style(HTML(
+         "
 
 
 
@@ -4387,13 +4538,13 @@ llet$ui<-function(id){
         }
 
         "
-    )),
+       )),
   tags$div(
     hidden(uiOutput(ns('coordinates_message'))),
     class='nav_map',
     div(id=ns("map_tabs"),
         navbarPage(
-          NULL,id=ns("mode"),
+          NULL,id=ns("mode"),selected='circles',
           tabPanel("Circles",value="circles",
                    ll_map$ui(ns("circles"), circles=T,radius=T),
                    uiOutput(ns("map_circles"))
@@ -4571,6 +4722,8 @@ llet$server<-function(id,vals){
 
   })
 }
+
+
 
 
 

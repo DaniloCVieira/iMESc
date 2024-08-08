@@ -183,15 +183,18 @@ div(
                                   column(12,
                                          diversity_tool$ui("module_div"),
                                          uiOutput('menu_div_out'))),
-                          tabItem(tabName = "menu_maps2",
-                                  column(12,
-                                         ll_data$ui("map_data"),
-                                         uiOutput('map_header'),
-                                         div(
+                          tabItem(
+                            tabName = "menu_maps2",
+                            column(12,
+                                   hidden(uiOutput("invalid_data_map")),
+                                   ll_data$ui("map_data"),
+                                   uiOutput('map_header'),
+                                   div(
 
-                                           hidden(uiOutput("invalid_data_map")),
-                                           llet$ui("llet")
-                                         ))),
+
+                                     llet$ui("llet")
+                                   ))
+                          ),
                           tabItem(tabName = "menu_som",
                                   column(12,
 

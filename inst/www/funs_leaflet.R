@@ -661,6 +661,13 @@ cut_shape_fun<-function(my_rst,cut_shape=F,base_shape){
   my_rst
 }
 #' @export
+cutted_to_numeric<-function(x,return=1){
+  xlev<-levels(x)
+  xlev<-gsub("\\[|\\)|\\]|\\(","",xlev)
+  bb<-do.call(rbind,strsplit(xlev,","))
+  c(bb[,1],bb[nrow(bb),2])
+}
+#' @export
 gcv_df<-function(out){
   obs<-attr(out,"obs")
   result<-list()
@@ -824,7 +831,15 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
     radius<-radius
   } else{
     radius<-if(isTRUE(scale_radius)){scales::rescale(df$z,c(min_radius,radius))}else{radius}
-    palette <- colorBin(pal,domain = df[,3], bins = as.numeric(custom_breaks))
+
+    custom_breaks<-as.numeric(custom_breaks)
+    if(length(custom_breaks)<=2){
+      custom_breaks=2
+      palette <- colorFactor(pal,domain = factor(df[,3]))
+    } else{
+      palette <- colorBin(pal,domain = df[,3], bins = custom_breaks)
+    }
+
   }
 
   map <- leaflet(df, options =leafletOptions(
@@ -936,55 +951,75 @@ gg_add_extra_shape<-function(p, rst,extra_shape_args  ){
   }
 }
 
-gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_size=13,axis.title_size=13,plot.title_size=13,plot.subtitle_size=13,legend.text_size=13,layer_shape=NULL,extra_shape=NULL,breaks=T,num_breaks=5,pal="turbo",key.height=NULL,newcolhabs=list(turbo=viridis::turbo),add_extra_shape=F,add_base_shape=T,add_layer_shape=F,show_labels=F,labels=attr(rst,"factors")[1],cex.fac=13,col.fac="red",show_coords=F,col.coords="black",cex.coords=13,custom_breaks=NULL,
+gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_size=13,axis.title_size=13,plot.title_size=13,plot.subtitle_size=13,legend.text_size=13,layer_shape=NULL,extra_shape=NULL,breaks=T,nbreaks=5,pal="turbo",key.height=NULL,newcolhabs=list(turbo=viridis::turbo),add_extra_shape=F,add_base_shape=T,add_layer_shape=F,show_labels=F,labels=attr(rst,"factors")[1],cex.fac=13,col.fac="red",show_coords=F,col.coords="black",cex.coords=13,custom_breaks=NULL,
                  show_guides=F,layer_col="gray",lighten=0.4,layer_shape_border="gray",
                  keyscale=30,width_hint=0.15,cex_scabar=0.7,fillOpacity=1,reverse_palette=F,
-                 crs.info="+proj=longlat +datum=WGS84 +no_defs",scale_radius=T,
+                 scale_radius=T,
                  min_radius=1,max_radius=5,addCircles=T,addMinicharts=F,buffer_zize=1,
                  fun="sum",factor_chart=1,args_extra_shape=NULL,data_depth=NULL,data_o=NULL,
                  base_shape_args,layer_shape_args,factor=F,light=0,...) {
 
-  req(!is.null(rst)|!is.null(data))
-  if(class(rst)[1]=="RasterLayer"){
-    crs.info<-crs(rst)
-    rasterpoints <-  rasterToPoints(rst) |> data.frame()
-    if(isTRUE(factor)){
-      rasterpoints[,3]<-factor(rasterpoints[,3], labels=rst@data@attributes[[1]][,2])
+  custom_breaks00<-as.numeric(custom_breaks)
+
+  {
+    crs.info="+proj=longlat +datum=WGS84 +no_defs"
+    req(!is.null(rst)|!is.null(data))
+    if(class(rst)[1]=="RasterLayer"){
+      crs.info<-crs(rst)
+      rasterpoints <-  rasterToPoints(rst) |> data.frame()
+      if(isTRUE(factor)){
+        rasterpoints[,3]<-factor(rasterpoints[,3], labels=rst@data@attributes[[1]][,2])
+        colnames(rasterpoints)[3]<-"z"
+      }
+
+
+
+      coords<-coordinates(rst) |> data.frame()
+    } else{
+      coords<-attr(data,"coords")
+      rasterpoints<-data.frame(cbind(coords,z=data[,1]))
+      rst<-data
+    }
+
+    validate(need(nrow(rasterpoints)>0,"Error"))
+
+
+    if(!is.factor(rasterpoints$z)){
+      custom_breaks0<-as.numeric(custom_breaks)
+      colnames(rasterpoints)<-c("x","y","z")
+      if(!is.null(custom_breaks)){
+        if(min(custom_breaks)<min(rasterpoints$z)){
+          custom_breaks[1]<-min(rasterpoints$z)
+        }
+        if(max(custom_breaks)<max(rasterpoints$z)){
+          custom_breaks[length(custom_breaks)]<-max(rasterpoints$z)
+        }
+      }
+    }
+
+
+    base_shape<-attr(rst,'base_shape')
+    layer_shape<-attr(rst,'layer_shape')
+    if(!exists('limits')){
+      limits<-NULL
+    }
+    if(is.null(limits)){
+      limits<-get_limits(NULL,base_shape,layer_shape,coords)
+      limits<-list(x_min=limits[1,1],x_max=limits[2,1], y_min=limits[1,2],y_max=limits[2,2])
+    }
+
+    if(!exists('breaks')){
+      breaks<-NULL
     }
 
 
 
-    coords<-coordinates(rst) |> data.frame()
-  } else{
-    coords<-attr(data,"coords")
-    rasterpoints<-data.frame(cbind(coords,z=data[,1]))
-    rst<-data
-  }
-
-  colnames(rasterpoints)<-c("x","y","z")
-
-  base_shape<-attr(rst,'base_shape')
-  layer_shape<-attr(rst,'layer_shape')
-  if(!exists('limits')){
-    limits<-NULL
-  }
-  if(is.null(limits)){
-    limits<-get_limits(NULL,base_shape,layer_shape,coords)
-    limits<-list(x_min=limits[1,1],x_max=limits[2,1], y_min=limits[1,2],y_max=limits[2,2])
-  }
-
-  if(!exists('breaks')){
-    breaks<-NULL
-  }
+    if(!is.factor(rasterpoints$z)){
+      #breaks=    breaks_interval(z=rasterpoints$z,nbreaks)
+      breaks= as.numeric(custom_breaks)
+    } else{ breaks=    levels(rasterpoints$z)}
 
 
-
-  if(!is.factor(rasterpoints$z)){
-    #breaks=    breaks_interval(z=rasterpoints$z,num_breaks)
-    colbin<-colorBin( lighten(newcolhabs[[pal]](256),light),rasterpoints$z,bins =num_breaks)
-    breaks= as.numeric(custom_breaks)
-  } else{ breaks=    levels(rasterpoints$z)}
-  {
 
 
     base_shape0<-st_as_sf(coords,coords = colnames( coords),crs=crs.info)
@@ -994,63 +1029,77 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,main="",subtitle="",axis.text_si
     p<-add_gg_shape(p,base_shape_args,base_shape,xlim,ylim,crs.info)
 
 
+}
 
-    if(class(rst)=="RasterLayer"){
+  if(class(rst)=="RasterLayer"){
+    breaks=NULL
 
-      p<-rst_tile(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor, data_o=data_o,light)
-
+    if(isFALSE(factor)){
+      breaks<-as.numeric(custom_breaks)
+      custom_breaks0=as.numeric(custom_breaks0)
     } else{
-      if(isTRUE(addCircles))
-        p<-gg_circles(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,min_radius,max_radius, scale_radius, num_breaks=num_breaks,light)
-      if(isTRUE(addMinicharts)){
-        p<-gg_pie(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity,light)
-      }
-    }
-    names( p$layers)[length( p$layers)]<-paste0('points')
-
-    extra_shape<-attr(rst,'extra_shape')
-    if(!is.null(args_extra_shape)){
-      p<-gg_add_extra_shape(p,rst,args_extra_shape)
+      custom_breaks0=NULL
     }
 
-    p0<-p
+    p<-rst_tile(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor, data_o=data_o,light, custom_breaks=custom_breaks0)
+
+  } else{
 
 
-    p<-p+
-      xlab("Longitude") +
-      ylab("Latitude") +
-      ggtitle(main, subtitle = subtitle) +
-      theme(panel.grid.major = element_blank(),
-            panel.background = element_rect(fill = "white"),
-            panel.border = element_rect(fill=NA,
-                                        color="black",
-                                        linewidth=0.5,
-                                        linetype="solid"),
-            axis.text=element_text(size=axis.text_size),
-            axis.title=element_text(size=axis.title_size,face="bold"),
-            plot.title=element_text(size=plot.title_size),
-            plot.subtitle=element_text(size=plot.subtitle_size),
-            legend.text=element_text(size=legend.text_size),
-            legend.title=element_text(size=legend.text_size))
-    if(!is.null(key.height)){
-      p<-p+theme(legend.key.size=unit(key.height, 'pt'))
-    }
+    if(isTRUE(addCircles))
+
+      p<-gg_circles(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,custom_breaks=sort(custom_breaks00),min_radius,max_radius, scale_radius, light)
 
 
-    if(isTRUE(show_coords)){
-      coords_data<-attr(rst,"coords")
-      colnames(coords_data)<-c("x","y")
-      p<-p+geom_point( data=coords_data, aes(x=x, y=y),  size=cex.coords, pch=3, colour=col.coords)}
-    if(isTRUE(show_guides)){
-      coords_data<-attr(rst,"coords")
-      colnames(coords_data)<-c("x","y")
-
-      xcoords<-pretty(coords_data[,1])
-      ycoords<-pretty(coords_data[,2])
-      p<-p+geom_hline(yintercept=ycoords,color = gray(.5), linetype = "dashed", linewidth = .15)+
-        geom_vline(xintercept =xcoords,color = gray(.5), linetype = "dashed", linewidth = .15)
+    if(isTRUE(addMinicharts)){
+      p<-gg_pie(p,rst,factor_chart,buffer_zize,fun,min_radius,max_radius,newcolhabs,pal,reverse_palette, fillOpacity,light)
     }
   }
+  names( p$layers)[length( p$layers)]<-paste0('points')
+
+  extra_shape<-attr(rst,'extra_shape')
+  if(!is.null(args_extra_shape)){
+    p<-gg_add_extra_shape(p,rst,args_extra_shape)
+  }
+
+  p0<-p
+
+
+  p<-p+
+    xlab("Longitude") +
+    ylab("Latitude") +
+    ggtitle(main, subtitle = subtitle) +
+    theme(panel.grid.major = element_blank(),
+          panel.background = element_rect(fill = "white"),
+          panel.border = element_rect(fill=NA,
+                                      color="black",
+                                      linewidth=0.5,
+                                      linetype="solid"),
+          axis.text=element_text(size=axis.text_size),
+          axis.title=element_text(size=axis.title_size,face="bold"),
+          plot.title=element_text(size=plot.title_size),
+          plot.subtitle=element_text(size=plot.subtitle_size),
+          legend.text=element_text(size=legend.text_size),
+          legend.title=element_text(size=legend.text_size))
+  if(!is.null(key.height)){
+    p<-p+theme(legend.key.size=unit(key.height, 'pt'))
+  }
+
+
+  if(isTRUE(show_coords)){
+    coords_data<-attr(rst,"coords")
+    colnames(coords_data)<-c("x","y")
+    p<-p+geom_point( data=coords_data, aes(x=x, y=y),  size=cex.coords, pch=3, colour=col.coords)}
+  if(isTRUE(show_guides)){
+    coords_data<-attr(rst,"coords")
+    colnames(coords_data)<-c("x","y")
+
+    xcoords<-pretty(coords_data[,1])
+    ycoords<-pretty(coords_data[,2])
+    p<-p+geom_hline(yintercept=ycoords,color = gray(.5), linetype = "dashed", linewidth = .15)+
+      geom_vline(xintercept =xcoords,color = gray(.5), linetype = "dashed", linewidth = .15)
+  }
+
 
 
   p<-p+annotation_scale(location = "br", width_hint = width_hint,text_cex=cex_scabar,height  =unit(cex_scabar/4,"cm")) +

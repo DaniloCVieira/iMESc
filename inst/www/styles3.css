@@ -387,8 +387,7 @@ box-sizing: border-box;
 background:  #05668D; color: white; margin: 0px; font-size: 16px; position: absolute;right: 0px; margin-top: 8px;z-index: 999
 }
 .spatial_tools .spatial_setup .train_box {
-  padding-bottom: 5px;
-  margin-bottom: 2px;
+
 }
 .model_setup .train_box{
 background:  #e6e6e6;
@@ -495,4 +494,30 @@ width: fit-content
 .som_grid input{
 max-width: 70px;
 
+}
+.switch_box {
+margin: 0px;
+padding: 0px;
+}
+
+
+
+.checktitle .shiny-input-container{
+background: transparent;
+
+padding-left: 10px
+}
+
+.checktitle .checkbox input[type=checkbox] {
+margin-left: -22px;
+}
+.checktitle .checkbox span {
+mdargin-left: -15px;
+}
+
+
+.switch_box .shiny-input-container:not(.shiny-input-container-inline) {
+margin: 0px;
+padding: 0px;
+max-width: 180px;
 }

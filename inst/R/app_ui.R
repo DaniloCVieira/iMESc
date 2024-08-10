@@ -186,14 +186,10 @@ div(
                           tabItem(
                             tabName = "menu_maps2",
                             column(12,
-                                   hidden(uiOutput("invalid_data_map")),
                                    ll_data$ui("map_data"),
                                    uiOutput('map_header'),
-                                   div(
-
-
-                                     llet$ui("llet")
-                                   ))
+                                   llet$ui("llet")
+                                   )
                           ),
                           tabItem(tabName = "menu_som",
                                   column(12,

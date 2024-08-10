@@ -9,10 +9,10 @@ validate_data<-function(data){
       res<-'The selected Datalist has no coordinates.'
     } else{
       if(ncol(coords)!=2){
-        res<-"Error in Coordinates: Number of columns not equal 2"
+        res<-"Error in Coordinates: Number of columns not equal 2."
       }
       if(anyNA(coords)){
-        res<-"Error in Coordinates: NAs not allowed"
+        res<-"Check your Coordinates: NAs not allowed."
       }
     }
   }
@@ -27,6 +27,7 @@ validate_data2<-function(data){
     coords_ok=length(coords)>0,
     coords_ok2=ncol(coords)==2,
     coords_ok3=!anyNA(coords)
+
   ))
 
 
@@ -176,8 +177,8 @@ decimal_places<-function(x){
 
 
 rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o,light=0,custom_breaks){
-
-
+  custom_breaks<-as.numeric(custom_breaks)
+  rasterpoints$z<-scales::rescale(rasterpoints$z,c(min(custom_breaks),max(custom_breaks)))
   name<-attr(rst,'z_name')
   if(isTRUE(factor)){
     levs<-levels(data_o[,1])

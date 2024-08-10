@@ -574,9 +574,10 @@ app_server<-function(input, output, session) {
   validate_data_map<-reactive({
     validate_data(vals$data_map)
   })
-  output$invalid_data_map<-renderUI({
-    embrown(strong(validate_data_map()))
-  })
+
+
+
+
   observeEvent(validate_data_map(),{
     if(isTRUE(validate_data_map())){
       shinyjs::hide("invalid_data_map")

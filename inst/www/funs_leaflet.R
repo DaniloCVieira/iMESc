@@ -391,22 +391,21 @@ gstat_predictions<-function(g,data,resolution, crs.info="+proj=longlat +datum=WG
 interp_leaflet2<-function(data, cut_shape=T, resolution=3000,crs.info="+proj=longlat +datum=WGS84 +no_defs",k=5,interp_type="knn",g=NULL,seed=NA,tuneLength=NULL,...){
 
 
-  rst<-try({
 
-    if(!interp_type%in%c("krige","idw")){
-      method=interp_type
-      rst_result<-get_caret_leaf(data,cut_shape,resolution,tuneLength,method,seed,crs.info)
-    } else if(interp_type=="idw"){
-      rst_result<- get_idw_leaf(data, cut_shape, resolution,crs.info="+proj=longlat +datum=WGS84 +no_defs",...)
-    } else if(interp_type=="krige"){
-      rst_result<-gstat_predictions(g,data,resolution, crs.info="+proj=longlat +datum=WGS84 +no_defs")
+  if(!interp_type%in%c("krige","idw")){
+    method=interp_type
+    rst_result<-get_caret_leaf(data,cut_shape,resolution,tuneLength,method,seed,crs.info)
+  } else if(interp_type=="idw"){
+    rst_result<- get_idw_leaf(data, cut_shape, resolution,crs.info="+proj=longlat +datum=WGS84 +no_defs",...)
+  } else if(interp_type=="krige"){
+    rst_result<-gstat_predictions(g,data,resolution, crs.info="+proj=longlat +datum=WGS84 +no_defs")
 
-    }
+  }
 
-    rst<-migrate_rst(rst_result, data)
-    rst
-  })
+  rst<-migrate_rst(rst_result, data)
   rst
+
+
 }
 #' @export
 

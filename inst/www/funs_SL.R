@@ -1007,7 +1007,7 @@ table_test_datalist<-function(saved_data,data_x){
 
           test_data<-as.matrix(attr(m,"test"))
           colnames(test_data)<-colnames(getdata_model(m))
-          pred<-suppressWarnings(predict(m))
+          pred<-suppressWarnings(predict(m,test_data))
           if(inherits(attr(m,"sup_test"),"data.frame")){
             obs<-attr(m,"sup_test")[,1]
           } else{

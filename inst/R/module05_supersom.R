@@ -2815,7 +2815,7 @@ imesc_supersom$server<-function (id,vals ){
 
 
     output$data_som_out<-renderUI({
-      pickerInput_fromtop(ns("data_som"),uiOutput(ns('label_data_som')),choices =names(vals$saved_data), selected=vals$cur_data)
+      pickerInput_fromtop(ns("data_som"),uiOutput(ns('label_data_som')),choices =names(vals$saved_data), selected=vals$cur_data, options=shinyWidgets::pickerOptions(liveSearch =T))
     })
     output$data_somY_out<-renderUI({
       div(

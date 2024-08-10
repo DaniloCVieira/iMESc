@@ -181,9 +181,9 @@ rf_explainer$ui<-function(id){
                               numericInput(ns('prf_label_axis_size'),"Label axis size", 12),
 
                               numericInput(ns("size_mmd"),"Text-in size:", value=4),
-                              div(style="display: flex;max-width: 75%",
-                                  numericInput(ns('plot_height'),"Dim:", 300),
-                                  numericInput(ns('plot_width'),"x", 400),div("pixels",style="padding-top: 10px")
+                              div(
+                                  numericInput(ns('plot_height'),"Plot height", 300),
+                                  numericInput(ns('plot_width'),"Plot width", 400),
                               )
 
                             ))

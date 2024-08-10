@@ -259,7 +259,7 @@ compare_models$ui<-function(id){
       title="Model Group Selection",
       div(style="display: flex",class="picker-tip",
           div(
-            pickerInput_fromtop(ns("data_x"),span("Datalist",tipright("Select the Datalist containing saved models")), choices=NULL)
+            pickerInput_fromtop(ns("data_x"),span("Datalist",tipright("Select the Datalist containing saved models")), choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
           ),
           pickerInput_fromtop(ns("compare"),span("Available comparisons",tipright('Comparisons are only allowed for models with compatible resampling methods.')), choices=NULL,width="400px")
       )

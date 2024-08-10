@@ -11,8 +11,7 @@ hc_module$ui<-function(id){
                    fluidRow(style="display: flex; flex-flow: row wrap;",
                             column(12,div(style="gap: 10px",class="som_grid",
                                           pickerInput_fromtop(ns("data_hc"),
-                                                              strong("Datalist:"),
-                                                              choices = NULL),
+strong("Datalist:"),choices = NULL, options=shinyWidgets::pickerOptions(liveSearch =T)),
                                           radioButtons(ns("model_or_data"), strong("Clustering target:"), choiceValues = c("data", "som codebook"), choiceNames = c("Numeric-Attribute", "SOM-codebook"),width="150px"),
                                           pickerInput_fromtop(ns("som_model_name"), strong("Som model:"), choices=NULL, selected=NULL),
                                           pickerInput_fromtop(ns("hc_fun"), strong("HC function:", actionLink(ns("help_hc_fun"), icon("fas fa-question-circle"))), choices = list("Hierarchical Clustering" = "hclust", "Agglomerative Nesting" = "agnes", "Divisive hierarchical clustering" = "diana")),
@@ -691,7 +690,7 @@ hc_module$server<-function(id, vals){
       req(isTRUE(input$hc_sort))
       div(
 
-        pickerInput_fromtop(ns("hc_ord_datalist"),"Datalist:",choices = c(names(vals$saved_data[getdata_for_hc()])),selected=vals$cur_hc_ord_datalist,width="200px"))
+        pickerInput_fromtop(ns("hc_ord_datalist"),"Datalist:",choices = c(names(vals$saved_data[getdata_for_hc()])),selected=vals$cur_hc_ord_datalist,width="200px", options=shinyWidgets::pickerOptions(liveSearch =T)))
     })
     output$hc_ord_factor<-renderUI({
       req(isTRUE(input$hc_sort))

@@ -14,8 +14,8 @@ inicio<-Sys.time()
 version<-"1.0.4"
 load_required_packages<-function(){
   packages_required<-c('ade4','aweSOM','base64enc','beepr','caret','class','cluster','colorRamps','colorspace','colourpicker','data.table','DBI','dendextend','doParallel',
-'doSNOW','dplyr','DT','e1071','factoextra','foreach','gbm','gbRd','geodist','ggnewscale','ggplot2','ggpubr','ggraph','ggrepel','ggridges','ggthemes','golem','gplots','graphics','gstat','igraph','kernlab','klaR','kohonen','lattice','leaflet','leaflet.minicharts','MASS','methods','Metrics','parallel','pdp','plotly','pROC','processx','purrr','randomForestExplainer','raster','RColorBrewer','readxl','remotes','reshape','rintrojs','rstudioapi','scales','scatterpie','segRDA','sf','shiny','shinyBS','shinybusy',
-'shinycssloaders','shinydashboard','shinydashboardPlus','shinyjqui','shinyjs','shinyTree','shinyWidgets','snow','sortable','sp','stats','stringr','subniche','tools','utils','vegan','viridisLite','wesanderson','writexl')
+                       'doSNOW','dplyr','DT','e1071','factoextra','foreach','gbm','gbRd','geodist','ggnewscale','ggplot2','ggpubr','ggraph','ggrepel','ggridges','ggthemes','golem','gplots','graphics','gstat','igraph','kernlab','klaR','kohonen','lattice','leaflet','leaflet.minicharts','MASS','methods','Metrics','parallel','pdp','plotly','pROC','processx','purrr','randomForestExplainer','raster','RColorBrewer','readxl','remotes','reshape','rintrojs','rstudioapi','scales','scatterpie','segRDA','sf','shiny','shinyBS','shinybusy',
+                       'shinycssloaders','shinydashboard','shinydashboardPlus','shinyjqui','shinyjs','shinyTree','shinyWidgets','snow','sortable','sp','stats','stringr','subniche','tools','utils','vegan','viridisLite','wesanderson','writexl')
 
   # Loop para carregar cada pacote
   for (pkg in packages_required) {
@@ -47,7 +47,7 @@ if(getwd()=="D:/R3/imesc2024/app_new/inst"){
   qsave=T
 
 
- # rstudio<- rstudioapi::versionInfo()
+  # rstudio<- rstudioapi::versionInfo()
 
 }
 
@@ -135,6 +135,9 @@ unsup_icon<-base64enc::dataURI(file = "www/unsup_icon.png", mime = "image/png")
 sup_icon<-base64enc::dataURI(file = "www/sup_icon.png", mime = "image/png")
 sup_icon2<-base64enc::dataURI(file = "www/sup_icon2.png", mime = "image/png")
 imesc_icon<-base64enc::dataURI(file = "www/imesc_logo.png", mime = "image/png")
+#imesc_name<-base64enc::dataURI(file = "www/imesc_name.png", mime = "image/png")
+
+
 b64<-base64enc::dataURI(file = "www/logo.png", mime = "image/png")
 split_icon<-base64enc::dataURI(file = "www/split_icon2.png", mime = "image/png")
 split_icon_white<-base64enc::dataURI(file = "www/split_icon3.png", mime = "image/png")

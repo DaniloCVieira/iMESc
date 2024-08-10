@@ -178,18 +178,7 @@ msp_earth$ui<-function(id,vals,model){
              color="#c3cc74ff",
              div(
                pickerInput_fromtop(ns('which'),"Plot to draw",
-                                   options=shinyWidgets::pickerOptions(windowPadding="top"),
-                                   choices=c(
-                                     'Model selection plot'=1,
-                                     'Cumulative distribution of abs residuals'=2,
-                                     'Residuals vs fitted'=3,
-                                     'QQ plot'=4,
-                                     'Abs residuals vs fitted'=5,
-                                     'Sqrt abs residuals vs fitted'=6,
-                                     'Abs residuals vs log fitted'=7,
-                                     'Cube root of the squared residuals vs log fitted'=8,
-                                     'Log abs residuals vs log fitted'=9
-                                   )),
+                                   options=shinyWidgets::pickerOptions(windowPadding="top"),choices=c('Model selection plot'=1,'Cumulative distribution of abs residuals'=2,'Residuals vs fitted'=3,'QQ plot'=4,'Abs residuals vs fitted'=5,'Sqrt abs residuals vs fitted'=6,'Abs residuals vs log fitted'=7,'Cube root of the squared residuals vs log fitted'=8,'Log abs residuals vs log fitted'=9)),
 
 
                selectInput(ns('nresponse'),span("Response",tipright("Response level")),model$levels),
@@ -561,7 +550,7 @@ msp_monmlp$ui<-function(id,vals){
              title="Plot Options",
              color="#c3cc74ff",
              div(
-               pickerInput_fromtop(ns("column"), "Variable",choices=choices,multiple = T,selected=choices[1:4], options=shinyWidgets::pickerOptions(windowPadding="top")),
+               pickerInput_fromtop(ns("column"), "Variable",choices=choices,multiple = T,selected=choices[1:4], options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch=T)),
                pickerInput_fromtop(inputId = ns("palette"),
                                    label ="Palette",
                                    choices =  vals$colors_img$val,
@@ -1316,7 +1305,7 @@ msp_xyf$ui<-function(id,vals){
                                          options=shinyWidgets::pickerOptions(windowPadding="top")),
                      pickerInput_fromtop(ns("xyf_pclus_text_factor"),"Factor:",
                                          choices = NULL,
-                                         options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                         options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch = T)),
                      numericInput(ns("xyf_pclus_text_size"),'Size:',value = 1,min = 0.1,max = 3,step = .1)
                  )
                )
@@ -1740,7 +1729,7 @@ msp_rf$ui<-function(id,vals){
                                 align="right",
                                 style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
                             pickerInput_fromtop(ns("fm_tree"),"+ Tree",NULL,
-                                                options=shinyWidgets::pickerOptions(windowPadding="top")),
+                                                options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch = T)),
                             numericInput(ns('fm_round'),'+ Round',2),
                             pickerInput_fromtop(
                               ns("edge_type"), "+ Edge type",
@@ -2955,7 +2944,7 @@ caret_pairs$ui<-function(id){
                      color="#c3cc74ff",
                      div(
                        div(id=ns('gg_run_btn'),class="save_changes",align="right",actionButton(ns('gg_run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
-                       pickerInput_fromtop(ns("ggpair.variables"),span("Variables:",class='text_alert'),NULL, multiple = T,options=shinyWidgets::pickerOptions(actionsBox  = TRUE,windowPadding="top")),
+                       pickerInput_fromtop(ns("ggpair.variables"),span("Variables:",class='text_alert'),NULL, multiple = T,options=shinyWidgets::pickerOptions(actionsBox  = TRUE,windowPadding="top",liveSearch = T)),
 
 
                        pickerInput_fromtop(ns("ggpair.method"),"Correlation method:",c("none","pearson", "kendall", "spearman"))
@@ -4024,8 +4013,7 @@ model_results$server<-function(id,vals){
         multiple=T
         selected=choices
       }
-      pickerInput_fromtop(ns("xvar"),"+ X", choices=choices,selected=selected,multiple =multiple,
-                          options=shinyWidgets::pickerOptions(windowPadding="top"))
+      pickerInput_fromtop(ns("xvar"),"+ X", choices=choices,selected=selected,multiple =multiple,options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch = T))
     })
 
 
@@ -5636,8 +5624,8 @@ caret_models$server<-function(id,vals){
       div(
 
         div(style="display: flex",
-            hidden(pickerInput_fromtop(ns("wei_datalist"),"Datalist",choices,selected=selected)),
-            hidden(pickerInput_fromtop(ns("wei_var"),label=NULL,NULL)))
+            hidden(pickerInput_fromtop(ns("wei_datalist"),"Datalist",choices,selected=selected, options=shinyWidgets::pickerOptions(liveSearch =T))),
+            hidden(pickerInput_fromtop(ns("wei_var"),label=NULL,NULL, options=shinyWidgets::pickerOptions(liveSearch =T))))
       )
     })
     output$validate_twoclass<-renderUI({
@@ -5774,7 +5762,7 @@ caret_models$server<-function(id,vals){
                                   selected=selected,
 
                                   choicesOpt =list(subtext =model_labels3),
-                                  options=shinyWidgets::pickerOptions(windowPadding="top")
+                                  options=shinyWidgets::pickerOptions(windowPadding="top", options=shinyWidgets::pickerOptions(liveSearch =T))
               ),
               div(style="white-space: normal",
 
@@ -5893,7 +5881,7 @@ caret_models$server<-function(id,vals){
         if(vals$cmodel=="rf"){
           args_train$localImp = TRUE
           args_train$keep.forest=TRUE
-          args_train$keep.inbag=T
+         # args_train$keep.inbag=T
         }
         withProgress(
           message = paste("Running",vals$cmodel),
@@ -6938,7 +6926,7 @@ div(class="data_x",
       req(input$partition%in%colnames(data))
       choices<-levels(data[,input$partition])
       selected<-get_selected_from_choices(vals$cur_testdata,choices)
-      pickerInput_fromtop(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
+      pickerInput_fromtop(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected, options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))
     })
 
 

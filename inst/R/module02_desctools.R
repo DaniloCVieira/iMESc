@@ -337,29 +337,29 @@ desctools_tab2$ui<-function(id){
                     div(
                       div(style="display: flex;gap: 10px;height: 50px",class="setup_box",
                           div(class="picker-flex picker-before-x",
-                              pickerInput_fromtop(ns("bbox_x_datalist"),tipify(span("Datalist:"),"Datalist for selecting the Factor"),choices = NULL)
+                              pickerInput_fromtop(ns("bbox_x_datalist"),tipify(span("Datalist:"),"Datalist for selecting the Factor"),choices = NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
                           ),
 
                           div(class="picker-flex",
-                              pickerInput_fromtop(ns("boxplot_X"),"Factor",choices =NULL)
+                              pickerInput_fromtop(ns("boxplot_X"),"Factor",choices =NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
                           ),
                           div(class="picker-flex",
-                              pickerInput_fromtop(ns("filter_box1"),"Filter:",choices = NULL)),
+                              pickerInput_fromtop(ns("filter_box1"),"Filter:",choices = NULL, options=shinyWidgets::pickerOptions(liveSearch =T))),
                           div(class="picker-flex",
                               pickerInput_fromtop(ns("filter_box2"),
-                                          "Class:",choices=NULL))
+                                          "Class:",choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T)))
                       ),
                       div(style="display: flex;gap: 10px;height: 50px",class="setup_box picker-flex",
                           div(class="setup_box picker-flex picker-before-y", pickerInput_fromtop(ns("bbox_y_datalist"),tipify(
                             span(""),
                             "Datalist for selecting the Numeric-Value",
-                          ),choices = NULL)
+                          ),choices = NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
                           ),
 
                           div(class="picker-flex",
                               pickerInput_fromtop( ns("box_y"),tipify(
                                 span("Variable"),
-                                "the numeric values to be split into groups according to the grouping variable"),choices = NULL, multiple=T))
+                                "the numeric values to be split into groups according to the grouping variable"),choices = NULL, multiple=T, options=shinyWidgets::pickerOptions(liveSearch =T)))
 
 
 
@@ -662,8 +662,7 @@ desctools_tab3$ui<-function(id){
 
                        div(
                          div(
-                           pickerInput_fromtop(inputId=ns("rid_y"),label = "X (factor)",
-                                       choices =NULL),
+                           pickerInput_fromtop(inputId=ns("rid_y"),label = "X (factor)",choices =NULL, options=shinyWidgets::pickerOptions(liveSearch =T)),
                            div(tags$label("Y (numeric)")),
                            div(
                              class="virtual-100",
@@ -679,7 +678,7 @@ desctools_tab3$ui<-function(id){
                      title="Plot Options",
                      color="#c3cc74ff",
                      div(
-                       pickerInput_fromtop(inputId=ns("rid_col"),label = "Palette:",NULL),
+                       pickerInput_fromtop(inputId=ns("rid_col"),label = "Palette:",NULL, options=shinyWidgets::pickerOptions(liveSearch =T)),
                        textInput(ns('rid_tittle'),"Title",""),
                        numericInput(ns('rid_base_size'),"Base size",11),
                        numericInput(ns('rid_ncol'),"N columns",3),
@@ -859,7 +858,7 @@ desctools_tab4$ui<-function(id){
                        checkboxInput(ns("ggpair.box.include"), "Y boxplot",F),
                        div(
                          style="border-bottom: 1px solid; margin-bottom: 5px; margin-left: 20px",
-                         pickerInput_fromtop(ns("ggpair.y.variable"),strong("Grouping Factor:", class='text_alert'),NULL)
+                         pickerInput_fromtop(ns("ggpair.y.variable"),strong("Grouping Factor:", class='text_alert'),NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
                        ),
                        pickerInput_fromtop(ns("ggpair.method"), "Correlation method:", c("pearson", "kendall", "spearman", "none"))
                      )),
@@ -957,7 +956,7 @@ desctools_tab4$server<-function(id,vals){
 
       factors<-attr(data,"factors")
       choices=colnames(factors)
-      updatePickerInput(session,'ggpair.y.variable',choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+      updatePickerInput(session,'ggpair.y.variable',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
     })
     observe(shinyjs::toggle("ggpair.y.variable",condition = isTRUE(yclude_y())))
 
@@ -1122,8 +1121,7 @@ desctools_tab5$ui<-function(id){
 
                ),
                div(style="display: flex",
-                   pickerInput_fromtop(ns('cutoff_hl'),tiphelp3("Filter correlations:",
-                                                        "Choose the pair-wise absolute correlation cutoff."),choices = list("All" = "all", "Lower than" = "lower", "Higher than" = "higher")),
+                   pickerInput_fromtop(ns('cutoff_hl'),tiphelp3("Filter correlations:","Choose the pair-wise absolute correlation cutoff."),choices = list("All" = "all", "Lower than" = "lower", "Higher than" = "higher")),
                    uiOutput(ns('corr_cutoff'))
                ),
 
@@ -1863,7 +1861,7 @@ desctools_tab8$ui<-function(id){
                       div(style="display: flex; gap: 10px; margin-top: -10px",class="setup_box picker-flex",
 
                           div(style="display: flex;",
-                              div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("rda_X"),"", choices=NULL)
+                              div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("rda_X"),"", choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
 
                               ),
                           ),
@@ -1872,7 +1870,7 @@ desctools_tab8$ui<-function(id){
                               div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left")))),
                           div(style="display: flex;",
                               div(
-                                class="setup_box picker-flex picker-before-x", pickerInput_fromtop(ns("rda_Y"),"", choices=NULL)
+                                class="setup_box picker-flex picker-before-x", pickerInput_fromtop(ns("rda_Y"),"", choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
                               )
                           ),
                           div(style="margin-top: 20px",
@@ -2268,7 +2266,7 @@ desctools_tab9$ui<-function(id){
         div(style="display: flex; gap: 10px; margin-top: -10px; margin-bottom: 10px",class="setup_box picker-flex",
 
             div(style="display: flex;",
-                div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("segrda_X"),"", choices=NULL)
+                div(class="setup_box picker-flex picker-before-y",pickerInput_fromtop(ns("segrda_X"),"", choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T))
 
                 ),
             ),
@@ -2276,7 +2274,7 @@ desctools_tab9$ui<-function(id){
                 div(strong("~")),
                 div(actionLink(ns("rev_segrda"),icon("arrow-right-arrow-left")))),
             div(style="display: flex;",
-                div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("segrda_Y"),"", choices=NULL)),
+                div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("segrda_Y"),"", choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T))),
             ),
             uiOutput(ns('segrda_btn'))
 
@@ -2432,7 +2430,7 @@ desctools_tab9$ui<-function(id){
                   div(style="display: flex;;margin-left: 20px",
                       div(tipify(tags$div("Results",class="trailab"),"Predictors")),
                       div(style="display: flex",
-                          pickerInput_fromtop(ns("pwRDA_models"),NULL, choices=NULL),
+                          pickerInput_fromtop(ns("pwRDA_models"),NULL, choices=NULL, options=shinyWidgets::pickerOptions(liveSearch =T)),
 
                       )),
                   actionButton(ns("delete_pwRDA_models"),icon("fas fa-trash-alt")),
@@ -3713,7 +3711,7 @@ desctools$ui<-function(id){
                                div(
                                  div(class="setup_box picker-flex picker-before-x",
 
-                                     pickerInput_fromtop(ns("data_descX"),tipify(span("Datalist:"),"Datalist for selecting the Factor"),choices = NULL))))
+                                     pickerInput_fromtop(ns("data_descX"),tipify(span("Datalist:"),"Datalist for selecting the Factor"),choices = NULL, options=shinyWidgets::pickerOptions(liveSearch =T)))))
           ),
 
           id=ns('desc_options'),

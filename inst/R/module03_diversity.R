@@ -19,7 +19,7 @@ diversity_tool$ui<-function(id){
                   div(style="display: flex;height: 50px",class="setup_box picker-flex",
                       div(
                         style="display: flex;",
-                        div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_div"),"", choices=NULL))
+                        div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_div"),"", choices=NULL,  options=shinyWidgets::pickerOptions(liveSearch =T)))
                       ),
 
 
@@ -381,7 +381,7 @@ diversity_tool$server<-function (id,vals,df_colors,newcolhabs,df_symbol ){
         res$J<-H/log(S)}
 
       if("Dom_rel"%in%choices){res$Dom_rel<-apply(decostand(abund, "total"),1,sort,T)[1,]}
-      if("Skewness"%in%choices){res$Skewness=apply(abund,1,fun_pdskewness)}
+      if("Skewness"%in%choices){res$Skewness=apply(abund,1,skewness)}
       if ("Chao1" %in% choices) {
         trychao<-try( res$Chao1 <- vegan::estimateR(abund)["S.chao1",] )
         vals$trychao<-NULL

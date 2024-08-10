@@ -4056,16 +4056,20 @@ div(style="display: flex",
         args$cut_shape<-shape_args$base_shape_args$shape
         args$g<-vals$interp_gstat
 
-        req(input$custom_breaks)
+
 
         rst<- do.call(capture_log2(interp_leaflet2),args)
         vals$error_rst<-attr(rst,"logs")
         req(!inherits(rst,"error"))
+        if(is.numeric(vals$data_map[,1])){
+
+          print(input$custom_breaks)
+          custom_breaks=as.numeric(strsplit(input$custom_breaks,",")[[1]])
+
+          rst@data@values<- scales::rescale( rst@data@values,c(min(custom_breaks),max(custom_breaks)))
+        }
 
 
-        custom_breaks=as.numeric(strsplit(input$custom_breaks,",")[[1]])
-
-        rst@data@values<- scales::rescale( rst@data@values,c(min(custom_breaks),max(custom_breaks)))
         attr(rst,"method")<-args$interp_type
 
 

@@ -14,7 +14,7 @@ library(shinyBS)
 
 
 #' @export
-app_ui<-function(request) {
+ui<-app_ui<-function(request) {
 
   tagList(
 

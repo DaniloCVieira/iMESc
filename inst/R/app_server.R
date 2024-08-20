@@ -51,7 +51,7 @@
 #roxygen2::roxygenise()
 #' @export
 #' @noRd
-app_server<-function(input, output, session) {
+server<-app_server<-function(input, output, session) {
   t0<-Sys.time()
   # init_server<-Sys.time()
   # IMPORTANT!

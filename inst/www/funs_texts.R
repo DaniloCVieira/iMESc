@@ -706,7 +706,13 @@ data_migrate<-function(data,newdata, newname=NULL){
     #attr(newdata, "data.factor")=attr(data,"data.factor")[rownames(newdata),]
     attr(newdata, "datalist")=attr(data, "datalist")
     attr(newdata, "filename")=attr(data, "filename")
-    attr(newdata, "factors")=attr(data, "factors")[rownames(newdata), , drop=FALSE]
+    factors<-attr(data, "factors")[rownames(newdata), , drop=FALSE]
+    fac2<-data.frame(lapply(factors,function(x){
+      factor(x,levels=levels(x)[levels(x)%in%x])
+    }))
+
+    colnames(fac2)<-colnames(factors)
+    attr(newdata, "factors")=fac2
     attr(newdata, "coords")= attr(data,"coords")[rownames(newdata), , drop=FALSE]
     attr(newdata, "base_shape")= attr(data,"base_shape")
     attr(newdata, "layer_shape")=attr(data,"layer_shape")

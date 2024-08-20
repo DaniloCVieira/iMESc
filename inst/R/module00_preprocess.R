@@ -5925,6 +5925,7 @@ tool2_tab3$server<-function(id,vals){
         ord<-as.numeric(rd[[var]]$level)
         labels=rd[[var]]$label
         fac<-factor(numfac,levels=ord,labels=  labels[ord])
+        fac<-factor(fac,levels=levels(fac)[levels(fac)%in%fac])
         fac<-data.frame(fac)
         colnames(fac)<-input[[paste0("newcol",var,sep="_")]]
         fac

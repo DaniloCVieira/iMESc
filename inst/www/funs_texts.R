@@ -710,7 +710,7 @@ data_migrate<-function(data,newdata, newname=NULL){
     fac2<-data.frame(lapply(factors,function(x){
       factor(x,levels=levels(x)[levels(x)%in%x])
     }))
-
+    rownames(fac2)<-rownames(newdata)
     colnames(fac2)<-colnames(factors)
     attr(newdata, "factors")=fac2
     attr(newdata, "coords")= attr(data,"coords")[rownames(newdata), , drop=FALSE]

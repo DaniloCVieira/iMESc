@@ -1,4 +1,4 @@
-#shiny::runGitHub("imesc_beta","DaniloCVieira","main")
+#shiny::runGitHub("imesc","DaniloCVieira","main")
 #source("D:\\R3\\imesc2024\\WRITE_LOGS.R")
 "D:\\R3\\imesc2024\\app_new\\inst\\www\\dev\\copy_files.R"
 #source("D:\\R3\\imesc2024\\app_new\\inst\\www\\dev\\copy_files.R")

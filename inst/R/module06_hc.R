@@ -2654,7 +2654,7 @@ hc_module$server<-function(id, vals){
           selected=choices
         }
         #updateCheckboxInput(session,"show_hcsom_fine",value=F)
-        shinyWidgets::updateVirtualSelect('som_whatmap',choices=choices,selected=selected)
+        shinyWidgets::updateVirtualSelect('som_whatmap',choices=choices,selected=choices)
       })
 
 

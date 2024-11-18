@@ -1,0 +1,25 @@
+roxygen2::roxygenize("imesc/inst")
+name_space<-readLines("imesc/inst/NAMESPACE")
+desc_space<-readLines("imesc/inst/DESCRIPTION")[1:4]
+namespace_header<-name_space[1:2]
+spaces<-name_space[-c(1:2)]
+exports<-grepl("export",spaces)
+space_exports<-spaces[exports]
+spaces_remaining<-spaces[!exports]
+split_spaces<-split(spaces_remaining,round(seq(1,10,len=length(spaces_remaining))))
+split_spaces<-c(list('0'=space_exports),split_spaces)
+inst<-paste0(rep('imesc/inst',10),1:length(split_spaces))
+inst[1]<-"imesc/inst"
+lapply(seq_along(split_spaces),function(i){
+  spac<-c(namespace_header,split_spaces[[i]])
+  if(!dir.exists(inst[[i]])){
+    dir.create(inst[[i]])
+  }
+  dest<-paste0(inst[[i]],"/NAMESPACE")
+  writeLines(spac,dest)
+  if(i>1){
+    dest<-paste0(inst[[i]],"/DESCRIPTION")
+    writeLines(desc_space,dest)
+  }
+})
+

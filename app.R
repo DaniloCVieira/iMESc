@@ -1,6 +1,6 @@
 #shiny::runGitHub("imesc_beta","DaniloCVieira","main")
 #source("D:\\R3\\imesc2024\\WRITE_LOGS.R")
-#"D:\\R3\\imesc2024\\app_new\\inst\\www\\dev\\copy_files.R"
+"D:\\R3\\imesc2024\\app_new\\inst\\www\\dev\\copy_files.R"
 #source("D:\\R3\\imesc2024\\app_new\\inst\\www\\dev\\copy_files.R")
 message("Loading iMESc")
 message("Please wait")
@@ -18,7 +18,7 @@ load_packs<-function(){
 
 load_R<-function(){
   #if(!exists("data_migrate"))
-  if(!exists("data_migrate")){
+  if(TRUE){
     www_funs<-list.files("inst/R",pattern=".R",full.names = T)
     sapply(seq_along(www_funs),function(i){
       source(www_funs[[i]])

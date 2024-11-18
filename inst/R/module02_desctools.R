@@ -890,42 +890,42 @@ desctools_tab2$ui<-function(id){
                            div(
                              div(
 
-                               transform_module$ui(ns("box_transf"),"Transf Y"),
-                               checkboxInput(ns('box_horiz'),"Horizontal:",value=F),
+                               transform_module$ui(ns("box_transf"),span("Transf Y", tiphelp6("Apply a transformation to the Y-axis values."))),
+                               checkboxInput(ns('box_horiz'),span("Horizontal:", tiphelp6("Display the box plot horizontally.")),value=F),
 
-                               pickerInput_fromtop(ns("box_theme"),"Theme:",c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_minimal','theme_classic')),
-                               pickerInput_fromtop(ns("box_facetwrap"),"Facet wrap:",c("None")),
+                               pickerInput_fromtop(ns("box_theme"),span("Theme:", tiphelp6("Select a theme to customize the plot\\'s appearance.")),c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_minimal','theme_classic')),
+                               pickerInput_fromtop(ns("box_facetwrap"),span("Facet wrap:", tiphelp6("Choose a variable to create separate panels for subsets of the data.")),c("None")),
 
                                pickerInput_fromtop_live(ns("box_palette"),
-                                                        label = "Palette:",
+                                                        label = span("Palette:", tiphelp6("Select a color palette for the box plot.")),
                                                         choices=NULL),
-                               numericInput(ns('box_alpha'),"Lighten:", .3, step=0.05),
-                               colourpicker::colourInput(ns("box_linecol"),label = "Line color:",value ="black",showColour="background"),
-                               numericInput(ns('box_linewidth'),"Line width:", .5,step=.1),
+                               numericInput(ns('box_alpha'),span("Lighten:", tiphelp6("Adjust the transparency of the box plot colors.")), .3, step=0.05),
+                               colourpicker::colourInput(ns("box_linecol"),label =span("Line color:", tiphelp6("Specify the color for the box plot\\'s outline.")),value ="black",showColour="background"),
+                               numericInput(ns('box_linewidth'),span("Line width:", tiphelp6("Set the width of the box plot\\'s outline.")), .5,step=.1),
 
-                               numericInput(ns('box_base_size'),"Base size:", 12,step=1),
-                               numericInput(ns('box_cex.main'),"Title size:", 1.5,step=.1),
-                               numericInput(ns('box_cex.label_panel'),"Panel Title Size:", 1.5,step=.1),
-                               selectInput(ns("box_title_font"),"Title font",c("italic","bold","plain")),
+                               numericInput(ns('box_base_size'),span("Base size:", tiphelp6("Define the base font size for the plot text.")), 12,step=1),
+                               numericInput(ns('box_cex.main'),span("Title size:", tiphelp6("Adjust the font size for the plot title.")), 1.5,step=.1),
+                               numericInput(ns('box_cex.label_panel'),span("Panel Title Size:", tiphelp6("Set the font size for the facet panel titles.")), 1.5,step=.1),
+                               selectInput(ns("box_title_font"),span("Title font", tiphelp6("Choose the font style for the plot title.")),c("italic","bold","plain")),
 
-                               numericInput(ns('box_cex.lab'),"Label size:", 1.5,step=.1),
+                               numericInput(ns('box_cex.lab'),span("Label size:", tiphelp6("Adjust the font size for the axis labels.")), 1.5,step=.1),
                                numericInput(ns('box_cex.axes'),"Axis size:", 1.5,step=.1),
-                               textInput(ns('box_title'),"Title:",NULL),
+                               textInput(ns('box_title'),span("Title:", tiphelp6("Enter a title for the box plot.")),NULL),
 
-                               numericInput(ns('box_xlab_rotate'),"x text angle:", 0,step=5),
-                               numericInput(ns('box_ylab_rotate'),"y text angle:", 0,step=5),
+                               numericInput(ns('box_xlab_rotate'),span("x text angle:", tiphelp6("Set the angle of the X-axis text labels.")), 0,step=5),
+                               numericInput(ns('box_ylab_rotate'),span("y text angle:", tiphelp6("Set the angle of the Y-axis text labels.")), 0,step=5),
 
-                               textInput(ns('box_xlab'),"x label:",NULL),
-                               textInput(ns('box_ylab'),"y label:",NULL),
-                               checkboxInput(ns('box_grid'),"Grid lines:",value=T),
+                               textInput(ns('box_xlab'),span("x label:", tiphelp6("Specify a label for the X-axis.")),NULL),
+                               textInput(ns('box_ylab'),span("y label:", tiphelp6("Specify a label for the Y-axis.")),NULL),
+                               checkboxInput(ns('box_grid'),span("Grid lines:", tiphelp6("Toggle the display of grid lines on the plot.")),value=T),
 
-                               checkboxInput(ns("box_varwidth"),span("Varwidth:",tiphelp("Drawn boxes with widths proportional to the square-roots of the number of observations in the groups","right")),F),
-                               checkboxInput(ns('box_violin'),"Violin:",value=F),
+                               checkboxInput(ns("box_varwidth"),span("Varwidth:",tiphelp6("Drawn boxes with widths proportional to the square-roots of the number of observations in the groups","right")),F),
+                               checkboxInput(ns('box_violin'),span("Violin:", tiphelp6("Display a violin plot overlaid on the box plot.")),value=F),
 
-                               numericInput(ns('box_width'),"Plot widht:",550, step=50),
-                               numericInput(ns('box_heigth'),"Plot heigth:",400, step=50),
-                               numericInput(ns('box_ncol'),"N columns",2),
-                               numericInput(ns('box_nrow'),"N rows",NA),)
+                               numericInput(ns('box_width'),span("Plot width:", tiphelp6("Set the width of the plot in pixels.")),550, step=50),
+                               numericInput(ns('box_heigth'),span("Plot height:", tiphelp6("Set the height of the plot in pixels.")),400, step=50),
+                               numericInput(ns('box_ncol'),span("N columns", tiphelp6("Specify the number of columns for arranging facets.")),2),
+                               numericInput(ns('box_nrow'),span("N rows", tiphelp6("Specify the number of rows for arranging facets.")),NA),)
                            ))
                    )
 
@@ -1267,7 +1267,7 @@ desctools_tab3$ui<-function(id){
                              class="virtual-130",
                              virtualPicker(ns("ridge_variables"),label=NULL,NULL,SelectedText="Variables selected",optionHeight='22px',style="font-size: 12px; ")
                            ),
-                           transform_module$ui(ns("rid_transf"),"Transf Y"),
+                           transform_module$ui(ns("rid_transf"),span("Transf Y", tiphelp6("Apply a transformation to the Y-axis values."))),
                          ),
 
 
@@ -1745,7 +1745,11 @@ tiphelp5<-function(title,text,placement ="bottom"){
        style="color: #3c8dbc;",
        title,tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
 }
-
+tiphelp6<-function(text,placement ="bottom"){
+  span(class="tip-80",
+       style="color: #3c8dbc;",
+       tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
+}
 desctools_tab5<-list()
 desctools_tab5$ui<-function(id){
   ns<-NS(id)
@@ -2134,7 +2138,8 @@ desctools_tab6$ui<-function(id){
                   box_caret(ns("box_6a"),title="Distance",
                             color="#c3cc74ff",
                             div(style="display: flex",
-                                pickerInput_fromtop(ns("mds_distance"),"Distance:",choices = c('bray', "euclidean", 'jaccard')),
+                                pickerInput_fromtop(ns("mds_distance"),# id: mds_distance
+                                                    span("Distance:", tiphelp6("Select the distance metric for calculating dissimilarities in the MDS analysis.")),choices = c('bray', "euclidean", 'jaccard')),
                                 uiOutput(ns("mds_button"))
                             )),
 
@@ -2155,12 +2160,12 @@ desctools_tab6$ui<-function(id){
                       box_caret(
                         ns("box_6c"),title="Points",
                         color="#c3cc74ff",
-                        div(checkboxInput(ns('mds_points') ,tiphelp3(strong("Scores - Points"),"Display mds scores as points"),value=T),
+                        div(checkboxInput(ns('mds_points') ,tiphelp5(strong("Scores - Points"),"Display mds scores as points"),value=T),
                             div(
                               id=ns('mds_points_out'),
                               pickerInput_fromtop_live(
                                 inputId = ns('mds_points_palette'),
-                                label = tiphelp3("Palette","Choose a gradient to represent colors based on the selected factor"),
+                                label = tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),
                                 choices =     NULL
                               ),
                               pickerInput_fromtop(ns('mds_points_factor')  ,"Factor:",choices=NULL,selected= NULL,options=shinyWidgets::pickerOptions(liveSearch=T)),
@@ -2171,7 +2176,7 @@ desctools_tab6$ui<-function(id){
                                                   selected=16,
                                                   width = "100px")
                             ),
-                            checkboxInput(ns('mds_scale_shape') ,tiphelp3("Scale Shape", "Use different shapes to represent points based on the selected factor"),value=F),
+                            checkboxInput(ns('mds_scale_shape') ,tiphelp5("Scale Shape", "Use different shapes to represent points based on the selected factor"),value=F),
                             numericInput (ns('mds_points_size') ,"Size:",value=2)
                         )
 
@@ -2468,7 +2473,7 @@ desctools_tab7$ui<-function(id){
                        color="#c3cc74ff",div(
                          id=ns("pca_points_out"),
 
-                         pickerInput_fromtop_live(ns('pca_points_palette') ,tiphelp3("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
+                         pickerInput_fromtop_live(ns('pca_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
                          pickerInput_fromtop(ns('pca_points_factor')  ,"Factor:",choices=NULL),
                          pickerInput_fromtop(inputId = ns("pca_points_shape"),
                                              label = "Shape:",
@@ -2477,7 +2482,7 @@ desctools_tab7$ui<-function(id){
                                              selected=16,
 
                                              width = "100px"),
-                         checkboxInput(ns('pca_scale_shape') ,tiphelp3("Scale Shape", "Use different shapes to represent points based on the selected factor"),value=F),
+                         checkboxInput(ns('pca_scale_shape') ,tiphelp5("Scale Shape", "Use different shapes to represent points based on the selected factor"),value=F),
                          numericInput (ns('pca_points_size') ,"Size:",value=2),
                          checkboxInput(ns("show_points_legend"),"Show legend",T)
 
@@ -2507,7 +2512,7 @@ desctools_tab7$ui<-function(id){
                        color="#c3cc74ff",div(
                          id=ns('pca_biplot_out'),
 
-                         numericInput(ns('pca_biplot_n') ,tiphelp3("Number of Variables", "Set the number of variables to display"),value=10, min=1),
+                         numericInput(ns('pca_biplot_n') ,tiphelp5("Number of Variables", "Set the number of variables to display"),value=10, min=1),
                          div(colourpicker::colourInput(ns('pca_biplot_color') ,"Text Color",value="blue","background")),
                          div(colourpicker::colourInput(ns('pca_biplot_arrow_color') ,"Arrow Color",value="blue","background")),
                          numericInput(ns('pca_biplot_size') ,"Text Size",value=4),
@@ -2930,7 +2935,7 @@ desctools_tab8$ui<-function(id){
              div(
                id=ns('rda_points_out'),
 
-               pickerInput_fromtop_live(ns('rda_points_palette') ,tiphelp3("Palette","Choose a gradient to represent colors based on the selected factor"),NULL),
+               pickerInput_fromtop_live(ns('rda_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),NULL),
                pickerInput_fromtop(ns('rda_points_factor')  ,"Factor:",choices="turbo"),
                pickerInput_fromtop(inputId = ns("rda_points_shape"),
                                    label = "Shape:",
@@ -2980,7 +2985,7 @@ desctools_tab8$ui<-function(id){
            div(
              div(
                id=ns('rda_biplot_out'),
-               numericInput(ns('rda_biplot_n') ,tiphelp3("Number of Variables", "Set the number of variables to display"),value=10, min=1),
+               numericInput(ns('rda_biplot_n') ,tiphelp5("Number of Variables", "Set the number of variables to display"),value=10, min=1),
                div(colourpicker::colourInput(ns('rda_biplot_color') ,"Text Color",value="blue","background")),
                div(colourpicker::colourInput(ns('rda_biplot_arrow_color') ,"Arrow Color",value="blue","background")),
 
@@ -3626,7 +3631,7 @@ desctools_tab9$ui<-function(id){
                    div(
                      id=ns('segrda_points_out'),
 
-                     pickerInput_fromtop_live(ns('segrda_points_palette') ,tiphelp3("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
+                     pickerInput_fromtop_live(ns('segrda_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
                      pickerInput_fromtop(ns('segrda_points_factor')  ,"Factor:",choices=NULL),
                      pickerInput_fromtop(inputId = ns("segrda_points_shape"),
                                          label = "Shape:",
@@ -3677,7 +3682,7 @@ desctools_tab9$ui<-function(id){
                  div(
                    div(
                      id=ns('segrda_biplot_out'),
-                     numericInput(ns('segrda_biplot_n') ,tiphelp3("Number of Variables", "Set the number of variables to display"),value=10, min=1),
+                     numericInput(ns('segrda_biplot_n') ,tiphelp5("Number of Variables", "Set the number of variables to display"),value=10, min=1),
                      div(colourpicker::colourInput(ns('segrda_biplot_color') ,"Text Color",value="blue","background")),
                      div(colourpicker::colourInput(ns('segrda_biplot_arrow_color') ,"Arrow Color",value="blue","background")),
 

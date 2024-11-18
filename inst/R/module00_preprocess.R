@@ -2351,21 +2351,21 @@ tool2_tab5$ui<-function(id){
                                  column(6,class="mp0",
                                         uiOutput(ns('datalist_conc')),
                                         uiOutput(ns('concac_factors')),
-                                        textInput(ns("collapse"),"Colappse:","-"),
+                                        textInput(ns("collapse"),span("Collapse", tiphelp("Specify a character to use as a separator when concatenating the selected columns.")),"-"),
 
-                                        checkboxInput(ns('col_as_pref'),span("Use column names as prefix:",style="color: #05668D;"),F),
+                                        checkboxInput(ns('col_as_pref'),span("Use column names as prefix:", tiphelp("Enable this option to use column names as prefixes for the concatenated values.")),F),
                                         div(style="padding-left: 15px",
                                             uiOutput(ns('col_suff'))
                                         ),
-                                        checkboxInput(ns("add_prefsuf"),"Add Prefix/Suffix",F),
+                                        span("Add Prefix/Suffix", tiphelp("Enable this option to add custom prefixes or suffixes to the concatenated values.")),
                                         div(style="padding-left: 15px",
                                             textInput(ns("prefix"),"Prefix:",""),
                                             textInput(ns("suffix"),"Suffix:","")
                                         ),
-                                        checkboxInput(ns("add_replace"),"Replace pattern",F),
+                                        checkboxInput(ns("add_replace"),span("Replace pattern", tiphelp("Enable this option to replace patterns in the concatenated values.")),F),
                                         div(style="padding-left: 15px",
-                                            textInput(ns("gsub_pattern"),"Pattern:",""),
-                                            textInput(ns("gsub_by"),"Replacement:",""),
+                                            textInput(ns("gsub_pattern"),span("Pattern:", tiphelp("Enter the pattern to search for within the concatenated values.")),""),
+                                            textInput(ns("gsub_by"),span("Replacement:", tiphelp("Enter the replacement text for the specified pattern.")),""),
                                         ),
 
                                         uiOutput(ns('newcolumn')),
@@ -2526,7 +2526,7 @@ tool2_tab5$server<-function(id,vals){
 
 
     output$datalist_conc<-renderUI({
-      pickerInput_fromtop(ns("datalist_conc"),"Datalist:",choices=names(vals$saved_data),selected = vals$datalist_conc)
+      pickerInput_fromtop(ns("datalist_conc"),span("Datalist", tiphelp("Select the Datalist containing the columns to concatenate.")),choices=names(vals$saved_data),selected = vals$datalist_conc)
     })
 
 
@@ -2544,7 +2544,7 @@ tool2_tab5$server<-function(id,vals){
       fac<-factors_to_conc()
 
       choices=colnames(fac)
-      pickerInput_fromtop(ns("suff_cols"),span("Use:",tiphelp("Columns names to be used as level prefix")),T, multiple = T,choices=choices,selected=choices[1])
+      pickerInput_fromtop(ns("suff_cols"),span("Use:", tiphelp("Choose which columns will be used as level prefixes when concatenating.")),T, multiple = T,choices=choices,selected=choices[1])
     })
 
 

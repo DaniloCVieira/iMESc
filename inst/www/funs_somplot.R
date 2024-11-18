@@ -451,34 +451,7 @@ importance_som_hc<-function(m,layer,hc, n_top){
   attr(l_inds,"imp_layer")<-layer
   l_inds
 }
-importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c('top_hc','top','top_w','manual'), layer=1){
-  var_pie_type=match.arg(var_pie_type,c('top_hc','top','top_w','manual'))
 
-  top_indicators<-hc_imp_rel<-NULL
-
-  codebook<-data.frame(abs(m$codes[[layer]]))
-  colnames(codebook)<-colnames(m$codes[[layer]])
-
-  n_top<-n
-  if(n_top>ncol(codebook)){
-    n_top<-ncol(codebook)
-  }
-  grid<-data.frame(m$grid$pts)
-  if(var_pie_type=='top_hc'){
-    l_inds<-importance_som_hc(m,layer,hc,n_top)
-    return(l_inds)
-  } else if(var_pie_type=="top"){
-    hc_imp_rel<-as.matrix(t(apply(codebook,1,function(x) x/sum(x))))
-    pic<-order(colSums(hc_imp_rel),decreasing=T)[1:n_top]
-    l_inds<-colnames(hc_imp_rel)[pic]
-  } else if(var_pie_type=="top_w"){
-    pic<-order(colSums(codebook),decreasing=T)[1:n_top]
-    l_inds<-colnames(codebook)[pic]
-  }
-  attr(l_inds,"imp_results")<-hc_imp_rel
-  attr(l_inds,"imp_layer")<-layer
-  l_inds
-}
 
 
 
@@ -2051,7 +2024,6 @@ virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,
     )
   )
 }
-
 importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','top','top_w','manual'), layer=1){
   var_pie_type=match.arg(var_pie_type,c("rsquared",'top_hc','top','top_w','manual'))
 
@@ -2075,8 +2047,30 @@ importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
     hc_imp_rel<-data.frame(R_squared=impr2)
     l_inds<-names(impr2)[1:n]
   } else  if(var_pie_type=='top_hc'){
-    l_inds<-importance_som_hc(m,layer,hc,n_top)
-    return(l_inds)
+    req(hc)
+    grid$hc<-hc
+
+    hc_ids<-lapply(split(grid,grid$hc)
+                   ,function(x) as.numeric(rownames(x)))
+    split_codebook<-lapply(hc_ids,function(ids){
+      codebook[ids,]
+    })
+
+    hc_imp<-lapply(seq_along(split_codebook),function(i){
+      code<-split_codebook[[i]]
+      variable_importance <- colSums(code)
+      res<-data.frame(sum_weight=variable_importance)
+      colnames(res)<-names(hc_ids)[i]
+      res
+    })
+    hcimp2<-do.call(cbind,hc_imp)
+    hc_imp_rel<-as.matrix(t(apply(hcimp2,1,function(x) x/sum(x))))
+    top_indicators <- apply(hc_imp_rel, 2, function(x) {
+      top_indices <- order(x, decreasing = TRUE)[1:n_top]
+      rownames(hc_imp_rel)[top_indices]
+    })
+    indicadores<-as.vector(unlist(top_indicators))
+    l_inds<-unique(indicadores)
   } else if(var_pie_type=="top"){
     hc_imp_rel<-as.matrix(t(apply(codebook,1,function(x) x/sum(x))))
     pic<-order(colSums(hc_imp_rel),decreasing=T)[1:n_top]
@@ -2089,6 +2083,7 @@ importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
   attr(l_inds,"imp_layer")<-layer
   l_inds
 }
+
 add_codebook_pies<-function(p,m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','top','top_w','manual'),Y_palette="turbo", var_pie=F,newcolhabs=list(turbo=viridis::turbo),var_pie_transp=0.1, layer=1,pie_variables=1:2){
   var_pie_type=match.arg(var_pie_type,c("rsquared",'top_hc','top','top_w','manual'))
   if(isFALSE(var_pie)){
@@ -2473,3 +2468,4 @@ plotnetwork_list2<-function(m,label=T, main="", show_points=T){
     text(res$x,res$y, labels=1:nrow(res), col="white")
   }
 }
+

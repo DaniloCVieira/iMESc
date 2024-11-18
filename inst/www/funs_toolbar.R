@@ -81,17 +81,15 @@ option_tips <- {
   list(
     "Rename a Datalist",
     "Combine two or more Datalists, either by rows or columns",
-    "Convert variables between numeric types and factors",
+    "Convert variables between numeric and factor types",
     "Replace Attributes with those from a new file",
-    "Modify the names of columns in a Datalist",
+    "Remove columns, rename them, or concatenate factor levels into new columns",
     "Modify the names of models in a Datalist",
-
-
-    "Rearrange a Datalist by flipping its rows and columns.",
-    "Access tools for creating and managing Shape Attributes",
-    "Run custom R scripts utilizing user-created Datalists within iMESc",
+    "Rearrange a Datalist by flipping rows and columns.",
+    "Create and manage Shape Attributes.",
+    "Run custom R scripts using user-created Datalists within iMESc.",
     "Manage saved Datalists and view their sizes",
-    "Permanently remove a Datalist "
+    "Permanently delete a Datalist "
   )
 }
 option_names<-{

@@ -204,7 +204,7 @@ table_results_tab1$ui<-function(id){
         ns("tbox1"),
         title="Downloads",
         color="#c3cc74ff",
-        div(
+        div(class='tip-80',
           div(div(tipify_ui(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
           div(tipify_ui(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
           div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
@@ -2893,7 +2893,7 @@ max-width: 100px;
                     id = ns("topocontrol"),
                     div(
                       style=" ;",class="inline_pickers2 som_grid",
-                      numericInput(ns("xdim"),span("xdim",tiphelp("Number of neurons along the x-axis")),value =5,min = 0,step = 1,width="70px"),
+                      numericInput(ns("xdim"),span("xdim",tiphelp6("Number of neurons along the x-axis")),value =5,min = 0,step = 1,width="70px"),
                       numericInput(ns("ydim"),span("ydim",tiphelp("Number of neurons along the y-axis")),
                                    value = 5,min = 0,step = 1,width="70px"),
                       pickerInput_fromtop(ns("topo"),span("Topology",tiphelp("<p>Arrangement of neurons within the grid.<p><code>Hexagonal</code>: each neuron has six neighboring neurons</p><p><code>Rectangular</code>: each neuron has four direct neighbors</p></p>")),

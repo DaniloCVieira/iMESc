@@ -5407,13 +5407,13 @@ tool4$server<-function(id,vals=NULL){
     bag_name<-reactive({
       paste0(
         if(length(input$rareabund)>0) {
-          if(isTRUE(input$rareabund)) {paste0("[,-",paste0("Abund<",input$pct_abund,"%"),"]")}
+          if(isTRUE(input$rareabund)) {paste0("(-",paste0("Abund<",input$pct_abund,"%"),")")}
         },
         if(length(input$rarefreq)>0) {
-          if(isTRUE(input$rarefreq)) {paste0("[,-",paste0("Freq<",input$pct_freq,"%"),"]")}
+          if(isTRUE(input$rarefreq)) {paste0("(-",paste0("Freq<",input$pct_freq,"%"),")")}
         },
         if(length(input$raresing)>0) {
-          if(isTRUE(input$raresing)) {paste0("[,-",input$raresing,"]")}
+          if(isTRUE(input$raresing)) {paste0("(-",input$raresing,")")}
         }
 
       )

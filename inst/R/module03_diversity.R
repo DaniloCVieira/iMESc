@@ -234,8 +234,9 @@ diversity_tool$ui<-function(id){
              box_caret(
                ns("box3"),inline=F,
                color="#374061ff",
-               title="Model Setup",
+               title=span("Model Setup",actionLink(ns("niche_help"),icon("fas fa-question-circle"))),
                div(
+
                  div(style="display: flex;gap:15px",class="setup_box picker-flex",
 
                      div(style="display: flex;",
@@ -498,6 +499,12 @@ column(
 diversity_tool$server<-function (id,vals ){
   moduleServer(id,function(input,output,session){
     ## isp
+
+    observeEvent(input$niche_help,{
+      browseURL("https://danilocvieira.github.io/iMESc_help/#niche-analysis")
+    })
+
+
 
     observeEvent(vals$newcolhabs,{
       updatePickerInput(session,'isp_palette', choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img),)

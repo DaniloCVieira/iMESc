@@ -4,7 +4,7 @@
 #' @noRd
 
 app_server<-server<-function(input, output, session) {
-  print("Start_server")
+
 
   session$sendCustomMessage("update_loading_message", "initializing packages...")
 
@@ -976,14 +976,13 @@ output$module_sl_server<-renderUI({
   output$preprocessing<-renderUI({
 
   })
-  message("Ready")
+
 
  # time000<-readRDS('inst/www/time000.rds')
   #timeend<-Sys.time()
   #print(timeend-time000)
   session$sendCustomMessage("hideSpinner", list())
-  print("end server")
-
+  message("Ready")
 }
 
 

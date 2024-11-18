@@ -713,7 +713,7 @@ app_server<-server<-function(input, output, session) {
     }
   })
 
-  session$sendCustomMessage("update_loading_message", "Almost done...")
+  session$sendCustomMessage("update_loading_message", "Finishing...")
   observe({
 
     cond<-length(vals$saved_data)>0

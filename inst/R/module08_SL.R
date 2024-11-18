@@ -8071,7 +8071,7 @@ caret_model$server<-function(id,vals){
       })
     })
 
-    observeEvent(input$model,{
+    observe({
       vals$cmodel<-input$model
     })
 

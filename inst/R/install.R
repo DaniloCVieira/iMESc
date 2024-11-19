@@ -47,11 +47,11 @@ install_imesc<-function(lib=.libPaths(),repo="https://cran.rstudio.com/"){
 
   if(!all(packs %in% installed)){
     if(exists('pb')){
-      setWinProgressBar(pb, .1,
+      setWinProgressBar(pb, .9,
                         label=paste0("Installing ",length(to_install)," missing packages..."))
     }
     pak::pkg_install(to_install,ask=F, lib=lib[1])
-    if(grepl(exists('pb'))){
+    if(exists('pb')){
       close(pb)
     }
 

@@ -1,3 +1,6 @@
+
+
+
 detach_package <- function(pkg,installed, character.only = FALSE)
 {
 
@@ -12,7 +15,6 @@ detach_package <- function(pkg,installed, character.only = FALSE)
 
 
 }
-
 
 install_imesc<-function(lib=.libPaths(),repo="https://cran.rstudio.com/"){
   installed<-installed.packages(lib.loc=lib)[,"Package"]
@@ -44,7 +46,18 @@ install_imesc<-function(lib=.libPaths(),repo="https://cran.rstudio.com/"){
   to_install <- pack_table[which(apply(pack_table[c('installed', 'current_version')], 1, sum) < 2),"required"]
 
   if(!all(packs %in% installed)){
+    if(grepl("iMESc-Dev",getwd())){
+      pb = winProgressBar(
+        title = sprintf('iMESc'),
+        label = 'Installing missing packages ...'
+      )
+      setWinProgressBar(pb, .0, label="Installing missing packages...")
+    }
     pak::pkg_install(to_install,ask=F, lib=lib[1])
+    if(grepl("iMESc-Dev",getwd())){
+      close(pb)
+    }
+
     pak::pak_cleanup(force=T)
   }
 

@@ -46,15 +46,12 @@ install_imesc<-function(lib=.libPaths(),repo="https://cran.rstudio.com/"){
   to_install <- pack_table[which(apply(pack_table[c('installed', 'current_version')], 1, sum) < 2),"required"]
 
   if(!all(packs %in% installed)){
-    if(grepl("iMESc-Dev",getwd())){
-      pb = winProgressBar(
-        title = sprintf('iMESc'),
-        label = 'Installing missing packages ...'
-      )
-      setWinProgressBar(pb, .0, label="Installing missing packages...")
+    if(exists('pb')){
+      setWinProgressBar(pb, .1,
+                        label=paste0("Installing ",length(to_install)," missing packages..."))
     }
     pak::pkg_install(to_install,ask=F, lib=lib[1])
-    if(grepl("iMESc-Dev",getwd())){
+    if(grepl(exists('pb'))){
       close(pb)
     }
 

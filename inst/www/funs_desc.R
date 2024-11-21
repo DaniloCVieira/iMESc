@@ -23,7 +23,7 @@ plot_ridges<-function(data,fac,palette,newcolhabs,ncol=3, title="",base_size=11)
 
 #' @export
 
-ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=1,cex.lab=1,
+ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=11,cex.lab=1,
                 cex.main=1,xlab=colnames(res)[1],ylab=colnames(res)[2],main="",
                 box_linecol="firebrick",box_alpha=0.7,newcolhabs,cex.label_panel=10,varwidth=F, linewidth=.8, theme='theme_bw', grid=T, background="white",xlab_rotate=0,ylab_rotate=0,nrow=NULL,ncol=2,box_title_font="italic",subtitle=NULL,cex.subtitle=10,              box_subtitle_font="plain") {
 

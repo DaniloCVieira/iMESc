@@ -455,35 +455,7 @@ importance_som_hc<-function(m,layer,hc, n_top){
 
 
 
-add_codebook_pies<-function(p,m,hc=NULL,n=5,var_pie_type=c('top_hc','top','top_w','manual'),Y_palette="turbo", var_pie=F,newcolhabs=list(turbo=viridis::turbo),var_pie_transp=0.1, layer=1,pie_variables=1:2){
-  var_pie_type=match.arg(var_pie_type,c('top_hc','top','top_w','manual'))
-  if(isFALSE(var_pie)){
-    return(p)
-  }
-  if(var_pie_type=="manual"){
-    varY<-pie_variables
-  } else{
-    varY<-importance_codebook(m,hc,n,var_pie_type, layer)
-  }
 
-  c_code<-data.frame(do.call(cbind,m$codes))
-  colnames(c_code)<-as.character(unlist(sapply(m$codes,colnames)))
-  c_code<-c_code[,varY]
-
-  codes2<-data.frame(id=rownames(c_code),m$grid$pts,c_code)
-  df3<-reshape2::melt(codes2, c('id',"x","y"))
-  colY<-c(newcolhabs[[Y_palette]] (length(varY)))
-  colY<-colorspace::lighten(colY,var_pie_transp)
-  df3$value2<-scales::rescale(df3$value,c(0,.45))
-  p2<-p +  ggforce::geom_arc_bar(data=df3,aes(x0 = x, y0 = y, r0 = 0, r = value2, amount = value,fill = variable),stat = 'pie',linewidth=0, colour=NA)
-
-  p<-p2+
-    scale_fill_manual(name="Variables",values = colY ,drop=F)
-  attr(p,"imp_results")<-attr(varY,"imp_results")
-  attr(p,"imp_layer")<-attr(varY,"imp_layer")
-  attr(p,"imp_vars")<-varY
-  p
-}
 #' @export
 bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,
                    var_pie=F,
@@ -682,154 +654,7 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
 #' @export
 
 
-bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2,text_repel=F,max.overlaps=10,show_legend=T,neuron_legend="Group",points_legend="Observations") {
 
-  if(isTRUE(show_legend)){
-    guide="legend"
-  } else{
-    guide="none"
-  }
-
-  if(!is.factor(points_tomap$point)){
-    points_tomap$point<-factor(points_tomap$point)
-  }
-  if(!is.factor(points_tomap$label)){
-    points_tomap$label<-factor(points_tomap$label)
-  }
-
-  req(length(hexs)>0)
-  hc<-do.call(c,lapply(hexs,function(x) x$group[1]))
-  req(length(hc[1])>0)
-  grid<-data.frame(m$grid$pts)
-  df<-do.call(rbind,hexs)
-  pxpy<-attr(hexs,"pxpy")
-  nx=pxpy[[4]][[1]]; ny=pxpy[[4]][[2]]; px=pxpy[[1]][[1]]; py=pxpy[[1]][[2]]; rang=pxpy[[2]]; rang2=pxpy[[3]];
-  if(!exists("col.arrow")){
-    col.arrow<-"black"
-  }
-  bg0<-bg_color<-newcolhabs[[bg_palette]](nlevels(hc))
-  bg_color<-colorspace::lighten(bg_color, bgalpha)
-  leg_name<-attr(hexs,"leg_name")
-  mybreaks<-scales::rescale(1:nx,c(min(grid$x)+px,max(grid$x)))
-  mybreaksy<-scales::rescale(1:ny,c(min(grid$y),max(grid$y)))
-  if(!is.null(show_error)){
-    err<-show_error
-    colnames(show_error)<-c("x","y","id")
-    show_error$err<-colnames(err)[3]
-    show_error$hc<-rownames(show_error)
-  }
-
-  if(isFALSE(fill_neurons)){
-    p<-ggplot() +
-      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, col=group), fill='white',linewidth=border_width) +xlab("")+ylab("")
-  } else{
-    p<-ggplot() +
-      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border,linewidth=border_width) +xlab("")+ylab("")
-  }
-
-
-
-
-  if(isFALSE(fill_neurons)){
-    p<-p+scale_color_manual(name=neuron_legend,values=bg_color,labels=  levels(hc) )
-  } else{
-    p<-p+scale_fill_manual(name=neuron_legend,values=bg_color,labels=if( !is.null(show_error)){
-      c(show_error$id,
-        if(anyNA(df)){""})
-    } else{   levels(hc) })
-  }
-
-  p<-add_codebook_pies(p,m,hc=hc,n=n_var_pie,var_pie_type=var_pie_type,Y_palette=Y_palette, var_pie=var_pie,newcolhabs=newcolhabs,var_pie_transp=var_pie_transp,layer=var_pie_layer,pie_variables=pie_variables)
-  imp_results<-attr(p,"imp_results")
-  imp_layer<-attr(p,"imp_layer")
-  imp_vars<-attr(p,"imp_vars")
-
-  if(!is.null(points_tomap)){
-    if(isTRUE(points)){
-      req(length(points_tomap)>0)
-      if(isTRUE(fill_neurons)){
-        colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
-      } else{
-        colpoints<-newcolhabs[[points_palette]](1)
-      }
-
-      namepoints<-attr(points_tomap,"namepoints")
-      if(length(unique(colpoints))==1){
-        points_tomap$point<-points_legend
-        namepoints=""
-      }
-
-
-      if(isTRUE(fill_neurons)){
-        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)
-        p<-p+scale_color_manual(name=namepoints,values=colpoints)
-      } else{
-        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt), size=points_size+2, shape=pch, col=colpoints)
-      }
-
-
-    }
-
-
-    if(isTRUE(text)){
-      req(length(points_tomap)>0)
-      coltext<-newcolhabs[[text_palette]](1)
-      if(isTRUE(text_repel)) {
-        p<- p+ggrepel::geom_text_repel(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext,max.overlaps = max.overlaps)
-      } else{
-        p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
-      }
-
-    }
-
-  }
-
-  if(!is.null(indicate)) {
-    validate(need(length(bp)>0,"Require variable biplot (bp)"))
-    coltext<-getcolhabs(newcolhabs,col.text,1)
-    colbg.var<-getcolhabs(newcolhabs,col.bg.var,1)
-    colbg.var<-adjustcolor(colbg.var, col.bg.var.alpha)
-    unit(1,"points")
-
-    p<-p+ggrepel::geom_label_repel(size = cex.var+3,data=bp, aes(x,y,label=id), fill=colbg.var,colour=coltext, seed=1)
-
-  }
-
-
-
-
-  p<-p+scale_x_continuous(limits=rang,breaks=mybreaks ,labels=1:nx)+
-    scale_y_continuous(limits=rang2,breaks=mybreaksy ,labels=1:ny)
-  p<-p+ coord_fixed()
-  if(isTRUE(show_neucoords)){
-    p<-p+ theme_light(
-      base_size=base_size
-    )+theme(panel.background=element_blank())
-
-  } else{
-    p<-p+ theme_void(
-      base_size=base_size
-    )+theme(panel.background=element_blank())
-  }
-  p<-p+ggtitle(title)
-  if(isTRUE(show_legend)){
-    p<-p+
-      guides(color = guide_legend(order=1),
-             size = guide_legend(order=2),
-             shape = guide_legend(order=3))
-  }  else{
-    p<-p+guides(color="none",fill="none")
-  }
-
-
-
-  attr(p,"imp_results")<-imp_results
-  attr(p,"imp_layer")<-imp_layer
-  attr(p,"imp_vars")<-imp_vars
-
-
-  p
-}
 #' @export
 pclus_new<-function(m,somC,points,points_factor,points_size,points_palette,pch,text,text_factor,text_size,text_palette,bg_palette,newcolhabs,bgalpha,border,npic,indicate,cex.var,col.text,col.bg.var,col.bg.var.alpha,background_type=c("hc","property","uMatrix"), property=NULL) {
   background_type<-match.arg(background_type,c("property","uMatrix","hc"))
@@ -1983,7 +1808,7 @@ gg_pcounts<-function(m){
   df<-do.call(rbind,hex)
   ggplot(df)+geom_polygon(aes(x,y,group=neu,fill=count),color="white")+scale_fill_gradientn(name="",colours=heat.colors(256)[-c(256:240)])+theme_void(base_size = 12)+ coord_fixed()
 }
-virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,selected=NULL,search =T,   optionHeight='24px',styles=NULL, searchPlaceholderText="Select all  -  Search",allOptionsSelectedText="All",selectAllText="Select all",alwaysShowSelectedOptionsCount=T,multiple=T,showSelectedOptionsFirst=F,...){
+virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,selected=NULL,search =T,   optionHeight='24px',styles=NULL, searchPlaceholderText="Select all  -  Search",allOptionsSelectedText="All",selectAllText="Select all",alwaysShowSelectedOptionsCount=T,multiple=T,showSelectedOptionsFirst=F,keepAlwaysOpen=T,...){
   class='picker_open'
 
 
@@ -2009,7 +1834,7 @@ virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,
           choices = choices,
           selected=selected,
           search = search,
-          keepAlwaysOpen = TRUE,
+          keepAlwaysOpen = keepAlwaysOpen,
           multiple =multiple,
           hideClearButton=T,
           alwaysShowSelectedOptionsCount=alwaysShowSelectedOptionsCount,
@@ -2024,6 +1849,161 @@ virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,
     )
   )
 }
+
+
+
+
+
+
+recreate_som<-function(m,length.out,session=MockShinySession$new()){
+
+  seed<-m$seed
+  ms<-list()
+  rlen=nrow(m$changes)
+
+  seq<-    round(seq(1,rlen,length.out=length.out))
+
+
+
+
+
+  withProgress(min=1,max=length(seq),message="Running...",session=session,{
+    for( i in seq) {
+
+      set.seed(seed)
+      m2<-supersom(m$data,m$grid,
+                   radius = m$radius,
+                   alpha =m$alpha,
+                   whatmap = m$whatmap,
+                   user.weights = m$user.weights,
+                   maxNA.fraction = m$maxNA.fraction,
+                   dist.fcts = m$dist.fcts,
+                   mode = m$mode,
+                   rlen=i,
+                   init=m$init,
+                   normalizeDataLayers = m$normalizeDataLayers)
+
+
+      ms[[length(ms)+1]]<-m2
+      incProgress(1,session=session)
+    }
+  })
+
+
+  return(ms)
+
+}
+
+
+split_vector_max_elements <- function(vec, max_length) {
+  split(vec, ceiling(seq_along(vec) / max_length))
+}
+scatter_hexagon<-function(x, y, radius = 0.1, fill="gray") {
+  # Create a scatter plot
+
+  # Draw hexagons around each point
+  for(i in 1:length(x)) {
+    draw_hexagon(x[i], y[i], radius, fill[i])
+  }
+}
+# Define draw_hexagon function
+draw_hexagon<-function(x, y, radius,fill) {
+  angles<-seq(0, 2*pi, length.out = 7) + pi/6  # Rotated by 90 degrees
+  x_hex<-x + radius * cos(angles)
+  y_hex<-y + radius * sin(angles)
+
+  polygon(x_hex, y_hex,col=fill, border=fill)
+}
+plotnetwork_list2<-function(m,label=T, main="", show_points=T){
+  col<-"Gray"
+  mds<-lapply(m$codes,function(x){
+    x<-sqrt(x^2)
+    res<-m$grid$pts*apply(x,1,mean)
+    # res<-m$grid$pts*apply(x,1,sum)
+    res[,1]<-scales::rescale(res[,1],range(m$grid$pts[,1]))
+    res[,2]<-scales::rescale(res[,2],range(m$grid$pts[,2]))
+    res
+  })
+  matdis2<-matdis<-unit.distances(m$grid)
+  dec<-decimalplaces(max(matdis2))
+  matdis2<-round(matdis2,dec)
+  neighs<-lapply(1:nrow(matdis2),function(i){
+    which(matdis2[i,]==1)
+  })
+
+
+  dist<-data.frame(as.matrix(object.distances(m)))
+  dist$unit<-m$unit.classif
+  splited<-split(dist,dist$unit)
+
+  mean_diss<-sapply(as.character(1:nrow(m$grid$pts)),function(i){
+    x<-  splited[[i]]
+    suppressWarnings(mean(unlist(x)))
+  })
+
+
+
+  cut<-cut(mean_diss,breaks=nrow(m$grid$pts))
+  cols<-viridis(nlevels(cut))[cut]
+
+  cols[   which(is.na(mean_diss))]<-"darkgray"
+
+  res<-data.frame(do.call(rbind,mds))
+  som_qualist<-errors_som(m)
+
+  plot(res,type="n", ann=F,axes=F        )
+  title(main= paste0("Interaction: ",nrow(m$changes)),"\n",
+        paste("err.quant:",round(as.numeric(unlist(som_qualist$som_quality[1,1])),3)))
+
+  for(j in 1:length(mds)){
+    for(i in 1:length(neighs)) {
+      nei<-neighs[[i]]
+      p0<-mds[[j]][i,]
+      p1<-mds[[j]][nei,]
+      # points(p0[1],p0[2], pch=16, col=col[j],cex=2)
+      segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
+
+
+    }
+
+
+  }
+
+
+  res$unit<-NA
+  res$unit[m$unit.classif]<-m$unit.classif
+  req(length(res)>0)
+  req(nrow(res)>0)
+
+  points<-do.call(rbind,lapply(1:nrow(res),function(i){
+    x<-res[i,]
+    n<-sum(m$unit.classif%in%i)
+    data.frame(x=x$x+ rnorm(n,0,0.06),
+               y=x$y+ rnorm(n,0,0.06))
+
+
+  }))
+
+
+  if(m$grid$topo=="rectangular"){
+    points(res, xlab="Distance", ylab="Distance",
+           pch=15,main=main,col=cols,cex=3)
+  } else{
+    scatter_hexagon(res$x, res$y, radius = 0.2, fill=cols)
+
+  }
+
+
+  if(isTRUE(show_points)){
+    points(points[1:2],pch=16,cex=.8)
+  }
+  if(isTRUE(label)){
+    req(nrow(res)>0)
+    text(res$x,res$y, labels=1:nrow(res), col="white")
+  }
+}
+
+
 importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','top','top_w','manual'), layer=1){
   var_pie_type=match.arg(var_pie_type,c("rsquared",'top_hc','top','top_w','manual'))
 
@@ -2069,8 +2049,10 @@ importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
       top_indices <- order(x, decreasing = TRUE)[1:n_top]
       rownames(hc_imp_rel)[top_indices]
     })
+
     indicadores<-as.vector(unlist(top_indicators))
     l_inds<-unique(indicadores)
+
   } else if(var_pie_type=="top"){
     hc_imp_rel<-as.matrix(t(apply(codebook,1,function(x) x/sum(x))))
     pic<-order(colSums(hc_imp_rel),decreasing=T)[1:n_top]
@@ -2081,6 +2063,7 @@ importance_codebook<-function(m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
   }
   attr(l_inds,"imp_results")<-hc_imp_rel
   attr(l_inds,"imp_layer")<-layer
+
   l_inds
 }
 
@@ -2102,6 +2085,7 @@ add_codebook_pies<-function(p,m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
     ii<-importance_codebook(m,hc,n,var_pie_type, layer)
     imp<-attr(ii,"imp_results")
     varY<-as.character(ii)
+    attr(varY,'imp_results')<-imp
     #c_code<-data.frame(imp[,varY])
   }
   c_code<-c_code[,varY]
@@ -2121,6 +2105,154 @@ add_codebook_pies<-function(p,m,hc=NULL,n=5,var_pie_type=c("rsquared",'top_hc','
   p
 }
 
+bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,var_pie=F,var_pie_type="top",var_pie_transp=0.1,n_var_pie=5,var_pie_layer=1,pie_variables=1:2,text_repel=F,max.overlaps=10,show_legend=T,neuron_legend="Group",points_legend="Observations") {
+
+  if(isTRUE(show_legend)){
+    guide="legend"
+  } else{
+    guide="none"
+  }
+
+  if(!is.factor(points_tomap$point)){
+    points_tomap$point<-factor(points_tomap$point)
+  }
+  if(!is.factor(points_tomap$label)){
+    points_tomap$label<-factor(points_tomap$label)
+  }
+
+  req(length(hexs)>0)
+  hc<-do.call(c,lapply(hexs,function(x) x$group[1]))
+  req(length(hc[1])>0)
+  grid<-data.frame(m$grid$pts)
+  df<-do.call(rbind,hexs)
+  pxpy<-attr(hexs,"pxpy")
+  nx=pxpy[[4]][[1]]; ny=pxpy[[4]][[2]]; px=pxpy[[1]][[1]]; py=pxpy[[1]][[2]]; rang=pxpy[[2]]; rang2=pxpy[[3]];
+  if(!exists("col.arrow")){
+    col.arrow<-"black"
+  }
+  bg0<-bg_color<-newcolhabs[[bg_palette]](nlevels(hc))
+  bg_color<-colorspace::lighten(bg_color, bgalpha)
+  leg_name<-attr(hexs,"leg_name")
+  mybreaks<-scales::rescale(1:nx,c(min(grid$x)+px,max(grid$x)))
+  mybreaksy<-scales::rescale(1:ny,c(min(grid$y),max(grid$y)))
+  if(!is.null(show_error)){
+    err<-show_error
+    colnames(show_error)<-c("x","y","id")
+    show_error$err<-colnames(err)[3]
+    show_error$hc<-rownames(show_error)
+  }
+
+  if(isFALSE(fill_neurons)){
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, col=group), fill='white',linewidth=border_width) +xlab("")+ylab("")
+  } else{
+    p<-ggplot() +
+      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border,linewidth=border_width) +xlab("")+ylab("")
+  }
+
+
+
+
+  if(isFALSE(fill_neurons)){
+    p<-p+scale_color_manual(name=neuron_legend,values=bg_color,labels=  levels(hc) )
+  } else{
+    p<-p+scale_fill_manual(name=neuron_legend,values=bg_color,labels=if( !is.null(show_error)){
+      c(show_error$id,
+        if(anyNA(df)){""})
+    } else{   levels(hc) })
+  }
+
+  p<-add_codebook_pies(p,m,hc=hc,n=n_var_pie,var_pie_type=var_pie_type,Y_palette=Y_palette, var_pie=var_pie,newcolhabs=newcolhabs,var_pie_transp=var_pie_transp,layer=var_pie_layer,pie_variables=pie_variables)
+  imp_results<-attr(p,"imp_results")
+  imp_layer<-var_pie_layer
+  imp_vars<-attr(p,"imp_vars")
+
+  if(!is.null(points_tomap)){
+    if(isTRUE(points)){
+      req(length(points_tomap)>0)
+      if(isTRUE(fill_neurons)){
+        colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
+      } else{
+        colpoints<-newcolhabs[[points_palette]](1)
+      }
+
+      namepoints<-attr(points_tomap,"namepoints")
+      if(length(unique(colpoints))==1){
+        points_tomap$point<-points_legend
+        namepoints=""
+      }
+
+
+      if(isTRUE(fill_neurons)){
+        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)
+        p<-p+scale_color_manual(name=namepoints,values=colpoints)
+      } else{
+        p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt), size=points_size+2, shape=pch, col=colpoints)
+      }
+
+
+    }
+
+
+    if(isTRUE(text)){
+      req(length(points_tomap)>0)
+      coltext<-newcolhabs[[text_palette]](1)
+      if(isTRUE(text_repel)) {
+        p<- p+ggrepel::geom_text_repel(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext,max.overlaps = max.overlaps)
+      } else{
+        p<- p+geom_text(data=points_tomap, aes(x_pt, y_pt, label=label),size=text_size+3,col=coltext)
+      }
+
+    }
+
+  }
+
+  if(!is.null(indicate)) {
+    validate(need(length(bp)>0,"Require variable biplot (bp)"))
+    coltext<-getcolhabs(newcolhabs,col.text,1)
+    colbg.var<-getcolhabs(newcolhabs,col.bg.var,1)
+    colbg.var<-adjustcolor(colbg.var, col.bg.var.alpha)
+    unit(1,"points")
+
+    p<-p+ggrepel::geom_label_repel(size = cex.var+3,data=bp, aes(x,y,label=id), fill=colbg.var,colour=coltext, seed=1)
+
+  }
+
+
+
+
+  p<-p+scale_x_continuous(limits=rang,breaks=mybreaks ,labels=1:nx)+
+    scale_y_continuous(limits=rang2,breaks=mybreaksy ,labels=1:ny)
+  p<-p+ coord_fixed()
+  if(isTRUE(show_neucoords)){
+    p<-p+ theme_light(
+      base_size=base_size
+    )+theme(panel.background=element_blank())
+
+  } else{
+    p<-p+ theme_void(
+      base_size=base_size
+    )+theme(panel.background=element_blank())
+  }
+  p<-p+ggtitle(title)
+  if(isTRUE(show_legend)){
+    p<-p+
+      guides(color = guide_legend(order=1),
+             size = guide_legend(order=2),
+             shape = guide_legend(order=3))
+  }  else{
+    p<-p+guides(color="none",fill="none")
+  }
+
+
+
+  attr(p,"imp_results")<-imp_results
+  attr(p,"imp_layer")<-var_pie_layer
+  attr(p,"imp_vars")<-imp_vars
+
+
+  p
+}
 
 bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,points_palette="turbo",pch=16,text=F,text_factor=NULL,text_size=1.5,text_palette="turbo",bg_palette="viridis",newcolhabs= vals$newcolhabs,bgalpha=1,border="white",indicate=NULL,cex.var=1,col.text="black",col.bg.var="white",col.bg.var.alpha=.8, newdata=NULL, show_error=NULL,base_size=12,show_neucoords=T,title="", hc=NULL, plotY=F,Y_palette="turbo", property=NULL,fill_neurons=F,border_width=0.5,
                    var_pie=F,
@@ -2316,156 +2448,3 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
   attr(p,"imp_vars")<-imp_vars
   p
 }
-
-
-
-
-
-recreate_som<-function(m,length.out,session=MockShinySession$new()){
-
-  seed<-m$seed
-  ms<-list()
-  rlen=nrow(m$changes)
-
-  seq<-    round(seq(1,rlen,length.out=length.out))
-
-
-
-
-
-  withProgress(min=1,max=length(seq),message="Running...",session=session,{
-    for( i in seq) {
-
-      set.seed(seed)
-      m2<-supersom(m$data,m$grid,
-                   radius = m$radius,
-                   alpha =m$alpha,
-                   whatmap = m$whatmap,
-                   user.weights = m$user.weights,
-                   maxNA.fraction = m$maxNA.fraction,
-                   dist.fcts = m$dist.fcts,
-                   mode = m$mode,
-                   rlen=i,
-                   init=m$init,
-                   normalizeDataLayers = m$normalizeDataLayers)
-
-
-      ms[[length(ms)+1]]<-m2
-      incProgress(1,session=session)
-    }
-  })
-
-
-  return(ms)
-
-}
-
-
-split_vector_max_elements <- function(vec, max_length) {
-  split(vec, ceiling(seq_along(vec) / max_length))
-}
-scatter_hexagon<-function(x, y, radius = 0.1, fill="gray") {
-  # Create a scatter plot
-
-  # Draw hexagons around each point
-  for(i in 1:length(x)) {
-    draw_hexagon(x[i], y[i], radius, fill[i])
-  }
-}
-# Define draw_hexagon function
-draw_hexagon<-function(x, y, radius,fill) {
-  angles<-seq(0, 2*pi, length.out = 7) + pi/6  # Rotated by 90 degrees
-  x_hex<-x + radius * cos(angles)
-  y_hex<-y + radius * sin(angles)
-
-  polygon(x_hex, y_hex,col=fill, border=fill)
-}
-plotnetwork_list2<-function(m,label=T, main="", show_points=T){
-  col<-"Gray"
-  mds<-lapply(m$codes,function(x){
-    x<-sqrt(x^2)
-    res<-m$grid$pts*apply(x,1,mean)
-    # res<-m$grid$pts*apply(x,1,sum)
-    res[,1]<-scales::rescale(res[,1],range(m$grid$pts[,1]))
-    res[,2]<-scales::rescale(res[,2],range(m$grid$pts[,2]))
-    res
-  })
-  matdis2<-matdis<-unit.distances(m$grid)
-  dec<-decimalplaces(max(matdis2))
-  matdis2<-round(matdis2,dec)
-  neighs<-lapply(1:nrow(matdis2),function(i){
-    which(matdis2[i,]==1)
-  })
-
-
-  dist<-data.frame(as.matrix(object.distances(m)))
-  dist$unit<-m$unit.classif
-  splited<-split(dist,dist$unit)
-
-  mean_diss<-sapply(as.character(1:nrow(m$grid$pts)),function(i){
-    x<-  splited[[i]]
-    suppressWarnings(mean(unlist(x)))
-  })
-
-
-
-  cut<-cut(mean_diss,breaks=nrow(m$grid$pts))
-  cols<-viridis(nlevels(cut))[cut]
-
-  cols[   which(is.na(mean_diss))]<-"darkgray"
-
-  res<-data.frame(do.call(rbind,mds))
-  som_qualist<-errors_som(m)
-
-  plot(res,type="n", ann=F,axes=F        )
-  title(main= paste0("Interaction: ",nrow(m$changes)),"\n",
-        paste("err.quant:",round(as.numeric(unlist(som_qualist$som_quality[1,1])),3)))
-
-  for(j in 1:length(mds)){
-    for(i in 1:length(neighs)) {
-      nei<-neighs[[i]]
-      p0<-mds[[j]][i,]
-      p1<-mds[[j]][nei,]
-      # points(p0[1],p0[2], pch=16, col=col[j],cex=2)
-      segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
-
-
-    }
-
-
-  }
-
-
-  res$unit<-NA
-  res$unit[m$unit.classif]<-m$unit.classif
-  req(length(res)>0)
-  req(nrow(res)>0)
-
-  points<-do.call(rbind,lapply(1:nrow(res),function(i){
-    x<-res[i,]
-    n<-sum(m$unit.classif%in%i)
-    data.frame(x=x$x+ rnorm(n,0,0.06),
-               y=x$y+ rnorm(n,0,0.06))
-
-
-  }))
-
-
-  if(m$grid$topo=="rectangular"){
-    points(res, xlab="Distance", ylab="Distance",
-           pch=15,main=main,col=cols,cex=3)
-  } else{
-    scatter_hexagon(res$x, res$y, radius = 0.2, fill=cols)
-
-  }
-
-
-  if(isTRUE(show_points)){
-    points(points[1:2],pch=16,cex=.8)
-  }
-  if(isTRUE(label)){
-    req(nrow(res)>0)
-    text(res$x,res$y, labels=1:nrow(res), col="white")
-  }
-}
-

@@ -906,6 +906,18 @@ padding: 2px;
 }
 .checktitle2 .checkbox span {
 margin-left: -5px;
+}
+
+
+.modal-100 .modal-dialog {
+  min-width: calc(100% - 17%);
+  width: calc(100% - 17%); /* 100% - 17% width */
+  max-width: 83vw;         /* Optional: ensures responsiveness */
+
+}
+
+.modal-100 .modal-content {
+   max-width: 83vw;     /* Fill the height of the modal */
 
 }
 

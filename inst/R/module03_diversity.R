@@ -1,30 +1,51 @@
 
-## Licensed under the CC BY-NC-ND 4.0 license.
-#' @noRd
-
-#' @export
-#'
-
-
-gg_indicators<-function(indicator_table,top_result,pal="turbo",theme="theme_bw",base_size=12,min_size=1,max_size=12,xlab="",ylab="",title="",axis.text.size=12,axis.size=12,alpha=0.75,newcolhabs=list(turbo=viridis::turbo)){
+gg_indicators<-function(indicator_table,top_result,pal="turbo",theme="theme_bw",base_size=12,min_size=1,max_size=12,xlab="",ylab="",title="",axis.text.size=12,axis.size=12,alpha=0.75,newcolhabs=list(turbo=viridis::turbo),xlab_rotate=0, vjust=.5,
+                        hjust=0.5,drop=T){
   df<-indicator_table
+
   df<-df[df$var%in%names(top_result),]
+
+
+  n<-5
+  if(length(unique(df$stat))<5){
+    n<-length(unique(df$stat))
+  }
+
+
+  #saveRDS(df,paste0(title,'_indicator_table.rds'))
+
+  breaks<-scales::cbreaks(range(df$stat),
+                          breaks=scales::breaks_extended(n),
+                          labels=scales::number_format())
+
+  breaks<-breaks$breaks
+
   p<-ggplot(df, aes(x = group, y = var)) +
     geom_point(aes(size = stat, fill = group), alpha = alpha, shape = 21) +   scale_fill_manual(values=newcolhabs[[pal]](nlevels(df$group)), guide = "none")+xlab(xlab)+ylab(ylab)+ggtitle(title)+scale_size_continuous(
-      range=c(min_size,max_size)
+      range=c(min_size,max_size),
+      breaks=as.numeric(breaks)
+
     )
+  p<-p+scale_x_discrete(breaks=levels(df$group),drop=F)
+
   p<-add_ggtheme(p,theme,base_size )
   p<-p+  theme(
     axis.text = element_text(size=axis.text.size),
-    axis.title = element_text(size=axis.size))
+    axis.title = element_text(size=axis.size),
+    axis.text.x = element_text(angle = xlab_rotate,vjust = vjust, hjust = hjust))
+
 
   return(p)
 }
 
 
-indicator_multipart<-function(data,hc,npic=5,func="IndVal.g",nperm=199){
 
-  indicator_r.g = indicspecies::multipatt(data, hc, func=func, duleg=T,control=permute::how(nperm=nperm))
+indicator_multipart<-function(data,hc,npic=5,func="IndVal.g",nperm=199,duleg=T,min.order=1,max.order=2,seed=NA){
+
+  if(!is.na(seed)){
+    set.seed(seed)
+  }
+  indicator_r.g = indicspecies::multipatt(data, hc, func=func, duleg=duleg,control=permute::how(nperm=nperm),min.order=min.order,max.order=max.order)
 
   attr(indicator_r.g,"y")<-hc
 
@@ -121,8 +142,18 @@ summary_multipatt<-function(indicator_r.g){
   sssdf<-do.call(rbind,sss)
   hcs<-do.call(c, lapply(names(sss),function(x) rep(x,nrow(sss[[x]]))))
   indresult<-data.frame(group=hcs,var=do.call(c,lapply(sss,function(x) rownames(x))),sssdf)
+  indresult_group<-indresult$group
+  #indresult_group[1:2]<-c("1m","2300m")
+  uni_lev_result<-unique(indresult_group)
+  if(any(levels(y0)%in%uni_lev_result)){
+    newlevels<-levels(y0)[levels(y0)%in%uni_lev_result]
+    newlevels2<-uni_lev_result[!uni_lev_result%in%levels(y0)]
+    factor_vector<-factor(indresult_group,levels=c(newlevels,newlevels2))
+  } else{
+    factor_vector<-factor(indresult_group)
+  }
+  indresult$group<-factor_vector
 
-  indresult$group<-factor(indresult$group,levels=levels(y0))
   indresult
 }
 
@@ -150,349 +181,362 @@ diversity_tool$ui<-function(id){
     h4("Biodiversity Tools", class="imesc_title"),
 
     tabsetPanel(
-    #selected="tab_isp",
-    tabPanel(
-      "1. Diversity indices",
-      box_caret(ns("box_setup1"),inline=F,show_tittle=F,
-                color="#374061ff",
-                title="Setup",
-                div(
-                  div(style="display: flex;height: 50px",class="setup_box picker-flex",
-                      div(
-                        style="display: flex;",
-                        div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_div"),"", choices=NULL,  options=shinyWidgets::pickerOptions(liveSearch =T)))
-                      ),
-
-
-                      uiOutput(ns('try_chao_fisher'))
-
-                  ))),
-
-      column(
-        4,class="mp0",
-        box_caret(ns('box1'),
-                  title="Diversity indices",
-                  color="#c3cc74ff",
+      # selected="tab_isp",
+      tabPanel(
+        "1. Diversity indices",
+        box_caret(ns("box_setup1"),inline=F,show_tittle=F,
+                  color="#374061ff",
+                  title="Setup",
                   div(
-                    checkboxGroupInput(
-                      ns("divInds"),
-                      NULL,
-                      choiceValues =list(
-                        "N","S","Margalef","Simpson","InvSimpson","Shannon","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
-                      ),
-                      selected=c(
-                        "N","S","Margalef","Simpson","InvSimpson","Shannon","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
-                      ),
-                      inline = F,
+                    div(style="display: flex;height: 50px",class="setup_box picker-flex",
+                        div(
+                          style="display: flex;",
+                          div(class="setup_box picker-flex picker-before-x",pickerInput_fromtop(ns("data_div"),"", choices=NULL,  options=shinyWidgets::pickerOptions(liveSearch =T)))
+                        ),
 
-                      choiceNames =list(
-                        span("N", actionLink(ns('Nhelp'),icon("fas fa-question-circle")), uiOutput(ns("Nhelp"))),
-                        span("S",actionLink(ns('Shelp'),icon("fas fa-question-circle")), uiOutput(ns("Shelp"))),
-                        span("Margalef",actionLink(ns('mhelp'),icon("fas fa-question-circle")), uiOutput(ns("mhelp"))),
-                        span("Simpson",actionLink(ns('Dhelp'),icon("fas fa-question-circle")), uiOutput(ns("Dhelp"))),
-                        span("InvSimpson",actionLink(ns('InvDhelp'),icon("fas fa-question-circle")), uiOutput(ns("InvDhelp"))),
-                        span("Shannon",actionLink(ns('Hhelp'),icon("fas fa-question-circle")), uiOutput(ns("Hhelp"))),
-                        span("Hlog2",actionLink(ns('Hloghelp'),icon("fas fa-question-circle")), uiOutput(ns("Hloghelp"))),
-                        span("Hlog10",actionLink(ns('Hlog10help'),icon("fas fa-question-circle")), uiOutput(ns("Hlog10help"))),
-                        span("J",actionLink(ns('Jhelp'),icon("fas fa-question-circle")), uiOutput(ns("Jhelp"))),
 
-                        span("Dom_rel",actionLink(ns('Domhelp'),icon("fas fa-question-circle")), uiOutput(ns("Domhelp"))),
-                        span("Skewness",actionLink(ns('Skhelp'),icon("fas fa-question-circle")),uiOutput(ns("Skhelp"))),
-                        span("Chao1",actionLink(ns('Chao1help'),icon("fas fa-question-circle")),uiOutput(ns("Chao1help"))),
-                        span("Fisher",actionLink(ns('Fisherhelp'),icon("fas fa-question-circle")),uiOutput(ns("Fisherhelp"))),
-                        span("BP",actionLink(ns('BPhelp'),icon("fas fa-question-circle")),uiOutput(ns("BPhelp")))
+                        uiOutput(ns('try_chao_fisher'))
+
+                    ))),
+
+        column(
+          4,class="mp0",
+          box_caret(ns('box1'),
+                    title="Diversity indices",
+                    color="#c3cc74ff",
+                    div(
+                      checkboxGroupInput(
+                        ns("divInds"),
+                        NULL,
+                        choiceValues =list(
+                          "N","S","Margalef","Simpson","InvSimpson","Shannon","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
+                        ),
+                        selected=c(
+                          "N","S","Margalef","Simpson","InvSimpson","Shannon","Hlog2","Hlog10","J'","Dom_rel","Skewness",'Chao1','Fisher','BP'
+                        ),
+                        inline = F,
+
+                        choiceNames =list(
+                          span("N", actionLink(ns('Nhelp'),icon("fas fa-question-circle")), uiOutput(ns("Nhelp"))),
+                          span("S",actionLink(ns('Shelp'),icon("fas fa-question-circle")), uiOutput(ns("Shelp"))),
+                          span("Margalef",actionLink(ns('mhelp'),icon("fas fa-question-circle")), uiOutput(ns("mhelp"))),
+                          span("Simpson",actionLink(ns('Dhelp'),icon("fas fa-question-circle")), uiOutput(ns("Dhelp"))),
+                          span("InvSimpson",actionLink(ns('InvDhelp'),icon("fas fa-question-circle")), uiOutput(ns("InvDhelp"))),
+                          span("Shannon",actionLink(ns('Hhelp'),icon("fas fa-question-circle")), uiOutput(ns("Hhelp"))),
+                          span("Hlog2",actionLink(ns('Hloghelp'),icon("fas fa-question-circle")), uiOutput(ns("Hloghelp"))),
+                          span("Hlog10",actionLink(ns('Hlog10help'),icon("fas fa-question-circle")), uiOutput(ns("Hlog10help"))),
+                          span("J",actionLink(ns('Jhelp'),icon("fas fa-question-circle")), uiOutput(ns("Jhelp"))),
+
+                          span("Dom_rel",actionLink(ns('Domhelp'),icon("fas fa-question-circle")), uiOutput(ns("Domhelp"))),
+                          span("Skewness",actionLink(ns('Skhelp'),icon("fas fa-question-circle")),uiOutput(ns("Skhelp"))),
+                          span("Chao1",actionLink(ns('Chao1help'),icon("fas fa-question-circle")),uiOutput(ns("Chao1help"))),
+                          span("Fisher",actionLink(ns('Fisherhelp'),icon("fas fa-question-circle")),uiOutput(ns("Fisherhelp"))),
+                          span("BP",actionLink(ns('BPhelp'),icon("fas fa-question-circle")),uiOutput(ns("BPhelp")))
+                        )
+
+
                       )
+                    )
+          )
+
+        ),
+        column(
+          8,class="mp0",
+          box_caret(ns('box2'),
+                    title="Table",
+                    button_title = actionLink(ns("download_table"),"Download",icon("download")),
+                    div(style="width: 100%",
+
+
+                        div(align="right",
+                            span(actionLink(ns("tools_savediv"), "Create Datalist"),tiphelp("Create Datalist with Diversity results"))
+                        ),
+                        uiOutput(ns('div_results'))
 
 
                     )
-                  )
+          )
+
         )
 
       ),
-      column(
-        8,class="mp0",
-        box_caret(ns('box2'),
-                  title="Table",
-                  button_title = actionLink(ns("download_table"),"Download",icon("download")),
-                  div(style="width: 100%",
+      tabPanel('2. Niche Analysis',value="tab_omi",
 
-
-                      div(align="right",
-                          span(actionLink(ns("tools_savediv"), "Create Datalist"),tiphelp("Create Datalist with Diversity results"))
-                      ),
-                      uiOutput(ns('div_results'))
-
-
-                  )
-        )
-
-      )
-
-    ),
-    tabPanel('2. Niche Analysis',value="tab_omi",
-
-             box_caret(
-               ns("box3"),inline=F,
-               color="#374061ff",
-               title=span("Model Setup",actionLink(ns("niche_help"),icon("fas fa-question-circle"))),
-               div(
-
-                 div(style="display: flex;gap:15px",class="setup_box picker-flex",
-
-                     div(style="display: flex;",
-                         div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
-                         pickerInput(ns("omi_X"),NULL, choices=NULL)),
-                     div(style="text-align: center",
-                         div(strong("~")),
-                         div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left"),style=""))
-                     ),
-                     div(style="display: flex;",
-                         div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
-                         pickerInput(ns("omi_Y"),NULL, choices=NULL)),
-                     actionButton(ns('run_niche'),"RUN")
-
-                 )
-
-               )
-
-             ),
-
-             column(
-               4,class="mp0",
                box_caret(
-                 ns("box4"),
-                 title="Options",
-                 color="#c3cc74ff",
-                 div(div(class="radio_search radio_yellow",
-                         radioGroupButtons(ns("show_niche"), "Show", choices = c("Plot","Table"))),
-
-                     pickerInput(ns("omi_result"),'Result',choices=c('Niche params',"species coordinates","variable coordinates","Site coordinates","Axis upon niche axis","EBNB"),selected="EBNB"),
-                     uiOutput(ns("ebnb_pc")),
-                     pickerInput_fromtop_live(ns("palette"),
-                                         label = "Palette:",
-                                         choices=NULL)
-                 )
-               ),
-               div(id=ns("ebnb_obsel"),
-                   box_caret(
-                     ns("box6"),
-                     title="Observation selection",
-                     color="#c3cc74ff",
-                     DT::dataTableOutput(ns('observation_selection'))
-
-                   )
-               )
-
-             ),
-             column(8,class="mp0",
-                    box_caret(
-                      ns("box5"),
-                      title="Results",
-                      button_title = span(actionLink(ns('downp_perf'),"Download",icon('download')),actionLink(ns('omi_down'),'Download',icon('download'))),
-                      div(align="right", tipify_ui(actionLink(ns('omi_save_datalist'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
-                          uiOutput(ns('omi_plot1')),
-                          uiOutput(ns('omi_tables'))
-
-                      )
-                    ))
-
-    ),
-    tabPanel('3. Simper Analysis',value="tab_simper",
-
-             box_caret(
-               ns("box3"),inline=F,
-               color="#374061ff",
-               title="Model Setup",
-               div(
-                 div(style="display: flex;gap:15px",class="setup_box picker-flex",
-                     div(style="display: flex;",
-                         div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
-                         pickerInput(ns("simper_X"),NULL, choices=NULL)),
-
-
-                     div(style="display: flex;",
-                         div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
-                         pickerInput(ns("simper_Y"),NULL, choices=NULL),
-                         pickerInput(ns("simper_group"),NULL, choices=NULL)),
-
-
-                     actionButton(ns('run_simper'),"RUN"),
-                     div(align="right",
-                         div(pickerInput_fromtop(ns("simper_results"),"Results",choices=NULL)),
-                     ),
-                     div(
-                       id=ns('save_simper_btn'),
-                       class="save_changes",
-                       actionButton(ns("save_simper"),icon("fas fa-save"))
-
-                     )
-                 )
-               )
-
-             ),
-             column(
-               4,class="mp0",
-               box_caret(
-                 ns("box4"),
-                 title="Options",
-                 color="#c3cc74ff",
+                 ns("box3"),inline=F,
+                 color="#374061ff",
+                 title=span("Model Setup",actionLink(ns("niche_help"),icon("fas fa-question-circle"))),
                  div(
-                   numericInput(ns('simper_permutations'),"Permutations",99),
-                   pickerInput_fromtop(ns("simper_contrast"),"Show Contrast","All"),
 
-                   numericInput(ns('simper_top'),"Top",10),
-                   uiOutput(ns('simper_indicadoras')),
-                   actionLink(ns("download_indicadoras"),"Download",icon("download"))
+                   div(style="display: flex;gap:15px",class="setup_box picker-flex",
 
-                 )
-               )
+                       div(style="display: flex;",
+                           div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                           pickerInput(ns("omi_X"),NULL, choices=NULL)),
+                       div(style="text-align: center",
+                           div(strong("~")),
+                           div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left"),style=""))
+                       ),
+                       div(style="display: flex;",
+                           div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                           pickerInput(ns("omi_Y"),NULL, choices=NULL)),
+                       actionButton(ns('run_niche'),"RUN")
 
-
-             ),
-             column(8,class="mp0",
-                    box_caret(
-                      ns("box5"),
-                      title="Results",
-                      button_title = actionLink(ns('download_simper'),"Download",icon('download')),
-                      div(align="right", tipify_ui(actionLink(ns('simper_create_dl'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
-
-                          uiOutput(ns('simper_tables'))
-
-                      )
-                    ))
-
-    ),
-    tabPanel('4. Indicator species analysis',value="tab_isp",
-             div(
-               id=ns("isp_install"),
-               div(emgray("This Tool requires",code('indicspecies'),emgray("package"))),
-               actionButton(ns("isp_install_run"),"Install")
-             ),
-             div(id=ns("isp_on"),
-                 box_caret(
-                   ns("box3"),inline=F,
-                   color="#374061ff",
-                   title="Model Setup",
-                   div(
-                     div(style="display: flex;gap:15px",class="setup_box picker-flex",
-                         div(style="display: flex;",
-                             div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
-                             pickerInput(ns("isp_X"),NULL, choices=NULL)),
-
-
-                         div(style="display: flex;",
-                             div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
-                             pickerInput(ns("isp_Y"),NULL, choices=NULL),
-                             pickerInput(ns("isp_group"),NULL, choices=NULL))
-
-
-
-
-                     )
                    )
 
+                 )
+
+               ),
+
+               column(
+                 4,class="mp0",
+                 box_caret(
+                   ns("box4"),
+                   title="Options",
+                   color="#c3cc74ff",
+                   div(div(class="radio_search radio_yellow",
+                           radioGroupButtons(ns("show_niche"), "Show", choices = c("Plot","Table"))),
+
+                       pickerInput(ns("omi_result"),'Result',choices=c('Niche params',"species coordinates","variable coordinates","Site coordinates","Axis upon niche axis","EBNB"),selected="EBNB"),
+                       uiOutput(ns("ebnb_pc")),
+                       pickerInput_fromtop_live(ns("palette"),
+                                                label = "Palette:",
+                                                choices=NULL)
+                   )
                  ),
-                 column(
-                   4,class="mp0",
-                   box_caret(
-                     ns("box_isp1"),
-                     title="Options",
-                     color="#c3cc74ff",
-                     div(
-                       pickerInput(
-                         ns("isp_method"),span('Method',tipright("<p>This functionality uses<code>multipatt</code> function from <code>indicspecies</code> package</p>")),
-                         c("Multipart"="multipatt"
-                           #"Indicators"='indicators'
-                         )
-
-                       ),
-                       pickerInput(
-                         ns("isp_func"),
-                         "Indicator Value",
-                         choices = c("IndVal", "IndVal.g", "r", "r.g"),
-                         selected="IndVal.g",
-                         choicesOpt = list(
-
-                           subtext = list(
-                             "Classic IndVal method for single groups",
-                             "Generalized IndVal method for group combinations",
-                             "Correlation coefficient for single groups",
-                             "Generalized correlation coefficient for group combinations"
-                           )
-                         )
-                       ),
-                       numericInput(ns('isp_nperm'),span("nperm",tipright("Number of permutations")),value=199)
+                 div(id=ns("ebnb_obsel"),
+                     box_caret(
+                       ns("box6"),
+                       title="Observation selection",
+                       color="#c3cc74ff",
+                       DT::dataTableOutput(ns('observation_selection'))
 
                      )
+                 )
 
+               ),
+               column(8,class="mp0",
+                      box_caret(
+                        ns("box5"),
+                        title="Results",
+                        button_title = span(actionLink(ns('downp_perf'),"Download",icon('download')),actionLink(ns('omi_down'),'Download',icon('download'))),
+                        div(align="right", tipify_ui(actionLink(ns('omi_save_datalist'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
+                            uiOutput(ns('omi_plot1')),
+                            uiOutput(ns('omi_tables'))
+
+                        )
+                      ))
+
+      ),
+      tabPanel('3. Simper Analysis',value="tab_simper",
+
+               box_caret(
+                 ns("box3"),inline=F,
+                 color="#374061ff",
+                 title="Model Setup",
+                 div(
+                   div(style="display: flex;gap:15px",class="setup_box picker-flex",
+                       div(style="display: flex;",
+                           div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                           pickerInput(ns("simper_X"),NULL, choices=NULL)),
+
+
+                       div(style="display: flex;",
+                           div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                           pickerInput(ns("simper_Y"),NULL, choices=NULL),
+                           pickerInput(ns("simper_group"),NULL, choices=NULL)),
+
+
+                       actionButton(ns('run_simper'),"RUN"),
+                       div(align="right",
+                           div(pickerInput_fromtop(ns("simper_results"),"Results",choices=NULL)),
+                       ),
+                       div(
+                         id=ns('save_simper_btn'),
+                         class="save_changes",
+                         actionButton(ns("save_simper"),icon("fas fa-save"))
+
+                       )
+                   )
+                 )
+
+               ),
+               column(
+                 4,class="mp0",
+                 box_caret(
+                   ns("box4"),
+                   title="Options",
+                   color="#c3cc74ff",
+                   div(
+                     numericInput(ns('simper_permutations'),"Permutations",99),
+                     pickerInput_fromtop(ns("simper_contrast"),"Show Contrast","All"),
+
+                     numericInput(ns('simper_top'),"Top",10),
+                     uiOutput(ns('simper_indicadoras')),
+                     actionLink(ns("download_indicadoras"),"Download",icon("download"))
+
+                   )
+                 )
+
+
+               ),
+               column(8,class="mp0",
+                      box_caret(
+                        ns("box5"),
+                        title="Results",
+                        button_title = actionLink(ns('download_simper'),"Download",icon('download')),
+                        div(align="right", tipify_ui(actionLink(ns('simper_create_dl'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
+
+                            uiOutput(ns('simper_tables'))
+
+                        )
+                      ))
+
+      ),
+      tabPanel('4. Indicator species analysis',value="tab_isp",
+               div(
+                 id=ns("isp_install"),
+                 div(emgray("This Tool requires",code('indicspecies'),emgray("package"))),
+                 actionButton(ns("isp_install_run"),"Install")
+               ),
+               div(id=ns("isp_on"),
+                   box_caret(
+                     ns("box3"),inline=F,
+                     color="#374061ff",
+                     title="Model Setup",
+                     div(
+                       div(style="display: flex;gap:15px",class="setup_box picker-flex",
+                           div(style="display: flex;",
+                               div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                               pickerInput(ns("isp_X"),NULL, choices=NULL)),
+
+
+                           div(style="display: flex;",
+                               div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                               pickerInput(ns("isp_Y"),NULL, choices=NULL),
+                               pickerInput(ns("isp_group"),NULL, choices=NULL))
+
+
+
+
+                       )
+                     )
+
+                   ),
+                   column(
+                     4,class="mp0",
+                     box_caret(
+                       ns("box_isp1"),
+                       title="Options",
+                       color="#c3cc74ff",
+                       div(
+                         pickerInput(
+                           ns("isp_method"),span('Method',tipright("<p>This functionality uses<code>multipatt</code> function from <code>indicspecies</code> package</p>")),
+                           c("Multipart"="multipatt"
+                             #"Indicators"='indicators'
+                           )
+
+                         ),
+                         pickerInput(
+                           ns("isp_func"),
+                           span("Indicator Value",actionLink(ns('isp_func_help'),tipify(icon("fas fa-question-circle"),"Click for details"))),
+                           choices = c("IndVal", "IndVal.g", "r", "r.g"),
+                           selected="IndVal.g",
+                           choicesOpt = list(
+
+                             subtext = list(
+                               "Classic IndVal method for single groups",
+                               "Generalized IndVal method for group combinations",
+                               "Correlation coefficient for single groups",
+                               "Generalized correlation coefficient for group combinations"
+                             )
+                           )
+                         ),
+                         checkboxInput(ns("duleg"),tiphelp5('duleg',"If checked, site group combinations are not considered, only the original site groups, like in Dufrêne & Legendre (1997).")),
+
+                         numericInput(ns('min.order'),span("min.order",tipright("The minimum order of site group combinations.Cannot be larger than max.order")),value=1),
+
+                         numericInput(ns('max.order'),span("max.order",tipright("The maximum order of site group combinations to be considered")),value=2),
+                         numericInput(ns("seed"), strong("seed",tipify_ui(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1),
+                         numericInput(ns('isp_nperm'),span("nperm",tipright("Number of permutations")),value=199)
+
+                       )
+
+
+
+                     ),
+                     box_caret(
+                       ns("box_isp1"),
+                       title="Plot Options",
+                       color="#c3cc74ff",
+                       div(style="max-height: 250px; overflow-y: auto",
+                           pickerInput_fromtop_live(ns("isp_palette"),
+                                                    label = "Palette:",
+                                                    choices=NULL),
+
+                           pickerInput_fromtop(ns("isp_theme"),"Theme:",c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_minimal','theme_classic')),
+                           numericInput(ns("isp_base_size"),"Base size",value=12),
+                           numericInput(ns("isp_min_size"),"min_size",value=1),
+                           numericInput(ns("isp_max_size"),"max_size",value=12),
+                           numericInput(ns('isp_xlab_rotate'),span("x text angle:", tiphelp6("Set the angle of the X-axis text labels.")), 0,step=5),
+                           numericInput(ns("hjust"),"hjust",value=0.5),
+                           numericInput(ns("vjust"),"vjust",value=0.5),
+
+                           textInput(ns('isp_title'),"title",""),
+                           textInput(ns('isp_xlab'),"xlab",""),
+                           textInput(ns('isp_ylab'),"ylab",""),
+                           numericInput(ns("isp_axis.size"),"Axis label size",value=11),
+                           numericInput(ns("isp_axis.text.size"),"Axis text size",value=11),
+
+
+
+
+
+
+
+
+                       )
+
+
+
+                     )
 
 
                    ),
-                   box_caret(
-                     ns("box_isp1"),
-                     title="Plot Options",
-                     color="#c3cc74ff",
-                     div(style="max-height: 250px; overflow-y: auto",
-                         pickerInput_fromtop_live(ns("isp_palette"),
-                                             label = "Palette:",
-                                             choices=NULL),
 
-                         pickerInput_fromtop(ns("isp_theme"),"Theme:",c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_minimal','theme_classic')),
-                         numericInput(ns("isp_base_size"),"",value=12),
-                         numericInput(ns("isp_min_size"),"min_size",value=1),
-                         numericInput(ns("isp_max_size"),"max_size",value=12),
-                         textInput(ns('isp_title'),"title",""),
-                         textInput(ns('isp_xlab'),"xlab",""),
-                         textInput(ns('isp_ylab'),"ylab",""),
-                         numericInput(ns("isp_axis.size"),"Axis label size",value=11),
-                         numericInput(ns("isp_axis.text.size"),"Axis text size",value=11),
+                   column(
+                     8,class="mp0",
+                     box_caret(
+                       ns("box5"),
+                       title="Results:",
+                       button_title2= radioGroupButtons(ns("isp_results"),NULL,c("Plot","Table")
+                       ),
 
+                       button_title = span(
+                         actionLink(ns('download_plot_isp'),"Download",icon('download')),
+                         actionLink(ns('isp_download_results'),"Download",icon("download"))
+                       ),
+                       div(
+                         div(style="display: flex; gap: 20px",
+                             div(actionButton(ns('run_isp'),"RUN >>")),
+                             numericInput(ns('isp_top'),span("Top per group:",tipright("Number of species with highest indicator value to show")),value=10),
+                             checkboxInput(ns("isp_drop"),"drop levels",F),
+                         ),
 
+                         div(actionLink(ns('isp_order'),"Order labels")),
+                         div(style="position: absolute; top: 30px; right: 5px",align="right",
+                             div(tipify_ui(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species", options=list(container="body"))),
 
+                         ),
 
-
-
-
-
+                         uiOutput(ns('isp_plot')),
+                         uiOutput(ns('isp_tables'))
+                       )
                      )
-
-
-
                    )
 
-
-                 ),
-
-column(
-  8,class="mp0",
-  box_caret(
-    ns("box5"),
-    title="Results:",
-    button_title2= radioGroupButtons(ns("isp_results"),NULL,c("Plot","Table")
-    ),
-
-    button_title = span(
-      actionLink(ns('download_plot_isp'),"Download",icon('download')),
-      actionLink(ns('isp_download_results'),"Download",icon("download"))
-    ),
-    div(
-      div(style="display: flex; gap: 20px",
-          actionButton(ns('run_isp'),"RUN >>"),
-          numericInput(ns('isp_top'),span("Top per group:",tipright("Number of species with highest indicator value to show")),value=10)
-      ),
-      div(style="position: absolute; top: 30px; right: 5px",align="right",
-          div(tipify_ui(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species", options=list(container="body"))),
-
-      ),
-
-      uiOutput(ns('isp_plot')),
-      uiOutput(ns('isp_tables'))
-    )
-  )
-)
-
-             ))
-  ))
+               ))
+    ))
 
 }
 #' @export
@@ -500,20 +544,98 @@ diversity_tool$server<-function (id,vals ){
   moduleServer(id,function(input,output,session){
     ## isp
 
+    library("vegan")
     observeEvent(input$niche_help,{
       browseURL("https://danilocvieira.github.io/iMESc_help/#niche-analysis")
     })
 
 
+    observeEvent(list(input$isp_X,input$isp_func),{
+      updateTextInput(session,"isp_title",value=paste0(input$isp_X," (",input$isp_func,")"))
+    })
+
 
     observeEvent(vals$newcolhabs,{
-      updatePickerInput(session,'isp_palette', choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img),)
+      updatePickerInput(session,'isp_palette', choices = vals$colors_img$val,choicesOpt = list(content = vals$colors_img$img),selected="turbo")
     })
     observe({
 
       shinyjs::toggle('isp_top',condition = input$isp_results=="Plot"&length(vals$indicators_on)>0 )
       shinyjs::toggle('isp_create_dl',condition = input$isp_results=="Plot"&length(vals$indicators_on)>0 )
 
+
+      observe({
+        cond<-length(cur_result())>0
+        shinyjs::toggle('isp_order',condition = cond)
+      })
+
+
+
+
+      observeEvent(input$isp_reorder,{
+        result<-cur_result()
+        labels_y<-levels(result$var)
+        labels_x<-levels(result$group)
+        result$group<-factor(result$group,levels=input$isp_order_x)
+        result$var<-factor(result$var,levels=input$isp_order_y)
+        cur_result(result)
+      })
+      observeEvent(input$isp_order,{
+        result<-cur_result()
+        labels_y<-levels(result$var)
+        labels_x<-levels(result$group)
+        showModal(
+          modalDialog(
+            title="Reorder Indicator species labels",
+            footer=div(actionButton(ns("isp_reorder"),"Update plot"),modalButton("Dismiss")),
+            easyClose = T,
+            tags$style(HTML("
+
+            .rank-small-horizontal .rank-list{
+boder: 1px solid red;
+display: flex;
+margin: 0px;padding: 2px;
+
+            }
+
+.rank-small .rank-list-item, .rank-small-horizontal .rank-list-item{
+margin: 0px;padding: 0px;
+
+font-size: 11px;
+box-sizing: content-box;
+max-width: fit-content;
+height: fit-content;
+background: white;
+border: 1px solid royalblue;
+cursor: move;
+}
+
+
+        ")),
+            div(
+
+              sortable::rank_list(
+                text = "Y labels (Variables)",
+                labels = labels_y,
+                input_id = ns("isp_order_y"),
+                options = sortable::sortable_options(multiDrag = TRUE),
+                class="rank-small"
+              ),
+              div(style="display: flex; gap: 5px;align-items: center",
+                  div("X labels (Groups)"),
+                  sortable::rank_list(
+                    text = NULL,
+                    labels = labels_x,
+                    input_id = ns("isp_order_x"),
+                    options = sortable::sortable_options(multiDrag = TRUE),
+                    class="rank-small-horizontal"
+                  )
+              )
+
+            )
+          )
+        )
+      })
 
 
       shinyjs::toggle('isp_plot',condition = input$isp_results=="Plot" )
@@ -623,26 +745,94 @@ diversity_tool$server<-function (id,vals ){
 
     })
 
+    observeEvent(input$isp_func_help, {
+      showModal(
+        modalDialog(
+          title = "Species-site group association function for multipatt (indicspecies package)",
+          easyClose = TRUE,
+          div(
+            tags$h4("Available Functions:"),
+            tags$ul(
+              tags$li(tags$b("IndVal:"),
+                      "Calculates the Indicator Value index as proposed by Dufrêne and Legendre (1997). This method identifies indicator species based on their specificity (i.e., the degree to which a species is exclusive to a group) and fidelity (i.e., the frequency of occurrence within the group). It is particularly suited for balanced datasets."),
+              tags$li(tags$b("IndVal.g:"),
+                      "A generalized version of the Indicator Value index that accounts for unequal sampling effort across groups. This function adjusts specificity and fidelity measures to provide more reliable results when sampling is uneven."),
+              tags$li(tags$b("r:"),
+                      "Computes the correlation between species occurrence and site group membership. This is a less restrictive alternative to IndVal and is useful when the relationship between species and groups is not strictly tied to specificity and fidelity."),
+              tags$li(tags$b("r.g:"),
+                      "A generalized correlation measure that also adjusts for unequal sampling effort. It provides a robust alternative to the basic correlation method, especially for datasets with sampling imbalance.")
+            ),
+            tags$p("The default method is typically ", tags$code("IndVal"),
+                   ", which is widely used for identifying indicator species. For datasets with uneven sampling, consider using ", tags$code("IndVal.g"), " or ", tags$code("r.g"), ".")
+          )
+        )
+      )
+    })
 
+
+
+
+    observeEvent(input$min.order,{
+      if(input$min.order>input$max.order){
+        updateNumericInput(session,'min.order',value=input$max.order)
+      }
+    })
     get_indicator_r.g<-eventReactive(input$run_isp,{
       comm<-vals$saved_data[[input$isp_X]]
       data<-vals$saved_data[[input$isp_Y]]
       factors<-attr(data,"factors")
       req(input$isp_group%in%colnames(factors))
       y=factors[rownames(data),input$isp_group]
+
+
+
+
       withProgress(min=NA,max=NA,message="Running...",{
-        indicator_r.g<-indicator_multipart(comm,y,npic=5,func=input$isp_func,nperm=input$isp_nperm)
+        args<-list(
+          data=comm,hc=y,npic=5,func=input$isp_func,nperm=input$isp_nperm,duleg=input$duleg,
+          seed=input$seed
+        )
+
+        indicator_r.g<-do.call(indicator_multipart,args)
       })
+
       attr(indicator_r.g,'y')<-y
       vals$indicators_on<-T
       indicator_r.g
     })
-    get_summary_multipatt<-reactive({
+    cur_result<-reactiveVal()
+    get_summary_multipatt<-reactiveVal()
+    observeEvent(get_indicator_r.g(),{
       indicator_r.g<-get_indicator_r.g()
       y<-attr(indicator_r.g,"y")
       indicator_table<-summary_multipatt(indicator_r.g)
+
+      inlist<-split(indicator_table,indicator_table$group)
+
+      indicator_table<-do.call(rbind,lapply(inlist,function(x){
+        x[order(x$stat,decreasing = F),]
+      }))
+
+      indicator_table$var<-factor(indicator_table$var, levels=unique(indicator_table$var))
+      top_result<-filter_multipart_result(indicator_r.g=indicator_r.g,npic=input$isp_top)
+      df<-indicator_table
+      df<-df[df$var%in%names(top_result),]
+      df$var<-factor(df$var, levels=unique(df$var))
+      if(isFALSE(input$isp_drop)){
+        df$group<-factor(df$group, levels=colnames(indicator_r.g$comb))
+
+      } else{
+        result <- create_combinations(levs)
+        levs<- colnames(indicator_r.g$comb)[colnames(indicator_r.g$comb)%in%df$group]
+        df$group<-factor(df$group, levels=levs)
+      }
+
+      cur_result(df)
+      get_summary_multipatt(indicator_table)
       indicator_table
     })
+
+
 
     get_isp_top<-reactive({
       indicator_r.g<-get_indicator_r.g()
@@ -652,8 +842,10 @@ diversity_tool$server<-function (id,vals ){
 
 
     get_indicators_plot<-reactive({
-      indicator_table<-get_summary_multipatt()
+      indicator_table<-cur_result()
       top_result<-get_isp_top()
+
+
       args<-list(
         indicator_table=indicator_table,top_result=top_result,pal=input$isp_palette,
         theme=input$isp_theme,
@@ -666,10 +858,17 @@ diversity_tool$server<-function (id,vals ){
         axis.text.size=input$isp_axis.text.size,
         axis.size=input$isp_axis.size,
         alpha=0.75,
-        newcolhabs=vals$newcolhabs
+        newcolhabs=vals$newcolhabs,
+        xlab_rotate=input$isp_xlab_rotate,
+        vjust=input$vjust,
+        hjust=input$hjust,
+        drop=input$isp_drop
       )
 
-      p<-do.call(gg_indicators,args)
+      p<-try({
+        do.call(gg_indicators,args)
+      })
+      req(!inherits(p,"try-error"))
 
       p
     })
@@ -1628,5 +1827,7 @@ diversity_tool$server<-function (id,vals ){
 
 
 }
+
+
 
 

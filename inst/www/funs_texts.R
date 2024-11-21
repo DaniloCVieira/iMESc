@@ -835,7 +835,7 @@ divI<-function(abund,choices=c("N","S","margalef","D","H","J'","Dom_rel","Skewne
 
 
 
-virtualPicker_unique<-function(id,label,choices,selected=NULL,search=T,multiple=F,allOptionsSelectedText="All",alwaysShowSelectedOptionsCount=F,width=NULL,position="bottom"){
+virtualPicker_unique<-function(id,label,choices,selected=NULL,search=T,multiple=F,allOptionsSelectedText="All",alwaysShowSelectedOptionsCount=F,width=NULL,position="bottom",optionHeight='24px',...){
   div(class="picker13",
       shinyWidgets::virtualSelectInput(
         id,
@@ -844,8 +844,9 @@ virtualPicker_unique<-function(id,label,choices,selected=NULL,search=T,multiple=
         alwaysShowSelectedOptionsCount=alwaysShowSelectedOptionsCount,
         allOptionsSelectedText=allOptionsSelectedText,
 
-        optionHeight='24px',position=position,
-        width=width
+        optionHeight=optionHeight,position=position,
+        width=width,
+        ...
       )
   )
 }

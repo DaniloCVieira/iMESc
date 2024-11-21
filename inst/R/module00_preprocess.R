@@ -1,4 +1,369 @@
 
+remove_outliers<-function(d1,outliers){
+  for(i in 1:nrow(outliers)){
+
+    print(paste0(i,"/",nrow(outliers)))
+    d1[outliers$id[i],outliers$var[i]]<-NA
+  }
+  d1
+}
+get_outliers<-function(data, q1=0.05,q2=0.95, upper_bound=1.5,lower_boud=1.5){
+
+  outs<-lapply(1:ncol(data),function(column) detect_outliers(data, column,q1,q2, upper_bound=upper_bound,lower_boud=lower_boud))
+  do.call(rbind,outs[sapply(outs,length)>0])
+}
+detect_outliers <- function(data, column,q1,q2, upper_bound=1.5,lower_boud=1.5) {
+  # Check if the column exists in the dataset
+
+  # Extract the column
+  values <- data[,column]
+
+
+  Q1 <- quantile(values, q1, na.rm = TRUE)
+  Q3 <- quantile(values, q2, na.rm = TRUE)
+
+  # Calculate IQR
+  IQR <- Q3 - Q1
+
+  # Define the lower and upper bounds
+  lower_bound <- Q1 - upper_bound * IQR
+  upper_bound <- Q3 + lower_boud * IQR
+  indices = which(values < lower_bound | values > upper_bound)
+  # Identify outliers
+  outliers <- values[indices]
+  var= colnames(data)[column]
+  if(length(indices)>0)
+    # Return the results as a list
+    data.frame(
+      variable=var,
+      id=rownames(data)[indices],
+      value = outliers,
+      Q1=as.numeric(Q1),
+      mean=mean(values),
+      Q3=as.numeric(Q3),
+      max=max(values)
+
+    )
+}
+imesc_outliers<-list()
+imesc_outliers$ui <- function(id,vals) {
+  ns <- NS(id)
+  fluidRow(
+    column(
+      12, class = "mp0",
+      column(
+        4, class = "mp0",
+        box_caret(
+          ns("box1"),
+          title = "Setup",
+          color = "#c3cc74ff",
+          div(
+
+            virtualPicker(
+              ns("data_x"),
+              label=tiphelp5("Datalist", "Select the target datalist"),
+              choices=names(vals$saved_data), width='200px',optionHeight="20px",keepAlwaysOpen=F,
+              style="height: 24px",multiple = F
+            ),
+            numericInput(
+              ns("q1"),
+              tiphelp5("Quantile 1 (Q1)", "Enter the lower quantile threshold for detecting outliers (e.g., 0.05)."),
+              value = 0.05,
+              min = 0,
+              max = 1,
+              step = 0.01
+            ),
+            numericInput(
+              ns("q2"),
+              tiphelp5("Quantile 2 (Q2)", "Enter the upper quantile threshold for detecting outliers (e.g., 0.95)."),
+              value = 0.95,
+              min = 0,
+              max = 1,
+              step = 0.01
+            ),
+            numericInput(
+              ns("upper_bound"),
+              tiphelp5("Upper Bound Multiplier", "Set the multiplier for the upper bound (e.g., 1.5)."),
+              value = 1.5,
+              min = 0,
+              step = 0.1
+            ),
+            numericInput(
+              ns("lower_boud"),
+              tiphelp5("Lower Bound Multiplier", "Set the multiplier for the lower bound (e.g., 1.5)."),
+              value = 1.5,
+              min = 0,
+              step = 0.1
+            ),
+            actionButton(ns("run_outlier"),"RUN>>")
+
+          )),
+        div(id=ns("remove_control"),
+            box_caret(
+              ns("box2"),
+              color = "#c3cc74ff",
+              title="Select targets to remove",
+              div(style='display:flex',
+                  uiOutput(ns("result3"))
+
+              )
+            )
+        )
+      ),
+      column(
+        8,class="mp0",
+        box_caret(
+          ns("box3"),
+          title="Plot",
+          button_title2=
+            radioGroupButtons(
+              ns("result"),NULL,
+              c("Summary","Result","Remove"),selected='Summary'
+            ),
+          tabsetPanel(
+            title=NULL,
+            id=ns("result_panel"),
+            type="hidden",
+            tabPanel(
+              'Summary',
+              uiOutput(ns("result1"))
+            ),
+            tabPanel(
+              'Result',
+              div(style="overflow-x: auto",
+                  uiOutput(ns("result2"))
+              )
+            ),
+            tabPanel(
+              'Remove',
+              div(style="overflow-x: auto",
+                  div(style="display: flex",
+                    actionButton(ns('run_remove'),tiphelp5("Pre-RUN","This is a pre-run: selected targets will be replaced with NAs"),style="height: 30px"),
+                    div(actionLink(ns('reset'),"[reset]"))
+                  ),
+                  uiOutput(ns("result6")),
+                  checkboxInput(ns('show_boxplot'),tiphelp5("Show boxplot","Generates a boxplot with selected targets")),
+
+                  div(
+                    uiOutput(ns('result5'))
+                  )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+}
+imesc_outliers$server<-function (id,vals ){
+
+
+
+  moduleServer(id,function(input, output, session){
+    print("server")
+
+
+    observe({
+      print(input$q1)
+    })
+
+    observeEvent(input$result,{
+      updateTabsetPanel(session,'result_panel',selected=input$result)
+    })
+
+    observe({
+      shinyjs::toggle('remove_control', condition=input$result=="Remove")
+    })
+
+
+    cur_outliers<-reactiveVal()
+    observeEvent(input$run_outlier,ignoreInit = T,{
+      data<-vals$saved_data[[input$data_x]]
+      outs<-get_outliers(data,
+                         q1=input$q1,
+                         q2=input$q2,
+                         upper_bound=input$upper_bound,
+                         lower_boud=input$lower_boud)
+
+      cur_outliers(outs)
+
+
+    })
+
+    output$result1<-renderUI({
+      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
+      outs<-  cur_outliers()
+      n_outliers<-sapply(split(outs,outs$variable),nrow)
+
+
+      div(
+        div(em("Total number of outlier values detected:"),  strong(sum(n_outliers))),
+        div(class="half-drop-inline",
+            fixed_dt(   data.frame(n_outliers))
+
+        )
+      )
+    })
+
+
+    output$result2<-renderUI({
+      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
+      div(class="half-drop-inline",
+          fixed_dt(  cur_outliers())
+
+      )
+    })
+
+
+    boxplot<-reactive({
+      req(input$show_boxplot)
+      outs<-cur_outliers()
+      req(outs)
+      row<-as.numeric(input$out_selected)
+      req(length(row)>0)
+      outs<-outs[row,]
+
+      data<-pre_run()
+      d1<-data[,unique(outs$variable)]
+
+      oi<-split(outs$id, outs$variable)
+      d2<-reshape2::melt(data.frame(id=rownames(d1),d1),"id")
+      li<-split(d2,d2$variable)
+      d3<-do.call(rbind,lapply(names(li),function(i){
+        x<-li[[i]]
+        x$out_flag<-x$id%in%oi[[i]]
+        x
+      }))
+      res<-data.frame(d3)
+      p<-ggplot(res, aes(x=variable, y=value))
+      p<-p+stat_boxplot(geom='errorbar', linetype=1, width=0.3,color='gray20')+
+        geom_boxplot(fill="white")+  geom_boxplot(varwidth =F,size=1,color="gray20")
+      p+ geom_point(
+        aes(color = out_flag)
+      )+scale_color_manual(values=c("red","darkblue"))+
+        theme(
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+        )
+    })
+
+    bag<-reactiveVal(F)
+    output$result6<-renderUI({
+      req(isTRUE(bag()))
+      outs<-cur_outliers()
+      row<-as.numeric(input$out_selected)
+      req(length(row)>0)
+
+      outs<-outs[row,]
+
+      n_outliers<- nrow(outs)
+      div(style="display: flex; gap: 20px",
+          div(
+            em("Total number of outlier values replaced by NAs:"),  strong(sum(n_outliers))
+          ),
+          div(class="save_changes",
+              actionButton(session$ns("save"),icon("fas fa-save"))
+          )
+      )
+    })
+
+    observeEvent(input$save,{
+
+      data_o<-vals$saved_data[[input$data_x]]
+      data<-pre_run()
+      data<-data_migrate(data_o,data)
+      bag<-paste0(input$data_x,"_","rm_outs")
+      attr(data,"bag")<-bag
+      vals$newdatalist<-data
+      module_save_changes$ui(session$ns("isp-create"), vals)
+    })
+    module_save_changes$server("isp-create", vals)
+
+
+
+    output$result5<-renderUI({
+
+
+
+      renderPlot(
+        boxplot()
+
+      )
+    })
+
+    output$result4<-renderUI({
+      outs<-cur_outliers()
+      row<-as.numeric(input$out_selected)
+      renderPrint(
+        outs[row,]
+      )
+    })
+
+    observe({
+      shinyjs::toggle('reset',condition=length(input$out_selected)>0)
+      shinyjs::toggle('run_remove',condition=length(input$out_selected)>0)
+    })
+
+    observeEvent(input$reset,{
+      bag(FALSE)
+      pre_run(vals$saved_data[[input$data_x]])
+    })
+    pre_run<-reactiveVal()
+
+
+    observeEvent(input$data_x,{
+      req(input$data_x%in%names(vals$saved_data))
+      pre_run(vals$saved_data[[input$data_x]])
+    })
+
+    observeEvent(input$run_remove,{
+      outs<-cur_outliers()
+      row<-as.numeric(input$out_selected)
+      req(length(row)>0)
+      outs<-outs[row,]
+      data<-vals$saved_data[[input$data_x]]
+      newdata<-remove_outliers(data,outs)
+      pre_run(newdata)
+      bag(T)
+    })
+    output$result3<-renderUI({
+      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
+      outs<-cur_outliers()
+      outs$input_id<-1:nrow(outs)
+      choices=split(outs[c('id' ,"input_id")],outs$variable)
+
+      choices=lapply(choices,function(x){
+        v=x$input_id
+        names(v)<-x$id
+        v
+      })
+
+
+
+      div(
+        virtualPicker(
+          session$ns("out_selected"),
+          label = NULL,
+          choices = choices,
+          multiple = TRUE,
+          search = TRUE,
+          showGroups = TRUE,
+          style="font-size: ",
+          width="250px"
+        )
+      )
+
+
+    })
+
+    observeEvent(input$data_x,{
+      vals$cur_data<-input$data_x
+    })
+
+
+  })
+
+}
+
 generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="Balanced"){
   if(part_type=="Random"){
     nobs<-nrow(data)
@@ -5615,20 +5980,24 @@ tool5$server<-function(id,vals){
     })
 
     r_transf_end<-reactive({
-      data<-data()
-      for(i in seq_along(run_transf())){
-        args<-run_transf()[[i]]
+      try({
 
-        fun_name<-args$fun_name
+        data<-data()
+        for(i in seq_along(run_transf())){
+          args<-run_transf()[[i]]
+
+          fun_name<-args$fun_name
 
 
-        args$fun_name<-NULL
-        args$data<-data
-        data<-do.call(fun_name,args)
-      }
+          args$fun_name<-NULL
+          args$data<-data
+          data<-do.call(fun_name,args)
+        }
 
-      data
+        data
 
+
+      })
     })
     output$transf_order<-renderUI({
       div(
@@ -5714,25 +6083,32 @@ tool5$server<-function(id,vals){
 tool6<-list()
 tool6$ui<-function(id){
   ns<-NS(id)
-  div(style="height: 300px; ;display: flex;",class="half-drop-inline",
+  div(
+    div(style="height: 300px; ;display: flex;",class="half-drop-inline",
 
-      div(style="width: 50%;padding: 15px;",class="half-drop",
-          selectInput(ns("na_targ"),"Target:", c("Numeric-Attribute","Factor-Attribute")),
-          selectInput(ns("na_method"), div("Method:",tipify_ui(actionLink(ns("na_help"),icon("fas fa-question-circle"), type="toggle"),"Click for details","right")),choices=c("knn","bagImpute","medianImpute","pmm","rf","cart")),
-          uiOutput(ns('bag_warning')),
-          hidden(numericInput(ns("na_knn"), span("K:",tiphelp("the number of nearest neighbors from the training set to use for imputation")),value=5)),
-          div(align="right",id=ns("run_na_btn"),
-              class="run_na_btn save_changes",
-              div(class="tools",
-                  actionButton(ns("run_na"),"RUN >>")
-              )
-          )
-      ),
-      div(div(style="padding: 15px;margin-right: 20px;  max-width: 275px; background: white",
-              class="half-drop-inline",
-              uiOutput(ns('na_warning')),
-              uiOutput(ns('print_imputation_before')),
-              uiOutput(ns('print_imputation_after'))))
+        div(style="width: 50%;padding: 15px;",class="half-drop",
+            selectInput(ns("na_targ"),"Target:", c("Numeric-Attribute","Factor-Attribute")),
+            selectInput(ns("na_method"), div("Method:",tipify_ui(actionLink(ns("na_help"),icon("fas fa-question-circle"), type="toggle"),"Click for details","right")),choices=c("knn","bagImpute","medianImpute","pmm","rf","cart")),
+            uiOutput(ns('bag_warning')),
+            hidden(numericInput(ns("na_knn"), span("K:",tiphelp("the number of nearest neighbors from the training set to use for imputation")),value=5)),
+            div(align="right",id=ns("run_na_btn"),
+                class="run_na_btn save_changes",
+                div(class="tools",
+                    actionButton(ns("run_na"),"RUN >>")
+                )
+            )
+        ),
+        div(div(style="padding: 15px;margin-right: 20px;  max-width: 275px; background: white",
+                class="half-drop-inline",
+                uiOutput(ns('na_warning')),
+                uiOutput(ns('print_imputation_before')),
+                uiOutput(ns('print_imputation_after'))))
+    ),
+    div(
+      style="padding: 20px",
+      actionLink(ns("outlier_tool"), tiphelp5("Outlier Handling Tools", "Tools for detecting and replacing outliers with NA"))
+    )
+
   )
 }
 tool6$server<-function(id,vals){
@@ -5744,6 +6120,31 @@ tool6$server<-function(id,vals){
       req(vals$pp_data)
       vals$pp_data
     })
+
+    output$outlier_tool<-renderUI({
+      div()
+    })
+
+
+
+    observeEvent(input$outlier_tool,{
+      showModal(
+        tags$div(
+          class="modal-100",
+          modalDialog(
+            title="Outlier Handling Tools",
+            imesc_outliers$ui(session$ns("outlier"), vals),
+            size = "l",
+            easyClose = T
+          )
+        )
+      )
+    })
+    observe({
+      imesc_outliers$server("outlier",vals)
+    })
+
+
     observeEvent(input$run_na,ignoreInit = T,{
       try({
 

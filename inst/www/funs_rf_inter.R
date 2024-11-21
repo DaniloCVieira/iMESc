@@ -486,7 +486,7 @@ plotCM<-function(rf, palette="turbo",newcolhabs, font_color="black", title="Conf
   tab<-cbind(paste0(1:nrow(my.data),"  "),as.matrix(my.data))
   tab<-rbind(c("",1:nrow(my.data), "class.error"), tab)
 
-
+  tab<-formatC(tab,format = "f", digits = round_cm)
 
   ggtab<-ggpubr::ggtexttable(tab, rows = NULL,
                      theme = ggpubr::ttheme(

@@ -23,7 +23,7 @@ datalist_overview<-function(data,available_models){
   modelsl<-sapply(attrs,function(x){
 
     models<-attr(data,x)
-    m<-models[[1]]
+
     m1<-NULL
     if(length(models)>0){
       m1<-lapply(models,function(m){

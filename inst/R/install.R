@@ -1,4 +1,3 @@
-library(RANN)
 
 
 detach_package <- function(pkg,installed, character.only = FALSE)

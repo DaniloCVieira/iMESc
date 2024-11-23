@@ -4,6 +4,9 @@
 render_list<-function(result, limited=T,auto=T,rownames=T,n_copy=5,n_result=20, n_print=15){
 
   r<-try(data.frame(result),silent = T)
+  try({
+    colnames(r)<-colnames(result)
+  },silent=T)
   dom="ltpB"
   buttons = c('copy', 'csv', 'excel')
   if(!inherits(r,"try-error")){

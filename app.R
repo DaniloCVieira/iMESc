@@ -33,3 +33,5 @@ load_R<-function(){
 loadedP<-load_packs()
 loadedR<-load_R()
 shiny::shinyApp(app_ui,app_server)
+
+

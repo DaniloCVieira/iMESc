@@ -1817,7 +1817,7 @@ hc_module$server<-function(id, vals){
       req(length(data)>0)
       res0<-unlist(
         lapply(datalist, function (x){
-          sum(rownames(x)%in%rownames(data))==nrow(x)
+          all(rownames(data)%in%rownames(x))
         })
       )
       names(res0[res0==T])

@@ -16,7 +16,7 @@ get_test_metrics<-function(m){
       ))
     }
     colnames(df)<-paste0("partition_",colnames(df))
-    df<-round(df)
+
     return(df)
   }
   "None"

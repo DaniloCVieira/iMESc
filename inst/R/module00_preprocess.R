@@ -1756,10 +1756,10 @@ tool2_tab3$server<-function(id,vals){
     })
 
     output$import_to_data<-renderUI({
-      pickerInput(session$ns("import_to_data"), "To:", choices=names(vals$saved_data),selected=vals$cur_import_to_data)
+      pickerInput_fromtop_live(session$ns("import_to_data"), "To:", choices=names(vals$saved_data),selected=vals$cur_import_to_data)
     })
     output$import_from_data<-renderUI({
-      pickerInput(session$ns("import_from_data"),  "From:", choices=names(vals$saved_data),
+      pickerInput_fromtop_live(session$ns("import_from_data"),  "From:", choices=names(vals$saved_data),
                   selected=vals$cur_import_from_data,
                   #selected=names(vals$saved_data)[5]
       )

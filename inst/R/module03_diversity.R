@@ -53,6 +53,7 @@ indicator_multipart<-function(data,hc,npic=5,func="IndVal.g",nperm=199,duleg=T,m
 }
 
 imesc_summary_multipatt<-function (object, alpha = 0.05, minstat = NULL, At = NULL, Bt = NULL,indvalcomp = FALSE, ...){
+  message("once")
   x <- object
   ncomb = ncol(x$str)
   ncolsign = ncol(x$sign)
@@ -60,7 +61,7 @@ imesc_summary_multipatt<-function (object, alpha = 0.05, minstat = NULL, At = NU
   c("\n Multilevel pattern analysis")
   c("\n ---------------------------\n")
   c("\n Association function:", x$func)
-  c("\n Significance level (alpha):", alpha)
+  cat(paste("\n Significance level (alpha):", alpha))
   if (!is.null(minstat))
     c("\n Minimum statistic value (minstat):", minstat)
   if (x$func == "IndVal" || x$func == "IndVal.g") {
@@ -134,11 +135,12 @@ imesc_summary_multipatt<-function (object, alpha = 0.05, minstat = NULL, At = NU
   return(com_result)
 }
 
-summary_multipatt<-function(indicator_r.g){
+summary_multipatt<-function(indicator_r.g, p){
+  message("once1")
   hcs<-attr(indicator_r.g,"y")
   y0<-hcs
   # sss<-summary(indicator_r.g)
-  sss<-imesc_summary_multipatt(indicator_r.g)
+  sss<-imesc_summary_multipatt(indicator_r.g,alpha=p)
   sssdf<-do.call(rbind,sss)
   hcs<-do.call(c, lapply(names(sss),function(x) rep(x,nrow(sss[[x]]))))
   indresult<-data.frame(group=hcs,var=do.call(c,lapply(sss,function(x) rownames(x))),sssdf)
@@ -157,8 +159,8 @@ summary_multipatt<-function(indicator_r.g){
   indresult
 }
 
-filter_multipart_result<-function(indicator_r.g,npic){
-  sss<-imesc_summary_multipatt(indicator_r.g)
+filter_multipart_result<-function(indicator_r.g,npic, p){
+  sss<-imesc_summary_multipatt(indicator_r.g, p)
 
   top_result<-do.call(c,lapply(  seq_along(sss),function(i){
 
@@ -181,7 +183,7 @@ diversity_tool$ui<-function(id){
     h4("Biodiversity Tools", class="imesc_title"),
 
     tabsetPanel(
-      # selected="tab_isp",
+      selected="tab_isp",
       tabPanel(
         "1. Diversity indices",
         box_caret(ns("box_setup1"),inline=F,show_tittle=F,
@@ -458,7 +460,10 @@ diversity_tool$ui<-function(id){
 
                          numericInput(ns('max.order'),span("max.order",tipright("The maximum order of site group combinations to be considered")),value=2),
                          numericInput(ns("seed"), strong("seed",tipify_ui(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1),
-                         numericInput(ns('isp_nperm'),span("nperm",tipright("Number of permutations")),value=199)
+                         numericInput(ns('isp_nperm'),span("nperm",tipright("Number of permutations")),value=199),
+                         numericInput(ns('isp_pvalue'),span("Sig.level"),value=0.05)
+
+
 
                        )
 
@@ -509,7 +514,7 @@ diversity_tool$ui<-function(id){
                      box_caret(
                        ns("box5"),
                        title="Results:",
-                       button_title2= radioGroupButtons(ns("isp_results"),NULL,c("Plot","Table")
+                       button_title2= radioGroupButtons(ns("isp_results"),NULL,c("Plot","Summary","Results")
                        ),
 
                        button_title = span(
@@ -520,17 +525,52 @@ diversity_tool$ui<-function(id){
                          div(style="display: flex; gap: 20px",
                              div(actionButton(ns('run_isp'),"RUN >>")),
                              numericInput(ns('isp_top'),span("Top per group:",tipright("Number of species with highest indicator value to show")),value=10),
-                             checkboxInput(ns("isp_drop"),"drop levels",F),
-                         ),
-
-                         div(actionLink(ns('isp_order'),"Order labels")),
-                         div(style="position: absolute; top: 30px; right: 5px",align="right",
-                             div(tipify_ui(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species", options=list(container="body"))),
 
                          ),
+                         tabsetPanel(
+                           id=ns("isp_tabs"),
+                           type="hidden",
+                           tabPanel(
+                             "Plot",
+                             div(
+                               div(
+                                 checkboxInput(ns("isp_drop"),"drop levels",F),
+                                 div(actionLink(ns('isp_order'),"Order labels")),
+                                 div(style="position: absolute; top: 30px; right: 5px",align="right",
+                                     div(tipify_ui(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species", options=list(container="body")))
+                                 )
+                               ),
+                               uiOutput(ns('isp_plot'))
+                             )
 
-                         uiOutput(ns('isp_plot')),
-                         uiOutput(ns('isp_tables'))
+                           ),
+                           tabPanel("Summary",
+                                    uiOutput(ns('isp_tables'))
+                           ),
+                           tabPanel("Results",
+                                    div(style="display: flex",
+                                        pickerInput_fromtop(ns("isp_get_result"),"Show",c("Comb"="comb","Association strenght"="str","Sign"="sign")),
+                                        span(id=ns("tip_isp_str"),
+                                             tiphelp("The association strength for all combinations studied")
+                                        ),
+                                        span(id=ns("tip_isp_A"),
+                                             tiphelp("\\'A\\' Component of indicator values.")
+                                        ),
+                                        span(id=ns("tip_isp_B"),
+                                             tiphelp("\\'B\\' Component of indicator values.")
+                                        ),
+                                        span(id=ns("tip_isp_sign"),
+                                             tiphelp("Data table with results of the best matching pattern, the association value and the degree of statistical significance of the association (i.e. p-values from permutation test). Note that p-values are not corrected for multiple testing")
+                                        )
+                                    ),
+                                    div(style="overflow-y: auto",
+                                        uiOutput(ns('isp_full_results'))
+                                    )
+                           )
+                         ),
+
+
+
                        )
                      )
                    )
@@ -545,6 +585,39 @@ diversity_tool$server<-function (id,vals ){
     ## isp
 
     library("vegan")
+
+    observe({
+      shinyjs::toggle('tip_isp_str',condition=input$isp_get_result=="str")
+      shinyjs::toggle('tip_isp_A',condition=input$isp_get_result=="A")
+      shinyjs::toggle('tip_isp_B',condition=input$isp_get_result=="B")
+      shinyjs::toggle('tip_isp_sign',condition=input$isp_get_result=="sign")
+
+
+
+
+    })
+    observeEvent(input$isp_func,{
+
+      if(input$isp_func%in%c("IndVal.g","IndVal")){
+        choices<-c("Association strenght"="str","A"='A',"B"="B","Sign"="sign")
+      } else{
+        choices<-c("Association strenght"="str","Sign"="sign")
+      }
+      updatePickerInput(session,'isp_get_result',choices=choices, selected="sign")
+    })
+
+    observeEvent(input$isp_results,{
+      updateTabsetPanel(session,'isp_tabs',selected=input$isp_results)
+    })
+    output$isp_full_results<-renderUI({
+      result<-get_indicator_r.g()[[input$isp_get_result]]
+
+      render_list(result)
+
+    })
+
+
+
     observeEvent(input$niche_help,{
       browseURL("https://danilocvieira.github.io/iMESc_help/#niche-analysis")
     })
@@ -638,10 +711,9 @@ cursor: move;
       })
 
 
-      shinyjs::toggle('isp_plot',condition = input$isp_results=="Plot" )
-      shinyjs::toggle('isp_tables',condition = input$isp_results=="Table" )
+
       shinyjs::toggle('download_plot_isp',condition = input$isp_results=="Plot" )
-      shinyjs::toggle('isp_download_results',condition = input$isp_results=="Table" )
+      shinyjs::toggle('isp_download_results',condition = input$isp_results!="Plot" )
 
 
     })
@@ -778,34 +850,43 @@ cursor: move;
       }
     })
     get_indicator_r.g<-eventReactive(input$run_isp,{
-      comm<-vals$saved_data[[input$isp_X]]
-      data<-vals$saved_data[[input$isp_Y]]
-      factors<-attr(data,"factors")
-      req(input$isp_group%in%colnames(factors))
-      y=factors[rownames(data),input$isp_group]
+      indicator_r.g<-try({
+
+        comm<-vals$saved_data[[input$isp_X]]
+        data<-vals$saved_data[[input$isp_Y]]
+        factors<-attr(data,"factors")
+        req(input$isp_group%in%colnames(factors))
+        y=factors[rownames(data),input$isp_group]
 
 
 
 
-      withProgress(min=NA,max=NA,message="Running...",{
-        args<-list(
-          data=comm,hc=y,npic=5,func=input$isp_func,nperm=input$isp_nperm,duleg=input$duleg,
-          seed=input$seed
-        )
+        withProgress(min=NA,max=NA,message="Running...",{
+          args<-list(
+            data=comm,hc=y,npic=5,func=input$isp_func,nperm=input$isp_nperm,duleg=input$duleg,
+            seed=input$seed
+          )
 
-        indicator_r.g<-do.call(indicator_multipart,args)
+          indicator_r.g<-do.call(indicator_multipart,args)
+        })
+
+        attr(indicator_r.g,'y')<-y
+        vals$indicators_on<-T
+        indicator_r.g
+
       })
+      req(!inherits(indicator_r.g,"try-error"))
 
-      attr(indicator_r.g,'y')<-y
-      vals$indicators_on<-T
       indicator_r.g
+
     })
     cur_result<-reactiveVal()
     get_summary_multipatt<-reactiveVal()
     observeEvent(get_indicator_r.g(),{
       indicator_r.g<-get_indicator_r.g()
       y<-attr(indicator_r.g,"y")
-      indicator_table<-summary_multipatt(indicator_r.g)
+      print(input$isp_pvalue)
+      indicator_table<-summary_multipatt(indicator_r.g, input$isp_pvalue)
 
       inlist<-split(indicator_table,indicator_table$group)
 
@@ -814,15 +895,18 @@ cursor: move;
       }))
 
       indicator_table$var<-factor(indicator_table$var, levels=unique(indicator_table$var))
-      top_result<-filter_multipart_result(indicator_r.g=indicator_r.g,npic=input$isp_top)
+      top_result<-filter_multipart_result(indicator_r.g=indicator_r.g,npic=input$isp_top,input$isp_pvalue)
       df<-indicator_table
-      df<-df[df$var%in%names(top_result),]
+
+      picvar<-which(df$var%in%names(top_result))
+      req(picvar)
+      df<-df[picvar,]
       df$var<-factor(df$var, levels=unique(df$var))
       if(isFALSE(input$isp_drop)){
         df$group<-factor(df$group, levels=colnames(indicator_r.g$comb))
 
       } else{
-        result <- create_combinations(levs)
+        #result <- create_combinations(levs)
         levs<- colnames(indicator_r.g$comb)[colnames(indicator_r.g$comb)%in%df$group]
         df$group<-factor(df$group, levels=levs)
       }
@@ -832,11 +916,19 @@ cursor: move;
       indicator_table
     })
 
+    create_combinations <- function(vector) {
+      # Gera todas as combinações de 2 elementos do vetor
+      comb <- combn(vector, 2)
 
+      # Formata as combinações na forma "a+b"
+      combinations <- apply(comb, 2, function(x) paste(x, collapse = "+"))
+
+      return(combinations)
+    }
 
     get_isp_top<-reactive({
       indicator_r.g<-get_indicator_r.g()
-      top_result<-filter_multipart_result(indicator_r.g=indicator_r.g,npic=input$isp_top)
+      top_result<-filter_multipart_result(indicator_r.g=indicator_r.g,npic=input$isp_top,input$isp_pvalue)
       top_result
     })
 
@@ -844,6 +936,8 @@ cursor: move;
     get_indicators_plot<-reactive({
       indicator_table<-cur_result()
       top_result<-get_isp_top()
+
+      req(indicator_table)
 
 
       args<-list(
@@ -890,14 +984,27 @@ cursor: move;
       vals$hand_down<-"generic"
       module_ui_downcenter("downcenter")
       name<-paste0("Indicators-",input$isp_X,"-",input$isp_group)
-      data<-get_summary_multipatt()
+      if(input$isp_tabs=="Table"){
+        data<-get_summary_multipatt()
+      } else{
+        req(input$isp_get_result%in%names(get_indicator_r.g()))
+        data<-get_indicator_r.g()[[input$isp_get_result]]
+        r<-data.frame(data)
+        colnames(r)<-colnames(data)
+        data<-r
+      }
+
 
       mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Indicators results",data=data, name=name)
     })
 
     output$isp_plot<-renderUI({
 
-      renderPlot(get_indicators_plot())
+      p<-try({
+        get_indicators_plot()
+      })
+      req(!inherits(p,"try-error"))
+      renderPlot(p)
 
     })
 
@@ -1827,6 +1934,9 @@ cursor: move;
 
 
 }
+
+
+
 
 
 

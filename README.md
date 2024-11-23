@@ -55,13 +55,6 @@ Once the container is running, open your browser and navigate to:
 http://localhost:3838
 ```
 
-## Desktop Version for Windows Users
-
-If you are a Windows user, you can enhance your experience with the standalone iMESc desktop version. Visit the [iMESc-Desktop repository](https://github.com/DaniloCVieira/iMESc-Desktop) to find more details and download the installer.
-
-## Tutorial
-
-For a detailed walkthrough of the application and its features, visit the tutorial page: iMESc_help [<https://danilocvieira.github.io/iMESc_help/>]
 
 ## License
 

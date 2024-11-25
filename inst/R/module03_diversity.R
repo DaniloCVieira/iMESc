@@ -183,7 +183,7 @@ diversity_tool$ui<-function(id){
     h4("Biodiversity Tools", class="imesc_title"),
 
     tabsetPanel(
-      selected="tab_isp",
+      #selected="tab_isp",
       tabPanel(
         "1. Diversity indices",
         box_caret(ns("box_setup1"),inline=F,show_tittle=F,
@@ -885,7 +885,7 @@ cursor: move;
     observeEvent(get_indicator_r.g(),{
       indicator_r.g<-get_indicator_r.g()
       y<-attr(indicator_r.g,"y")
-      print(input$isp_pvalue)
+
       indicator_table<-summary_multipatt(indicator_r.g, input$isp_pvalue)
 
       inlist<-split(indicator_table,indicator_table$group)

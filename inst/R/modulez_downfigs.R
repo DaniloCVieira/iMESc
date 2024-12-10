@@ -1,4 +1,4 @@
-
+print.ggmatrix<-GGally:::print.ggmatrix
 
 module_ui_figs<- function(id){
   ns<-NS(id)

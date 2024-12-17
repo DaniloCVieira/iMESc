@@ -38,41 +38,6 @@ get_feature_data_plot<-function(df,m, npic){
 
 
 
-#' @export
-sig_feature<-function(rands, m,newdata,obc,sig_level){
-  metric<-ifelse(m$modelType=='Regression','Rsquared','Accuracy')
-  lis<-split(rands,rands$var)
-  actual_value<-caret::postResample(predict(m,as.matrix(newdata)), obc)[metric]
-  x<-lis[['CASC_TOTAL_0A10']]
-  res<-sapply(lis,function(x){
-    permuted_values<-x[,metric]
-
-    #distribuicao<-qnorm(permuted_values,mean=mean(permuted_values), sd=sd(permuted_values))
-    p_value<-pnorm(actual_value,mean=mean(permuted_values), sd=sd(permuted_values), lower.tail = F)
-    p_result<-p_value
-    p_result
-    xmean<-mean(permuted_values)
-    c(actual_value=actual_value,mean=xmean,sd=sd(permuted_values),dff=actual_value-xmean,p_value=p_result)
-
-  })
-  perm_summary<-data.frame(t(res))
-  colnames(perm_summary)<-c(
-    'actual_value',
-    paste0("mean_",metric,"(rand)"),
-                            paste0("sd",metric,"(rand)"),
-                            paste0("TrueAcc - ",paste0("mean_",metric,"(rand)")),
-                            "p_value")
-
-  perm_summary$sig<-""
-  sigs<-which(perm_summary$p_value<sig_level)
-  if(length(sigs)>0){
-    perm_summary$sig[sigs]<-"*"
-  }
-
-
-  perm_summary
-  }
-
 
 
 

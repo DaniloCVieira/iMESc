@@ -2531,7 +2531,7 @@ rf_oob_pred<-function(forest, X) {
     preds = predict(forest, X, predict.all=TRUE)
     oob = forest$inbag==0
     oob[which(!oob)] = NA
-    preds.oob = oob*preds$individual
+    preds.oob = rowMeans(oob*preds$individual, na.rm=T)
     preds.oob
   }
 
@@ -2590,7 +2590,7 @@ permutation_importance3<-function(model, n_permutations = 99, num_cores = 1,sess
   predtable<-do.call(rbind, var_metrics)
   predtable
 }
-permimp_metric<-function(predtable, m,metric="Accuracy", class=F, newdata,obc,session=MockShinySession$new()){
+permimp_metric<-function(predtable, m,metric="Accuracy", class=F, newdata=NULL,obc=NULL,session=MockShinySession$new()){
   actual<-NULL
   metric<-ifelse(m$modelType=='Regression','Rsquared','Accuracy')
 
@@ -2641,6 +2641,7 @@ permimp_metric<-function(predtable, m,metric="Accuracy", class=F, newdata,obc,se
 
   metrics
 }
+
 sig_feature<-function(permimp,m){
   metric<-ifelse(m$modelType=='Regression','Rsquared','Accuracy')
   obs<- getdata_model(m,"test")
@@ -2940,8 +2941,14 @@ permutation_importance$server<-function(id,vals){
       req(predtable)
       validate(need(length(df)>0,"Analyses pending"))
       req(is.null(attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$permimp_metrics))
+      args<-list(
+        predtable=predtable,
+        m=m()
+
+      )
+
       permimp<-permimp_metric(
-        predtable,metric=metric,  m(),newdata,obc,
+        predtable,  m=m(),newdata= NULL,obc=NULL,
         session=getDefaultReactiveDomain(),
         class=F
       )
@@ -5686,7 +5693,7 @@ model_predic$server<-function(id,vals){
           req(newdata)
 
           models<-lapply(model_names,function(name){
-            attr(data,"rf")[[name]]$m
+            attr(data,"rf")[[name]][[1]]
           })
 
           preds_list<-list()
@@ -6185,7 +6192,7 @@ fs$server<-function(id,vals){
     module_save_changes$server("ga-create",vals)
     run_ga<-reactive({
       req(vals$cur_data_sl%in%names(vals$saved_data))
-      res<-attr(vals$saved_data[[vals$cur_data_sl]],"rfGA")[[vals$cur_model_name]]$m
+      res<-attr(vals$saved_data[[vals$cur_data_sl]],"rfGA")[[vals$cur_model_name]][[1]]
       req(res)
       res
     })
@@ -6225,17 +6232,17 @@ caret_models$server<-function(id,vals){
         model_names<-names(attr(vals$saved_data[[k]],"rf"))
         if(length(model_names)>0)
           for(i in 1:length(model_names)){
-            m<-attr(vals$saved_data[[k]],"rf")[[i]]$m
+            m<-attr(vals$saved_data[[k]],"rf")[[i]][[1]]
             attr(m,"Datalist")<-names(vals$saved_data)[k]
 
-            attr(vals$saved_data[[k]],"rf")[[i]]$m<-m
+            attr(vals$saved_data[[k]],"rf")[[i]][[1]]<-m
           }
         if(length(model_names)>0)
           for(i in 1:length(model_names)){
-            m<-attr(vals$saved_data[[k]],"rf")[[i]]$m
+            m<-attr(vals$saved_data[[k]],"rf")[[i]][[1]]
             attr(m,"model_name")<-model_names[i]
 
-            attr(vals$saved_data[[k]],"rf")[[i]]$m<-m
+            attr(vals$saved_data[[k]],"rf")[[i]][[1]]<-m
           }
 
 
@@ -7454,7 +7461,7 @@ caret_train$server<-function(id,vals=NULL){
     get_model<-reactive({
       req(vals$cmodel)
       req(input$model_name)
-      attr(data_x(),vals$cmodel)[[input$model_name]]$m
+      attr(data_x(),vals$cmodel)[[input$model_name]][[1]]
     })
     datalist_y<-reactive({
       req(input$data_y%in%names(vals$saved_data))

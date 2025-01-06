@@ -1,10 +1,10 @@
 
 
 #' @export
-#' @noRd
 
+# Application server
 app_server<-server<-function(input, output, session) {
-
+# Load required packages and update the loading message to indicate progress.
 
   session$sendCustomMessage("update_loading_message", "initializing packages...")
 
@@ -26,10 +26,7 @@ app_server<-server<-function(input, output, session) {
 
 
   t0<-Sys.time()
-  # init_server<-Sys.time()
-  # IMPORTANT!
-  # this is needed to terminate the R process when the
-  # shiny app session ends. Otherwise, you end up with a zombie process
+# Stop the R process when the Shiny session ends to prevent zombie processes.
    session$onSessionEnded(function() {    stopApp()  })
 
   if ( dir.exists("inst2")) {
@@ -43,7 +40,7 @@ app_server<-server<-function(input, output, session) {
   #ns_tab5<-NS('hc_tab5')
   once_load<-reactiveValues(df=0)
 
-
+# Add custom event listeners to enhance interactivity, such as tooltips and dynamic tabs.
   shinyjs::onevent("mouseenter", "savepoint_out", hide(selector=".tooltip"))
 
   observeEvent(input$savepoint_out,ignoreInit = T,{
@@ -51,6 +48,7 @@ app_server<-server<-function(input, output, session) {
     vals$update_pp<-'tool10'
     updateTabsetPanel(session,"disable_tool",selected=vals$update_pp)
   })
+  # Configure maximum file upload size to 100GB to handle large datasets.
   options(shiny.maxRequestSize=100*1024^3)
 
 
@@ -169,7 +167,7 @@ app_server<-server<-function(input, output, session) {
     insertbmu=F,
     sidebar=T,
 
-
+# Define default color palettes for visualizations, including continuous and categorical scales.
     newcolhabs=list(
       "turbo" = viridis::turbo,
       "matlab.like2"= colorRamps::matlab.like2,
@@ -238,7 +236,7 @@ app_server<-server<-function(input, output, session) {
   )
 
 
-
+# Utility function to invert RGB colors for better contrast in visualizations.
   invert_color <- function(color) {
     # Convert the color to RGB
     rgb_val <- col2rgb(color)
@@ -251,7 +249,7 @@ app_server<-server<-function(input, output, session) {
 
     return(inverted_hex)
   }
-
+# Generate preview images for color palettes and store them for rendering in the UI.
   get_colorimages<-reactive({
 
     vals$colors_img<-NULL
@@ -298,7 +296,7 @@ app_server<-server<-function(input, output, session) {
 
   })
 
-
+# Allow users to create and save comments for specific Datalists for improved documentation.
   last_btn<-reactiveValues(df='tools_drop1')
   output$note_target<-renderUI({
     # selected=NULL
@@ -439,7 +437,7 @@ app_server<-server<-function(input, output, session) {
 
 
 
-
+# Validate input data for mapping modules and toggle UI elements accordingly.
   validate_data_map<-reactive({
     validate_data(vals$data_map)
   })
@@ -573,7 +571,7 @@ app_server<-server<-function(input, output, session) {
     pre_process$server("preproc", vals)
     NULL
   })
-
+# Dynamically render side panel modules based on the current user selections.
   output$menu_intro_out<-renderUI({
     div(style="background: white",
         tabsetPanel(
@@ -640,7 +638,7 @@ app_server<-server<-function(input, output, session) {
     )
   })
 
-
+# Tutorial videos
   get_video<-reactive({
     switch(input$video_tab,
            "video1"={'https://danilocvieira.github.io/iMESc_help/images/t1-creating-datalist.mp4'},

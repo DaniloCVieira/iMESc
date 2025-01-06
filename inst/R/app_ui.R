@@ -4,7 +4,8 @@
 
 
 #' @noRd
-
+# Function to create a spinner overlay for a UI component
+# The spinner indicates loading status and is unique to each component
 imesc_spinner <- function(output_ui) {
 
   tagList(
@@ -22,7 +23,7 @@ imesc_spinner <- function(output_ui) {
   )
   }
 
-
+# Main UI function for the iMESc application
 #' @export
 app_ui<-ui<-function(request) {
 
@@ -30,12 +31,14 @@ app_ui<-ui<-function(request) {
     includeCSS("inst/www/styles.css"),
     includeCSS("inst/www/styles2.css"),
     includeCSS("inst/www/styles3.css"),
+     # Define browser tab title and favicon
     tags$head(
       tags$title("iMESc") # Define o título da janela do navegador
     ),
     tags$head(
       tags$link(rel = "icon", type = "image/x-icon", href = "imesc_logo.ico") # Define o favicon
     ),
+     # Custom CSS and JavaScript for loading animations and UI enhancements
     tags$head(
       tags$style(
         HTML("
@@ -89,6 +92,7 @@ app_ui<-ui<-function(request) {
         }
       ")
       ),
+   # JavaScript for controlling the spinner's visibility
       tags$script(
         HTML("
         document.addEventListener('DOMContentLoaded', function() {
@@ -108,6 +112,7 @@ app_ui<-ui<-function(request) {
       ")
       )
     ),
+ # Loading overlay and spinner
     tags$script(
       HTML("
     Shiny.addCustomMessageHandler('show_spinner', function(id) {
@@ -152,7 +157,7 @@ app_ui<-ui<-function(request) {
         )
       )
     ),
-
+ # Main dashboard structure
     shinydashboardPlus::dashboardPage(
       skin = "blue",
       shinydashboardPlus::dashboardHeader(),

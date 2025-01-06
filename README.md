@@ -55,6 +55,11 @@ Once the container is running, open your browser and navigate to:
 http://localhost:3838
 ```
 
+### Documentation and User Manual
+
+For detailed guidance on how to format your data and use the app with custom datasets, please refer to the [iMESc User Manual](https://danilocvieira.github.io/iMESc_help/).
+
+The manual provides step-by-step instructions and examples to ensure you can easily prepare your data and fully utilize the app's capabilities.
 
 ## License
 

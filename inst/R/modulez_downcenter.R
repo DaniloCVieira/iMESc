@@ -1,5 +1,4 @@
-#' @noRd
-#'
+# Module for table download
 #' @export
 
 module_ui_downcenter<-function(id){

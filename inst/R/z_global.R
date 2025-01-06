@@ -1,3 +1,5 @@
+# Global objects and sources
+
 #' @import kohonen sf ggplot2 data.table shinyBS
 #' @import viridis colorRamps
 #' @importFrom shinyWidgets updatePickerInput pickerInput radioGroupButtons updateRadioGroupButtons dropdownButton tooltipOptions toggleDropdownButton switchInput

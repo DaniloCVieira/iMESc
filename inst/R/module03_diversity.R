@@ -1,178 +1,42 @@
-
-gg_indicators<-function(indicator_table,top_result,pal="turbo",theme="theme_bw",base_size=12,min_size=1,max_size=12,xlab="",ylab="",title="",axis.text.size=12,axis.size=12,alpha=0.75,newcolhabs=list(turbo=viridis::turbo),xlab_rotate=0, vjust=.5,
-                        hjust=0.5,drop=T){
-  df<-indicator_table
-
-  df<-df[df$var%in%names(top_result),]
-
-
-  n<-5
-  if(length(unique(df$stat))<5){
-    n<-length(unique(df$stat))
-  }
-
-
-  #saveRDS(df,paste0(title,'_indicator_table.rds'))
-
-  breaks<-scales::cbreaks(range(df$stat),
-                          breaks=scales::breaks_extended(n),
-                          labels=scales::number_format())
-
-  breaks<-breaks$breaks
-
-  p<-ggplot(df, aes(x = group, y = var)) +
-    geom_point(aes(size = stat, fill = group), alpha = alpha, shape = 21) +   scale_fill_manual(values=newcolhabs[[pal]](nlevels(df$group)), guide = "none")+xlab(xlab)+ylab(ylab)+ggtitle(title)+scale_size_continuous(
-      range=c(min_size,max_size),
-      breaks=as.numeric(breaks)
-
-    )
-  p<-p+scale_x_discrete(breaks=levels(df$group),drop=F)
-
-  p<-add_ggtheme(p,theme,base_size )
-  p<-p+  theme(
-    axis.text = element_text(size=axis.text.size),
-    axis.title = element_text(size=axis.size),
-    axis.text.x = element_text(angle = xlab_rotate,vjust = vjust, hjust = hjust))
-
-
-  return(p)
-}
-
-
-
-indicator_multipart<-function(data,hc,npic=5,func="IndVal.g",nperm=199,duleg=T,min.order=1,max.order=2,seed=NA){
-
-  if(!is.na(seed)){
-    set.seed(seed)
-  }
-  indicator_r.g = indicspecies::multipatt(data, hc, func=func, duleg=duleg,control=permute::how(nperm=nperm),min.order=min.order,max.order=max.order)
-
-  attr(indicator_r.g,"y")<-hc
-
-  indicator_r.g
-}
-
-imesc_summary_multipatt<-function (object, alpha = 0.05, minstat = NULL, At = NULL, Bt = NULL,indvalcomp = FALSE, ...){
-  message("once")
-  x <- object
-  ncomb = ncol(x$str)
-  ncolsign = ncol(x$sign)
-  nsps = nrow(x$sign)
-  c("\n Multilevel pattern analysis")
-  c("\n ---------------------------\n")
-  c("\n Association function:", x$func)
-  cat(paste("\n Significance level (alpha):", alpha))
-  if (!is.null(minstat))
-    c("\n Minimum statistic value (minstat):", minstat)
-  if (x$func == "IndVal" || x$func == "IndVal.g") {
-    if (!is.null(At))
-      c("\n Minimum positive predictive value (At):",
-        At)
-    if (!is.null(Bt))
-      c("\n Minimum sensitivity (Bt):", Bt)
-  }
-  c("\n\n Total number of species:", nsps)
-  sel = !is.na(x$sign$p.value) & x$sign$p.value <= alpha
-  if (!is.null(minstat))
-    sel = sel & (x$sign$stat >= minstat)
-  if (!is.null(Bt) && !is.null(x$B)) {
-    for (i in 1:nrow(x$sign)) sel[i] = sel[i] && (x$B[i,
-                                                      x$sign$index[i]] >= Bt)
-  }
-  if (!is.null(At) && !is.null(x$A)) {
-    for (i in 1:nrow(x$sign)) sel[i] = sel[i] && (x$A[i,
-                                                      x$sign$index[i]] >= At)
-  }
-  a = x$sign[sel, ]
-  c("\n Selected number of species:", nrow(a), "\n")
-  cols = (ncolsign - 1):ncolsign
-  if (indvalcomp && !is.null(x$B) && !is.null(x$A)) {
-    As = numeric(nrow(x$sign))
-    Bs = numeric(nrow(x$sign))
-    for (i in 1:nrow(x$sign)) {
-      As[i] = x$A[i, x$sign$index[i]]
-      Bs[i] = x$B[i, x$sign$index[i]]
-    }
-    y = cbind(x$sign, As, Bs)
-    cols = c(ncol(y) - 1, ncol(y), cols)
-    names(y) = c(names(x$sign), "A", "B")
-  }  else y = x$sign
-  for (k in 1:(ncolsign - 4)) {
-    c(" Number of species associated to", k, if (k == 1)
-      "group:"
-      else "groups:", sum(rowSums(a[, 1:(ncolsign - 3)]) ==
-                            k), "\n")
-  }
-  c("\n List of species associated to each combination: \n")
-  com_result<-list()
-  for (i in 1:ncomb) {
-    sel = x$sign$index == i & !is.na(x$sign$p.value) & x$sign$p.value <=
-      alpha
-    if (!is.null(minstat))
-      sel = sel & (x$sign$stat >= minstat)
-    if (!is.null(Bt) && !is.null(x$B)) {
-      for (j in 1:nrow(x$sign)) sel[j] = sel[j] && (x$B[j,
-                                                        x$sign$index[j]] >= Bt)
-    }
-    if (!is.null(At) && !is.null(x$A)) {
-      for (j in 1:nrow(x$sign)) sel[j] = sel[j] && (x$A[j,
-                                                        x$sign$index[j]] >= At)
-    }
-    m = y[sel, ]
-    if (nrow(m) > 0) {
-      c("\n Group", colnames(x$comb)[i], " #sps. ", nrow(m),
-        "\n")
-      m = m[order(m$stat, decreasing = TRUE), cols]
-      com_result[[colnames(x$comb)[i]]]<-m
-      #  printCoefmat(m, signif.stars = TRUE, signif.legend = FALSE,                   digits = 4, P.values = TRUE, has.Pvalue = TRUE)
-    }
-  }
-  Signif <- symnum(x$sign$p.value, corr = FALSE, na = FALSE,
-                   cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***",
-                                                                            "**", "*", ".", " "))
-  c("---\nSignif. codes: ", attr(Signif, "legend"), "\n")
-  # names(com_result)<-colnames(x$comb)
-  return(com_result)
-}
-
-summary_multipatt<-function(indicator_r.g, p){
-  message("once1")
-  hcs<-attr(indicator_r.g,"y")
-  y0<-hcs
-  # sss<-summary(indicator_r.g)
-  sss<-imesc_summary_multipatt(indicator_r.g,alpha=p)
-  sssdf<-do.call(rbind,sss)
-  hcs<-do.call(c, lapply(names(sss),function(x) rep(x,nrow(sss[[x]]))))
-  indresult<-data.frame(group=hcs,var=do.call(c,lapply(sss,function(x) rownames(x))),sssdf)
-  indresult_group<-indresult$group
-  #indresult_group[1:2]<-c("1m","2300m")
-  uni_lev_result<-unique(indresult_group)
-  if(any(levels(y0)%in%uni_lev_result)){
-    newlevels<-levels(y0)[levels(y0)%in%uni_lev_result]
-    newlevels2<-uni_lev_result[!uni_lev_result%in%levels(y0)]
-    factor_vector<-factor(indresult_group,levels=c(newlevels,newlevels2))
-  } else{
-    factor_vector<-factor(indresult_group)
-  }
-  indresult$group<-factor_vector
-
-  indresult
-}
-
-filter_multipart_result<-function(indicator_r.g,npic, p){
-  sss<-imesc_summary_multipatt(indicator_r.g, p)
-
-  top_result<-do.call(c,lapply(  seq_along(sss),function(i){
-
-    x<-sss[[i]]
-    vec<-rownames(na.omit(x[1:npic,]))
-    vec1<-rep(i,length(vec))
-    names(vec1)<-vec
-    vec1
-  }))
-  top_result
-}
-
+#' The diversity_tool module provides a  framework for analyzing biodiversity data within the iMESc application.
+#'
+#' ## Key Features:
+#' 1. Comprehensive Biodiversity Analysis:
+#'    - Diversity Indices: Calculate various biodiversity metrics, including:
+#'      - Species richness (S)
+#'      - Shannon, Simpson, and Fisher diversity indices
+#'      - Evenness metrics and dominance indices
+#'      - Margalef and Chao1 estimators
+#'    - Niche Analysis: Perform niche modeling using principal component analysis and redundancy analysis.
+#'    - Simper Analysis: Assess species contributions to dissimilarities.
+#'    - Indicator Species Analysis: Identify species that characterize specific ecological conditions or groups.
+#'
+#' 2. Interactive and Flexible Data Processing:
+#'    - Dynamic selection of input datasets.
+#'    - Intuitive UI for toggling analysis options, such as indices to calculate or visualization settings.
+#'    - Integration of helper tooltips to explain indices and analysis steps.
+#'
+#' 3. Advanced Visualization and Outputs:
+#'    - Generate publication-ready plots and tables for diversity indices, niche models, and Simper results.
+#'    - Dynamic plots for indicator species and niche modeling with adjustable visualization parameters.
+#'    - Create and save custom datalists directly from analysis results.
+#'
+#' 4. User-Focused Design:
+#'    - Interactive tabs for different analysis workflows (Diversity Indices, Niche Analysis, Simper, Indicator Species).
+#'    - Conditional UI elements adapt to user inputs for a streamlined experience.
+#'    - Downloadable results in multiple formats.
+#'
+#' 5. Extensibility and Customization:
+#'    - Easily integrates with existing datasets in the iMESc application.
+#'
+#' ## Usage:
+#' - Diversity Indices: Select a dataset and indices to calculate biodiversity metrics interactively.
+#' - Niche Analysis: Model species distributions using PCA or niche redundancy analysis.
+#' - Simper Analysis: Explore species-specific contributions to group differences.
+#' - Indicator Species: Identify species uniquely associated with specific conditions or groups.
+#'
+#' ## Notes:
+#' - Some indices (e.g., Chao1, Fisher's alpha) require integer abundance data.
 
 diversity_tool<-list()
 diversity_tool$ui<-function(id){
@@ -1937,7 +1801,174 @@ cursor: move;
 
 
 
+## Auxiliar functions
+gg_indicators<-function(indicator_table,top_result,pal="turbo",theme="theme_bw",base_size=12,min_size=1,max_size=12,xlab="",ylab="",title="",axis.text.size=12,axis.size=12,alpha=0.75,newcolhabs=list(turbo=viridis::turbo),xlab_rotate=0, vjust=.5,
+                        hjust=0.5,drop=T){
+  df<-indicator_table
 
+  df<-df[df$var%in%names(top_result),]
+
+
+  n<-5
+  if(length(unique(df$stat))<5){
+    n<-length(unique(df$stat))
+  }
+
+
+  #saveRDS(df,paste0(title,'_indicator_table.rds'))
+
+  breaks<-scales::cbreaks(range(df$stat),
+                          breaks=scales::breaks_extended(n),
+                          labels=scales::number_format())
+
+  breaks<-breaks$breaks
+
+  p<-ggplot(df, aes(x = group, y = var)) +
+    geom_point(aes(size = stat, fill = group), alpha = alpha, shape = 21) +   scale_fill_manual(values=newcolhabs[[pal]](nlevels(df$group)), guide = "none")+xlab(xlab)+ylab(ylab)+ggtitle(title)+scale_size_continuous(
+      range=c(min_size,max_size),
+      breaks=as.numeric(breaks)
+
+    )
+  p<-p+scale_x_discrete(breaks=levels(df$group),drop=F)
+
+  p<-add_ggtheme(p,theme,base_size )
+  p<-p+  theme(
+    axis.text = element_text(size=axis.text.size),
+    axis.title = element_text(size=axis.size),
+    axis.text.x = element_text(angle = xlab_rotate,vjust = vjust, hjust = hjust))
+
+
+  return(p)
+}
+indicator_multipart<-function(data,hc,npic=5,func="IndVal.g",nperm=199,duleg=T,min.order=1,max.order=2,seed=NA){
+
+  if(!is.na(seed)){
+    set.seed(seed)
+  }
+  indicator_r.g = indicspecies::multipatt(data, hc, func=func, duleg=duleg,control=permute::how(nperm=nperm),min.order=min.order,max.order=max.order)
+
+  attr(indicator_r.g,"y")<-hc
+
+  indicator_r.g
+}
+imesc_summary_multipatt<-function (object, alpha = 0.05, minstat = NULL, At = NULL, Bt = NULL,indvalcomp = FALSE, ...){
+  message("once")
+  x <- object
+  ncomb = ncol(x$str)
+  ncolsign = ncol(x$sign)
+  nsps = nrow(x$sign)
+  c("\n Multilevel pattern analysis")
+  c("\n ---------------------------\n")
+  c("\n Association function:", x$func)
+  cat(paste("\n Significance level (alpha):", alpha))
+  if (!is.null(minstat))
+    c("\n Minimum statistic value (minstat):", minstat)
+  if (x$func == "IndVal" || x$func == "IndVal.g") {
+    if (!is.null(At))
+      c("\n Minimum positive predictive value (At):",
+        At)
+    if (!is.null(Bt))
+      c("\n Minimum sensitivity (Bt):", Bt)
+  }
+  c("\n\n Total number of species:", nsps)
+  sel = !is.na(x$sign$p.value) & x$sign$p.value <= alpha
+  if (!is.null(minstat))
+    sel = sel & (x$sign$stat >= minstat)
+  if (!is.null(Bt) && !is.null(x$B)) {
+    for (i in 1:nrow(x$sign)) sel[i] = sel[i] && (x$B[i,
+                                                      x$sign$index[i]] >= Bt)
+  }
+  if (!is.null(At) && !is.null(x$A)) {
+    for (i in 1:nrow(x$sign)) sel[i] = sel[i] && (x$A[i,
+                                                      x$sign$index[i]] >= At)
+  }
+  a = x$sign[sel, ]
+  c("\n Selected number of species:", nrow(a), "\n")
+  cols = (ncolsign - 1):ncolsign
+  if (indvalcomp && !is.null(x$B) && !is.null(x$A)) {
+    As = numeric(nrow(x$sign))
+    Bs = numeric(nrow(x$sign))
+    for (i in 1:nrow(x$sign)) {
+      As[i] = x$A[i, x$sign$index[i]]
+      Bs[i] = x$B[i, x$sign$index[i]]
+    }
+    y = cbind(x$sign, As, Bs)
+    cols = c(ncol(y) - 1, ncol(y), cols)
+    names(y) = c(names(x$sign), "A", "B")
+  }  else y = x$sign
+  for (k in 1:(ncolsign - 4)) {
+    c(" Number of species associated to", k, if (k == 1)
+      "group:"
+      else "groups:", sum(rowSums(a[, 1:(ncolsign - 3)]) ==
+                            k), "\n")
+  }
+  c("\n List of species associated to each combination: \n")
+  com_result<-list()
+  for (i in 1:ncomb) {
+    sel = x$sign$index == i & !is.na(x$sign$p.value) & x$sign$p.value <=
+      alpha
+    if (!is.null(minstat))
+      sel = sel & (x$sign$stat >= minstat)
+    if (!is.null(Bt) && !is.null(x$B)) {
+      for (j in 1:nrow(x$sign)) sel[j] = sel[j] && (x$B[j,
+                                                        x$sign$index[j]] >= Bt)
+    }
+    if (!is.null(At) && !is.null(x$A)) {
+      for (j in 1:nrow(x$sign)) sel[j] = sel[j] && (x$A[j,
+                                                        x$sign$index[j]] >= At)
+    }
+    m = y[sel, ]
+    if (nrow(m) > 0) {
+      c("\n Group", colnames(x$comb)[i], " #sps. ", nrow(m),
+        "\n")
+      m = m[order(m$stat, decreasing = TRUE), cols]
+      com_result[[colnames(x$comb)[i]]]<-m
+      #  printCoefmat(m, signif.stars = TRUE, signif.legend = FALSE,                   digits = 4, P.values = TRUE, has.Pvalue = TRUE)
+    }
+  }
+  Signif <- symnum(x$sign$p.value, corr = FALSE, na = FALSE,
+                   cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***",
+                                                                            "**", "*", ".", " "))
+  c("---\nSignif. codes: ", attr(Signif, "legend"), "\n")
+  # names(com_result)<-colnames(x$comb)
+  return(com_result)
+}
+summary_multipatt<-function(indicator_r.g, p){
+  message("once1")
+  hcs<-attr(indicator_r.g,"y")
+  y0<-hcs
+  # sss<-summary(indicator_r.g)
+  sss<-imesc_summary_multipatt(indicator_r.g,alpha=p)
+  sssdf<-do.call(rbind,sss)
+  hcs<-do.call(c, lapply(names(sss),function(x) rep(x,nrow(sss[[x]]))))
+  indresult<-data.frame(group=hcs,var=do.call(c,lapply(sss,function(x) rownames(x))),sssdf)
+  indresult_group<-indresult$group
+  #indresult_group[1:2]<-c("1m","2300m")
+  uni_lev_result<-unique(indresult_group)
+  if(any(levels(y0)%in%uni_lev_result)){
+    newlevels<-levels(y0)[levels(y0)%in%uni_lev_result]
+    newlevels2<-uni_lev_result[!uni_lev_result%in%levels(y0)]
+    factor_vector<-factor(indresult_group,levels=c(newlevels,newlevels2))
+  } else{
+    factor_vector<-factor(indresult_group)
+  }
+  indresult$group<-factor_vector
+
+  indresult
+}
+filter_multipart_result<-function(indicator_r.g,npic, p){
+  sss<-imesc_summary_multipatt(indicator_r.g, p)
+
+  top_result<-do.call(c,lapply(  seq_along(sss),function(i){
+
+    x<-sss[[i]]
+    vec<-rownames(na.omit(x[1:npic,]))
+    vec1<-rep(i,length(vec))
+    names(vec1)<-vec
+    vec1
+  }))
+  top_result
+}
 
 
 

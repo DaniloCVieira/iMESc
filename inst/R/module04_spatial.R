@@ -1,2194 +1,615 @@
-#' @noRd
+
+#' ## Overview of the Spatial Tools Module
+#' The Spatial Tools module provides a  framework for visualizing and analyzing spatially explicit datasets within the iMESc application.
+#'
+#' ### Key Functionalities:
+#' 1. Map-Based Visualizations:
+#'    - Circles: Visualize numeric variables using circle markers on a map.
+#'    - Pies: Display categorical variables using pie charts at spatial coordinates.
+#'    - Scatter3D: Visualize 3D relationships among spatial variables.
+#'    - Raster: Render spatial datasets as rasters for detailed spatial analysis.
+#'    - Interpolation: Generate interpolated surfaces from point data for spatial predictions.
+#'    - 3D Surface and Stack: Create three-dimensional visualizations for spatial layers.
+#'
+#' 2. Data Preprocessing and Validation:
+#'    - Flexible data input configurations, including numeric and categorical attributes.
+#'    - Automatic validation of geographic coordinates (e.g., longitude, latitude).
+#'    - Filter and subset data using factor attributes.
+#'
+#' 3. Interactive and Configurable Outputs:
+#'    - Customizable visualization settings, including color palettes, radius sizes, and variable selection.
+#'    - Support for saving and reloading raster or interpolation outputs for future analysis.
+#'
+#' 4. Error Handling and Validation:
+#'    - Comprehensive checks for coordinate validity (e.g., missing values, range validation for longitude and latitude).
+#'    - Real-time feedback when datasets do not meet spatial requirements.
+#'
+#' ### Workflow:
+#' - Data Setup: Select a dataset and attribute type (numeric or factor) to prepare the data for spatial visualization.
+#' - Visualization Modes: Choose from various map types (e.g., Circles, Pies, Raster) to explore spatial patterns.
+#' - Advanced Visualization:
+#'    - Interpolation: Create continuous surfaces for variables based on point data.
+#'    - 3D Visualizations: Generate surface plots or stacked layers for spatial data insights.
+#'
+#' ### Additional Features:
+#' - Validation messages to ensure data readiness for spatial analysis.
+#' - Modular design enables future expansion, such as additional spatial models or custom visualizations.
+#'
+#' ### Notes:
+#' - Ensure that spatial datasets include valid geographic coordinates.
+#' - Use appropriate filters and subsets to refine visualizations and analyses.
 
 
 
-
-
-
-surface_add_points<-list()
-surface_add_points$ui<-function(id){
+#' @export
+sptools_data<-list()
+sptools_data$ui<-function(id){
   ns<-NS(id)
+
   div(
-    box_caret(
-      ns("surface_Points"),
-      title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("surf_addpoints"),strong("Points"), F,width="100px")),
+    h4("Spatial Tools", class="imesc_title"),
+    div(class="spatial_tools spatial_setup",
+        id=ns('map_setup'),
 
-      color="#c3cc74ff",
-      div(style="padding-left: 10px",
-          id=ns("points_out"),
-          uiOutput(ns("datalist_out")),
-          uiOutput(ns("zvalue_out")),
-          uiOutput(ns("zcolor_out")),
+        box_caret(ns("box_setup"),
+                  title="Data setup",
+                  color="#374061ff",
+                  inline=F,
+                  div(
 
+                    div(class="inline_pickers2",
+                        pickerInput_fromtop_live(ns("data_map"),"Datalist:",
+                                                 choices =NULL,inline=T),
+                        pickerInput_fromtop(ns("choices_map"),"Attribute:",
+                                            choices = c("Numeric-Attribute","Factor-Attribute"),inline=T),
+                        pickerInput_fromtop_live(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
+                        pickerInput_fromtop_live(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
+                        pickerInput_fromtop_live(ns("level_filter"),label = "Level",choices = NULL,inline=T)
 
 
-          pickerInput_fromtop_live(ns("surf_ap_palette"),"Palette", choices=NULL),
 
-          numericInput(ns('surf_ap_size'),"Size",1.5),
-          checkboxInput(ns("surf_z_scale"),"Scale Size", F ),
-          uiOutput(ns("zscale_vars")),
+                    )
 
-          numericInput(ns('surf_ap_minsize'),"Min-size",0.5),
-          div(id=ns("legendplot3D"),
-              style="margin-left: 15px",
-              numericInput(ns('surf_y.intersp'),'Legend y.intersp',1.5),
-              numericInput(ns('surf_x.intersp'),'Legend x.intersp',1.5),
-              numericInput(ns('surf_inset_x'),'Legend inset_x',0),
-              numericInput(ns('surf_inset_y'),'Legend inset_y',0),
 
-
-          )),
-
-    )
-  )
-
-}
-surface_add_points$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-    result<-reactive({
-      list(
-        surf_addpoints=input$surf_addpoints,
-        surf_points_datalist=input$surf_points_datalist,
-        surf_points_z_value=input$surf_points_z_value,
-        surf_points_z_color=input$surf_points_z_color,
-        surf_ap_palette=input$surf_ap_palette,
-        surf_y.intersp=input$surf_y.intersp,
-        surf_x.intersp=input$surf_x.intersp,
-        surf_inset_x=input$surf_inset_x,
-        surf_inset_y=input$surf_inset_y,
-        surf_ap_size=input$surf_ap_size,
-        surf_z_scale=input$surf_z_scale,
-        surf_ap_z_scale_vars=input$surf_ap_z_scale_vars,
-        surf_ap_minsize=input$surf_ap_minsize
-      )
-    })
-    return(result())
-
-  })
-}
-surface_add_points$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    ns<-session$ns
-    observe({
-      shinyjs::toggle("legendplot3D",condition=vals$cur_modeplot%in%"plot3D")
-
-      shinyjs::toggle('points_out',condition=isTRUE(input$surf_addpoints))
-      shinyjs::toggle('surf_ap_z_scale_vars',condition=isTRUE(input$surf_z_scale))
-      shinyjs::toggle('surf_ap_minsize',condition=isTRUE(input$surf_z_scale))
-      shinyjs::toggle('legendplot3D',condition=isTRUE(input$surf_z_scale))
-
-
-
-
-
-
-    })
-
-    result<-reactive({
-      list(
-        surf_addpoints=input$surf_addpoints,
-        surf_points_datalist=input$surf_points_datalist,
-        surf_points_z_value=input$surf_points_z_value,
-        surf_points_z_color=input$surf_points_z_color,
-        surf_ap_palette=input$surf_ap_palette,
-        surf_y.intersp=input$surf_y.intersp,
-        surf_x.intersp=input$surf_x.intersp,
-        surf_inset_x=input$surf_inset_x,
-        surf_inset_y=input$surf_inset_y,
-        surf_ap_size=input$surf_ap_size,
-        surf_z_scale=input$surf_z_scale,
-        surf_ap_z_scale_vars=input$surf_ap_z_scale_vars,
-        surf_ap_minsize=input$surf_ap_minsize
-      )
-    })
-
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    data<-reactive({
-      req(input$surf_points_datalist)
-      data<-vals$saved_data[[input$surf_points_datalist]]
-      data
-    })
-
-    observeEvent(input$surf_points_datalist,{
-      vals$cur_surf_points_datalist<-input$surf_points_datalist
-    })
-
-    output$datalist_out<-renderUI({
-      choices=names(vals$saved_data)
-      selected=vals$cur_surf_points_datalist
-      selected=get_selected_from_choices(selected,choices)
-      pickerInput_fromtop_live(ns("surf_points_datalist"),"Datalist",
-                               choices=choices,
-                               selected=selected)
-    })
-
-    observeEvent(input$surf_points_z_value,{
-      vals$cur_surf_points_z_value<-input$surf_points_z_value
-    })
-    output$zvalue_out<-renderUI({
-      data<-data()
-      choices=colnames(data)
-      selected=vals$cur_surf_points_z_value
-      selected=get_selected_from_choices(selected,choices)
-      pickerInput_fromtop_live(ns("surf_points_z_value"),"Z-Value",
-                               selected=selected,choices=choices)
-    })
-    observeEvent(input$surf_points_z_color,{
-      vals$cur_surf_points_z_color<-input$surf_points_z_color
-    })
-    output$zcolor_out<-renderUI({
-      data<-data()
-      choices<-c("Z-Value",colnames(cbind(data,attr(data,"factors"))))
-      selected=vals$cur_surf_points_z_color
-      selected=get_selected_from_choices(selected,choices)
-      pickerInput_fromtop_live(ns("surf_points_z_color"),"Z-Color",   selected=selected,choices=choices)
-    })
-    observeEvent(input$surf_ap_z_scale_vars,{
-      vals$cur_surf_ap_z_scale_vars<-input$surf_ap_z_scale_vars
-    })
-    output$zscale_vars<-renderUI({
-      data<-data()
-      choices=colnames(data)
-      selected=vals$cur_surf_ap_z_scale_vars
-      selected=get_selected_from_choices(selected,choices)
-      pickerInput_fromtop_live(ns("surf_ap_z_scale_vars"),"Z-Value", choices=choices,  selected=selected )
-    })
-
-    observeEvent(vals$newcolhabs,{
-      updatePickerInput(session,"surf_ap_palette", choices =  vals$colors_img$val,choicesOpt = list(content =  vals$colors_img$img )
-      )
-    })
-
-
-
-    return(NULL)
-
-  })
-}
-surface_3d_control<-list()
-surface_3d_control$ui<-function(id){
-  ns<-NS(id)
-  div(
-    box_caret(
-
-      ns("box_surface"),
-      color="#c3cc74ff",
-      title="3D control",
-      hide_content=T,
-      div(id=ns("d3_control"),
-          div(align="right",
-              actionLink(ns("reset_zcontrol"),"reset",style="font-size: 12px;")
-          ),
-
-          numericInput(ns("surf_exp"),span('+ exp:',tipright("a expansion factor applied to the z coordinates. Often used with 0 < expand < 1 to shrink the plotting box in the z direction")), 0.8,  step=.1),
-          numericInput(ns("surf_theta"),span('+ theta:',tipright("azimuthal direction")),0,max=360,step=10),
-          numericInput(ns("surf_phi"),span('+ phi:',tipright("colatitude direction")),40,min=180,step=10),
-
-          numericInput(ns("surf_r"),span('+ Eye point:',tipright("rhe distance of the eyepoint from the centre of the plotting box")), 1.73),
-          pickerInput_fromtop(ns("surf_tick"),span('+ ticktype',tipright("simple - draws just an arrow parallel to the axis to indicate direction of increase; detailed - draws normal ticks as per 2D plots.")), c("simple","detailed")),
-
-          numericInput(ns("surf_d"),span('+ persp strength:',tipright("a value which can be used to vary the strength of the perspective transformation. Values of d greater than 1 will lessen the perspective effect and values less and 1 will exaggerate it")), 1)
-      )
-
-    )
-  )
-
-}
-surface_3d_control$server<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    observe({
-
-
-      shinyjs::toggle('surf_tick',condition = !vals$cur_modeplot%in%"plotly")
-    })
-
-
-    result<-reactive(
-      list(
-        surf_exp=input$surf_exp,
-        surf_theta=input$surf_theta,
-        surf_phi=input$surf_phi,
-        surf_r=input$surf_r,
-        surf_tick=input$surf_tick,
-        surf_d=input$surf_d
-      )
-    )
-
-    return(result())
-
-  })
-}
-surface_3d_control$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    box_caret_server("box_surface",hide_content=T)
-
-
-    result<-reactive(
-      list(
-        surf_exp=input$surf_exp,
-        surf_theta=input$surf_theta,
-        surf_phi=input$surf_phi,
-        surf_r=input$surf_r,
-        surf_tick=input$surf_tick,
-        surf_d=input$surf_d
-      )
-    )
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    return(NULL)
-
-  })
-}
-surface_saved_maps<-list()
-surface_saved_maps$ui<-function(id){
-  ns<-NS(id)
-  div(
-    box_caret(
-      ns("surface_savedmaps"),
-      title="Saved maps",
-      color="#c3cc74ff",
-
-      div(
-        div(style="display: flex",
-            pickerInput_fromtop_live(ns("saved_maps"),"Saved map (Z)", NULL),
-            actionLink(ns("trash_map"), icon('fas fa-trash'))
-        ),
-        pickerInput_fromtop_live(ns("saved_maps2"),"Saved map (Color)", NULL)
-      )
-
-
-    )
-  )
-
-}
-surface_saved_maps$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-    observeEvent(vals$saved_maps,{
-      updatePickerInput(session,'saved_maps2',choices=names(vals$saved_maps))
-
-      updatePickerInput(session,'saved_maps',choices=names(vals$saved_maps))
-    })
-
-    observeEvent(input$trash_map,ignoreInit = T,{
-      req(input$saved_maps)
-      req(vals$saved_maps)
-      vals$saved_maps[[input$saved_maps]]<-NULL
-    })
-    observeEvent(input$saved_maps,{
-      vals$cur_rst<-vals$saved_maps[[input$saved_maps]]
-    })
-    return(NULL)
-  })
-}
-surface_saved_maps$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-
-
-    result<-reactive(
-      list(
-        saved_maps=input$saved_maps,
-        saved_maps2=input$saved_maps2
-      )
-    )
-
-    return(
-      result()
-    )
-
-
-  })
-}
-
-
-
-plotly_download<-list()
-
-plotly_download$ui<-function(id){
-  ns<-NS(id)
-  showModal(
-    modalDialog(
-      title="Download plotly",
-      div(
-        div(style="display: flex; gap: 10px;max-width: 600px",
-            numericInput(ns("fheight"), "Height (px)", min=2,  step=1, value = 400),
-            numericInput(ns("fwidth"), "Width (px)", min=2,  step=1, value = 400),
-            numericInput(ns("fscale"), "Scale", step=1, value = 10),
-            selectInput(ns("fformat"), "File type", choices=c("png","svg","jpeg")),
-            div(style="margin-top: 25px",class="save_changes",
-                actionButton(ns("plotly_download"),"Download"))
-
-
+                  )
         )
-      ),
-      easyClose = T
-
-    )
-  )
-}
-
-plotly_download$server<-function(id,out_id,session_in){
-  moduleServer(id,function(input,output,session){
-
-    observeEvent(input$plotly_download,ignoreInit = T,{
-
-      withProgress(min=NA,max=NA,message="Taking snapshop - this may take a few seconds... ",{
-        shinyjs::runjs(paste0(
-          "
-      var plot = document.getElementById('",paste0(session_in,out_id),"');
-      if (plot) {
-      Plotly.downloadImage(plot, {
-        format: '",input$fformat,"',
-        filename: 'plot_snapshot',
-        width: ",input$fwidth,",
-        height: ",input$fheight,",
-        scale: ",input$fscale,"  // Adjust the scale factor as needed
-      });
-    }
-    "
-        ))
-        removeModal()
-      })
-
-    })
-
-    output$teste<-renderUI({
-      renderPrint({})
-    })
-
-  })
-}
-check_inputs<-function(input,pattern){
-  res<-names(input)[grep(pattern,names(input))]
-  res
-}
-
-
-sptools_colors<-list()
-sptools_colors$ui<-function(id){
-  ns<-NS(id)
-  div(
-
-    div(
-      tags$div(
-        pickerInput_fromtop_live(inputId = ns("palette"),
-                            label ="Palette",
-                            NULL),
-        radioButtons(ns("scale_color"),"Color Range:",c(
-          "filtered data"="filtered",
-          "unfiltered data"="unfiltered"
-        ),inline=T,width="400px"),
-
-        numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1),
-        numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1)
-
-      ),
-      div(
-        checkboxInput(ns("reverse_palette"),"Reverse palette",F)
-      )
     )
 
 
 
-  )
 
-}
-sptools_colors$server<-function(id){
+
+  )}
+sptools_data$server<-function(id,vals){
   moduleServer(id,function(input, output, session){
-
-    return(
-      reactive({
-
-        list(pal='temp_palette',fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color)
-      })
-    )
-  })
-}
-
-sptools_colors$server_update<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-
-    result<-reactive({
-      list(
-        pal=input$palette,fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color
-      )
-    })
-
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
+    requireNamespace("leaflet")
 
 
-    observeEvent(input$palette,{
-      vals$cur_mappalette<-input$palette
+    observeEvent(input$data_map,{
+
+      updatePickerInput(session,"choices_map",selected= vals$cur_choices_map)
+
     })
     observe({
-      updatePickerInput(session,"palette", choices =  vals$colors_img$val,
-                        choicesOpt = list(
-                          content =  vals$colors_img$img )
-      )
+      shinyjs::toggle('map_setup',condition = !vals$cur_mode_map%in%c("surface","stack"))
+    })
+
+    observeEvent(vals$saved_data,{
+      selected<-NULL
+      if(!is.null(vals$cur_data)){
+        if(vals$cur_data%in%names(vals$saved_data)){
+          selected<-vals$cur_data
+        }
+      }
+
+      updatePickerInput(session,"data_map",choices=names(vals$saved_data), selected=selected)
     })
 
 
+    observeEvent(input$data_map,{
+      choices<-colnames(get_factors())
+      selected<-get_selected_from_choices(vals$cur_factor_filter,choices)
+      updatePickerInput(session,"factor_filter",choices=c("None",choices),selected=selected)
+    })
 
-    color_reac<-reactive({
-      list(
-        vals$data_map[,1],
-        vals$cur_factor_filter,
-        input$scale_color,
-        input$palette
-      )
+
+    observeEvent(data0(),{
+
+      choices<-colnames(data0())
+      selected<-NULL
+      if(!is.null(vals$cur_var_map)){
+        if(vals$cur_var_map%in%choices){
+          selected<-vals$cur_var_map
+        }
+      }
+      updatePickerInput(session,"var_map",choices=choices, selected=selected)
+
+    })
+    observeEvent(list(input$factor_filter,get_factors()),{
+      req(input$factor_filter)
+      fac<-get_filter()[,1]
+      choices<-levels(fac)
+      selected<-get_selected_from_choices(vals$cur_level_filter,choices)
+
+      updatePickerInput(session,"level_filter",choices=choices, selected=selected)
+    })
+
+    data0<-reactive({
+      req(input$data_map)
+      req(input$data_map%in%names(vals$saved_data))
+      req(input$choices_map)
+      data0<-vals$saved_data[[input$data_map]]
+      if(input$choices_map=='Factor-Attribute'){
+        data_temp<-attr(data0,"factors")
+        coords<-attr(data0,"coords")
+        factors<-attr(data0,"factors")
+        attr(data_temp,"factors")<-factors
+        attr(data_temp,"coords")<-coords
+        data0<-data_temp
+      }
+
+      req(data0)
+      data0
+    })
+    get_factors<-reactive({
+      req(input$data_map)
+      req(input$data_map%in%names(vals$saved_data))
+      data0<-vals$saved_data[[input$data_map]]
+      factors<-attr(data0,"factors")
+      factors
+    })
+    get_filter<-reactive({
+      req(input$data_map)
+      req(input$data_map%in%names(vals$saved_data))
+      data0<-vals$saved_data[[input$data_map]]
+      factors<-get_factors()
+      req(input$factor_filter%in%colnames(factors))
+      fac<-factors[input$factor_filter]
+      fac
+    })
+
+    observe({
+      req(input$data_map)
+      req(input$choices_map)
+      req(input$var_map)
+      vals$cur_data<-input$data_map
+      vals$cur_var_map<-input$var_map
+      vals$cur_factor_filter<-input$factor_filter
+      vals$cur_level_filter<-input$level_filter
+      vals$cur_choices_map<-input$choices_map
+
+
+
     })
 
 
     observe({
-      cond=is.numeric(vals$data_map[,1])&vals$cur_factor_filter!="None"
-      shinyjs::toggle('scale_color',condition = cond)
+      shinyjs::toggle('level_filter',condition=input$factor_filter!="None")
     })
+    data_inputs<-reactive({
 
-    unfiltered_data<-reactive({
-      req(vals$data_map)
-      req(vals$cur_data)
-      req(vals$cur_choices_map)
-      req(vals$cur_var_map)
-      data_inputs<- list(
-        name=vals$cur_data,
-        attr=vals$cur_choices_map,
-        var=vals$cur_var_map,
-        filter="None",
-        filter_level=NULL,
+      list(
+        name=input$data_map,
+        attr=input$choices_map,
+        var=input$var_map,
+        filter=input$factor_filter,
+        filter_level=input$level_filter,
         saved_data=vals$saved_data
       )
+    })
 
-      args<-data_inputs
+
+    observeEvent(data_inputs(),{
+
+
+      saved_data<-vals$saved_data
+      req(input$data_map%in%names(saved_data))
+      req(input$var_map%in%colnames(data0()))
+      args<-data_inputs()
       res<-do.call(get_data_map,args)
+      req(nrow(res)>0)
+      vals$data_map<-res
+
+
+    })
+    observe({
+      req(vals$update_state)
+      update_state<-vals$update_state
+      ids<-names(update_state)
+      update_on<-grepl(id,ids)
+      names(update_on)<-ids
+      to_loop<-names(which(update_on))
+      withProgress(min=1,max=length(to_loop),message="Restoring",{
+        for(i in to_loop) {
+          idi<-gsub(paste0(id,"-"),"",i)
+          incProgress(1)
+          restored<-restoreInputs2(session, idi, update_state[[i]])
+
+          if(isTRUE(restored)){
+            vals$update_state[[i]]<-NULL
+          }
+
+        }
+      })
+
+    })
+    return(NULL)
+  })
+}
+#' @export
+sptools_panels<-list()
+#' @export
+sptools_panels$ui<-function(id){
+  module_progress("Loading module: Spatial Tools")
+  ns<-NS(id)
+  fluidRow( class="spatial_tools",
+
+
+            column(12,
+                   #
+                   #hidden(uiOutput(ns('coordinates_message'))),
+                   class='nav_map',
+                   div(id=ns("map_tabs"),
+                       navbarPage(
+                         NULL,id=ns("mode"),selected='circles',
+                         tabPanel(
+                           "Circles",value="circles",
+                           div(
+                             uiOutput(ns('map_circles_validate')),
+                             div(
+                               id=ns("circles_page"),
+
+                               uiOutput(ns("map_circles"))
+                             )
+                           )
+                         ),
+                         tabPanel(
+                           "Pies",value="pies",
+                           div(
+                             uiOutput(ns('map_pies_validate')),
+                             div(
+                               id=ns("pies_page"),
+
+                               uiOutput(ns("map_pie"))
+                             )
+                           )
+                         ),
+                         tabPanel(
+                           "Scatter3D",value="scatter3d",
+                           div(
+                             uiOutput(ns('map_scatter3D_validate')),
+                             div(
+                               id=ns("scatter3D_page"),
+
+                               uiOutput(ns("map_scatter3d"))
+                             )
+                           )
+
+                         ),
+
+                         tabPanel(
+                           "Raster",value="raster",
+                           div(
+                             uiOutput(ns('map_raster_validate')),
+                             div(
+                               id=ns("raster_page"),
+
+                               uiOutput(ns("map_raster"))
+                             )
+                           )
+                         ),
+                         tabPanel(
+                           "Interpolation",value="interp",
+                           div(
+                             uiOutput(ns('map_interp_validate')),
+                             div(id=ns("interp_page"),
+                                 sptools_tab$ui(ns("interp"), interp=T),
+                                 uiOutput(ns("map_interp"))
+                             )
+                           )
+                         ),
+                         tabPanel(
+                           "Surface (3D)",value="surface",
+                           div(
+
+                             div(
+                               id=ns("surface_page"),
+
+                               uiOutput(ns("map_surface"))
+                             )
+                           )),
+                         tabPanel(
+                           "Stack (3D)",value="stack",
+                           div(
+
+                             div(
+                               id=ns("stack_page"),
+
+                               uiOutput(ns("map_stack"))
+                             )
+                           ))
+
+
+
+                       ))
+
+
+
+
+            )
+
+
+
+  )
+}
+#' @export
+sptools_panels$server<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+    #data_plot=NULL
+
+
+    ns<-session$ns
+
+
+
+    observe({
+      valid_map<-is.null(validate_coords())
+
+      shinyjs::toggle('circles_page',condition=valid_map)
+      shinyjs::toggle('pies_page',condition=valid_map)
+      shinyjs::toggle('scatter3D_page',condition=valid_map)
+      shinyjs::toggle('raster_page',condition=valid_map)
+      shinyjs::toggle('interp_page',condition=valid_map)
+    })
+
+
+
+    validate_coords <- reactive({
+      res <- NULL
+      data <- vals$data_map
+
+      if (is.null(data)) {
+        res <- "Data not found"
+      } else {
+        coords <- attr(data, "coords")
+
+        if (length(coords) == 0) {
+          res <- 'The selected Datalist has no coordinates.'
+        } else if (ncol(coords) != 2) {
+          res <- "Error in Coordinates: Number of columns not equal to 2."
+        } else if (anyNA(coords)) {
+          res <- "Check your Coordinates: NAs not allowed."
+        } else {
+          # Check longitude (first column) and latitude (second column)
+          lon_invalid <- any(coords[, 1] < -180 | coords[, 1] > 180)
+          lat_invalid <- any(coords[, 2] < -90 | coords[, 2] > 90)
+
+          error_messages <- character() # Initialize an empty character vector to collect error messages
+
+          if (lon_invalid) {
+            error_messages <- c(error_messages, "Error: Longitude values must be in decimal degrees (between -180 and 180).")
+          }
+
+          if (lat_invalid) {
+            error_messages <- c(error_messages, "Error: Latitude values must be in decimal degrees (between -90 and 90).")
+          }
+
+          if (length(error_messages) > 0) {
+            res <- lapply(error_messages, div) # Combine all error messages into a single string
+          }
+        }
+      }
+
+      if (!is.null(res)) {
+        res <- div(
+          style="display: flex; align-items: center;background-color: #f2dede; color: #d2322d",
+          icon("triangle-exclamation",style="font-size: 18px;color: #d2322d"),
+          div(embrown(res),style="margin-left: 6px")
+        )
+      }
+
       res
     })
 
 
-    observeEvent(color_reac(),{
-      req(input$palette)
-      pal<-vals$newcolhabs[[input$palette]]
-      if(is.numeric(vals$data_map[,1])){
-        if(vals$cur_factor_filter!="None"){
-          unfilt<-unfiltered_data()[,1]
-          if(input$scale_color=="unfiltered"){
-            # fac<-factor(unfilt,levels=unique(unfilt))
-            cols<-vals$newcolhabs[[input$palette]](length(unique(unfilt)))
-            names(cols)<-1:length(cols)
 
-            cutn<-cut(vals$data_map[,1],breaks=sort(unique(unfilt)),include.lowest=T)
-            cols<-cols[cutn]
-            cols<-cols[order(as.numeric(names(cols)))]
-            plot(rep(1,length(cols)),1:length(cols),col=cols,pch=15,cex=2)
-            pal<-colorRampPalette(cols)
 
-          }
-        }
-      }
-      vals$newcolhabs[["temp_palette"]]<-pal
 
+
+    output$map_circles_validate<-renderUI({
+      validate_coords()
     })
 
-
-
-    return(NULL)
-  })
-}
-
-
-sptools_circles<-list()
-sptools_circles$ui<-function(id){
-  ns<-NS(id)
-  div(
-    tags$div(id=ns("circle_options"),
-             checkboxInput(ns("scale_radius"), "Scale radius",T)
-    )
-  )
-}
-sptools_circles$server<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-    return(
-      list(
-        scale_radius=input$scale_radius
-
-      )
-    )
-
-  })
-}
-sptools_circles$server_update<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-
-    result<-reactive({
-      list(
-        scale_radius=input$scale_radius
-
-      )
+    output$map_pies_validate<-renderUI({
+      validate_coords()
     })
 
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    observeEvent(vals$cur_choices_map,{
-      shinyjs::toggle('scale_radius',condition=vals$cur_choices_map!="Factor-Attribute")
-    })
-    return(NULL)
-
-  })
-}
-sptools_radius<-list()
-sptools_radius$ui<-function(id){
-  ns<-NS(id)
-  div(
-    div(class="inline_pickers2",style="display: flex;",
-
-        numericInput(ns("min_radius") ,label ='Min',1),
-        numericInput(ns("max_radius") ,label =" Max",5)
-    ),
-    radioButtons(ns("scale_range"),"Size Range:",c(
-      "filtered data"="filtered",
-      "unfiltered data"="unfiltered"
-    ),inline=T,width="400px")
-  )
-}
-sptools_radius$server<-function(id){
-  moduleServer(id,function(input, output, session){
-
-
-
-    return(
-      list(
-        min_radius=input$min_radius,
-        max_radius=input$max_radius,
-        scale_range=input$scale_range
-      )
-    )
-
-  })
-}
-sptools_radius$server_update<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-    observe({
-      cond=is.numeric(vals$data_map[,1])&vals$cur_factor_filter!="None"
-      shinyjs::toggle('scale_range',condition = cond)
+    output$map_scatter3D_validate<-renderUI({
+      validate_coords()
     })
 
-    result<-reactive({
-      list(
-        min_radius=input$min_radius,
-        max_radius=input$max_radius,
-        scale_range=input$scale_range
-      )
-    })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    output$map_raster_validate<-renderUI({
+      validate_coords()
     })
 
-    return(NULL)
-
-  })
-}
-
-
-sptools_breaks<-list()
-sptools_breaks$ui<-function(id){
-  ns<-NS(id)
-  div(
-    tags$div(
-      numericInput(ns("nbreaks"), span("Nº breaks",tiphelp("approximate number of breaks")),5, width="200px"))
-  )
-}
-sptools_breaks$server<-function(id){
-  moduleServer(id,function(input, output, session){
-    return(
-      list(
-        nbreaks=input$nbreaks
-      )
-    )
-
-  })
-}
-sptools_pie<-list()
-sptools_pie$ui<-function(id){
-  ns<-NS(id)
-  div(
-
-    tags$div(id=ns("chart_options"),
-             div(
-               numericInput(ns("buffer_zize") ,
-                            label =span("buffer (km)",tiphelp("Must be higher than 0")),
-                            0.001)
-             ),
-             div(pickerInput_fromtop(ns("factor_chart") ,
-                                     label ="factor",
-                                     NULL))
-
-    )
-  )
-}
-sptools_pie$server<-function(id){
-  moduleServer(id,function(input, output, session){
-
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    observeEvent(input$buffer_zize,ignoreInit = T,{
-      if(input$buffer_zize<=0){
-        updateNumericInput(session,"buffer_zize",value=0.00001)
-      }
-    })
-    result<-reactive({
-      list(
-        addMinicharts=T,
-        factor_chart=input$factor_chart,
-        buffer_zize=input$buffer_zize
-      )
-    })
-
-    return(result())
-
-  })
-}
-
-
-sptools_pie$server_update<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-
-
-    factors<-reactive({
-      attr(vals$data_map,"factors")
+    output$map_interp_validate<-renderUI({
+      validate_coords()
     })
 
 
 
     observe({
-      updatePickerInput(session,'factor_chart',choices=colnames(factors()))
+      shinyjs::toggle("surface_page",condition=length(vals$saved_maps)>0)
+      shinyjs::toggle("stack_page",condition=length(vals$saved_maps)>0)
+    })
+    output$map_stack_validate<-renderUI({
+      req(!length(vals$saved_maps)>0)
+      emgray("This functionality requires at least one saved raster from the Raster or Interpolation tabs.")
+    })
+    output$map_surface_validate<-renderUI({
+      req(!length(vals$saved_maps)>0)
+      emgray("This functionality requires at least one saved raster from the Raster or Interpolation tabs.")
     })
 
-
-  })
-}
-
-
-
-sptools_shapes<-list()
-sptools_shapes$ui<-function(id, surface=F,stack=F){
-
-  ns<-NS(id)
-  div(
-    if(isFALSE(stack))
-      div(id=ns("show_base"),
-          box_caret(ns("box_base"),
-                    color="#c3cc74ff",
-                    title=span(style="display: inline-block",
-                               class="checktitle",
-                               checkboxInput(ns("base_shape") ,label =strong("Base Shape"),F,width="150px")
-                    ),
-                    div(
-                      id=ns("base_options"),
-
-                      if(isTRUE(surface))
-                        uiOutput(ns("base_z_out")),
-
-                      colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
-
-
-                      div(
-
-
-                        colourpicker::colourInput(ns("base_border_color"),"Border Color","darkgray")
-                        ,
-                        numericInput(ns("base_weight"),'Border Width',min=0,0.5,step=.5)
-
-
-
-                      ),
-                    )
-          )
-      ),
-
-    div(id=ns("show_layer"),
-        box_caret(ns("box_layer"),
-                  color="#c3cc74ff",
-                  title=span(style="display: inline-block",
-                             class="checktitle",
-                             checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),F)
-                  ),
-                  div(
-                    id=ns("layer_options"),
-                    if(isTRUE(surface))
-                      uiOutput(ns('layer_z_out')),
-
-                    colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
-
-                    div(
-
-
-                      colourpicker::colourInput(ns("layer_border_color"),"Border Color","gray20")
-                      ,
-                      numericInput(ns("layer_weight"),'Border Width',min=0,0.5,step=.5)
-
-
-
-                    )
-                  )
-        )
-    )
-  )
-}
-sptools_shapes$server_update1<-function(id, vals){
-  moduleServer(id,function(input, output, session){
-    ns<-session$ns
-
-    result<-reactive({
-      list(
-        base_shape_args=list(
-          fillOpacity=input$base_fillOpacity,
-          shape=input$base_shape,
-          color=input$base_color,
-          weight=input$base_weight,
-          stroke=input$base_stroke,
-          fill=input$base_fill,
-          border_col=input$base_border_color,
-          z=input$base_z
-        ),
-        layer_shape_args=list(
-          fillOpacity=input$layer_fillOpacity,
-          shape=input$layer_shape,
-          color=input$layer_color,
-          weight=input$layer_weight,
-          stroke=input$layer_stroke,
-          fill=input$layer_fill,
-          border_col=input$layer_border_color,
-          z=input$layer_z
-        )
-      )
+    observeEvent(input$mode,{
+      vals$cur_mode_map<-input$mode
     })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    mode_plot<-reactive({
-      req(vals$cur_modeplot)
-      vals$cur_modeplot
-    })
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    mode<-reactive({
-      req(vals$cur_mode_map)
-      vals$cur_mode_map
-    })
-    cur_rst<-eventReactive(vals$cur_rst,{
-      req(vals$cur_rst)
+    output$map_surface<-renderUI({
 
-      req(inherits(vals$cur_rst,"RasterLayer"))
-      vals$cur_rst
-    })
-    observeEvent(mode_plot(),{
-      shinyjs::toggle("layer_border",condition= !mode_plot()%in%"plotly")
-      shinyjs::toggle("base_border",condition= !mode_plot()%in%"plotly")
-      shinyjs::toggle("base_fill",condition= !mode()%in%"surface")
-      shinyjs::toggle("layer_fill",condition= !mode()%in%"surface")
-
-
-    })
-    observeEvent(cur_rst(),{
-      output$base_z_out<-renderUI({
-        # req(inherits(vals$cur_rst,"RasterLayer"))
-        z<-raster::values(cur_rst())
-        numericInput(ns("base_z"),"Z",value=min(z,na.rm=T))
-      })
-      output$layer_z_out<-renderUI({
-        # req(inherits(vals$cur_rst,"RasterLayer"))
-        z<-raster::values(cur_rst())
-        div(numericInput(ns("layer_z"),"Z",value=min(z,na.rm=T)))
-      })
-    })
-    observeEvent(input$layer_fill,{
-      if(isFALSE(input$layer_fill)){
-        shinyjs::hide('layer_fillOpacity')
-      } else{
-        shinyjs::show('layer_fillOpacity')
-      }
-    })
-    observeEvent(input$base_fill,{
-      if(isFALSE(input$base_fill)){
-        shinyjs::hide('base_fillOpacity')
-      } else{
-        shinyjs::show('base_fillOpacity')
-      }
-    })
-    observeEvent(input$layer_stroke,{
-      if(isFALSE(input$layer_stroke)){
-        shinyjs::hide('layer_weight')
-      } else{
-        shinyjs::show('layer_weight')
-      }
-    })
-    observeEvent(input$base_stroke,{
-      if(isFALSE(input$base_stroke)){
-        shinyjs::hide('base_weight')
-      } else{
-        shinyjs::show('base_weight')
-      }
-    })
-    observe({
-
-      shinyjs::toggle('base_options', condition = isTRUE(input$base_shape))
-      shinyjs::toggle('layer_options', condition = isTRUE(input$layer_shape))
-    })
-    observeEvent(mode_plot(),{
-      shinyjs::toggle('show_base',condition = !mode_plot()%in%"leaflet")
-      shinyjs::toggle('show_layer',condition = !mode_plot()%in%"leaflet")
-
-    })
-    observeEvent(data(),{
-      data<-data()
-
-      if(!is.null(data)) {
-        base_shape<-attr(data,"base_shape")
-        layer_shape<-attr(data,"layer_shape")
-        if(!is.null(base_shape)){
-          updateCheckboxInput(session,'base_shape',value=T)
-        }
-        if(!is.null(layer_shape)){
-          updateCheckboxInput(session,'layer_shape',value=T)
-
-        }
-      }
-    })
-
-    return(NULL)
-
-
-  })
-}
-sptools_shapes$server_update_ir<-function(id, vals){
-  moduleServer(id,function(input, output, session){
-    ns<-session$ns
-
-
-    return(NULL)
-
-  })
-}
-sptools_shapes$server<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-    ns<-session$ns
-    box_caret_server('box_base')
-    box_caret_server('box_layer')
-    observeEvent(input$base_shape,{
-      shinyjs::toggle(selector=".base_options",condition=isTRUE(input$base_shape))
-    })
-    observeEvent(input$layer_shape,{
-      shinyjs::toggle(selector=".layer_options",condition=isTRUE(input$layer_shape))
-
-    })
-    result<-reactive({
-      list(
-        base_shape_args=list(
-          fillOpacity=input$base_fillOpacity,
-          shape=input$base_shape,
-          color=input$base_color,
-          weight=input$base_weight,
-          stroke=input$base_stroke,
-          fill=input$base_fill,
-          border_col=input$base_border_color,
-          z=input$base_z
-        ),
-        layer_shape_args=list(
-          fillOpacity=input$layer_fillOpacity,
-          shape=input$layer_shape,
-          color=input$layer_color,
-          weight=input$layer_weight,
-          stroke=input$layer_stroke,
-          fill=input$layer_fill,
-          border_col=input$layer_border_color,
-          z=input$layer_z
-        )
-      )
-    })
-
-
-    return(result())
-
-  })
-}
-
-sptools_coords<-list()
-sptools_coords$ui<-function(id){
-  ns<-NS(id)
-  box_caret(
-    ns("box_coords"),
-    color="#c3cc74ff",
-    hide_content=T,
-    title="Coordinates",
-    div(
-      pickerInput_fromtop(ns("show_coords"),label=strong("Symbol"),choices=c("None",rev(df_symbol$val)),choicesOpt = list(content =  c("None",rev(df_symbol$img) )),selected="None"),
       div(
-        id=ns('coords_options'),
-        colourpicker::colourInput(ns("col.coords"),label="Color",value="black"),
-        numericInput(ns("cex.coords"),label="Size",value=3)
-
-      )
-    )
-  )
-
-
-}
-
-sptools_coords$server_update<-function(id){
-  moduleServer(id,function(input,output,session){
-
-    box_caret_server("box_coords",hide_content=T)
-
-    observe({
-      shinyjs::toggle("coords_options", condition=input$show_coords!='None')
-    })
-    result<-reactive({
-      list(
-        show_coords=input$show_coords,
-        col.coords=input$col.coords,
-        cex.coords=input$cex.coords)
-    })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    return(NULL)
-  })
-}
-sptools_coords$server<-function(id){
-  moduleServer(id,function(input,output,session){
-    result<-list(
-      show_coords=input$show_coords,
-      col.coords=input$col.coords,
-      cex.coords=input$cex.coords)
-    return(result)
-  })
-}
-
-sptools_gg_legend<-list()
-sptools_gg_opts<-list()
-sptools_gg_opts$ui<-function(id){
-  ns<-NS(id)
-
-  div(
-    box_caret(
-      ns("box_map_titles"),
-      color="#c3cc74ff",
-      title="Title",
-      hide_content=T,
-      div(
-        textInput(ns("main"),label="Title"),
-        numericInput(ns("plot.title_size"),label="Title size",value=12),
-        selectInput(ns("title.face"),"Title font",c("plain","italic","bold"))
+        sptools_tab$ui(ns("surface"), surface=T),
+        uiOutput(ns("map_surface_server"))
       )
 
-    ),
-
-    div(id=ns("show_box_map_subtitles"),
-        box_caret(
-          ns("box_map_subtitles"),
-          color="#c3cc74ff",
-          title="Subtitle",
-          hide_content=T,
-          div(
-            textInput(ns("subtitle"),label="Subtitle"),
-            numericInput(ns("plot.subtitle_size"),label="Subtitle size",value=11),
-            selectInput(ns("subtitle.face"),"Title font",c("plain","italic","bold"))
-          )
-
-        )),
-    box_caret(
-      ns("box_map_axes"),
-      color="#c3cc74ff",
-      title="Axes",
-      hide_content=T,
-      div(
-        div(
-          id=ns('div_axis_style'),
-          pickerInput(ns("axis_style"),"Style",c("B&W Blocks"="bw_blocks","Classic"="default"),selected="default"),
-          numericInput(ns("axis_width"),label="Width",value=0.1)
-        ),
-
-        textInput(ns("xlab"),label="x-label", "Longitude"),
-        numericInput(ns("x.n.breaks"),label="x-nbreaks",value=5),
-        textInput(ns("ylab"),label="y-label","Latitude"),
-        numericInput(ns("y.n.breaks"),label="y-nbreaks",value=5),
-        textInput(ns("zlab"),label="z-label"),
-        numericInput(ns("axis.title_size"),label="Label Size",value=11),
-        numericInput(ns("axis.text_size"),label="Axis Size",value=11)
-      )
-
-    ),
-    div(
-      id=ns('box_guides'),
-      box_caret(
-        ns("box_map_guides"),
-        color="#c3cc74ff",
-        title="Guides",
-        hide_content=T,
-        div(
-          checkboxInput(ns("show_guides"),label="Show Guides",value=F),
-          colourpicker::colourInput(ns("guides_color"),label="Color",value="black"),
-          pickerInput(ns('guides_linetype'),"Line type",c("dashed","dotted","solid")),
-          numericInput(ns('guides_linewidth'),"Line Width",value=0.15)
-        )
-      )
-    )
-
-  )
-}
-
-
-sptools_gg_opts$server_update<-function(id,vals,scatter3d=F,surface=F,stack=F){
-  moduleServer(id,function(input,output,session){
-    observe({
-
-      shinyjs::toggle('zlab',condition=isTRUE(any(surface,stack,scatter3d)))
-    })
-    observe({
-      shinyjs::toggle('div_axis_style',condition=vals$cur_modeplot%in%'ggplot')
-      shinyjs::toggle('box_guides',condition=vals$cur_modeplot%in%'ggplot')
-
-    })
-
-
-
-    results<-reactive({
-      list(
-
-
-        main=input$main,
-        plot.title_size=input$plot.title_size,
-        title.face=input$title.face,
-        subtitle=input$subtitle,
-        plot.subtitle_size=input$plot.subtitle_size,
-        subtitle.face=input$subtitle.face,
-        xlab=input$xlab,
-        ylab=input$ylab,
-        zlab=input$zlab,
-        axis.text_size=input$axis.text_size,
-        axis.title_size=input$axis.title_size,
-        axis_style=input$axis_style,
-        axis_width=input$axis_width,
-        x.n.breaks=input$x.n.breaks,
-        y.n.breaks=input$y.n.breaks,
-        show_guides=input$show_guides,
-        guides_color=input$guides_color,
-        guides_linetype=input$guides_linetype,
-        guides_linewidth=input$guides_linewidth)
-
-
-    })
-    observeEvent(results(),{
-
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    return(NULL)
-  })
-}
-sptools_gg_opts$server_update_scatter3d<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    cur_rst<-reactive({
-      req(inherits(vals$cur_rst,"RasterLayer"))
-      vals$cur_rst
-    })
-    observe({
-
-      formalss<-formals(scatter_3dplotly)
-      tohide<-names(input)[!names(input)%in%names(formalss)]
-      tohide<-tohide[!grepl("box",tohide)]
-      lapply(tohide,
-             function(x) shinyjs::hide(x))
-      hide('show_box_map_subtitles')
 
 
     })
 
-    observeEvent(get_title(),{
-      updateTextInput(session,"main",value=get_title())
-    })
-    get_title<-reactive({
-      value0=value=colnames(data())
-      if(!is.null(vals$cur_level_filter)) {
-        if(vals$cur_factor_filter!="None"){
-          value=paste0(value," - ",vals$cur_level_filter)
-        }
-      }
-      return(value)
-    })
-
-
-    observe({
-      updateTextInput(session,'zlab',value=colnames(data()))
-    })
-    return(NULL)
-
-  })
-}
-sptools_gg_opts$server_update_stack<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    get_title<-reactive({
-      value0=value=colnames(data())
-      if(!is.null(vals$cur_level_filter)) {
-        if(vals$cur_factor_filter!="None"){
-          value=paste0(value," - ",vals$cur_level_filter)
-        }
-      }
-      return(value)
-    })
-    observeEvent(get_title(),{
-      updateTextInput(session,"main",value=get_title())
-    })
-    observe({
-      formalss<-c(formals(stack_plot3D),formals(stack_plotly))
-      tohide<-names(input)[!names(input)%in%names(formalss)]
-      tohide<-tohide[!grepl("box",tohide)]
-      lapply(tohide,
-             function(x) shinyjs::hide(x))
-      hide('show_box_map_subtitles')
-
-    })
-
-
-    return(NULL)
-
-  })
-}
-sptools_gg_opts$server_update_surface<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    cur_rst<-reactive({
-      req(inherits(vals$cur_rst,"RasterLayer"))
-      vals$cur_rst
-    })
-    observe({
-
-      formalss<-c(formals(surface_plotly),formals(get_4D))
-      tohide<-names(input)[!names(input)%in%names(formalss)]
-      tohide<-tohide[!grepl("box",tohide)]
-      lapply(tohide,
-             function(x) shinyjs::hide(x))
-      hide('show_box_map_subtitles')
-
-    })
-    observeEvent(get_title(),{
-      updateTextInput(session,"main",value=get_title())
-    })
-    get_title<-reactive({
-      value0=value=colnames(data())
-      if(isTRUE(vals$cur_surf_addpoints)){
-        value=vals$cur_surf_ap_colfac
-      } else{value=attr(cur_rst(),"z_name")}
-      return(value)
-
-
-    })
-    return(NULL)
-
-  })
-}
-sptools_gg_opts$server_titles<-function(id){
-  moduleServer(id,function(input,output,session){
-    result<-list(main=input$main,
-                 plot.title_size=input$plot.title_size,
-                 title.face=input$title.face,
-                 subtitle=input$subtitle,
-                 plot.subtitle_size=input$plot.subtitle_size,
-                 subtitle.face=input$subtitle.face)
-    return(result)
-
-  })
-}
-sptools_gg_opts$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-    box_caret_server("box_map_titles",hide_content=T)
-    box_caret_server("box_map_subtitles",hide_content=T)
-    box_caret_server("box_map_axes",hide_content=T)
-    box_caret_server("box_map_guides",hide_content=T)
-
-
-  })
-}
-sptools_gg_opts$server_axes<-function(id){
-  moduleServer(id,function(input,output,session){
-    result<-
-      list(
-        xlab=input$xlab,
-        ylab=input$ylab,
-        zlab=input$zlab,
-        axis.text_size=input$axis.text_size,
-        axis.title_size=input$axis.title_size,
-        axis_style=input$axis_style,
-        axis_width=input$axis_width,
-        x.n.breaks=input$x.n.breaks,
-        y.n.breaks=input$y.n.breaks,
-        show_guides=input$show_guides,
-        guides_color=input$guides_color,
-        guides_linetype=input$guides_linetype,
-        guides_linewidth=input$guides_linewidth
-      )
-
-    return(result)
-
-  })
-}
-
-
-
-
-
-
-sptools_gg_north<-list()
-sptools_gg_north$ui<-function(id){
-  ns<-NS(id)
-
-
-  div(
-    box_caret(
-      ns("box_north"),
-      color="#c3cc74ff",
-      title="North arrow",
-      hide_content=T,
-      div(
-
-        pickerInput(ns("n_location"),
-                    label="North Position",
-                    c("bottom-right"="br",
-                      "bottoml-left"="bl",
-                      "top-right"="tr",
-                      "top-left"="tl",
-                      "none"="none"),selected="tl"),
-        pickerInput(ns("n_which_north"),label="Wich North",c("grid","true")),
-        numericInput(ns("n_width"),label="Width",value=40,step=5),
-        numericInput(ns("n_height"),label="Heigth",value=40,step=5),
-        numericInput(ns("n_pad_x"),label="pad_x",value=0.1),
-        numericInput(ns("n_pad_y"),label="pad_y",value=0.15),
-        numericInput(ns("n_cex.text"),label="Label Size",value=10,step=1)
-
-      )
-    )
-  )
-
-
-}
-sptools_gg_north$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-
-
-    result<-list(
-      n_location=input$n_location,
-      n_which_north=input$n_which_north,
-      n_width=input$n_width,
-      n_height=input$n_height,
-      n_pad_x=input$n_pad_x,
-      n_pad_y=input$n_pad_y,
-      n_cex.text=input$n_cex.text
-    )
-    return(result)
-
-  })
-}
-sptools_gg_north$server_update<-function(id){
-  moduleServer(id,function(input,output,session){
-    box_caret_server('box_north',hide_content=T)
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    result<-reactive({
-      list(
-        n_location=input$n_location,
-        n_which_north=input$n_which_north,
-        n_width=input$n_width,
-        n_height=input$n_height,
-        n_pad_x=input$n_pad_x,
-        n_pad_y=input$n_pad_y,
-        n_cex.text=input$n_cex.text
-      )
-    })
-    return(NULL)
-
-  })
-}
-
-sptools_gg_legend$ui<-function(id){
-  ns<-NS(id)
-  div(
-    box_caret(
-      ns("gg_box_legend"),
-      color="#c3cc74ff",
-      title="Legend",
-      hide_content=T,
-      div(
-        pickerInput(ns("legend.position"),"Position",c("right","bottom","left","top","none")),
-        textInput(ns("leg_title"),"Legend title",NULL),
-        numericInput(ns("legend.text_size"),label="Legend Text Size",value=13)
-      )
-
-    )
-  )
-}
-sptools_gg_legend$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-
-    result<-list(
-      legend.position=input$legend.position,
-      leg_title=input$leg_title,
-      legend.text_size=input$legend.text_size
-
-    )
-    return(result)
-
-  })
-}
-sptools_gg_legend$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    result<-reactive({
-      list(
-        legend.position=input$legend.position,
-        leg_title=input$leg_title,
-        legend.text_size=input$legend.text_size
-
-      )
-    })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    observeEvent(data(),{
-      updateTextInput(session,'leg_title',value=colnames(data()))
-    })
-
-  })
-}
-
-
-sptools_providers<-list()
-sptools_providers$ui<-function(id){
-  ns<-NS(id)
-  div(class="mp0",
-      div(
-        class="map_providers",style="display: flex; align-items: center; position: absolute; right: 0px; top: 30px",
-
-        pickerInput_fromtop_live(
-          ns("providers"),
-          label ="+ Map Style",
-          selected="Stadia.StamenTerrain",
-          options=list(container="body"),
-          choices =c('OpenStreetMap.Mapnik',
-                     'OpenStreetMap.DE',
-                     'OpenStreetMap.France',
-                     'OpenStreetMap.HOT',
-                     'OPNVKarte',
-                     'Stadia.AlidadeSmooth',
-                     'Stadia.OSMBright',
-                     'Stadia.Outdoors',
-                     'Stadia.StamenWatercolor',
-                     'Stadia.StamenTerrain',
-                     'Stadia.StamenTerrainBackground',
-                     'CyclOSM',
-                     'Esri.WorldStreetMap',
-                     'Esri.WorldTopoMap',
-                     'Esri.WorldImagery',
-                     'MtbMap',
-                     'Esri.OceanBasemap',
-                     'Esri.NatGeoWorldMap',
-                     'Esri.WorldPhysical',
-                     'USGS.USImagery'
-          ),
-        ),
-        numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
-
-
-
-      )
-  )
-
-}
-sptools_providers$server<-function(id){
-  moduleServer(id,function(input, output, session){
-    return(
-      reactive({
-        list(
-          providers=input$providers,
-          zoomSnap=input$zoomSnap
-        )
-      })
-    )
-  })
-}
-ll_down_modal<-list()
-ll_down_modal$ui<-function(id){
-  ns<-NS(id)
-  div(
-    inline(numericInput(ns("zoom"),span('zoom', tiphelp("A number specifying the zoom factor. A zoom factor of 2 will result in twice as many pixels vertically and horizontally. ")), 1, width="100px")),
-    inline(numericInput(ns("vwidth"),span('width', tiphelp("Viewport width. This is the width of the browser window")), 800, width="100px")),
-    inline(numericInput(ns("vheight"),span('height',tiphelp("Viewport height This is the height of the browser window")), 600, width="100px")),
-    inline(numericInput(ns("delay"),span('delay', tiphelp("Time to wait before taking screenshot, in seconds. Sometimes a longer delay is needed for all assets to display properly.")), 0.2, width="100px")),
-    inline(downloadButton(ns("download"), icon("download"))),
-
-  )
-
-}
-ll_down_modal$server<-function(id, map,file_name='leaflet_'){
-
-
-  moduleServer(id,function(input, output, session){
-    output$download<-{
-      downloadHandler(
-        filename = function() {
-          paste(file_name,Sys.Date(), ".png", sep = "")
-        },
-        content = function(file) {
-          withProgress(message="Preparing...",min=NA,max=NA,{
-            htmlwidgets::saveWidget(map, "map.html", selfcontained = FALSE)
-            webshot::webshot("map.html", file = file, delay = input$delay,zoom=input$zoom,
-                             vwidth=input$vwidth,
-                             vheight=input$vheight)
-          })
-
-
-          file.remove("map.html")
-
-        }
-      )
-    }
-  })
-}
-ll_down_plot<-list()
-ll_down_plot$ui<-function(id){
-  ns<-NS(id)
-  div(
-    actionLink(ns("download_ll"),"Download",icon("download"))
-  )
-
-}
-ll_down_plot$server<-function(id, map){
-  moduleServer(id,function(input, output, session){
-    vplot<-reactiveValues(newggplot=NULL)
-    ns<-session$ns
-
-    observeEvent(input$download_ll,ignoreInit = T,{
-      showModal(
-        modalDialog(
-          title='Download as png file',
-          ll_down_modal$ui(ns("download")),
-          easyClose = T
-        )
-      )
-    })
-
-    ll_down_modal$server("download",map)
-  })
-}
-
-ll_interp<-list()
-ll_interp$ui<-function(id){
-  lab_nmax<-span("nmax:", tiphelp("for local kriging, the number of nearest observations that should be used for a kriging prediction or simulation, where nearest is defined in terms of the space of the spatial locations. By default (empty), all observations are used"))
-  lab_nmin<-span( "nmin:",tiphelp("for local kriging, if the number of nearest observations within distance maxdist is less than nmin, a missing value will be generated- see maxdist"))
-  lab_omax<-span("omax:",tiphelp("maximum number of observations to select per octant (3D) or quadrant (2D); only relevant if maxdist has been defined as well"))
-  lab_maxdist<-span("maxdist:",tiphelp("for local kriging, only observations within a distance of maxdist from the prediction location are used for prediction; if combined with nmax, both criteria apply"))
-  lab_idp<-span("idp:",tiphelp("numeric; specify the inverse distance weighting power"))
-  lab_resolution<-span("resolution:",tiphelp("Interpolation resolution"))
-  choices=list(
-
-    'Krigging'="krige",
-    'IDW'='idw',
-    'KNN'='knn',
-    'svmRadial'='svmRadial',
-    'gaussprRadial'='gaussprRadial',
-    'svmRadialCost'='svmRadialCost'
-  )
-  ns<-NS(id)
-  div(class="radio_interp",style="padding: 5px;",
-
-      div(style="display: flex",
-          pickerInput_fromtop(ns("radio_interp_num"),"Method",choices, width="200px"),
-          pickerInput_fromtop(ns("radio_interp_fac"),"Method",choices[-c(1:2)], width="200px"),
-          uiOutput(ns("interp_help"))
-      )
-      ,
-
-      tabsetPanel(id=ns("tabs_interp"),type="hidden",
-                  tabPanel('Krigging',value="krige",
-                           ll_vgm$ui(ns("vgm"))) ,
-                  tabPanel('IDW',value="idw",
-                           tags$div(id=ns("interp_params"),
-                                    numericInput(ns("nmax"), lab_nmax, NA, min = NA),
-                                    numericInput(ns("nmin"), lab_nmin, 3, min = 0),
-                                    numericInput(ns("omax"), lab_omax, 0, min = 0),
-                                    numericInput(ns("maxdist"), lab_maxdist, NA, min = 0),
-                                    numericInput(ns("idp"), lab_idp, 4, min = 0)
-                           )),
-                  tabPanel('KNN',value="caret",
-                           tags$div(
-                             numericInput(ns("tuneLength"), 'tuneLength', 5, min = 0),
-                           ))
-
-      ),
-
-      tags$div(id=ns('cv_inputs'),
-               numericInput(ns("cv"), 'K-Folds', 5, min = 0),
-               numericInput(ns("seed_caret"),span("Seed",tiphelp(textseed(),"right")),NA)),
-      div(
-        numericInput(ns("resolution"), lab_resolution, 5000, min = 20)
-      ),
-      uiOutput(ns("out_vgm")))
-
-}
-ll_interp$server<-function(id,vals){
-
-
-
-  moduleServer(id,function(input, output, session){
-
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    radio_interp<-reactive({
-
-      data<-data()
-      if(is.factor(data[,1])){
-        input$radio_interp_fac
-      } else{
-        input$radio_interp_num
-      }
-    })
-    output$interp_help<-renderUI({
-      help_interp(radio_interp())
-    })
-    observe({
-      shinyjs::toggle("cv_inputs",condition=radio_interp()!="idw")
-    })
-    observe({
-      data<-data()
-      cond<-is.factor(data[,1])
-
-      shinyjs::toggle("radio_interp_num",condition=!cond)
-      shinyjs::toggle("radio_interp_fac",condition=cond)
-    })
-    observeEvent(radio_interp(),{
-      if(!radio_interp()%in%c("krige","idw")){
-        selected<-"caret"
-      } else{
-        selected<-radio_interp()
-      }
-      updateTabsetPanel(session,'tabs_interp',selected=selected)
-    })
-    curtab<-reactiveVal()
-    observeEvent(input$tabs_interp,{
-      curtab(input$tabs_interp)
-    })
-    args<-reactive({
-      list(
-        nmax=input$nmax,
-        nmin=input$nmin,
-        omax=input$omax,
-        maxdist=input$maxdist,
-        idp=input$idp,
-        tuneLength=input$tuneLength,
-        seed=input$seed_caret,
-        resolution=input$resolution,
-        interp_type=radio_interp(),
-        cv=input$cv
-      )
-    })
-    observeEvent(args(),{
-      req(data())
-      vals$interp_args<-args()
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    output$map_surface_server<-renderUI({
+      sptools_tab$server("surface",
+                         vals=vals,
+                         surface=T)
       NULL
     })
-    output$out_vgm<-renderUI({
+    output$map_stack<-renderUI({
 
+      div(
+        sptools_tab$ui(ns("stack"), stack=T),
+        uiOutput(ns("map_stack_server"))
+      )
+
+
+
+    })
+
+    output$map_stack_server<-renderUI({
+      sptools_tab$server("stack",
+                         vals=vals,
+                         stack=T)
       NULL
     })
-    ll_vgm$server("vgm",vals)
+    output$map_scatter3d<-renderUI({
 
-    return(NULL)
-
-  })
-}
-
-sptools_extra_shape<-list()
-sptools_extra_shape$ui<-function(id,data_map=NULL){
-  if(is.null(data_map)){
-    return(NULL)
-  }
-  ns<-NS(id)
-  shp<-attr(data_map,"extra_shape")
-  shapes<-names(shp)
-  req(length(shapes)>0)
-  res<-list()
-  #shapes=1:2
-  for(i in 1:length(shapes)){
-    atributos_shp<-attributes(shp[[i]])$names
-    res[[i]]<-list(
-      box_caret(ns("box_extra"),
-                color="#c3cc74ff",
-                title=span(style="display: inline-block",
-                           class="checktitle",
-                           checkboxInput(ns(paste0("map_extra_layer",i)),
-                                         paste("Extra-Shapes",i), T,width="180px")
-                ),
-                tags$div(
-                  tags$div(id=ns(paste0("eshape_id",i)),
-                           colourpicker::colourInput(ns(paste0("ssextra_layer_col",i)),label="Color",value="gray40"),
-                           numericInput(ns(paste0("ssextra_layer_lighten",i)),
-                                        'Transp',value=0.6,  min=0, max=1,step=0.1),
-                           pickerInput_fromtop(ns(paste0("feat_extra",i)),
-                                               paste("Label",i),choices=c("None",atributos_shp)),
-                           numericInput(ns(paste0("feat_extra_size",i)),
-                                        'size',value=2,  min=0, max=1, step=0.1),
-                           uiOutput(ns("data_depth"))
-                  )
-
-
-                )
+      div(
+        sptools_tab$ui(ns("tab-scatter3d"), scatter3d=T),
+        uiOutput(ns("map_scatter3d_server"))
       )
 
-    )
 
-
-  }
-
-  div(id=ns('show_extra'),
-      res,
-      tags$div(
-
-        numericInput(ns("data_depth"),
-                     span("Layer depth ",tipright("Control the layering order of your data relative to shapes")),
-                     value=3,
-                     min=1, step=1
-        )
-      )
-  )
-
-}
-sptools_extra_shape$server<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    data<-reactive({
-      vals$data_map
-    })
-    box_caret_server("box_extra")
-    observeEvent(vals$cur_modeplot,{
-      shinyjs::toggle('show_extra',condition = !vals$cur_modeplot%in%"leaflet")
 
 
     })
-    get_extralayers<-reactive({
-      extralayers<-NULL
-      shapes<-attr(data(),"extra_shape")
-      if(length(names(shapes))>0){
-        extralayers<-lapply(seq_along(shapes),function(i){
 
-          layers=input[[paste0("map_extra_layer",i)]]
-          if(isTRUE(layers)){
-            shinyjs::show(paste0("eshape_id",i))
-          } else{
-            shinyjs::hide(paste0("eshape_id",i))
+    output$map_scatter3d_server<-renderUI({
+      sptools_tab$server("tab-scatter3d",
+                         vals=vals,
+                         scatter3d=T)
+      NULL
+    })
+    output$coordinates_message<-renderUI({
+      em("The selected Datalist does not contain any coordinates. Use Databank to include coordinates in your selection.",style="color:gray")
+    })
+
+
+
+
+
+    data<-reactiveVal()
+    cur_vars_choices<-reactiveVal()
+
+
+
+
+    output$map_circles<-renderUI({
+      div(
+        sptools_tab$ui(ns("tab-circles"), circles=T,radius=T),
+        uiOutput(ns("map_circles_server"))
+      )
+      # req(is.data.frame(data_map))
+
+
+    })
+
+    output$map_circles_server<-renderUI({
+      sptools_tab$server("tab-circles",vals=vals, circles=T, pie=T)
+      NULL
+    })
+
+    output$map_pie<-renderUI({
+      div(
+        sptools_tab$ui(ns("pie"), pie=T,radius=T),
+        uiOutput(ns("map_pie_server"))
+      )
+      # req(is.data.frame(data_map))
+
+
+    })
+    output$map_pie_server<-renderUI({
+      sptools_tab$server("pie",vals=vals, pie=T)
+      NULL
+    })
+    output$map_interp<-renderUI({
+      # data_map<-vals$data_map
+      #req(is.data.frame(data_map))
+      div(
+
+        uiOutput(ns("map_interp_server"))
+      )
+      sptools_tab$server("interp", vals=vals,interp=T)
+
+
+    })
+    output$map_interp_server<-renderUI({
+
+    })
+
+
+
+    output$map_raster<-renderUI({
+      div(
+        sptools_tab$ui(ns("raster"), raster=T),
+        uiOutput(ns("map_raster_server"))
+      )
+
+
+
+    })
+
+    output$map_raster_server<-renderUI({
+      sptools_tab$server("raster",
+                         vals=vals,
+                         raster=T)
+      NULL
+    })
+
+    observe({
+      req(vals$update_state)
+      update_state<-vals$update_state
+      ids<-names(update_state)
+      update_on<-grepl(id,ids)
+      names(update_on)<-ids
+      to_loop<-names(which(update_on))
+      withProgress(min=1,max=length(to_loop),message="Restoring",{
+        for(i in to_loop) {
+          idi<-gsub(paste0(id,"-"),"",i)
+          incProgress(1)
+          restored<-restoreInputs2(session, idi, update_state[[i]])
+
+          if(isTRUE(restored)){
+            vals$update_state[[i]]<-NULL
           }
-          c(
-            layers=layers,
-            colors=input[[paste0("ssextra_layer_col",i)]],
-            alphas=input[[paste0("ssextra_layer_lighten",i)]],
-            labels=input[[paste0("feat_extra",i)]],
-            sizes=input[[paste0("feat_extra_size",i)]]
-          )
-        })
-        extralayers<-do.call(rbind,extralayers)
-      }
-      extralayers
-    })
 
-    result<-reactive({
-      list(
-        args_extra=get_extralayers(),
-        data_depth=input$data_depth
-      )
-    })
-    observeEvent(result(),{
-      vals$extra_shapes<-result()
-    })
-    return(NULL)
-
-
-  })
-}
-
-
-
-sptools_text<-list()
-sptools_text$ui<-function(id,surface=F){
-  ns<-NS(id)
-  box_caret(ns("box_labels"),
-            color="#c3cc74ff",
-            title=div(style="display: inline-block",class="checktitle",checkboxInput(ns("show_labels"),strong("Text"), F,width="120px")),
-            div(
-
-              tags$div(id=ns("show_labels_on"),style="display: none",
-                       if(isTRUE(surface)){
-                         div(
-
-                           pickerInput_fromtop_live(ns("datalist"),"Datalist:",
-                                                    choices =NULL),
-                           uiOutput(ns("z_label_value"))
-
-                         )
-                       },
-                       div(
-                         pickerInput_fromtop_live(ns("labels"),label="Use factor",choices=c(NULL))
-                       ),
-                       div(
-                         numericInput(ns("cex.fac"),label="Size",value=5)
-                       ),
-                       div(
-                         colourpicker::colourInput(ns("col.fac"),label="Color",value="black")
-                       )
-              )
-            )
-
-  )
-
-}
-sptools_text$server_update<-function(id,vals,surface=F){
-  moduleServer(id,function(input,output,session){
-
-    ns<-session$ns
-    observeEvent(input$datalist,{
-      data<-vals$saved_data[[input$datalist]]
-
-      factors<-attr(data,'factors')
-      choices=colnames(factors)
-      selected=vals$cur_surf_ap_vars
-      selected=get_selected_from_choices(selected,choices)
-      updatePickerInput(session,'labels',choices=choices)
-    })
-
-    result<-reactive({
-      list(
-        show_labels=input$show_labels,
-        labels=input$labels,
-        cex.fac=input$cex.fac,
-        col.fac=input$col.fac,
-        datalist=input$datalist,
-        z_value=input$z_label_value
-      )
-    })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    output$z_label_value<-renderUI({
-      req(input$datalist)
-      req(vals$cur_z_label_value)
-      data<-vals$saved_data[[input$datalist]]
-
-      choices<-colnames(data)
-      selected=vals$cur_z_label_value
-      selected=get_selected_from_choices(selected,choices)
-
-      pickerInput_fromtop_live(ns("z_label_value"),"Z-Value:",
-                               choices =choices,selected=selected)
-    })
-
-    observeEvent(input$z_label_value,{
-      vals$cur_z_label_value<-input$z_label_value
-    })
-    observeEvent(vals$saved_data,{
-      choices<-names(vals$saved_data)
-      selected=vals$cur_surf_ap_datalist
-      selected=get_selected_from_choices(selected,choices)
-
-      updatePickerInput(session,"datalist",choices=choices, selected=selected)
-    })
-    observeEvent(input$show_labels,{
-      if(isTRUE(input$show_labels)){
-        shinyjs::show('show_labels_on')
-      } else{
-        shinyjs::hide('show_labels_on')
-      }
-    })
-
-
-    observeEvent(vals$data_map,{
-      req(isFALSE(surface))
-      factors<-attr(vals$data_map,"factors")
-      choices=colnames(factors)
-      selected<-vals$cur_ggplot_options
-      selected=get_selected_from_choices(selected,choices)
-      updatePickerInput(session,'labels',choices=choices,selected=selected)
-
-    })
-
-    observeEvent(input$labels,{
-      vals$cur_ggplot_options<-input$labels
-    })
-
-
-
-
-
-
-    return(
-      reactive({
-        list(
-          labels=input$labels
-        )
+        }
       })
-    )
-  })
-}
-sptools_text$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-
-
-    return(
-      reactive({
-        list(
-          show_labels=input$show_labels,
-          labels=input$labels,
-          cex.fac=input$cex.fac,
-          col.fac=input$col.fac,
-          datalist=input$datalist,
-          z_value=input$z_label_value
-        )
-      })
-    )
-  })
-}
-
-
-ll_vgm<-list()
-ll_vgm$ui<-function(id){
-
-  models<-gstat::vgm()
-  models<-models[c(2:nrow(models),1),][1:17,]
-  models[,2]<-  gsub(".*\\(|\\)","",models[,2])
-  choices<-sapply(1:nrow(models),function(i){
-    val<-as.character(models[i,1])
-    names(val)<-as.character(models[i,2])
-    val
-  })
-
-
-  ns<-NS(id)
-  tags$div(
-    div(
-      div(
-        pickerInput_fromtop(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
-      ),
-      class="gstat",
-      div(style="font-size: 12px; ",
-          div(
-            div(
-              class="side_vgm",
-              div(style="display: flex",
-                  div(class="switch_box",switchInput(ns("vgm_autofit"),"Variogram autofit",value=T,size="mini",labelWidth="100px")),
-                  actionLink(ns("run_vgm_autofit"),">>RUN>>",style="margin-top: 5px; margin-left: -20px")
-              ),
-              div(
-
-                numericInput(ns("spsample"),span(
-                  "Subsample",tipright("Specify the number of spatial sample points. Leave empty to bypass subsampling. Note: Autofitting the variogram may be computationally intensive for large datasets, making subsampling advisable.")
-                ),NA)
-              ),
-              div(
-                id=ns("vgm_fine_btn"),class="save_changes",style="padding-top: 0px;",
-                div(
-                  style="padding-left: 0px",
-                  actionLink(ns("vgm_fine"),tags$label("+ Show Variogram tuning", style="cursor: pointer;"))
-
-
-                )
-              ),
-              tags$div(
-                style="margin-left: 50px",
-                id=ns("vgm_fine_params"),
-
-                numericInput(ns("nugget"), "nugget",5),
-                numericInput(ns("psill"), "psill",5, step=0.01),
-                numericInput(ns("range"), "range",5),
-                numericInput(ns("kappa"), span("kappa", tiphelp("smoothness parameter for the Matern class of variogram models")),.5)
-              )
-            )
-          )
-
-      )
-    )
-  )
-}
-ll_vgm$server<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-
-    observeEvent(all_args(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    all_args<-reactive({
-      list(
-        model=input$model,
-        vgm_autofit=input$vgm_autofit,
-        spsample=input$spsample,
-        nugget=input$nugget,
-        psill=input$psill,
-        range=input$range,
-        kappa=input$kappa
-      )
-    })
-
-    observe(shinyjs::addClass('fit_vgm',"save_changes"))
-    data<-reactive({
-      req(vals$data_map)
-      vals$data_map
-    })
-    run_autofit<-reactiveVal()
-    observeEvent(input$run_vgm_autofit,ignoreInit = T,{
-      run_autofit(TRUE)
-    })
-    observeEvent(input$vgm_autofit,{
-      run_autofit(input$vgm_autofit)
-    })
-    observeEvent(data(),{
-
-      if(nrow(vals$data_map)>10000){
-        run_autofit(FALSE)
-        updateNumericInput(session,'spsample',value=10000)
-        shinyWidgets::updateSwitchInput(session,'vgm_autofit',value=FALSE)
-      } else{
-        updateNumericInput(session,'spsample',value=NA)
-        # shinyWidgets::updateSwitchInput(session,'vgm_autofit',value=T)
-
-      }
-    })
-    observe({
-      shinyjs::toggle('vgm_fine_params',condition=input$vgm_fine%%2)
-    })
-
-
-    get_autofit<-reactive({
-      req(is.numeric( vals$data_map[,1]))
-      req(isTRUE(run_autofit()))
-      data<-data()
-
-
-      vals$interp_vc<-NULL
-
-      if(!is.na(input$spsample)){
-        if(input$spsample<nrow(data()))
-
-          data<-data[sample(1:nrow(data),input$spsample),,drop=F]
-      }
-
-      args1<-list(df=data,model=input$model,var=colnames(data),g=NULL)
-      withProgress({
-        var=colnames(data)
-
-        vgm_result<-do.call(variogram_parameters,args1)
-
-        #vgm_result<-do.call(variogram_parameters,args1)
-      },min=NA,max=NA,message="Running autofit...")
-      #vals$vgm_error<-attr(vgm_result,"logs")
-      vgm_result
-
-
-    })
-    observe({
-
-      vgm_result<-get_autofit()
-      vals$interp_vc<-vgm_result
-      nug<-vgm_result$auto_z1$var_model[1,2]
-      ps<-vgm_result$auto_z1$var_model[2,2]
-      ra<-vgm_result$auto_z1$var_model[2,3]
-      req(is.numeric(nug))
-      req(is.numeric(ps))
-      req(is.numeric(ra))
-      nugget =round(nug,3)
-      psill=round(ps,3)
-      range=round(ra,3)
-      updateNumericInput(session,'nugget',value =nugget )
-      updateNumericInput(session,'psill',value =psill )
-      updateNumericInput(session,'range',value =range )
-
-    })
-    vgm_args<-reactive({
-
-      list(
-        psill=input$psill, model=input$model, nugget=input$nugget, range=input$range, kappa = input$kappa
-      )
-    })
-    get_krige_model<-reactive({
-      vc<-vals$interp_vc
-      req(vc)
-      vgm_model<-try(do.call(gstat::vgm,vgm_args()))
-      g<-try({gstat::gstat(NULL,id=vc$id,form= vc$formula,data= vc$dsp,model=vals$interp_vgm)})
-      list(vgm_model,g)
-    })
-    observeEvent(get_krige_model(),{
-      vals$interp_vgm<-get_krige_model()[[1]]
-      vals$interp_gstat<-get_krige_model()[[2]]
-    })
-    return(NULL)
-
-  })
-}
-
-sptools_gg_scalebar<-list()
-sptools_gg_scalebar$ui<-function(id){
-  ns<-NS(id)
-  div(
-    box_caret(
-      ns("box_scalebar"),
-      color="#c3cc74ff",
-      title="Scale Bar",
-      hide_content=T,
-      div(
-        pickerInput(ns("position"),label="Bar Position",c("bottomright","bottomleft","topright","topleft","none")),
-        numericInput(ns("n_bins"),label="Bins",value=2),
-        pickerInput(ns("unit"),"Unit",c(
-          "Kilometers"='km',
-          "meters"="m",
-          "centimeters"="cm")),
-        numericInput(ns("bins_km"),label=span("Bin length",tipright("bar block size in the specified unit")),value=100),
-        numericInput(ns("bar_height"),label="Bar height",value=0.2),
-        numericInput(ns("pad_x"),label="pad_x",value=0.05),
-        numericInput(ns("pad_y"),label="pad_y",value=0.025),
-        pickerInput(ns("position_label"),label="Label position",c("above","below")),
-        numericInput(ns("size_scalebar_text"),label="Label size",value=3)
-      )
-    )
-  )
-}
-sptools_gg_scalebar$server<-function(id){
-  moduleServer(id,function(input,output,session){
-
-
-
-    result<-list(position=input$position,
-                 n_bins=input$n_bins,
-                 bins_km=input$bins_km,
-                 bar_height=input$bar_height,
-                 pad_x=input$pad_x,
-                 pad_y=input$pad_y,
-                 position_label=input$position_label,
-                 size_scalebar_text=input$size_scalebar_text,
-                 unit=input$unit
-    )
-    return(result)
-
-  })
-}
-
-sptools_gg_scalebar$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    box_caret_server('box_scalebar',hide_content=T)
-    result<-reactive({
-      list(position=input$position,
-           n_bins=input$n_bins,
-           bins_km=input$bins_km,
-           bar_height=input$bar_height,
-           pad_x=input$pad_x,
-           pad_y=input$pad_y,
-           position_label=input$position_label,
-           size_scalebar_text=input$size_scalebar_text,
-           unit=input$unit
-      )
-    })
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-    data<-reactive({
-      vals$data_map
-    })
-    get_shapes<-reactive({
-      vals$shape_args
-    })
-
-
-
-
-    observeEvent(data(),{
-      data<-data()
-
-
-      base_shape_args=vals$shape_args$base_shape_args
-      layer_shape_args=vals$shape_args$layer_shape_args
-      args_extra_shape=vals$extra_shapes
-
-
-
-      value<-step_scale_bar(data ,base_shape_args,
-                            layer_shape_args,
-                            args_extra_shape)
-      value_unit<-attr(value,'unit')
-      updatePickerInput(session,'unit',selected=value_unit)
-      updateNumericInput(session,'bins_km',value=value)
-      attr(value,"unit")<-value_unit
-      cur_unit(value)
 
     })
 
-    cur_unit<-reactiveVal()
 
-
-    observeEvent(input$unit,{
-      req(cur_unit())
-
-      if(attr(cur_unit(),"unit")!=input$unit){
-
-        bins_km<-input$bins_km
-        attr(bins_km,"unit")<-attr(cur_unit(),"unit")
-        value=format_distance_to(bins_km,input$unit)
-        updateNumericInput(session,'bins_km',value=value)
-        attr(bins_km,"unit")<-input$unit
-        cur_unit(bins_km)      }
-
-
-    })
 
 
 
   })
 }
-
-
 sptools_tab<-list()
 sptools_tab$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F,  shapes=T,surface=F,stack=F,scatter3d=F){
 
@@ -2449,8 +870,6 @@ sptools_tab$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F,  shap
       )
   )
 }
-
-
 sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surface=F,stack=F,scatter3d=F){
   moduleServer(id,function(input, output, session){
 
@@ -4442,7 +2861,2184 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 }
 
 
+# Circles tab
+sptools_circles<-list()
+sptools_circles$ui<-function(id){
+  ns<-NS(id)
+  div(
+    tags$div(id=ns("circle_options"),
+             checkboxInput(ns("scale_radius"), "Scale radius",T)
+    )
+  )
+}
+sptools_circles$server<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+    return(
+      list(
+        scale_radius=input$scale_radius
 
+      )
+    )
+
+  })
+}
+sptools_circles$server_update<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+
+    result<-reactive({
+      list(
+        scale_radius=input$scale_radius
+
+      )
+    })
+
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    observeEvent(vals$cur_choices_map,{
+      shinyjs::toggle('scale_radius',condition=vals$cur_choices_map!="Factor-Attribute")
+    })
+    return(NULL)
+
+  })
+}
+sptools_radius<-list()
+sptools_radius$ui<-function(id){
+  ns<-NS(id)
+  div(
+    div(class="inline_pickers2",style="display: flex;",
+
+        numericInput(ns("min_radius") ,label ='Min',1),
+        numericInput(ns("max_radius") ,label =" Max",5)
+    ),
+    radioButtons(ns("scale_range"),"Size Range:",c(
+      "filtered data"="filtered",
+      "unfiltered data"="unfiltered"
+    ),inline=T,width="400px")
+  )
+}
+sptools_radius$server<-function(id){
+  moduleServer(id,function(input, output, session){
+
+
+
+    return(
+      list(
+        min_radius=input$min_radius,
+        max_radius=input$max_radius,
+        scale_range=input$scale_range
+      )
+    )
+
+  })
+}
+sptools_radius$server_update<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+    observe({
+      cond=is.numeric(vals$data_map[,1])&vals$cur_factor_filter!="None"
+      shinyjs::toggle('scale_range',condition = cond)
+    })
+
+    result<-reactive({
+      list(
+        min_radius=input$min_radius,
+        max_radius=input$max_radius,
+        scale_range=input$scale_range
+      )
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    return(NULL)
+
+  })
+}
+
+# Pie tab
+sptools_pie<-list()
+sptools_pie$ui<-function(id){
+  ns<-NS(id)
+  div(
+
+    tags$div(id=ns("chart_options"),
+             div(
+               numericInput(ns("buffer_zize") ,
+                            label =span("buffer (km)",tiphelp("Must be higher than 0")),
+                            0.001)
+             ),
+             div(pickerInput_fromtop(ns("factor_chart") ,
+                                     label ="factor",
+                                     NULL))
+
+    )
+  )
+}
+sptools_pie$server<-function(id){
+  moduleServer(id,function(input, output, session){
+
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    observeEvent(input$buffer_zize,ignoreInit = T,{
+      if(input$buffer_zize<=0){
+        updateNumericInput(session,"buffer_zize",value=0.00001)
+      }
+    })
+    result<-reactive({
+      list(
+        addMinicharts=T,
+        factor_chart=input$factor_chart,
+        buffer_zize=input$buffer_zize
+      )
+    })
+
+    return(result())
+
+  })
+}
+sptools_pie$server_update<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+
+
+    factors<-reactive({
+      attr(vals$data_map,"factors")
+    })
+
+
+
+    observe({
+      updatePickerInput(session,'factor_chart',choices=colnames(factors()))
+    })
+
+
+  })
+}
+
+
+# Module for handling shapes
+sptools_shapes<-list()
+sptools_shapes$ui<-function(id, surface=F,stack=F){
+
+  ns<-NS(id)
+  div(
+    if(isFALSE(stack))
+      div(id=ns("show_base"),
+          box_caret(ns("box_base"),
+                    color="#c3cc74ff",
+                    title=span(style="display: inline-block",
+                               class="checktitle",
+                               checkboxInput(ns("base_shape") ,label =strong("Base Shape"),F,width="150px")
+                    ),
+                    div(
+                      id=ns("base_options"),
+
+                      if(isTRUE(surface))
+                        uiOutput(ns("base_z_out")),
+
+                      colourpicker::colourInput(ns('base_color'),"Background","whitesmoke"),
+
+
+                      div(
+
+
+                        colourpicker::colourInput(ns("base_border_color"),"Border Color","darkgray")
+                        ,
+                        numericInput(ns("base_weight"),'Border Width',min=0,0.5,step=.5)
+
+
+
+                      ),
+                    )
+          )
+      ),
+
+    div(id=ns("show_layer"),
+        box_caret(ns("box_layer"),
+                  color="#c3cc74ff",
+                  title=span(style="display: inline-block",
+                             class="checktitle",
+                             checkboxInput(ns("layer_shape") ,label =strong("Layer Shape"),F)
+                  ),
+                  div(
+                    id=ns("layer_options"),
+                    if(isTRUE(surface))
+                      uiOutput(ns('layer_z_out')),
+
+                    colourpicker::colourInput(ns('layer_color'),"Background","#C0C2C1"),
+
+                    div(
+
+
+                      colourpicker::colourInput(ns("layer_border_color"),"Border Color","gray20")
+                      ,
+                      numericInput(ns("layer_weight"),'Border Width',min=0,0.5,step=.5)
+
+
+
+                    )
+                  )
+        )
+    )
+  )
+}
+sptools_shapes$server_update1<-function(id, vals){
+  moduleServer(id,function(input, output, session){
+    ns<-session$ns
+
+    result<-reactive({
+      list(
+        base_shape_args=list(
+          fillOpacity=input$base_fillOpacity,
+          shape=input$base_shape,
+          color=input$base_color,
+          weight=input$base_weight,
+          stroke=input$base_stroke,
+          fill=input$base_fill,
+          border_col=input$base_border_color,
+          z=input$base_z
+        ),
+        layer_shape_args=list(
+          fillOpacity=input$layer_fillOpacity,
+          shape=input$layer_shape,
+          color=input$layer_color,
+          weight=input$layer_weight,
+          stroke=input$layer_stroke,
+          fill=input$layer_fill,
+          border_col=input$layer_border_color,
+          z=input$layer_z
+        )
+      )
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    mode_plot<-reactive({
+      req(vals$cur_modeplot)
+      vals$cur_modeplot
+    })
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    mode<-reactive({
+      req(vals$cur_mode_map)
+      vals$cur_mode_map
+    })
+    cur_rst<-eventReactive(vals$cur_rst,{
+      req(vals$cur_rst)
+
+      req(inherits(vals$cur_rst,"RasterLayer"))
+      vals$cur_rst
+    })
+    observeEvent(mode_plot(),{
+      shinyjs::toggle("layer_border",condition= !mode_plot()%in%"plotly")
+      shinyjs::toggle("base_border",condition= !mode_plot()%in%"plotly")
+      shinyjs::toggle("base_fill",condition= !mode()%in%"surface")
+      shinyjs::toggle("layer_fill",condition= !mode()%in%"surface")
+
+
+    })
+    observeEvent(cur_rst(),{
+      output$base_z_out<-renderUI({
+        # req(inherits(vals$cur_rst,"RasterLayer"))
+        z<-raster::values(cur_rst())
+        numericInput(ns("base_z"),"Z",value=min(z,na.rm=T))
+      })
+      output$layer_z_out<-renderUI({
+        # req(inherits(vals$cur_rst,"RasterLayer"))
+        z<-raster::values(cur_rst())
+        div(numericInput(ns("layer_z"),"Z",value=min(z,na.rm=T)))
+      })
+    })
+    observeEvent(input$layer_fill,{
+      if(isFALSE(input$layer_fill)){
+        shinyjs::hide('layer_fillOpacity')
+      } else{
+        shinyjs::show('layer_fillOpacity')
+      }
+    })
+    observeEvent(input$base_fill,{
+      if(isFALSE(input$base_fill)){
+        shinyjs::hide('base_fillOpacity')
+      } else{
+        shinyjs::show('base_fillOpacity')
+      }
+    })
+    observeEvent(input$layer_stroke,{
+      if(isFALSE(input$layer_stroke)){
+        shinyjs::hide('layer_weight')
+      } else{
+        shinyjs::show('layer_weight')
+      }
+    })
+    observeEvent(input$base_stroke,{
+      if(isFALSE(input$base_stroke)){
+        shinyjs::hide('base_weight')
+      } else{
+        shinyjs::show('base_weight')
+      }
+    })
+    observe({
+
+      shinyjs::toggle('base_options', condition = isTRUE(input$base_shape))
+      shinyjs::toggle('layer_options', condition = isTRUE(input$layer_shape))
+    })
+    observeEvent(mode_plot(),{
+      shinyjs::toggle('show_base',condition = !mode_plot()%in%"leaflet")
+      shinyjs::toggle('show_layer',condition = !mode_plot()%in%"leaflet")
+
+    })
+    observeEvent(data(),{
+      data<-data()
+
+      if(!is.null(data)) {
+        base_shape<-attr(data,"base_shape")
+        layer_shape<-attr(data,"layer_shape")
+        if(!is.null(base_shape)){
+          updateCheckboxInput(session,'base_shape',value=T)
+        }
+        if(!is.null(layer_shape)){
+          updateCheckboxInput(session,'layer_shape',value=T)
+
+        }
+      }
+    })
+
+    return(NULL)
+
+
+  })
+}
+sptools_shapes$server_update_ir<-function(id, vals){
+  moduleServer(id,function(input, output, session){
+    ns<-session$ns
+
+
+    return(NULL)
+
+  })
+}
+sptools_shapes$server<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+    ns<-session$ns
+    box_caret_server('box_base')
+    box_caret_server('box_layer')
+    observeEvent(input$base_shape,{
+      shinyjs::toggle(selector=".base_options",condition=isTRUE(input$base_shape))
+    })
+    observeEvent(input$layer_shape,{
+      shinyjs::toggle(selector=".layer_options",condition=isTRUE(input$layer_shape))
+
+    })
+    result<-reactive({
+      list(
+        base_shape_args=list(
+          fillOpacity=input$base_fillOpacity,
+          shape=input$base_shape,
+          color=input$base_color,
+          weight=input$base_weight,
+          stroke=input$base_stroke,
+          fill=input$base_fill,
+          border_col=input$base_border_color,
+          z=input$base_z
+        ),
+        layer_shape_args=list(
+          fillOpacity=input$layer_fillOpacity,
+          shape=input$layer_shape,
+          color=input$layer_color,
+          weight=input$layer_weight,
+          stroke=input$layer_stroke,
+          fill=input$layer_fill,
+          border_col=input$layer_border_color,
+          z=input$layer_z
+        )
+      )
+    })
+
+
+    return(result())
+
+  })
+}
+sptools_extra_shape<-list()
+sptools_extra_shape$ui<-function(id,data_map=NULL){
+  if(is.null(data_map)){
+    return(NULL)
+  }
+  ns<-NS(id)
+  shp<-attr(data_map,"extra_shape")
+  shapes<-names(shp)
+  req(length(shapes)>0)
+  res<-list()
+  #shapes=1:2
+  for(i in 1:length(shapes)){
+    atributos_shp<-attributes(shp[[i]])$names
+    res[[i]]<-list(
+      box_caret(ns("box_extra"),
+                color="#c3cc74ff",
+                title=span(style="display: inline-block",
+                           class="checktitle",
+                           checkboxInput(ns(paste0("map_extra_layer",i)),
+                                         paste("Extra-Shapes",i), T,width="180px")
+                ),
+                tags$div(
+                  tags$div(id=ns(paste0("eshape_id",i)),
+                           colourpicker::colourInput(ns(paste0("ssextra_layer_col",i)),label="Color",value="gray40"),
+                           numericInput(ns(paste0("ssextra_layer_lighten",i)),
+                                        'Transp',value=0.6,  min=0, max=1,step=0.1),
+                           pickerInput_fromtop(ns(paste0("feat_extra",i)),
+                                               paste("Label",i),choices=c("None",atributos_shp)),
+                           numericInput(ns(paste0("feat_extra_size",i)),
+                                        'size',value=2,  min=0, max=1, step=0.1),
+                           uiOutput(ns("data_depth"))
+                  )
+
+
+                )
+      )
+
+    )
+
+
+  }
+
+  div(id=ns('show_extra'),
+      res,
+      tags$div(
+
+        numericInput(ns("data_depth"),
+                     span("Layer depth ",tipright("Control the layering order of your data relative to shapes")),
+                     value=3,
+                     min=1, step=1
+        )
+      )
+  )
+
+}
+sptools_extra_shape$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    data<-reactive({
+      vals$data_map
+    })
+    box_caret_server("box_extra")
+    observeEvent(vals$cur_modeplot,{
+      shinyjs::toggle('show_extra',condition = !vals$cur_modeplot%in%"leaflet")
+
+
+    })
+    get_extralayers<-reactive({
+      extralayers<-NULL
+      shapes<-attr(data(),"extra_shape")
+      if(length(names(shapes))>0){
+        extralayers<-lapply(seq_along(shapes),function(i){
+
+          layers=input[[paste0("map_extra_layer",i)]]
+          if(isTRUE(layers)){
+            shinyjs::show(paste0("eshape_id",i))
+          } else{
+            shinyjs::hide(paste0("eshape_id",i))
+          }
+          c(
+            layers=layers,
+            colors=input[[paste0("ssextra_layer_col",i)]],
+            alphas=input[[paste0("ssextra_layer_lighten",i)]],
+            labels=input[[paste0("feat_extra",i)]],
+            sizes=input[[paste0("feat_extra_size",i)]]
+          )
+        })
+        extralayers<-do.call(rbind,extralayers)
+      }
+      extralayers
+    })
+
+    result<-reactive({
+      list(
+        args_extra=get_extralayers(),
+        data_depth=input$data_depth
+      )
+    })
+    observeEvent(result(),{
+      vals$extra_shapes<-result()
+    })
+    return(NULL)
+
+
+  })
+}
+
+# Module for handling coordinates
+sptools_coords<-list()
+sptools_coords$ui<-function(id){
+  ns<-NS(id)
+  box_caret(
+    ns("box_coords"),
+    color="#c3cc74ff",
+    hide_content=T,
+    title="Coordinates",
+    div(
+      pickerInput_fromtop(ns("show_coords"),label=strong("Symbol"),choices=c("None",rev(df_symbol$val)),choicesOpt = list(content =  c("None",rev(df_symbol$img) )),selected="None"),
+      div(
+        id=ns('coords_options'),
+        colourpicker::colourInput(ns("col.coords"),label="Color",value="black"),
+        numericInput(ns("cex.coords"),label="Size",value=3)
+
+      )
+    )
+  )
+
+
+}
+sptools_coords$server_update<-function(id){
+  moduleServer(id,function(input,output,session){
+
+    box_caret_server("box_coords",hide_content=T)
+
+    observe({
+      shinyjs::toggle("coords_options", condition=input$show_coords!='None')
+    })
+    result<-reactive({
+      list(
+        show_coords=input$show_coords,
+        col.coords=input$col.coords,
+        cex.coords=input$cex.coords)
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    return(NULL)
+  })
+}
+sptools_coords$server<-function(id){
+  moduleServer(id,function(input,output,session){
+    result<-list(
+      show_coords=input$show_coords,
+      col.coords=input$col.coords,
+      cex.coords=input$cex.coords)
+    return(result)
+  })
+}
+
+# Module for handling ggplot legend
+sptools_gg_legend<-list()
+sptools_gg_legend$ui<-function(id){
+  ns<-NS(id)
+  div(
+    box_caret(
+      ns("gg_box_legend"),
+      color="#c3cc74ff",
+      title="Legend",
+      hide_content=T,
+      div(
+        pickerInput(ns("legend.position"),"Position",c("right","bottom","left","top","none")),
+        textInput(ns("leg_title"),"Legend title",NULL),
+        numericInput(ns("legend.text_size"),label="Legend Text Size",value=13)
+      )
+
+    )
+  )
+}
+sptools_gg_legend$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+
+    result<-list(
+      legend.position=input$legend.position,
+      leg_title=input$leg_title,
+      legend.text_size=input$legend.text_size
+
+    )
+    return(result)
+
+  })
+}
+sptools_gg_legend$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    result<-reactive({
+      list(
+        legend.position=input$legend.position,
+        leg_title=input$leg_title,
+        legend.text_size=input$legend.text_size
+
+      )
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    observeEvent(data(),{
+      updateTextInput(session,'leg_title',value=colnames(data()))
+    })
+
+  })
+}
+
+
+# GGplot options module
+sptools_gg_opts<-list()
+sptools_gg_opts$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+    box_caret(
+      ns("box_map_titles"),
+      color="#c3cc74ff",
+      title="Title",
+      hide_content=T,
+      div(
+        textInput(ns("main"),label="Title"),
+        numericInput(ns("plot.title_size"),label="Title size",value=12),
+        selectInput(ns("title.face"),"Title font",c("plain","italic","bold"))
+      )
+
+    ),
+
+    div(id=ns("show_box_map_subtitles"),
+        box_caret(
+          ns("box_map_subtitles"),
+          color="#c3cc74ff",
+          title="Subtitle",
+          hide_content=T,
+          div(
+            textInput(ns("subtitle"),label="Subtitle"),
+            numericInput(ns("plot.subtitle_size"),label="Subtitle size",value=11),
+            selectInput(ns("subtitle.face"),"Title font",c("plain","italic","bold"))
+          )
+
+        )),
+    box_caret(
+      ns("box_map_axes"),
+      color="#c3cc74ff",
+      title="Axes",
+      hide_content=T,
+      div(
+        div(
+          id=ns('div_axis_style'),
+          pickerInput(ns("axis_style"),"Style",c("B&W Blocks"="bw_blocks","Classic"="default"),selected="default"),
+          numericInput(ns("axis_width"),label="Width",value=0.1)
+        ),
+
+        textInput(ns("xlab"),label="x-label", "Longitude"),
+        numericInput(ns("x.n.breaks"),label="x-nbreaks",value=5),
+        textInput(ns("ylab"),label="y-label","Latitude"),
+        numericInput(ns("y.n.breaks"),label="y-nbreaks",value=5),
+        textInput(ns("zlab"),label="z-label"),
+        numericInput(ns("axis.title_size"),label="Label Size",value=11),
+        numericInput(ns("axis.text_size"),label="Axis Size",value=11)
+      )
+
+    ),
+    div(
+      id=ns('box_guides'),
+      box_caret(
+        ns("box_map_guides"),
+        color="#c3cc74ff",
+        title="Guides",
+        hide_content=T,
+        div(
+          checkboxInput(ns("show_guides"),label="Show Guides",value=F),
+          colourpicker::colourInput(ns("guides_color"),label="Color",value="black"),
+          pickerInput(ns('guides_linetype'),"Line type",c("dashed","dotted","solid")),
+          numericInput(ns('guides_linewidth'),"Line Width",value=0.15)
+        )
+      )
+    )
+
+  )
+}
+sptools_gg_opts$server_update<-function(id,vals,scatter3d=F,surface=F,stack=F){
+  moduleServer(id,function(input,output,session){
+    observe({
+
+      shinyjs::toggle('zlab',condition=isTRUE(any(surface,stack,scatter3d)))
+    })
+    observe({
+      shinyjs::toggle('div_axis_style',condition=vals$cur_modeplot%in%'ggplot')
+      shinyjs::toggle('box_guides',condition=vals$cur_modeplot%in%'ggplot')
+
+    })
+
+
+
+    results<-reactive({
+      list(
+
+
+        main=input$main,
+        plot.title_size=input$plot.title_size,
+        title.face=input$title.face,
+        subtitle=input$subtitle,
+        plot.subtitle_size=input$plot.subtitle_size,
+        subtitle.face=input$subtitle.face,
+        xlab=input$xlab,
+        ylab=input$ylab,
+        zlab=input$zlab,
+        axis.text_size=input$axis.text_size,
+        axis.title_size=input$axis.title_size,
+        axis_style=input$axis_style,
+        axis_width=input$axis_width,
+        x.n.breaks=input$x.n.breaks,
+        y.n.breaks=input$y.n.breaks,
+        show_guides=input$show_guides,
+        guides_color=input$guides_color,
+        guides_linetype=input$guides_linetype,
+        guides_linewidth=input$guides_linewidth)
+
+
+    })
+    observeEvent(results(),{
+
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    return(NULL)
+  })
+}
+sptools_gg_opts$server_update_scatter3d<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    cur_rst<-reactive({
+      req(inherits(vals$cur_rst,"RasterLayer"))
+      vals$cur_rst
+    })
+    observe({
+
+      formalss<-formals(scatter_3dplotly)
+      tohide<-names(input)[!names(input)%in%names(formalss)]
+      tohide<-tohide[!grepl("box",tohide)]
+      lapply(tohide,
+             function(x) shinyjs::hide(x))
+      hide('show_box_map_subtitles')
+
+
+    })
+
+    observeEvent(get_title(),{
+      updateTextInput(session,"main",value=get_title())
+    })
+    get_title<-reactive({
+      value0=value=colnames(data())
+      if(!is.null(vals$cur_level_filter)) {
+        if(vals$cur_factor_filter!="None"){
+          value=paste0(value," - ",vals$cur_level_filter)
+        }
+      }
+      return(value)
+    })
+
+
+    observe({
+      updateTextInput(session,'zlab',value=colnames(data()))
+    })
+    return(NULL)
+
+  })
+}
+sptools_gg_opts$server_update_stack<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    get_title<-reactive({
+      value0=value=colnames(data())
+      if(!is.null(vals$cur_level_filter)) {
+        if(vals$cur_factor_filter!="None"){
+          value=paste0(value," - ",vals$cur_level_filter)
+        }
+      }
+      return(value)
+    })
+    observeEvent(get_title(),{
+      updateTextInput(session,"main",value=get_title())
+    })
+    observe({
+      formalss<-c(formals(stack_plot3D),formals(stack_plotly))
+      tohide<-names(input)[!names(input)%in%names(formalss)]
+      tohide<-tohide[!grepl("box",tohide)]
+      lapply(tohide,
+             function(x) shinyjs::hide(x))
+      hide('show_box_map_subtitles')
+
+    })
+
+
+    return(NULL)
+
+  })
+}
+sptools_gg_opts$server_update_surface<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    cur_rst<-reactive({
+      req(inherits(vals$cur_rst,"RasterLayer"))
+      vals$cur_rst
+    })
+    observe({
+
+      formalss<-c(formals(surface_plotly),formals(get_4D))
+      tohide<-names(input)[!names(input)%in%names(formalss)]
+      tohide<-tohide[!grepl("box",tohide)]
+      lapply(tohide,
+             function(x) shinyjs::hide(x))
+      hide('show_box_map_subtitles')
+
+    })
+    observeEvent(get_title(),{
+      updateTextInput(session,"main",value=get_title())
+    })
+    get_title<-reactive({
+      value0=value=colnames(data())
+      if(isTRUE(vals$cur_surf_addpoints)){
+        value=vals$cur_surf_ap_colfac
+      } else{value=attr(cur_rst(),"z_name")}
+      return(value)
+
+
+    })
+    return(NULL)
+
+  })
+}
+sptools_gg_opts$server_titles<-function(id){
+  moduleServer(id,function(input,output,session){
+    result<-list(main=input$main,
+                 plot.title_size=input$plot.title_size,
+                 title.face=input$title.face,
+                 subtitle=input$subtitle,
+                 plot.subtitle_size=input$plot.subtitle_size,
+                 subtitle.face=input$subtitle.face)
+    return(result)
+
+  })
+}
+sptools_gg_opts$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+    box_caret_server("box_map_titles",hide_content=T)
+    box_caret_server("box_map_subtitles",hide_content=T)
+    box_caret_server("box_map_axes",hide_content=T)
+    box_caret_server("box_map_guides",hide_content=T)
+
+
+  })
+}
+sptools_gg_opts$server_axes<-function(id){
+  moduleServer(id,function(input,output,session){
+    result<-
+      list(
+        xlab=input$xlab,
+        ylab=input$ylab,
+        zlab=input$zlab,
+        axis.text_size=input$axis.text_size,
+        axis.title_size=input$axis.title_size,
+        axis_style=input$axis_style,
+        axis_width=input$axis_width,
+        x.n.breaks=input$x.n.breaks,
+        y.n.breaks=input$y.n.breaks,
+        show_guides=input$show_guides,
+        guides_color=input$guides_color,
+        guides_linetype=input$guides_linetype,
+        guides_linewidth=input$guides_linewidth
+      )
+
+    return(result)
+
+  })
+}
+
+# GGplot north module
+sptools_gg_north<-list()
+sptools_gg_north$ui<-function(id){
+  ns<-NS(id)
+
+
+  div(
+    box_caret(
+      ns("box_north"),
+      color="#c3cc74ff",
+      title="North arrow",
+      hide_content=T,
+      div(
+
+        pickerInput(ns("n_location"),
+                    label="North Position",
+                    c("bottom-right"="br",
+                      "bottoml-left"="bl",
+                      "top-right"="tr",
+                      "top-left"="tl",
+                      "none"="none"),selected="tl"),
+        pickerInput(ns("n_which_north"),label="Wich North",c("grid","true")),
+        numericInput(ns("n_width"),label="Width",value=40,step=5),
+        numericInput(ns("n_height"),label="Heigth",value=40,step=5),
+        numericInput(ns("n_pad_x"),label="pad_x",value=0.1),
+        numericInput(ns("n_pad_y"),label="pad_y",value=0.15),
+        numericInput(ns("n_cex.text"),label="Label Size",value=10,step=1)
+
+      )
+    )
+  )
+
+
+}
+sptools_gg_north$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+
+
+    result<-list(
+      n_location=input$n_location,
+      n_which_north=input$n_which_north,
+      n_width=input$n_width,
+      n_height=input$n_height,
+      n_pad_x=input$n_pad_x,
+      n_pad_y=input$n_pad_y,
+      n_cex.text=input$n_cex.text
+    )
+    return(result)
+
+  })
+}
+sptools_gg_north$server_update<-function(id){
+  moduleServer(id,function(input,output,session){
+    box_caret_server('box_north',hide_content=T)
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    result<-reactive({
+      list(
+        n_location=input$n_location,
+        n_which_north=input$n_which_north,
+        n_width=input$n_width,
+        n_height=input$n_height,
+        n_pad_x=input$n_pad_x,
+        n_pad_y=input$n_pad_y,
+        n_cex.text=input$n_cex.text
+      )
+    })
+    return(NULL)
+
+  })
+}
+
+# Leaflet providers module
+sptools_providers<-list()
+sptools_providers$ui<-function(id){
+  ns<-NS(id)
+  div(class="mp0",
+      div(
+        class="map_providers",style="display: flex; align-items: center; position: absolute; right: 0px; top: 30px",
+
+        pickerInput_fromtop_live(
+          ns("providers"),
+          label ="+ Map Style",
+          selected="Stadia.StamenTerrain",
+          options=list(container="body"),
+          choices =c('OpenStreetMap.Mapnik',
+                     'OpenStreetMap.DE',
+                     'OpenStreetMap.France',
+                     'OpenStreetMap.HOT',
+                     'OPNVKarte',
+                     'Stadia.AlidadeSmooth',
+                     'Stadia.OSMBright',
+                     'Stadia.Outdoors',
+                     'Stadia.StamenWatercolor',
+                     'Stadia.StamenTerrain',
+                     'Stadia.StamenTerrainBackground',
+                     'CyclOSM',
+                     'Esri.WorldStreetMap',
+                     'Esri.WorldTopoMap',
+                     'Esri.WorldImagery',
+                     'MtbMap',
+                     'Esri.OceanBasemap',
+                     'Esri.NatGeoWorldMap',
+                     'Esri.WorldPhysical',
+                     'USGS.USImagery'
+          ),
+        ),
+        numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
+
+
+
+      )
+  )
+
+}
+sptools_providers$server<-function(id){
+  moduleServer(id,function(input, output, session){
+    return(
+      reactive({
+        list(
+          providers=input$providers,
+          zoomSnap=input$zoomSnap
+        )
+      })
+    )
+  })
+}
+
+## Map download module
+ll_down_modal<-list()
+ll_down_modal$ui<-function(id){
+  ns<-NS(id)
+  div(
+    inline(numericInput(ns("zoom"),span('zoom', tiphelp("A number specifying the zoom factor. A zoom factor of 2 will result in twice as many pixels vertically and horizontally. ")), 1, width="100px")),
+    inline(numericInput(ns("vwidth"),span('width', tiphelp("Viewport width. This is the width of the browser window")), 800, width="100px")),
+    inline(numericInput(ns("vheight"),span('height',tiphelp("Viewport height This is the height of the browser window")), 600, width="100px")),
+    inline(numericInput(ns("delay"),span('delay', tiphelp("Time to wait before taking screenshot, in seconds. Sometimes a longer delay is needed for all assets to display properly.")), 0.2, width="100px")),
+    inline(downloadButton(ns("download"), icon("download"))),
+
+  )
+
+}
+ll_down_modal$server<-function(id, map,file_name='leaflet_'){
+
+
+  moduleServer(id,function(input, output, session){
+    output$download<-{
+      downloadHandler(
+        filename = function() {
+          paste(file_name,Sys.Date(), ".png", sep = "")
+        },
+        content = function(file) {
+          withProgress(message="Preparing...",min=NA,max=NA,{
+            htmlwidgets::saveWidget(map, "map.html", selfcontained = FALSE)
+            webshot::webshot("map.html", file = file, delay = input$delay,zoom=input$zoom,
+                             vwidth=input$vwidth,
+                             vheight=input$vheight)
+          })
+
+
+          file.remove("map.html")
+
+        }
+      )
+    }
+  })
+}
+ll_down_plot<-list()
+ll_down_plot$ui<-function(id){
+  ns<-NS(id)
+  div(
+    actionLink(ns("download_ll"),"Download",icon("download"))
+  )
+
+}
+ll_down_plot$server<-function(id, map){
+  moduleServer(id,function(input, output, session){
+    vplot<-reactiveValues(newggplot=NULL)
+    ns<-session$ns
+
+    observeEvent(input$download_ll,ignoreInit = T,{
+      showModal(
+        modalDialog(
+          title='Download as png file',
+          ll_down_modal$ui(ns("download")),
+          easyClose = T
+        )
+      )
+    })
+
+    ll_down_modal$server("download",map)
+  })
+}
+
+# Interpolation module
+ll_interp<-list()
+ll_interp$ui<-function(id){
+  lab_nmax<-span("nmax:", tiphelp("for local kriging, the number of nearest observations that should be used for a kriging prediction or simulation, where nearest is defined in terms of the space of the spatial locations. By default (empty), all observations are used"))
+  lab_nmin<-span( "nmin:",tiphelp("for local kriging, if the number of nearest observations within distance maxdist is less than nmin, a missing value will be generated- see maxdist"))
+  lab_omax<-span("omax:",tiphelp("maximum number of observations to select per octant (3D) or quadrant (2D); only relevant if maxdist has been defined as well"))
+  lab_maxdist<-span("maxdist:",tiphelp("for local kriging, only observations within a distance of maxdist from the prediction location are used for prediction; if combined with nmax, both criteria apply"))
+  lab_idp<-span("idp:",tiphelp("numeric; specify the inverse distance weighting power"))
+  lab_resolution<-span("resolution:",tiphelp("Interpolation resolution"))
+  choices=list(
+
+    'Krigging'="krige",
+    'IDW'='idw',
+    'KNN'='knn',
+    'svmRadial'='svmRadial',
+    'gaussprRadial'='gaussprRadial',
+    'svmRadialCost'='svmRadialCost'
+  )
+  ns<-NS(id)
+  div(class="radio_interp",style="padding: 5px;",
+
+      div(style="display: flex",
+          pickerInput_fromtop(ns("radio_interp_num"),"Method",choices, width="200px"),
+          pickerInput_fromtop(ns("radio_interp_fac"),"Method",choices[-c(1:2)], width="200px"),
+          uiOutput(ns("interp_help"))
+      )
+      ,
+
+      tabsetPanel(id=ns("tabs_interp"),type="hidden",
+                  tabPanel('Krigging',value="krige",
+                           ll_vgm$ui(ns("vgm"))) ,
+                  tabPanel('IDW',value="idw",
+                           tags$div(id=ns("interp_params"),
+                                    numericInput(ns("nmax"), lab_nmax, NA, min = NA),
+                                    numericInput(ns("nmin"), lab_nmin, 3, min = 0),
+                                    numericInput(ns("omax"), lab_omax, 0, min = 0),
+                                    numericInput(ns("maxdist"), lab_maxdist, NA, min = 0),
+                                    numericInput(ns("idp"), lab_idp, 4, min = 0)
+                           )),
+                  tabPanel('KNN',value="caret",
+                           tags$div(
+                             numericInput(ns("tuneLength"), 'tuneLength', 5, min = 0),
+                           ))
+
+      ),
+
+      tags$div(id=ns('cv_inputs'),
+               numericInput(ns("cv"), 'K-Folds', 5, min = 0),
+               numericInput(ns("seed_caret"),span("Seed",tiphelp(textseed(),"right")),NA)),
+      div(
+        numericInput(ns("resolution"), lab_resolution, 5000, min = 20)
+      ),
+      uiOutput(ns("out_vgm")))
+
+}
+ll_interp$server<-function(id,vals){
+
+
+
+  moduleServer(id,function(input, output, session){
+
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    radio_interp<-reactive({
+
+      data<-data()
+      if(is.factor(data[,1])){
+        input$radio_interp_fac
+      } else{
+        input$radio_interp_num
+      }
+    })
+    output$interp_help<-renderUI({
+      help_interp(radio_interp())
+    })
+    observe({
+      shinyjs::toggle("cv_inputs",condition=radio_interp()!="idw")
+    })
+    observe({
+      data<-data()
+      cond<-is.factor(data[,1])
+
+      shinyjs::toggle("radio_interp_num",condition=!cond)
+      shinyjs::toggle("radio_interp_fac",condition=cond)
+    })
+    observeEvent(radio_interp(),{
+      if(!radio_interp()%in%c("krige","idw")){
+        selected<-"caret"
+      } else{
+        selected<-radio_interp()
+      }
+      updateTabsetPanel(session,'tabs_interp',selected=selected)
+    })
+    curtab<-reactiveVal()
+    observeEvent(input$tabs_interp,{
+      curtab(input$tabs_interp)
+    })
+    args<-reactive({
+      list(
+        nmax=input$nmax,
+        nmin=input$nmin,
+        omax=input$omax,
+        maxdist=input$maxdist,
+        idp=input$idp,
+        tuneLength=input$tuneLength,
+        seed=input$seed_caret,
+        resolution=input$resolution,
+        interp_type=radio_interp(),
+        cv=input$cv
+      )
+    })
+    observeEvent(args(),{
+      req(data())
+      vals$interp_args<-args()
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+      NULL
+    })
+    output$out_vgm<-renderUI({
+
+      NULL
+    })
+    ll_vgm$server("vgm",vals)
+
+    return(NULL)
+
+  })
+}
+
+# Module for handling text (labels) on the map
+sptools_text<-list()
+sptools_text$ui<-function(id,surface=F){
+  ns<-NS(id)
+  box_caret(ns("box_labels"),
+            color="#c3cc74ff",
+            title=div(style="display: inline-block",class="checktitle",checkboxInput(ns("show_labels"),strong("Text"), F,width="120px")),
+            div(
+
+              tags$div(id=ns("show_labels_on"),style="display: none",
+                       if(isTRUE(surface)){
+                         div(
+
+                           pickerInput_fromtop_live(ns("datalist"),"Datalist:",
+                                                    choices =NULL),
+                           uiOutput(ns("z_label_value"))
+
+                         )
+                       },
+                       div(
+                         pickerInput_fromtop_live(ns("labels"),label="Use factor",choices=c(NULL))
+                       ),
+                       div(
+                         numericInput(ns("cex.fac"),label="Size",value=5)
+                       ),
+                       div(
+                         colourpicker::colourInput(ns("col.fac"),label="Color",value="black")
+                       )
+              )
+            )
+
+  )
+
+}
+sptools_text$server_update<-function(id,vals,surface=F){
+  moduleServer(id,function(input,output,session){
+
+    ns<-session$ns
+    observeEvent(input$datalist,{
+      data<-vals$saved_data[[input$datalist]]
+
+      factors<-attr(data,'factors')
+      choices=colnames(factors)
+      selected=vals$cur_surf_ap_vars
+      selected=get_selected_from_choices(selected,choices)
+      updatePickerInput(session,'labels',choices=choices)
+    })
+
+    result<-reactive({
+      list(
+        show_labels=input$show_labels,
+        labels=input$labels,
+        cex.fac=input$cex.fac,
+        col.fac=input$col.fac,
+        datalist=input$datalist,
+        z_value=input$z_label_value
+      )
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    output$z_label_value<-renderUI({
+      req(input$datalist)
+      req(vals$cur_z_label_value)
+      data<-vals$saved_data[[input$datalist]]
+
+      choices<-colnames(data)
+      selected=vals$cur_z_label_value
+      selected=get_selected_from_choices(selected,choices)
+
+      pickerInput_fromtop_live(ns("z_label_value"),"Z-Value:",
+                               choices =choices,selected=selected)
+    })
+
+    observeEvent(input$z_label_value,{
+      vals$cur_z_label_value<-input$z_label_value
+    })
+    observeEvent(vals$saved_data,{
+      choices<-names(vals$saved_data)
+      selected=vals$cur_surf_ap_datalist
+      selected=get_selected_from_choices(selected,choices)
+
+      updatePickerInput(session,"datalist",choices=choices, selected=selected)
+    })
+    observeEvent(input$show_labels,{
+      if(isTRUE(input$show_labels)){
+        shinyjs::show('show_labels_on')
+      } else{
+        shinyjs::hide('show_labels_on')
+      }
+    })
+
+
+    observeEvent(vals$data_map,{
+      req(isFALSE(surface))
+      factors<-attr(vals$data_map,"factors")
+      choices=colnames(factors)
+      selected<-vals$cur_ggplot_options
+      selected=get_selected_from_choices(selected,choices)
+      updatePickerInput(session,'labels',choices=choices,selected=selected)
+
+    })
+
+    observeEvent(input$labels,{
+      vals$cur_ggplot_options<-input$labels
+    })
+
+
+
+
+
+
+    return(
+      reactive({
+        list(
+          labels=input$labels
+        )
+      })
+    )
+  })
+}
+sptools_text$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+
+
+    return(
+      reactive({
+        list(
+          show_labels=input$show_labels,
+          labels=input$labels,
+          cex.fac=input$cex.fac,
+          col.fac=input$col.fac,
+          datalist=input$datalist,
+          z_value=input$z_label_value
+        )
+      })
+    )
+  })
+}
+
+# module for variogram
+ll_vgm<-list()
+ll_vgm$ui<-function(id){
+
+  models<-gstat::vgm()
+  models<-models[c(2:nrow(models),1),][1:17,]
+  models[,2]<-  gsub(".*\\(|\\)","",models[,2])
+  choices<-sapply(1:nrow(models),function(i){
+    val<-as.character(models[i,1])
+    names(val)<-as.character(models[i,2])
+    val
+  })
+
+
+  ns<-NS(id)
+  tags$div(
+    div(
+      div(
+        pickerInput_fromtop(ns("model"), span("Model type",help_autofit()),choices, selected="Gau",width="250px")
+      ),
+      class="gstat",
+      div(style="font-size: 12px; ",
+          div(
+            div(
+              class="side_vgm",
+              div(style="display: flex",
+                  div(class="switch_box",switchInput(ns("vgm_autofit"),"Variogram autofit",value=T,size="mini",labelWidth="100px")),
+                  actionLink(ns("run_vgm_autofit"),">>RUN>>",style="margin-top: 5px; margin-left: -20px")
+              ),
+              div(
+
+                numericInput(ns("spsample"),span(
+                  "Subsample",tipright("Specify the number of spatial sample points. Leave empty to bypass subsampling. Note: Autofitting the variogram may be computationally intensive for large datasets, making subsampling advisable.")
+                ),NA)
+              ),
+              div(
+                id=ns("vgm_fine_btn"),class="save_changes",style="padding-top: 0px;",
+                div(
+                  style="padding-left: 0px",
+                  actionLink(ns("vgm_fine"),tags$label("+ Show Variogram tuning", style="cursor: pointer;"))
+
+
+                )
+              ),
+              tags$div(
+                style="margin-left: 50px",
+                id=ns("vgm_fine_params"),
+
+                numericInput(ns("nugget"), "nugget",5),
+                numericInput(ns("psill"), "psill",5, step=0.01),
+                numericInput(ns("range"), "range",5),
+                numericInput(ns("kappa"), span("kappa", tiphelp("smoothness parameter for the Matern class of variogram models")),.5)
+              )
+            )
+          )
+
+      )
+    )
+  )
+}
+ll_vgm$server<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+
+    observeEvent(all_args(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    all_args<-reactive({
+      list(
+        model=input$model,
+        vgm_autofit=input$vgm_autofit,
+        spsample=input$spsample,
+        nugget=input$nugget,
+        psill=input$psill,
+        range=input$range,
+        kappa=input$kappa
+      )
+    })
+
+    observe(shinyjs::addClass('fit_vgm',"save_changes"))
+    data<-reactive({
+      req(vals$data_map)
+      vals$data_map
+    })
+    run_autofit<-reactiveVal()
+    observeEvent(input$run_vgm_autofit,ignoreInit = T,{
+      run_autofit(TRUE)
+    })
+    observeEvent(input$vgm_autofit,{
+      run_autofit(input$vgm_autofit)
+    })
+    observeEvent(data(),{
+
+      if(nrow(vals$data_map)>10000){
+        run_autofit(FALSE)
+        updateNumericInput(session,'spsample',value=10000)
+        shinyWidgets::updateSwitchInput(session,'vgm_autofit',value=FALSE)
+      } else{
+        updateNumericInput(session,'spsample',value=NA)
+        # shinyWidgets::updateSwitchInput(session,'vgm_autofit',value=T)
+
+      }
+    })
+    observe({
+      shinyjs::toggle('vgm_fine_params',condition=input$vgm_fine%%2)
+    })
+
+
+    get_autofit<-reactive({
+      req(is.numeric( vals$data_map[,1]))
+      req(isTRUE(run_autofit()))
+      data<-data()
+
+
+      vals$interp_vc<-NULL
+
+      if(!is.na(input$spsample)){
+        if(input$spsample<nrow(data()))
+
+          data<-data[sample(1:nrow(data),input$spsample),,drop=F]
+      }
+
+      args1<-list(df=data,model=input$model,var=colnames(data),g=NULL)
+      withProgress({
+        var=colnames(data)
+
+        vgm_result<-do.call(variogram_parameters,args1)
+
+        #vgm_result<-do.call(variogram_parameters,args1)
+      },min=NA,max=NA,message="Running autofit...")
+      #vals$vgm_error<-attr(vgm_result,"logs")
+      vgm_result
+
+
+    })
+    observe({
+
+      vgm_result<-get_autofit()
+      vals$interp_vc<-vgm_result
+      nug<-vgm_result$auto_z1$var_model[1,2]
+      ps<-vgm_result$auto_z1$var_model[2,2]
+      ra<-vgm_result$auto_z1$var_model[2,3]
+      req(is.numeric(nug))
+      req(is.numeric(ps))
+      req(is.numeric(ra))
+      nugget =round(nug,3)
+      psill=round(ps,3)
+      range=round(ra,3)
+      updateNumericInput(session,'nugget',value =nugget )
+      updateNumericInput(session,'psill',value =psill )
+      updateNumericInput(session,'range',value =range )
+
+    })
+    vgm_args<-reactive({
+
+      list(
+        psill=input$psill, model=input$model, nugget=input$nugget, range=input$range, kappa = input$kappa
+      )
+    })
+    get_krige_model<-reactive({
+      vc<-vals$interp_vc
+      req(vc)
+      vgm_model<-try(do.call(gstat::vgm,vgm_args()))
+      g<-try({gstat::gstat(NULL,id=vc$id,form= vc$formula,data= vc$dsp,model=vals$interp_vgm)})
+      list(vgm_model,g)
+    })
+    observeEvent(get_krige_model(),{
+      vals$interp_vgm<-get_krige_model()[[1]]
+      vals$interp_gstat<-get_krige_model()[[2]]
+    })
+    return(NULL)
+
+  })
+}
+
+# module for handling the ggplot scalebar
+sptools_gg_scalebar<-list()
+sptools_gg_scalebar$ui<-function(id){
+  ns<-NS(id)
+  div(
+    box_caret(
+      ns("box_scalebar"),
+      color="#c3cc74ff",
+      title="Scale Bar",
+      hide_content=T,
+      div(
+        pickerInput(ns("position"),label="Bar Position",c("bottomright","bottomleft","topright","topleft","none")),
+        numericInput(ns("n_bins"),label="Bins",value=2),
+        pickerInput(ns("unit"),"Unit",c(
+          "Kilometers"='km',
+          "meters"="m",
+          "centimeters"="cm")),
+        numericInput(ns("bins_km"),label=span("Bin length",tipright("bar block size in the specified unit")),value=100),
+        numericInput(ns("bar_height"),label="Bar height",value=0.2),
+        numericInput(ns("pad_x"),label="pad_x",value=0.05),
+        numericInput(ns("pad_y"),label="pad_y",value=0.025),
+        pickerInput(ns("position_label"),label="Label position",c("above","below")),
+        numericInput(ns("size_scalebar_text"),label="Label size",value=3)
+      )
+    )
+  )
+}
+sptools_gg_scalebar$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+
+
+    result<-list(position=input$position,
+                 n_bins=input$n_bins,
+                 bins_km=input$bins_km,
+                 bar_height=input$bar_height,
+                 pad_x=input$pad_x,
+                 pad_y=input$pad_y,
+                 position_label=input$position_label,
+                 size_scalebar_text=input$size_scalebar_text,
+                 unit=input$unit
+    )
+    return(result)
+
+  })
+}
+sptools_gg_scalebar$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    box_caret_server('box_scalebar',hide_content=T)
+    result<-reactive({
+      list(position=input$position,
+           n_bins=input$n_bins,
+           bins_km=input$bins_km,
+           bar_height=input$bar_height,
+           pad_x=input$pad_x,
+           pad_y=input$pad_y,
+           position_label=input$position_label,
+           size_scalebar_text=input$size_scalebar_text,
+           unit=input$unit
+      )
+    })
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    data<-reactive({
+      vals$data_map
+    })
+    get_shapes<-reactive({
+      vals$shape_args
+    })
+
+
+
+
+    observeEvent(data(),{
+      data<-data()
+
+
+      base_shape_args=vals$shape_args$base_shape_args
+      layer_shape_args=vals$shape_args$layer_shape_args
+      args_extra_shape=vals$extra_shapes
+
+
+
+      value<-step_scale_bar(data ,base_shape_args,
+                            layer_shape_args,
+                            args_extra_shape)
+      value_unit<-attr(value,'unit')
+      updatePickerInput(session,'unit',selected=value_unit)
+      updateNumericInput(session,'bins_km',value=value)
+      attr(value,"unit")<-value_unit
+      cur_unit(value)
+
+    })
+
+    cur_unit<-reactiveVal()
+
+
+    observeEvent(input$unit,{
+      req(cur_unit())
+
+      if(attr(cur_unit(),"unit")!=input$unit){
+
+        bins_km<-input$bins_km
+        attr(bins_km,"unit")<-attr(cur_unit(),"unit")
+        value=format_distance_to(bins_km,input$unit)
+        updateNumericInput(session,'bins_km',value=value)
+        attr(bins_km,"unit")<-input$unit
+        cur_unit(bins_km)      }
+
+
+    })
+
+
+
+  })
+}
+
+# Functionalities for creating data breaks
+sptools_breaks<-list()
+sptools_breaks$ui<-function(id){
+  ns<-NS(id)
+  div(
+    tags$div(
+      numericInput(ns("nbreaks"), span("Nº breaks",tiphelp("approximate number of breaks")),5, width="200px"))
+  )
+}
+sptools_breaks$server<-function(id){
+  moduleServer(id,function(input, output, session){
+    return(
+      list(
+        nbreaks=input$nbreaks
+      )
+    )
+
+  })
+}
+
+# Module for handling palettes
+sptools_colors<-list()
+sptools_colors$ui<-function(id){
+  ns<-NS(id)
+  div(
+
+    div(
+      tags$div(
+        pickerInput_fromtop_live(inputId = ns("palette"),
+                                 label ="Palette",
+                                 NULL),
+        radioButtons(ns("scale_color"),"Color Range:",c(
+          "filtered data"="filtered",
+          "unfiltered data"="unfiltered"
+        ),inline=T,width="400px"),
+
+        numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1),
+        numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1)
+
+      ),
+      div(
+        checkboxInput(ns("reverse_palette"),"Reverse palette",F)
+      )
+    )
+
+
+
+  )
+
+}
+sptools_colors$server<-function(id){
+  moduleServer(id,function(input, output, session){
+
+    return(
+      reactive({
+
+        list(pal='temp_palette',fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color)
+      })
+    )
+  })
+}
+sptools_colors$server_update<-function(id,vals){
+  moduleServer(id,function(input, output, session){
+
+    result<-reactive({
+      list(
+        pal=input$palette,fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color
+      )
+    })
+
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+
+    observeEvent(input$palette,{
+      vals$cur_mappalette<-input$palette
+    })
+    observe({
+      updatePickerInput(session,"palette", choices =  vals$colors_img$val,
+                        choicesOpt = list(
+                          content =  vals$colors_img$img )
+      )
+    })
+
+
+
+    color_reac<-reactive({
+      list(
+        vals$data_map[,1],
+        vals$cur_factor_filter,
+        input$scale_color,
+        input$palette
+      )
+    })
+
+
+    observe({
+      cond=is.numeric(vals$data_map[,1])&vals$cur_factor_filter!="None"
+      shinyjs::toggle('scale_color',condition = cond)
+    })
+
+    unfiltered_data<-reactive({
+      req(vals$data_map)
+      req(vals$cur_data)
+      req(vals$cur_choices_map)
+      req(vals$cur_var_map)
+      data_inputs<- list(
+        name=vals$cur_data,
+        attr=vals$cur_choices_map,
+        var=vals$cur_var_map,
+        filter="None",
+        filter_level=NULL,
+        saved_data=vals$saved_data
+      )
+
+      args<-data_inputs
+      res<-do.call(get_data_map,args)
+      res
+    })
+
+
+    observeEvent(color_reac(),{
+      req(input$palette)
+      pal<-vals$newcolhabs[[input$palette]]
+      if(is.numeric(vals$data_map[,1])){
+        if(vals$cur_factor_filter!="None"){
+          unfilt<-unfiltered_data()[,1]
+          if(input$scale_color=="unfiltered"){
+            # fac<-factor(unfilt,levels=unique(unfilt))
+            cols<-vals$newcolhabs[[input$palette]](length(unique(unfilt)))
+            names(cols)<-1:length(cols)
+
+            cutn<-cut(vals$data_map[,1],breaks=sort(unique(unfilt)),include.lowest=T)
+            cols<-cols[cutn]
+            cols<-cols[order(as.numeric(names(cols)))]
+            plot(rep(1,length(cols)),1:length(cols),col=cols,pch=15,cex=2)
+            pal<-colorRampPalette(cols)
+
+          }
+        }
+      }
+      vals$newcolhabs[["temp_palette"]]<-pal
+
+    })
+
+
+
+    return(NULL)
+  })
+}
+
+# Modules for the surface plot
+surface_add_points<-list()
+surface_add_points$ui<-function(id){
+  ns<-NS(id)
+  div(
+    box_caret(
+      ns("surface_Points"),
+      title=span(style="display: inline-block",class="checktitle",checkboxInput(ns("surf_addpoints"),strong("Points"), F,width="100px")),
+
+      color="#c3cc74ff",
+      div(style="padding-left: 10px",
+          id=ns("points_out"),
+          uiOutput(ns("datalist_out")),
+          uiOutput(ns("zvalue_out")),
+          uiOutput(ns("zcolor_out")),
+
+
+
+          pickerInput_fromtop_live(ns("surf_ap_palette"),"Palette", choices=NULL),
+
+          numericInput(ns('surf_ap_size'),"Size",1.5),
+          checkboxInput(ns("surf_z_scale"),"Scale Size", F ),
+          uiOutput(ns("zscale_vars")),
+
+          numericInput(ns('surf_ap_minsize'),"Min-size",0.5),
+          div(id=ns("legendplot3D"),
+              style="margin-left: 15px",
+              numericInput(ns('surf_y.intersp'),'Legend y.intersp',1.5),
+              numericInput(ns('surf_x.intersp'),'Legend x.intersp',1.5),
+              numericInput(ns('surf_inset_x'),'Legend inset_x',0),
+              numericInput(ns('surf_inset_y'),'Legend inset_y',0),
+
+
+          )),
+
+    )
+  )
+
+}
+surface_add_points$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+    result<-reactive({
+      list(
+        surf_addpoints=input$surf_addpoints,
+        surf_points_datalist=input$surf_points_datalist,
+        surf_points_z_value=input$surf_points_z_value,
+        surf_points_z_color=input$surf_points_z_color,
+        surf_ap_palette=input$surf_ap_palette,
+        surf_y.intersp=input$surf_y.intersp,
+        surf_x.intersp=input$surf_x.intersp,
+        surf_inset_x=input$surf_inset_x,
+        surf_inset_y=input$surf_inset_y,
+        surf_ap_size=input$surf_ap_size,
+        surf_z_scale=input$surf_z_scale,
+        surf_ap_z_scale_vars=input$surf_ap_z_scale_vars,
+        surf_ap_minsize=input$surf_ap_minsize
+      )
+    })
+    return(result())
+
+  })
+}
+surface_add_points$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    ns<-session$ns
+    observe({
+      shinyjs::toggle("legendplot3D",condition=vals$cur_modeplot%in%"plot3D")
+
+      shinyjs::toggle('points_out',condition=isTRUE(input$surf_addpoints))
+      shinyjs::toggle('surf_ap_z_scale_vars',condition=isTRUE(input$surf_z_scale))
+      shinyjs::toggle('surf_ap_minsize',condition=isTRUE(input$surf_z_scale))
+      shinyjs::toggle('legendplot3D',condition=isTRUE(input$surf_z_scale))
+
+
+
+
+
+
+    })
+
+    result<-reactive({
+      list(
+        surf_addpoints=input$surf_addpoints,
+        surf_points_datalist=input$surf_points_datalist,
+        surf_points_z_value=input$surf_points_z_value,
+        surf_points_z_color=input$surf_points_z_color,
+        surf_ap_palette=input$surf_ap_palette,
+        surf_y.intersp=input$surf_y.intersp,
+        surf_x.intersp=input$surf_x.intersp,
+        surf_inset_x=input$surf_inset_x,
+        surf_inset_y=input$surf_inset_y,
+        surf_ap_size=input$surf_ap_size,
+        surf_z_scale=input$surf_z_scale,
+        surf_ap_z_scale_vars=input$surf_ap_z_scale_vars,
+        surf_ap_minsize=input$surf_ap_minsize
+      )
+    })
+
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+    data<-reactive({
+      req(input$surf_points_datalist)
+      data<-vals$saved_data[[input$surf_points_datalist]]
+      data
+    })
+
+    observeEvent(input$surf_points_datalist,{
+      vals$cur_surf_points_datalist<-input$surf_points_datalist
+    })
+
+    output$datalist_out<-renderUI({
+      choices=names(vals$saved_data)
+      selected=vals$cur_surf_points_datalist
+      selected=get_selected_from_choices(selected,choices)
+      pickerInput_fromtop_live(ns("surf_points_datalist"),"Datalist",
+                               choices=choices,
+                               selected=selected)
+    })
+
+    observeEvent(input$surf_points_z_value,{
+      vals$cur_surf_points_z_value<-input$surf_points_z_value
+    })
+    output$zvalue_out<-renderUI({
+      data<-data()
+      choices=colnames(data)
+      selected=vals$cur_surf_points_z_value
+      selected=get_selected_from_choices(selected,choices)
+      pickerInput_fromtop_live(ns("surf_points_z_value"),"Z-Value",
+                               selected=selected,choices=choices)
+    })
+    observeEvent(input$surf_points_z_color,{
+      vals$cur_surf_points_z_color<-input$surf_points_z_color
+    })
+    output$zcolor_out<-renderUI({
+      data<-data()
+      choices<-c("Z-Value",colnames(cbind(data,attr(data,"factors"))))
+      selected=vals$cur_surf_points_z_color
+      selected=get_selected_from_choices(selected,choices)
+      pickerInput_fromtop_live(ns("surf_points_z_color"),"Z-Color",   selected=selected,choices=choices)
+    })
+    observeEvent(input$surf_ap_z_scale_vars,{
+      vals$cur_surf_ap_z_scale_vars<-input$surf_ap_z_scale_vars
+    })
+    output$zscale_vars<-renderUI({
+      data<-data()
+      choices=colnames(data)
+      selected=vals$cur_surf_ap_z_scale_vars
+      selected=get_selected_from_choices(selected,choices)
+      pickerInput_fromtop_live(ns("surf_ap_z_scale_vars"),"Z-Value", choices=choices,  selected=selected )
+    })
+
+    observeEvent(vals$newcolhabs,{
+      updatePickerInput(session,"surf_ap_palette", choices =  vals$colors_img$val,choicesOpt = list(content =  vals$colors_img$img )
+      )
+    })
+
+
+
+    return(NULL)
+
+  })
+}
+surface_3d_control<-list()
+surface_3d_control$ui<-function(id){
+  ns<-NS(id)
+  div(
+    box_caret(
+
+      ns("box_surface"),
+      color="#c3cc74ff",
+      title="3D control",
+      hide_content=T,
+      div(id=ns("d3_control"),
+          div(align="right",
+              actionLink(ns("reset_zcontrol"),"reset",style="font-size: 12px;")
+          ),
+
+          numericInput(ns("surf_exp"),span('+ exp:',tipright("a expansion factor applied to the z coordinates. Often used with 0 < expand < 1 to shrink the plotting box in the z direction")), 0.8,  step=.1),
+          numericInput(ns("surf_theta"),span('+ theta:',tipright("azimuthal direction")),0,max=360,step=10),
+          numericInput(ns("surf_phi"),span('+ phi:',tipright("colatitude direction")),40,min=180,step=10),
+
+          numericInput(ns("surf_r"),span('+ Eye point:',tipright("rhe distance of the eyepoint from the centre of the plotting box")), 1.73),
+          pickerInput_fromtop(ns("surf_tick"),span('+ ticktype',tipright("simple - draws just an arrow parallel to the axis to indicate direction of increase; detailed - draws normal ticks as per 2D plots.")), c("simple","detailed")),
+
+          numericInput(ns("surf_d"),span('+ persp strength:',tipright("a value which can be used to vary the strength of the perspective transformation. Values of d greater than 1 will lessen the perspective effect and values less and 1 will exaggerate it")), 1)
+      )
+
+    )
+  )
+
+}
+surface_3d_control$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    observe({
+
+
+      shinyjs::toggle('surf_tick',condition = !vals$cur_modeplot%in%"plotly")
+    })
+
+
+    result<-reactive(
+      list(
+        surf_exp=input$surf_exp,
+        surf_theta=input$surf_theta,
+        surf_phi=input$surf_phi,
+        surf_r=input$surf_r,
+        surf_tick=input$surf_tick,
+        surf_d=input$surf_d
+      )
+    )
+
+    return(result())
+
+  })
+}
+surface_3d_control$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    box_caret_server("box_surface",hide_content=T)
+
+
+    result<-reactive(
+      list(
+        surf_exp=input$surf_exp,
+        surf_theta=input$surf_theta,
+        surf_phi=input$surf_phi,
+        surf_r=input$surf_r,
+        surf_tick=input$surf_tick,
+        surf_d=input$surf_d
+      )
+    )
+    observeEvent(result(),{
+      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+    })
+
+    return(NULL)
+
+  })
+}
+surface_saved_maps<-list()
+surface_saved_maps$ui<-function(id){
+  ns<-NS(id)
+  div(
+    box_caret(
+      ns("surface_savedmaps"),
+      title="Saved maps",
+      color="#c3cc74ff",
+
+      div(
+        div(style="display: flex",
+            pickerInput_fromtop_live(ns("saved_maps"),"Saved map (Z)", NULL),
+            actionLink(ns("trash_map"), icon('fas fa-trash'))
+        ),
+        pickerInput_fromtop_live(ns("saved_maps2"),"Saved map (Color)", NULL)
+      )
+
+
+    )
+  )
+
+}
+surface_saved_maps$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    observeEvent(vals$saved_maps,{
+      updatePickerInput(session,'saved_maps2',choices=names(vals$saved_maps))
+
+      updatePickerInput(session,'saved_maps',choices=names(vals$saved_maps))
+    })
+
+    observeEvent(input$trash_map,ignoreInit = T,{
+      req(input$saved_maps)
+      req(vals$saved_maps)
+      vals$saved_maps[[input$saved_maps]]<-NULL
+    })
+    observeEvent(input$saved_maps,{
+      vals$cur_rst<-vals$saved_maps[[input$saved_maps]]
+    })
+    return(NULL)
+  })
+}
+surface_saved_maps$server<-function(id){
+  moduleServer(id,function(input,output,session){
+
+
+
+    result<-reactive(
+      list(
+        saved_maps=input$saved_maps,
+        saved_maps2=input$saved_maps2
+      )
+    )
+
+    return(
+      result()
+    )
+
+
+  })
+}
+
+
+## Modules for plotly donwload
+plotly_download<-list()
+plotly_download$ui<-function(id){
+  ns<-NS(id)
+  showModal(
+    modalDialog(
+      title="Download plotly",
+      div(
+        div(style="display: flex; gap: 10px;max-width: 600px",
+            numericInput(ns("fheight"), "Height (px)", min=2,  step=1, value = 400),
+            numericInput(ns("fwidth"), "Width (px)", min=2,  step=1, value = 400),
+            numericInput(ns("fscale"), "Scale", step=1, value = 10),
+            selectInput(ns("fformat"), "File type", choices=c("png","svg","jpeg")),
+            div(style="margin-top: 25px",class="save_changes",
+                actionButton(ns("plotly_download"),"Download"))
+
+
+        )
+      ),
+      easyClose = T
+
+    )
+  )
+}
+plotly_download$server<-function(id,out_id,session_in){
+  moduleServer(id,function(input,output,session){
+
+    observeEvent(input$plotly_download,ignoreInit = T,{
+
+      withProgress(min=NA,max=NA,message="Taking snapshop - this may take a few seconds... ",{
+        shinyjs::runjs(paste0(
+          "
+      var plot = document.getElementById('",paste0(session_in,out_id),"');
+      if (plot) {
+      Plotly.downloadImage(plot, {
+        format: '",input$fformat,"',
+        filename: 'plot_snapshot',
+        width: ",input$fwidth,",
+        height: ",input$fheight,",
+        scale: ",input$fscale,"  // Adjust the scale factor as needed
+      });
+    }
+    "
+        ))
+        removeModal()
+      })
+
+    })
+
+    output$teste<-renderUI({
+      renderPrint({})
+    })
+
+  })
+}
+check_inputs<-function(input,pattern){
+  res<-names(input)[grep(pattern,names(input))]
+  res
+}
 
 collectInputs <- function(session, input_ids) {
   state <- list()
@@ -4451,582 +5047,3 @@ collectInputs <- function(session, input_ids) {
   }
   return(state)
 }
-
-
-#' @export
-sptools_data<-list()
-sptools_data$ui<-function(id){
-  ns<-NS(id)
-
-  div(
-    h4("Spatial Tools", class="imesc_title"),
-    div(class="spatial_tools spatial_setup",
-        id=ns('map_setup'),
-
-        box_caret(ns("box_setup"),
-                  title="Data setup",
-                  color="#374061ff",
-                  inline=F,
-                  div(
-
-                    div(class="inline_pickers2",
-                        pickerInput_fromtop_live(ns("data_map"),"Datalist:",
-                                                 choices =NULL,inline=T),
-                        pickerInput_fromtop(ns("choices_map"),"Attribute:",
-                                            choices = c("Numeric-Attribute","Factor-Attribute"),inline=T),
-                        pickerInput_fromtop_live(ns("var_map"),label = "Variable:",choices = NULL,inline=T),
-                        pickerInput_fromtop_live(ns("factor_filter"),label = "Filter",choices = NULL,inline=T),
-                        pickerInput_fromtop_live(ns("level_filter"),label = "Level",choices = NULL,inline=T)
-
-
-
-                    )
-
-
-                  )
-        )
-    )
-
-
-
-
-
-  )}
-sptools_data$server<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-    requireNamespace("leaflet")
-
-
-    observeEvent(input$data_map,{
-
-      updatePickerInput(session,"choices_map",selected= vals$cur_choices_map)
-
-    })
-    observe({
-      shinyjs::toggle('map_setup',condition = !vals$cur_mode_map%in%c("surface","stack"))
-    })
-
-    observeEvent(vals$saved_data,{
-      selected<-NULL
-      if(!is.null(vals$cur_data)){
-        if(vals$cur_data%in%names(vals$saved_data)){
-          selected<-vals$cur_data
-        }
-      }
-
-      updatePickerInput(session,"data_map",choices=names(vals$saved_data), selected=selected)
-    })
-
-
-    observeEvent(input$data_map,{
-      choices<-colnames(get_factors())
-      selected<-get_selected_from_choices(vals$cur_factor_filter,choices)
-      updatePickerInput(session,"factor_filter",choices=c("None",choices),selected=selected)
-    })
-
-
-    observeEvent(data0(),{
-
-      choices<-colnames(data0())
-      selected<-NULL
-      if(!is.null(vals$cur_var_map)){
-        if(vals$cur_var_map%in%choices){
-          selected<-vals$cur_var_map
-        }
-      }
-      updatePickerInput(session,"var_map",choices=choices, selected=selected)
-
-    })
-    observeEvent(list(input$factor_filter,get_factors()),{
-      req(input$factor_filter)
-      fac<-get_filter()[,1]
-      choices<-levels(fac)
-      selected<-get_selected_from_choices(vals$cur_level_filter,choices)
-
-      updatePickerInput(session,"level_filter",choices=choices, selected=selected)
-    })
-
-    data0<-reactive({
-      req(input$data_map)
-      req(input$data_map%in%names(vals$saved_data))
-      req(input$choices_map)
-      data0<-vals$saved_data[[input$data_map]]
-      if(input$choices_map=='Factor-Attribute'){
-        data_temp<-attr(data0,"factors")
-        coords<-attr(data0,"coords")
-        factors<-attr(data0,"factors")
-        attr(data_temp,"factors")<-factors
-        attr(data_temp,"coords")<-coords
-        data0<-data_temp
-      }
-
-      req(data0)
-      data0
-    })
-    get_factors<-reactive({
-      req(input$data_map)
-      req(input$data_map%in%names(vals$saved_data))
-      data0<-vals$saved_data[[input$data_map]]
-      factors<-attr(data0,"factors")
-      factors
-    })
-    get_filter<-reactive({
-      req(input$data_map)
-      req(input$data_map%in%names(vals$saved_data))
-      data0<-vals$saved_data[[input$data_map]]
-      factors<-get_factors()
-      req(input$factor_filter%in%colnames(factors))
-      fac<-factors[input$factor_filter]
-      fac
-    })
-
-    observe({
-      req(input$data_map)
-      req(input$choices_map)
-      req(input$var_map)
-      vals$cur_data<-input$data_map
-      vals$cur_var_map<-input$var_map
-      vals$cur_factor_filter<-input$factor_filter
-      vals$cur_level_filter<-input$level_filter
-      vals$cur_choices_map<-input$choices_map
-
-
-
-    })
-
-
-    observe({
-      shinyjs::toggle('level_filter',condition=input$factor_filter!="None")
-    })
-    data_inputs<-reactive({
-
-      list(
-        name=input$data_map,
-        attr=input$choices_map,
-        var=input$var_map,
-        filter=input$factor_filter,
-        filter_level=input$level_filter,
-        saved_data=vals$saved_data
-      )
-    })
-
-
-    observeEvent(data_inputs(),{
-
-
-      saved_data<-vals$saved_data
-      req(input$data_map%in%names(saved_data))
-      req(input$var_map%in%colnames(data0()))
-      args<-data_inputs()
-      res<-do.call(get_data_map,args)
-      req(nrow(res)>0)
-      vals$data_map<-res
-
-
-    })
-    observe({
-      req(vals$update_state)
-      update_state<-vals$update_state
-      ids<-names(update_state)
-      update_on<-grepl(id,ids)
-      names(update_on)<-ids
-      to_loop<-names(which(update_on))
-      withProgress(min=1,max=length(to_loop),message="Restoring",{
-        for(i in to_loop) {
-          idi<-gsub(paste0(id,"-"),"",i)
-          incProgress(1)
-          restored<-restoreInputs2(session, idi, update_state[[i]])
-
-          if(isTRUE(restored)){
-            vals$update_state[[i]]<-NULL
-          }
-
-        }
-      })
-
-    })
-    return(NULL)
-  })
-}
-
-
-
-#' @export
-sptools_panels<-list()
-#' @export
-sptools_panels$ui<-function(id){
-  module_progress("Loading module: Spatial Tools")
-  ns<-NS(id)
-  fluidRow( class="spatial_tools",
-
-
-            column(12,
-                   #
-                   #hidden(uiOutput(ns('coordinates_message'))),
-                   class='nav_map',
-                   div(id=ns("map_tabs"),
-                       navbarPage(
-                         NULL,id=ns("mode"),selected='circles',
-                         tabPanel(
-                           "Circles",value="circles",
-                           div(
-                             uiOutput(ns('map_circles_validate')),
-                             div(
-                               id=ns("circles_page"),
-
-                               uiOutput(ns("map_circles"))
-                             )
-                           )
-                         ),
-                         tabPanel(
-                           "Pies",value="pies",
-                           div(
-                             uiOutput(ns('map_pies_validate')),
-                             div(
-                               id=ns("pies_page"),
-
-                               uiOutput(ns("map_pie"))
-                             )
-                           )
-                         ),
-                         tabPanel(
-                           "Scatter3D",value="scatter3d",
-                           div(
-                             uiOutput(ns('map_scatter3D_validate')),
-                             div(
-                               id=ns("scatter3D_page"),
-
-                               uiOutput(ns("map_scatter3d"))
-                             )
-                           )
-
-                         ),
-
-                         tabPanel(
-                           "Raster",value="raster",
-                           div(
-                             uiOutput(ns('map_raster_validate')),
-                             div(
-                               id=ns("raster_page"),
-
-                               uiOutput(ns("map_raster"))
-                             )
-                           )
-                         ),
-                         tabPanel(
-                           "Interpolation",value="interp",
-                           div(
-                             uiOutput(ns('map_interp_validate')),
-                             div(id=ns("interp_page"),
-                                 sptools_tab$ui(ns("interp"), interp=T),
-                                 uiOutput(ns("map_interp"))
-                             )
-                           )
-                         ),
-                         tabPanel(
-                           "Surface (3D)",value="surface",
-                           div(
-
-                             div(
-                               id=ns("surface_page"),
-
-                               uiOutput(ns("map_surface"))
-                             )
-                           )),
-                         tabPanel(
-                           "Stack (3D)",value="stack",
-                           div(
-
-                             div(
-                               id=ns("stack_page"),
-
-                               uiOutput(ns("map_stack"))
-                             )
-                           ))
-
-
-
-                       ))
-
-
-
-
-            )
-
-
-
-  )
-}
-#' @export
-sptools_panels$server<-function(id,vals){
-  moduleServer(id,function(input, output, session){
-    #data_plot=NULL
-
-
-    ns<-session$ns
-
-
-
-    observe({
-      valid_map<-is.null(validate_coords())
-
-      shinyjs::toggle('circles_page',condition=valid_map)
-      shinyjs::toggle('pies_page',condition=valid_map)
-      shinyjs::toggle('scatter3D_page',condition=valid_map)
-      shinyjs::toggle('raster_page',condition=valid_map)
-      shinyjs::toggle('interp_page',condition=valid_map)
-    })
-
-
-
-    validate_coords <- reactive({
-      res <- NULL
-      data <- vals$data_map
-
-      if (is.null(data)) {
-        res <- "Data not found"
-      } else {
-        coords <- attr(data, "coords")
-
-        if (length(coords) == 0) {
-          res <- 'The selected Datalist has no coordinates.'
-        } else if (ncol(coords) != 2) {
-          res <- "Error in Coordinates: Number of columns not equal to 2."
-        } else if (anyNA(coords)) {
-          res <- "Check your Coordinates: NAs not allowed."
-        } else {
-          # Check longitude (first column) and latitude (second column)
-          lon_invalid <- any(coords[, 1] < -180 | coords[, 1] > 180)
-          lat_invalid <- any(coords[, 2] < -90 | coords[, 2] > 90)
-
-          error_messages <- character() # Initialize an empty character vector to collect error messages
-
-          if (lon_invalid) {
-            error_messages <- c(error_messages, "Error: Longitude values must be in decimal degrees (between -180 and 180).")
-          }
-
-          if (lat_invalid) {
-            error_messages <- c(error_messages, "Error: Latitude values must be in decimal degrees (between -90 and 90).")
-          }
-
-          if (length(error_messages) > 0) {
-            res <- lapply(error_messages, div) # Combine all error messages into a single string
-          }
-        }
-      }
-
-      if (!is.null(res)) {
-        res <- div(
-          style="display: flex; align-items: center;background-color: #f2dede; color: #d2322d",
-          icon("triangle-exclamation",style="font-size: 18px;color: #d2322d"),
-          div(embrown(res),style="margin-left: 6px")
-        )
-      }
-
-      res
-    })
-
-
-
-
-
-
-    output$map_circles_validate<-renderUI({
-      validate_coords()
-    })
-
-    output$map_pies_validate<-renderUI({
-      validate_coords()
-    })
-
-    output$map_scatter3D_validate<-renderUI({
-      validate_coords()
-    })
-
-    output$map_raster_validate<-renderUI({
-      validate_coords()
-    })
-
-    output$map_interp_validate<-renderUI({
-      validate_coords()
-    })
-
-
-
-    observe({
-      shinyjs::toggle("surface_page",condition=length(vals$saved_maps)>0)
-      shinyjs::toggle("stack_page",condition=length(vals$saved_maps)>0)
-    })
-    output$map_stack_validate<-renderUI({
-      req(!length(vals$saved_maps)>0)
-      emgray("This functionality requires at least one saved raster from the Raster or Interpolation tabs.")
-    })
-    output$map_surface_validate<-renderUI({
-      req(!length(vals$saved_maps)>0)
-      emgray("This functionality requires at least one saved raster from the Raster or Interpolation tabs.")
-    })
-
-    observeEvent(input$mode,{
-      vals$cur_mode_map<-input$mode
-    })
-    output$map_surface<-renderUI({
-
-      div(
-        sptools_tab$ui(ns("surface"), surface=T),
-        uiOutput(ns("map_surface_server"))
-      )
-
-
-
-    })
-
-    output$map_surface_server<-renderUI({
-      sptools_tab$server("surface",
-                         vals=vals,
-                         surface=T)
-      NULL
-    })
-    output$map_stack<-renderUI({
-
-      div(
-        sptools_tab$ui(ns("stack"), stack=T),
-        uiOutput(ns("map_stack_server"))
-      )
-
-
-
-    })
-
-    output$map_stack_server<-renderUI({
-      sptools_tab$server("stack",
-                         vals=vals,
-                         stack=T)
-      NULL
-    })
-    output$map_scatter3d<-renderUI({
-
-      div(
-        sptools_tab$ui(ns("tab-scatter3d"), scatter3d=T),
-        uiOutput(ns("map_scatter3d_server"))
-      )
-
-
-
-
-    })
-
-    output$map_scatter3d_server<-renderUI({
-      sptools_tab$server("tab-scatter3d",
-                         vals=vals,
-                         scatter3d=T)
-      NULL
-    })
-    output$coordinates_message<-renderUI({
-      em("The selected Datalist does not contain any coordinates. Use Databank to include coordinates in your selection.",style="color:gray")
-    })
-
-
-
-
-
-    data<-reactiveVal()
-    cur_vars_choices<-reactiveVal()
-
-
-
-
-    output$map_circles<-renderUI({
-      div(
-        sptools_tab$ui(ns("tab-circles"), circles=T,radius=T),
-        uiOutput(ns("map_circles_server"))
-      )
-      # req(is.data.frame(data_map))
-
-
-    })
-
-    output$map_circles_server<-renderUI({
-      sptools_tab$server("tab-circles",vals=vals, circles=T, pie=T)
-      NULL
-    })
-
-    output$map_pie<-renderUI({
-      div(
-        sptools_tab$ui(ns("pie"), pie=T,radius=T),
-        uiOutput(ns("map_pie_server"))
-      )
-      # req(is.data.frame(data_map))
-
-
-    })
-    output$map_pie_server<-renderUI({
-      sptools_tab$server("pie",vals=vals, pie=T)
-      NULL
-    })
-    output$map_interp<-renderUI({
-      # data_map<-vals$data_map
-      #req(is.data.frame(data_map))
-      div(
-
-        uiOutput(ns("map_interp_server"))
-      )
-      sptools_tab$server("interp", vals=vals,interp=T)
-
-
-    })
-    output$map_interp_server<-renderUI({
-
-    })
-
-
-
-    output$map_raster<-renderUI({
-      div(
-        sptools_tab$ui(ns("raster"), raster=T),
-        uiOutput(ns("map_raster_server"))
-      )
-
-
-
-    })
-
-    output$map_raster_server<-renderUI({
-      sptools_tab$server("raster",
-                         vals=vals,
-                         raster=T)
-      NULL
-    })
-
-    observe({
-      req(vals$update_state)
-      update_state<-vals$update_state
-      ids<-names(update_state)
-      update_on<-grepl(id,ids)
-      names(update_on)<-ids
-      to_loop<-names(which(update_on))
-      withProgress(min=1,max=length(to_loop),message="Restoring",{
-        for(i in to_loop) {
-          idi<-gsub(paste0(id,"-"),"",i)
-          incProgress(1)
-          restored<-restoreInputs2(session, idi, update_state[[i]])
-
-          if(isTRUE(restored)){
-            vals$update_state[[i]]<-NULL
-          }
-
-        }
-      })
-
-    })
-
-
-
-
-
-  })
-}
-
-
-
-
-

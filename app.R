@@ -6,6 +6,8 @@ message("Loading iMESc")
 message("Please wait")
 source("inst/R/install.R")
 install_imesc()
+
+## loading packages function
 load_packs<-function(){
 
   #saveRDS(time000,'inst/www/time000.rds')
@@ -15,7 +17,7 @@ load_packs<-function(){
   })
 
 }
-
+## loading Modules
 load_R<-function(){
   #if(!exists("data_migrate"))
   if(TRUE){
@@ -32,6 +34,7 @@ load_R<-function(){
 
 loadedP<-load_packs()
 loadedR<-load_R()
+# run app
 shiny::shinyApp(app_ui,app_server)
 
 

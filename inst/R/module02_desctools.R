@@ -1,378 +1,296 @@
-
-
-datalist_overview<-function(data,available_models){
-
-
-  dfl<-list(
-    'Numeric-Attribute'=data,
-    'Factor-Attribute'=attr(data,"factors"),
-    'Coords-Attribute'=attr(data,"coords")
-  )
-  dfl<-dfl[sapply(dfl,length)>0]
-
-
-  shapel<-list(
-    'Base-Shape'=attr(data,"base_shape"),
-    'Layer-Shape'=attr(data,"layer_shape"),
-    'Extra-Shapes'=attr(data,"extra_shape")
-  )
-  shapel<-shapel[sapply(shapel,length)>0]
-
-
-  attrs<-c(as.character(available_models),"pwRDA","som","kmeans")
-  modelsl<-sapply(attrs,function(x){
-
-    models<-attr(data,x)
-
-    m1<-NULL
-    if(length(models)>0){
-      m1<-lapply(models,function(m){
-        nclusters=NULL
-
-        if(!x%in%c("som","kmeans","hc","pwRDA")){
-          m<-m$m
-        }
-        hc=attr(m,"hc.objec")
-        if(x=="som"){
-          class=if(length(m$data)>1){
-            "supersom"
-          } else{
-            "som"
-          }
-          class=paste0(class(m),"-",class)
-
-        } else if(x%in%c("pwRDA","kmeans","hc")){
-          class="pwRDA"
-        } else {
-          class=paste(class(m)[1],class(m$finalModel))
-        }
-        data.frame(class=class)
-
-
-
-
-      })
-
-
-      result<-data.frame(table(sapply(m1,function(x) x$class)))
-
-      result<-lapply(1:nrow(result),function(i){
-        div(paste0(result[i,1]," (models:",result[i,2],")"))
-      })
-      result
-    }
-  })
-
-  (modelsl<-modelsl[sapply(modelsl,length)>0])
-
-
-
-  div(style="padding: 20px; background: white",
-      div(
-        strong("Sheets:",style="color:royalblue"),
-
-        div(style=";font-size: 11px",
-            do.call(div,lapply(seq_along(dfl),function(i){
-              data<-dfl[[i]]
-              tags$li(
-                strong(names(dfl)[i]),
-                div(style="padding-left: 20px",span(class(data),
-                                                    if(inherits(data,"data.frame")){
-                                                      span(paste0("(",nrow(data),"x",ncol(data),")"))
-                                                    }))
-              )
-            }))
-        )
-      ),
-      div(
-        strong("Shapes:",style="color:royalblue"),
-        div(
-          style=";font-size: 11px",
-          lapply(seq_along(shapel),function(i){
-            data<-shapel[[i]]
-            div(
-              tags$li(
-
-                strong(names(shapel)[i]),
-                div(style="padding-left: 20px",
-                    span(paste0(class(data),collapse=" "),paste0(as.character(st_geometry_type(data)),collapse=" "),
-                         if(names(shapel)[i]=="Extra-Shapes"){
-                           span(paste0("(",length(data)," shapes)"))
-                         })
-                )
-
-              )
-            )
-          })
-        )
-      ),
-
-      div(
-        strong("Models:",style="color:royalblue"),
-        div(
-          style="padding-left: 20px;font-size: 11px",
-          if(!length(modelsl)>0){
-            "No saved model"
-          } else{
-            modelsl
-          }
-
-        )
-      )
-
-  )
-
-}
-update_inputs<-function(inputs,input,restored,session){
-  updated<-F
-  for(i in seq_along(inputs) ){
-    cur_input<-inputs[[i]]
-    cur_value<-cur_restored<-restored[[paste0("cur_",cur_input)]]
-    if(!is.null(cur_restored))
-      if(!is.null(input[[cur_input]]))
-        if(length(input[[cur_input]])==length(cur_restored))
-          if(!is.null(input[[cur_input]])){
-            if(!is.null(cur_value)){
-              if(!identical(input[[cur_input]],cur_restored)){
-                if(is.numeric(cur_value)){
-                  updated<-T
-                  updateNumericInput(session,cur_input,value=cur_value)
-                } else if(is.logical(cur_value)){
-                  updated<-T
-                  updateCheckboxInput(session,cur_input,value=cur_value)
-                } else if(is.character(cur_value)) {
-                  updated<-T
-                  updateTextInput(session,cur_input,value=cur_value)
-                }
-              }
-            }
-          }
-
-
-  }
-
-  updated
-}
-
-corrplot_module<-list()
-corrplot_module$ui<-function(id){
+#' The desctools module provides a comprehensive suite of tools for descriptive analysis and visualization of datasets in the iMESc application.
+#'
+#' ## Key Features:
+#' 1. Interactive Descriptive Analysis:
+#'    - Modular structure for various descriptive statistics and visualizations.
+#'    - Includes tabs for summaries, boxplots, ridge plots, pair plots, correlation plots, MDS, PCA, RDA, and segmented RDA (segRDA).
+#'
+#' 2. Dynamic Data Handling:
+#'    - Seamlessly integrates with saved datasets for reactive and interactive analysis.
+#'    - Automatically updates the available datasets when changes are made to the saved data.
+#'
+#' 3. Advanced Visualization Tools:
+#'    - Summaries: Display numeric summaries of datasets.
+#'    - Boxplots: Visualize distributions across variables.
+#'    - Ridge Plots: Compare distributions across multiple categories.
+#'    - Pair Plots: Generate scatterplots and correlations for variable pairs.
+#'    - Correlation Plots: Visualize relationships between variables.
+#'    - MDS (Multidimensional Scaling): Project high-dimensional data into 2D space.
+#'    - PCA (Principal Component Analysis): Decompose data variance into principal components.
+#'    - RDA (Redundancy Analysis): Perform constrained ordination.
+#'    - segRDA: Advanced segmented redundancy analysis.
+#'
+#' 4. User Interaction:
+#'    - Select datasets for analysis through a user-friendly dropdown menu.
+#'    - Toggle visibility of tools and inputs dynamically based on the selected analysis tab.
+#'
+#' 5. Extensibility and Integration:
+#'    - Each descriptive tool is implemented as a separate submodule, enabling easy customization and extension.
+#'    - Fully integrated with the iMESc application for preprocessing, visualization, and advanced analytics workflows.
+#'
+#' @export
+desctools<-list()
+#' @export
+desctools$ui<-function(id){
+  module_progress("Loading module: Descriptive Tools")
   ns<-NS(id)
+  tagList(
+    div(
 
-  div(
-    checkboxInput(ns('mixed'),span('Mixed',tipright("whether use mixed methods to visualize the correlation matrix")),TRUE),
-    pickerInput(ns('lower'),span('lower',tipright("lower visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie"),selected="number"),
-    pickerInput(ns('upper'),span('upper',tipright("upper visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie"),selected="circle"),
-    pickerInput_fromtop_live(
-      inputId = ns('lower.col'),
-      label = 'Lower palette:',
-      choices="RdBu",
-      selected='RdBu'),
-    pickerInput_fromtop_live(
-      inputId = ns('upper.col'),
-      label = 'Upper palette:',
-      choices="RdBu",
-      selected='RdBu'),
 
-    pickerInput(ns('method'),span('method',tipright("visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie")),
-    pickerInput_fromtop_live(
-      inputId = ns('col'),
-      label = 'Palette:',
-      choices="RdBu",
-      selected='RdBu'),
-    pickerInput(ns('type'),'type',choices=c("full", "lower", "upper")),
-    colourpicker::colourInput(ns('bg'),'bg',value="white"),
-    textInput(ns("title"),"title",""),
-    checkboxInput(ns('diag'),span('diag',tipright("whether display the correlation coefficients on the principal diagonal")),TRUE),
-    checkboxInput(ns('outline'),span('outline',tipright("whether plot outline")),FALSE),
-    pickerInput(ns('order'),span('order',tipright("<p>The ordering method of the correlation matrix.<li><strong>original</strong>for original order (default).</li><li><strong>AOE</strong>for the angular order of the eigenvectors.</li><li><strong>FPC</strong>for the first principal component order.</li><li><strong>hclust</strong>for the hierarchical clustering order.</li><li><strong>alphabet</strong>for alphabetical order.</li></p>")),choices=c("original", "AOE", "FPC", "hclust", "alphabet")),
-    pickerInput(ns('hclust.method'),span('hclust.method',tipright('the agglomeration method to be used when order is hclust')),choices=c("complete", "ward", "ward.D", "ward.D2", "single", "average","mcquitty", "median", "centroid")),
-    numericInput(ns('addrect'),span('addrect',tipright(" the number of rectangles draws on the graph according to the hierarchical cluster, only valid when order is hclust.")),NA),
-    colourpicker::colourInput(ns('rect.col'),span('rect.col',tipright('
-Color for rectangle border(s), only valid when addrect is equal or greater than 1')),value="black"),
-    numericInput(ns('rect.lwd'),span('rect.lwd',tipright(' line width for borders for rectangle border(s), only valid when addrect is equal or greater than 1')),2),
 
-    pickerInput(ns('tl.pos'),span('tl.pos',tipright('position of text labels')),
-                choices=c("default",
-                          'left'='l',
-                          'topleft'='lt',
+      h4("Descriptive Tools", class="imesc_title"),
 
-                          "diagonal"='d' ,
-                          "None"='n'
-                )),
+      div(
+        style="background: white",
+        #actionLink(ns("teste_comb"),"SAVE"),
+        # uiOutput(ns("bug")),
 
-    numericInput(ns('tl.cex'),span('tl.cex',tipright("size of text label (variable names)")),1),
-    colourpicker::colourInput(ns('tl.col'),span('tl.col',tipright("The color of text label")),value="red"),
-    numericInput(ns('tl.offset'),span('tl.offset',tipright("text label offset")),0.4),
-    numericInput(ns('tl.srt'),span('tl.srt',tipright('text label rotation in degrees')),90),
-    pickerInput(ns('cl.pos'),span('cl.pos',tipright("position of color-legend")),choices=c("default","right"="r", "bottom"="b", "None"="n")),
-    numericInput(ns('cl.length'),span('cl.length',tipright("the number of number-text in color-legend")),NA),
-    numericInput(ns('cl.cex'),span('cl.cex',tipright("text size of number-label in color-legend")),0.8),
-    numericInput(ns('cl.ratio'),span('cl.ratio',tipright("<p>Numeric, to justify the width of color-legend, 0.1~0.2 is suggested.</p>")),0.15),
-    pickerInput(ns('cl.align.text'),
-                span('cl.align.text',tipright("alignment for number-label in color-legend")),
-                choices=c(
-                  "center"="c",
-                  "left"="l",
-                  "right"="r"
-                )),
-    numericInput(ns('cl.offset'),span('cl.offset',tipright("offset for number-label in color-legend")),0.5),
-    numericInput(ns('number.cex'),span('number.cex',tipright("text size for correlation coefficients")),1),
-    numericInput(ns('number.font'),span('number.font',tipright("text font for correlation coefficients")),2),
-    numericInput(ns('number.digits'),span('number.digits',tipright("indicating the number of decimal digits to be added into the plot")),NA),
-    pickerInput(ns('addshade'),span('addshade',tipright('shade style')),choices=c("negative", "positive", "all")),
-    numericInput(ns('shade.lwd'),span('shade.lwd',tipright("line width of shade")),1),
-    colourpicker::colourInput(ns('shade.col'),span('shade.col',tipright("color of shade line")),value="white"),
-    numericInput(ns('sig.level'),span('sig.level',tipright("
-Significant level,")),0.05),
-    pickerInput(ns('insig'),span('insig',tipright('Character, specialized insignificant correlation coefficients')),choices=c("pch", "p-value", "blank", "n", "label_sig")),
-    pickerInput(inputId = ns("pch"),
-                label = span("pch:",tipright("<p>Add symbol on the glyphs of insignificant correlation coefficients (only valid when insig is \\'pch\\')</p>")),
-                choices = df_symbol$val,
-                choicesOpt = list(content = df_symbol$img),
-                selected=4,
-                width = "100px"),
-    colourpicker::colourInput(ns('pch.col'),span('pch.col',tipright("<p>The color of pch (only valid when insig is \\'pch\\')</p>")),value="black"),
-    numericInput(ns('pch.cex'),span('pch.cex',tipright("<p>The cex of pch (only valid when insig is \\'pch\\')</p>")),3),
-    #pickerInput(ns('plotCI'),span('plotCI',tipright("<p>method of ploting confidence interval. If \\'n\\', don\\'t plot confidence interval. If \\'rect\\', plot rectangles whose upper side means upper bound and lower side means lower bound, respectively. If \\'circle\\', first plot a circle with the bigger absolute bound, and then plot the smaller. Warning: if the two bounds are the same sign, the smaller circle will be wiped away, thus forming a ring. Method \\'square\\' is similar to \\'circle\\'.</p>")),choices=c("n", "square", "circle", "rect")),
-    textInput(ns('na.label'),span('na.label',tipright("<p>Label to be used for rendering NA cells. Default is \\'?\\'. If \\'square\\', then the cell is rendered as a square with the na.label.col color</p>")),"?"),
-    colourpicker::colourInput(ns('na.label.col'),span('na.label.col',tipright("Color used for rendering NA cells.")),value="black"),
-    numericInput(ns('win.asp'),span('win.asp',tipright("Aspect ration for the whole plot.")),1)
+        div(
+
+          tabsetPanel(
+            id=ns('desc_options'),
+            selected="tab1",
+            tabPanel('1. Summaries',
+                     value="tab1",
+                     desctools_tab1$ui(ns("summaries")),
+                     uiOutput(ns("desc_tab1"))
+            ),
+            tabPanel('2. Boxplot',
+                     value="tab2",
+
+                     uiOutput(ns("desc_tab2"))
+            ),
+            tabPanel('3. Ridges',
+                     value="tab3",
+
+                     uiOutput(ns("desc_tab3"))
+            ),
+
+            tabPanel(
+              '4. Pair plot',
+              value="tab4",
+              uiOutput(ns("desc_tab4"))
+            ),
+            #  tabPanel('Histogram',value="tab_histo",uiOutput(ns("dtab_histogram"))),
+
+            tabPanel('5. Correlation plot',
+                     value="tab5",
+
+                     uiOutput(ns("desc_tab5"))
+            ),
+            tabPanel(
+              '6. MDS',
+              value="tab6",
+
+              uiOutput(ns("desc_tab6"))
+
+            ),
+            tabPanel(
+              '7. PCA',
+              value="tab7",
+
+              uiOutput(ns("desc_tab7"))
+            ),
+            tabPanel(
+              '8. RDA',
+              value="tab8",
+
+              uiOutput(ns("desc_tab8"))
+            ),
+            tabPanel(
+              '9. segRDA',
+              value="tab9",
+
+              uiOutput(ns("desc_tab9"))
+
+            )
+
+
+          )
+
+
+        )
+
+
+      ))
   )
 
-
 }
-corrplot_module$server<-function(id,corr,vals){
+#' @export
+desctools$server<-function (id,vals ){
+
   moduleServer(id,function(input,output,session){
+    box_caret_server("box_setup1")
 
-    get_args<-reactive({
-      req(input$col%in%names(vals$newcolhabs))
+    ns<-session$ns
 
-      args=list(
-        mixed=input$mixed,
-        corr=corr,
-        col=vals$newcolhabs[[input$col]](256),
-        method=input$method,
-        type=input$type,
-        title=input$title,
-        diag=input$diag,
-        outline=input$outline,
-        order=input$order,
-        hclust.method=input$hclust.method,
-        addrect=if(is.na(input$addrect)){NULL} else{input$addrect},
-        bg=input$bg,
+    vals$rid_plot<-NULL
+    vals$rda_plot <-NULL
+    vals$smw_dp<-NULL
+    vals$segrda_model<-NULL
+    vals$mds<-NULL
+    vals$corr_plot<-NULL
+    vals$plot_dp<-NULL
+    vals$seg_rda_plot<-NULL
+    vals$pbox_plot<-NULL
+    vals$dp_smw<-NULL
+    vals$splitBP<-NULL
 
-        rect.col=input$rect.col,
-        rect.lwd=input$rect.lwd,
-        tl.pos=if(input$tl.pos=="default"){NULL} else{input$tl.pos},
-        tl.cex=input$tl.cex,
-        tl.col=input$tl.col,
-        tl.offset=input$tl.offset,
-        tl.srt=input$tl.srt,
-        cl.pos=if(input$cl.pos=="default"){NULL} else{input$cl.pos},
-        cl.length=if(is.na(input$cl.length)){NULL} else{input$cl.length},
-        cl.cex=input$cl.cex,
-        cl.ratio=input$cl.ratio,
-        cl.align.text=input$cl.align.text,
-        cl.offset=input$cl.offset,
-        number.cex=input$number.cex,
-        number.font=input$number.font,
-        number.digits=if(is.na(input$number.digits)){NULL} else{input$number.digits},
 
-        addshade=input$addshade,
-        shade.lwd=input$shade.lwd,
-        shade.col=input$shade.col,
-        sig.level=input$sig.level,
-        insig=input$insig,
-        pch=input$pch,
-        pch.col=input$pch.col,
-        pch.cex=input$pch.cex,
-        plotCI=input$plotCI,
-        na.label=input$na.label,
-        na.label.col=input$na.label.col,
-        win.asp=input$win.asp
 
+
+    output$desc_tab1<-renderUI({
+      desctools_tab1$server("summaries",vals)
+      NULL
+    })
+
+
+    output$desc_tab2<-renderUI({
+      div(
+        desctools_tab2$ui(ns("boxplot")),
+        uiOutput(ns('boxplot_server'))
       )
-      if(input$mixed){
-        args$lower<-input$lower
-        args$upper<-input$upper
-        args$lower.col<-vals$newcolhabs[[input$lower.col]](256)
-        args$upper.col<-vals$newcolhabs[[input$upper.col]](256)
-      }
-
-
-      args
     })
-    return(get_args())
-
-
-
-
-
-
-
-
-  })
-}
-corrplot_module$server_update<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-
-
-
-    observeEvent(vals$newcolhabs,{
-      choices =     vals$colors_img$val
-      choicesOpt = list(content =vals$colors_img$img)
-
-      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_col,vals$colors_img$val)
-      updatePickerInput(session,"col",choices=choices,choicesOpt=choicesOpt,selected=selected)
-      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_lower.col,vals$colors_img$val)
-      updatePickerInput(session,"lower.col",choices=choices,choicesOpt=choicesOpt,selected='RdBu')
-      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_upper.col,vals$colors_img$val)
-      updatePickerInput(session,"upper.col",choices=choices,choicesOpt=choicesOpt,selected='RdBu')
+    output$boxplot_server<-renderUI({
+      desctools_tab2$server("boxplot",vals)
+      NULL
     })
 
 
 
+    output$desc_tab3<-renderUI({
+      div(
+        desctools_tab3$ui(ns("ridges")),
+        uiOutput(ns('ridges_server'))
+      )
+    })
+    output$ridges_server<-renderUI({
+      desctools_tab3$server("ridges",vals)
+      NULL
+    })
+
+    output$desc_tab4<-renderUI({
+      div(
+        desctools_tab4$ui(ns("ggpair")),
+        uiOutput(ns('ggpair_server'))
+      )
+    })
+    output$ggpair_server<-renderUI({
+      desctools_tab4$server("ggpair",vals)
+      NULL
+    })
 
 
+    output$desc_tab5<-renderUI({
+      div(
+        desctools_tab5$ui(ns("corr")),
+        uiOutput(ns('corr_server'))
+      )
+    })
+    output$corr_server<-renderUI({
+      desctools_tab5$server("corr",vals)
+      NULL
+    })
+
+
+    output$desc_tab6<-renderUI({
+      div(
+        desctools_tab6$ui(ns("mds")),
+        uiOutput(ns('mds_server'))
+      )
+    })
+    output$mds_server<-renderUI({
+      desctools_tab6$server("mds",vals)
+      NULL
+    })
+
+    output$desc_tab7<-renderUI({
+      div(
+        desctools_tab7$ui(ns("pca")),
+        uiOutput(ns('pca_server'))
+      )
+    })
+    output$pca_server<-renderUI({
+      desctools_tab7$server("pca",vals)
+      NULL
+    })
+
+
+
+    output$desc_tab8<-renderUI({
+      div(
+        desctools_tab8$ui(ns("rda")),
+        uiOutput(ns('rda_server'))
+      )
+    })
+    output$rda_server<-renderUI({
+      desctools_tab8$server("rda",vals)
+      NULL
+    })
+
+    output$desc_tab9<-renderUI({
+      div(
+        desctools_tab9$ui(ns("segrda")),
+        uiOutput(ns('segrda_server'))
+      )
+    })
+    output$segrda_server<-renderUI({
+      desctools_tab9$server("segrda",vals)
+      NULL
+    })
 
 
 
     observe({
-
-
-
-
-      shinyjs::toggle('col',condition=isFALSE(input$mixed))
-      shinyjs::toggle('method',condition=isFALSE(input$mixed))
-      shinyjs::toggle('type',condition=isFALSE(input$mixed))
-      shinyjs::toggle('diag',condition=isFALSE(input$mixed))
-      shinyjs::toggle('cl.pos',condition=isFALSE(input$mixed))
-      shinyjs::toggle('lower.col',condition=isTRUE(input$mixed))
-      shinyjs::toggle('upper.col',condition=isTRUE(input$mixed))
-      shinyjs::toggle('upper',condition=isTRUE(input$mixed))
-      shinyjs::toggle('lower',condition=isTRUE(input$mixed))
-      shinyjs::toggle('addrect',condition=input$order=="hclust")
-      shinyjs::toggle('rect.lwd',condition=!is.na(input$addrect))
-      shinyjs::toggle('rect.col',condition=!is.na(input$addrect))
+      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8',"tab_omi",'tab2'))
+    })
+    getdata_descX<-reactive({
+      req(input$data_descX)
+      vals$saved_data[[input$data_descX]]})
+    observeEvent(input$data_descX,{
+      vals$desc_data_x<-vals$saved_data[[input$data_descX]]
+    })
+    observeEvent(vals$saved_data,{
+      choices=names(vals$saved_data)
+      selected=vals$cur_data
+      selected=get_selected_from_choices(selected,choices)
+      updatePickerInput(session,'data_descX',choices=choices, selected=selected)
     })
 
-    return(NULL)
+    observeEvent(input$data_descX,{
+      vals$cur_data<-input$data_descX
+    })
 
 
+    observe({
+      req(vals$update_state)
+      update_state<-vals$update_state
+      ids<-names(update_state)
+      update_on<-grepl(id,ids)
+      names(update_on)<-ids
+      to_loop<-names(which(update_on))
+      withProgress(min=1,max=length(to_loop),message="Restoring",{
+        for(i in to_loop) {
+          idi<-gsub(paste0(id,"-"),"",i)
+          incProgress(1)
+          restored<-restoreInputs2(session, idi, update_state[[i]])
 
+          if(isTRUE(restored)){
+            vals$update_state[[i]]<-NULL
+          }
 
+        }
+      })
 
-
-
-
+    })
 
 
   })
 }
 
 
-
+## Logic for Tranforming data
 transform_module<-list()
 transform_module$ui<-function(id, label="Transformation"){
   ns<-NS(id)
@@ -381,7 +299,6 @@ transform_module$ui<-function(id, label="Transformation"){
   names(transf_value)<-transf_label
   pickerInput_fromtop_live(ns("transf"),label,choices=transf_value)
 }
-
 transform_module$server<-function(id,data){
   moduleServer(id,function(input,output,session){
 
@@ -392,99 +309,7 @@ transform_module$server<-function(id,data){
   })
 }
 
-
-
-color_input<-function(id,label,selected=NULL,vals){
-  pickerInput_fromtop_live(
-    inputId = id,
-    label = label,
-    choices =     vals$colors_img$val,
-    choicesOpt = list(content =vals$colors_img$img),
-    selected=selected
-  )
-
-}
-
-get_summary_datalist<-function(datalist, which=c("numeric","factors","coords")){
-
-
-  numeric<-NULL
-  factors<-NULL
-  coords<-NULL
-  if('coords'%in%which){
-    coords<-attr(datalist,"coords")
-    if(!is.null(coords))
-      attr(coords,"name")<-"Coords"
-  }
-  if('factors'%in%which){
-    factors<-attr(datalist,"factors")
-
-    if(!is.null(factors))
-      attr(factors,"name")<-"Factor"
-  }
-  if('numeric'%in%which){
-    numeric<-datalist
-    attr(numeric,"name")<-"Numeric"
-  }
-
-  res<-list(numeric,factors,coords)
-  res<-res[sapply(res,length)>0]
-
-  df<-data.frame(do.call(rbind,lapply(res,function(data){
-    c(attr(data,"name"),  nrow(data),  ncol(data), sum(is.na(data)))
-  })))
-  colnames(df)<-c("Attributes","nrows","ncols","NAs")
-
-  na_styles<-lapply(1:nrow(df),function(i){
-    if(df$NAs[i]>0){
-      tags$style(HTML(paste0(".table0 tr:nth-child(",i,") > td:nth-child(4){
-                   color: red
-                 }")))
-    }
-  })
-
-
-  div(
-    na_styles,
-    tags$style(HTML('.table0 .table{
-                  margin-bottom: 0px;
-                  color: blue
-  }
-                  .table0 .shiny-table.spacing-s>thead>tr>th{
-                  color: black;
-                  padding-top: 2px;
-    padding-bottom: 0px;
-                  }
-                 .table0 tr:nth-child(1) > td:nth-child(1){
-                 font-style: italic;
-                   color: black
-                 }
-                    .table0 tr:nth-child(2) > td:nth-child(1){
-                  font-style: italic;
-                    color: black
-                    }
-                    .table0 tr:nth-child(3) > td:nth-child(1){
-                  font-style: italic;
-                    color: black
-                  }
-
-                  .table0  .table.shiny-table>thead>tr>th{
-                  padding-right: 12px;
-    padding-left: 5px;
-                  }
-
-
-                  ')),
-
-    div(class="half-drop-inline table0",style=" margin-bottom: 0px;margin-top: -10px",
-        renderTable(df)
-    )
-  )
-
-
-
-}
-
+## Logic for tab 1 - Summaries
 desctools_tab1<-list()
 desctools_tab1$ui<-function(id){
   ns<-NS(id)
@@ -834,6 +659,7 @@ desctools_tab1$server<-function(id,vals){
   })
 }
 
+## Logic for tab 2 - Boxplots
 desctools_tab2<-list()
 desctools_tab2$ui<-function(id){
   ns<-NS(id)
@@ -1239,8 +1065,7 @@ desctools_tab2$server<-function(id,vals){
 }
 
 
-
-
+## Logic for tab 3 - Ridge Plot
 desctools_tab3<-list()
 desctools_tab3$ui<-function(id){
   ns<-NS(id)
@@ -1440,6 +1265,7 @@ desctools_tab3$server<-function(id,vals){
   })
 }
 
+## Logic for tab 4 - Pair Plots
 desctools_tab4<-list()
 desctools_tab4$ui<-function(id){
   ns<-NS(id)
@@ -1740,16 +1566,8 @@ desctools_tab4$server<-function(id,vals){
 
   })
 }
-tiphelp5<-function(title,text,placement ="bottom"){
-  span(class="tip-80",
-       style="color: #3c8dbc;",
-       title,tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
-}
-tiphelp6<-function(text,placement ="bottom"){
-  span(class="tip-80",
-       style="color: #3c8dbc;",
-       tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
-}
+
+## Logic for tab 5 - Correlation plot
 desctools_tab5<-list()
 desctools_tab5$ui<-function(id){
   ns<-NS(id)
@@ -2116,8 +1934,215 @@ desctools_tab5$server<-function(id,vals){
 
   })
 }
+corrplot_module<-list()
+corrplot_module$ui<-function(id){
+  ns<-NS(id)
+
+  div(
+    checkboxInput(ns('mixed'),span('Mixed',tipright("whether use mixed methods to visualize the correlation matrix")),TRUE),
+    pickerInput(ns('lower'),span('lower',tipright("lower visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie"),selected="number"),
+    pickerInput(ns('upper'),span('upper',tipright("upper visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie"),selected="circle"),
+    pickerInput_fromtop_live(
+      inputId = ns('lower.col'),
+      label = 'Lower palette:',
+      choices="RdBu",
+      selected='RdBu'),
+    pickerInput_fromtop_live(
+      inputId = ns('upper.col'),
+      label = 'Upper palette:',
+      choices="RdBu",
+      selected='RdBu'),
+
+    pickerInput(ns('method'),span('method',tipright("visualization method")),choices=c("circle", "square", "ellipse", "number", "shade", "color", "pie")),
+    pickerInput_fromtop_live(
+      inputId = ns('col'),
+      label = 'Palette:',
+      choices="RdBu",
+      selected='RdBu'),
+    pickerInput(ns('type'),'type',choices=c("full", "lower", "upper")),
+    colourpicker::colourInput(ns('bg'),'bg',value="white"),
+    textInput(ns("title"),"title",""),
+    checkboxInput(ns('diag'),span('diag',tipright("whether display the correlation coefficients on the principal diagonal")),TRUE),
+    checkboxInput(ns('outline'),span('outline',tipright("whether plot outline")),FALSE),
+    pickerInput(ns('order'),span('order',tipright("<p>The ordering method of the correlation matrix.<li><strong>original</strong>for original order (default).</li><li><strong>AOE</strong>for the angular order of the eigenvectors.</li><li><strong>FPC</strong>for the first principal component order.</li><li><strong>hclust</strong>for the hierarchical clustering order.</li><li><strong>alphabet</strong>for alphabetical order.</li></p>")),choices=c("original", "AOE", "FPC", "hclust", "alphabet")),
+    pickerInput(ns('hclust.method'),span('hclust.method',tipright('the agglomeration method to be used when order is hclust')),choices=c("complete", "ward", "ward.D", "ward.D2", "single", "average","mcquitty", "median", "centroid")),
+    numericInput(ns('addrect'),span('addrect',tipright(" the number of rectangles draws on the graph according to the hierarchical cluster, only valid when order is hclust.")),NA),
+    colourpicker::colourInput(ns('rect.col'),span('rect.col',tipright('
+Color for rectangle border(s), only valid when addrect is equal or greater than 1')),value="black"),
+    numericInput(ns('rect.lwd'),span('rect.lwd',tipright(' line width for borders for rectangle border(s), only valid when addrect is equal or greater than 1')),2),
+
+    pickerInput(ns('tl.pos'),span('tl.pos',tipright('position of text labels')),
+                choices=c("default",
+                          'left'='l',
+                          'topleft'='lt',
+
+                          "diagonal"='d' ,
+                          "None"='n'
+                )),
+
+    numericInput(ns('tl.cex'),span('tl.cex',tipright("size of text label (variable names)")),1),
+    colourpicker::colourInput(ns('tl.col'),span('tl.col',tipright("The color of text label")),value="red"),
+    numericInput(ns('tl.offset'),span('tl.offset',tipright("text label offset")),0.4),
+    numericInput(ns('tl.srt'),span('tl.srt',tipright('text label rotation in degrees')),90),
+    pickerInput(ns('cl.pos'),span('cl.pos',tipright("position of color-legend")),choices=c("default","right"="r", "bottom"="b", "None"="n")),
+    numericInput(ns('cl.length'),span('cl.length',tipright("the number of number-text in color-legend")),NA),
+    numericInput(ns('cl.cex'),span('cl.cex',tipright("text size of number-label in color-legend")),0.8),
+    numericInput(ns('cl.ratio'),span('cl.ratio',tipright("<p>Numeric, to justify the width of color-legend, 0.1~0.2 is suggested.</p>")),0.15),
+    pickerInput(ns('cl.align.text'),
+                span('cl.align.text',tipright("alignment for number-label in color-legend")),
+                choices=c(
+                  "center"="c",
+                  "left"="l",
+                  "right"="r"
+                )),
+    numericInput(ns('cl.offset'),span('cl.offset',tipright("offset for number-label in color-legend")),0.5),
+    numericInput(ns('number.cex'),span('number.cex',tipright("text size for correlation coefficients")),1),
+    numericInput(ns('number.font'),span('number.font',tipright("text font for correlation coefficients")),2),
+    numericInput(ns('number.digits'),span('number.digits',tipright("indicating the number of decimal digits to be added into the plot")),NA),
+    pickerInput(ns('addshade'),span('addshade',tipright('shade style')),choices=c("negative", "positive", "all")),
+    numericInput(ns('shade.lwd'),span('shade.lwd',tipright("line width of shade")),1),
+    colourpicker::colourInput(ns('shade.col'),span('shade.col',tipright("color of shade line")),value="white"),
+    numericInput(ns('sig.level'),span('sig.level',tipright("
+Significant level,")),0.05),
+    pickerInput(ns('insig'),span('insig',tipright('Character, specialized insignificant correlation coefficients')),choices=c("pch", "p-value", "blank", "n", "label_sig")),
+    pickerInput(inputId = ns("pch"),
+                label = span("pch:",tipright("<p>Add symbol on the glyphs of insignificant correlation coefficients (only valid when insig is \\'pch\\')</p>")),
+                choices = df_symbol$val,
+                choicesOpt = list(content = df_symbol$img),
+                selected=4,
+                width = "100px"),
+    colourpicker::colourInput(ns('pch.col'),span('pch.col',tipright("<p>The color of pch (only valid when insig is \\'pch\\')</p>")),value="black"),
+    numericInput(ns('pch.cex'),span('pch.cex',tipright("<p>The cex of pch (only valid when insig is \\'pch\\')</p>")),3),
+    #pickerInput(ns('plotCI'),span('plotCI',tipright("<p>method of ploting confidence interval. If \\'n\\', don\\'t plot confidence interval. If \\'rect\\', plot rectangles whose upper side means upper bound and lower side means lower bound, respectively. If \\'circle\\', first plot a circle with the bigger absolute bound, and then plot the smaller. Warning: if the two bounds are the same sign, the smaller circle will be wiped away, thus forming a ring. Method \\'square\\' is similar to \\'circle\\'.</p>")),choices=c("n", "square", "circle", "rect")),
+    textInput(ns('na.label'),span('na.label',tipright("<p>Label to be used for rendering NA cells. Default is \\'?\\'. If \\'square\\', then the cell is rendered as a square with the na.label.col color</p>")),"?"),
+    colourpicker::colourInput(ns('na.label.col'),span('na.label.col',tipright("Color used for rendering NA cells.")),value="black"),
+    numericInput(ns('win.asp'),span('win.asp',tipright("Aspect ration for the whole plot.")),1)
+  )
 
 
+}
+corrplot_module$server<-function(id,corr,vals){
+  moduleServer(id,function(input,output,session){
+
+    get_args<-reactive({
+      req(input$col%in%names(vals$newcolhabs))
+
+      args=list(
+        mixed=input$mixed,
+        corr=corr,
+        col=vals$newcolhabs[[input$col]](256),
+        method=input$method,
+        type=input$type,
+        title=input$title,
+        diag=input$diag,
+        outline=input$outline,
+        order=input$order,
+        hclust.method=input$hclust.method,
+        addrect=if(is.na(input$addrect)){NULL} else{input$addrect},
+        bg=input$bg,
+
+        rect.col=input$rect.col,
+        rect.lwd=input$rect.lwd,
+        tl.pos=if(input$tl.pos=="default"){NULL} else{input$tl.pos},
+        tl.cex=input$tl.cex,
+        tl.col=input$tl.col,
+        tl.offset=input$tl.offset,
+        tl.srt=input$tl.srt,
+        cl.pos=if(input$cl.pos=="default"){NULL} else{input$cl.pos},
+        cl.length=if(is.na(input$cl.length)){NULL} else{input$cl.length},
+        cl.cex=input$cl.cex,
+        cl.ratio=input$cl.ratio,
+        cl.align.text=input$cl.align.text,
+        cl.offset=input$cl.offset,
+        number.cex=input$number.cex,
+        number.font=input$number.font,
+        number.digits=if(is.na(input$number.digits)){NULL} else{input$number.digits},
+
+        addshade=input$addshade,
+        shade.lwd=input$shade.lwd,
+        shade.col=input$shade.col,
+        sig.level=input$sig.level,
+        insig=input$insig,
+        pch=input$pch,
+        pch.col=input$pch.col,
+        pch.cex=input$pch.cex,
+        plotCI=input$plotCI,
+        na.label=input$na.label,
+        na.label.col=input$na.label.col,
+        win.asp=input$win.asp
+
+      )
+      if(input$mixed){
+        args$lower<-input$lower
+        args$upper<-input$upper
+        args$lower.col<-vals$newcolhabs[[input$lower.col]](256)
+        args$upper.col<-vals$newcolhabs[[input$upper.col]](256)
+      }
+
+
+      args
+    })
+    return(get_args())
+
+
+
+
+
+
+
+
+  })
+}
+corrplot_module$server_update<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+
+
+
+    observeEvent(vals$newcolhabs,{
+      choices =     vals$colors_img$val
+      choicesOpt = list(content =vals$colors_img$img)
+
+      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_col,vals$colors_img$val)
+      updatePickerInput(session,"col",choices=choices,choicesOpt=choicesOpt,selected=selected)
+      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_lower.col,vals$colors_img$val)
+      updatePickerInput(session,"lower.col",choices=choices,choicesOpt=choicesOpt,selected='RdBu')
+      selected<-get_selected_from_choices(vals$cur_corrplot_args$cur_upper.col,vals$colors_img$val)
+      updatePickerInput(session,"upper.col",choices=choices,choicesOpt=choicesOpt,selected='RdBu')
+    })
+
+
+
+
+
+
+
+
+    observe({
+
+
+
+
+      shinyjs::toggle('col',condition=isFALSE(input$mixed))
+      shinyjs::toggle('method',condition=isFALSE(input$mixed))
+      shinyjs::toggle('type',condition=isFALSE(input$mixed))
+      shinyjs::toggle('diag',condition=isFALSE(input$mixed))
+      shinyjs::toggle('cl.pos',condition=isFALSE(input$mixed))
+      shinyjs::toggle('lower.col',condition=isTRUE(input$mixed))
+      shinyjs::toggle('upper.col',condition=isTRUE(input$mixed))
+      shinyjs::toggle('upper',condition=isTRUE(input$mixed))
+      shinyjs::toggle('lower',condition=isTRUE(input$mixed))
+      shinyjs::toggle('addrect',condition=input$order=="hclust")
+      shinyjs::toggle('rect.lwd',condition=!is.na(input$addrect))
+      shinyjs::toggle('rect.col',condition=!is.na(input$addrect))
+    })
+
+    return(NULL)
+
+  })
+}
+
+## Logic for tab 6 - MDS
 desctools_tab6<-list()
 desctools_tab6$ui<-function(id){
   ns<-NS(id)
@@ -2424,7 +2449,7 @@ desctools_tab6$server<-function(id,vals){
   })
 }
 
-
+## Logic for tab 7 - PCA
 desctools_tab7<-list()
 desctools_tab7$ui<-function(id){
   ns<-NS(id)
@@ -2856,7 +2881,7 @@ desctools_tab7$server<-function(id,vals){
   })
 }
 
-
+## Logic for tab 8 - RDA
 desctools_tab8<-list()
 desctools_tab8$ui<-function(id){
   ns<-NS(id)
@@ -3371,6 +3396,7 @@ desctools_tab8$server<-function(id,vals){
   })
 }
 
+## Logic for tab 9 - segRDA
 desctools_tab9<-list()
 desctools_tab9$ui<-function(id){
   ns<-NS(id)
@@ -4988,263 +5014,256 @@ desctools_tab9$server<-function(id,vals){
   })
 }
 
-#' @export
-desctools<-list()
-#' @export
-desctools$ui<-function(id){
-  module_progress("Loading module: Descriptive Tools")
-  ns<-NS(id)
-  tagList(
-    div(
+# Auxiliar functions
+datalist_overview<-function(data,available_models){
+
+
+  dfl<-list(
+    'Numeric-Attribute'=data,
+    'Factor-Attribute'=attr(data,"factors"),
+    'Coords-Attribute'=attr(data,"coords")
+  )
+  dfl<-dfl[sapply(dfl,length)>0]
+
+
+  shapel<-list(
+    'Base-Shape'=attr(data,"base_shape"),
+    'Layer-Shape'=attr(data,"layer_shape"),
+    'Extra-Shapes'=attr(data,"extra_shape")
+  )
+  shapel<-shapel[sapply(shapel,length)>0]
+
+
+  attrs<-c(as.character(available_models),"pwRDA","som","kmeans")
+  modelsl<-sapply(attrs,function(x){
+
+    models<-attr(data,x)
+
+    m1<-NULL
+    if(length(models)>0){
+      m1<-lapply(models,function(m){
+        nclusters=NULL
+
+        if(!x%in%c("som","kmeans","hc","pwRDA")){
+          m<-m$m
+        }
+        hc=attr(m,"hc.objec")
+        if(x=="som"){
+          class=if(length(m$data)>1){
+            "supersom"
+          } else{
+            "som"
+          }
+          class=paste0(class(m),"-",class)
+
+        } else if(x%in%c("pwRDA","kmeans","hc")){
+          class="pwRDA"
+        } else {
+          class=paste(class(m)[1],class(m$finalModel))
+        }
+        data.frame(class=class)
 
 
 
-      h4("Descriptive Tools", class="imesc_title"),
+
+      })
+
+
+      result<-data.frame(table(sapply(m1,function(x) x$class)))
+
+      result<-lapply(1:nrow(result),function(i){
+        div(paste0(result[i,1]," (models:",result[i,2],")"))
+      })
+      result
+    }
+  })
+
+  (modelsl<-modelsl[sapply(modelsl,length)>0])
+
+
+
+  div(style="padding: 20px; background: white",
+      div(
+        strong("Sheets:",style="color:royalblue"),
+
+        div(style=";font-size: 11px",
+            do.call(div,lapply(seq_along(dfl),function(i){
+              data<-dfl[[i]]
+              tags$li(
+                strong(names(dfl)[i]),
+                div(style="padding-left: 20px",span(class(data),
+                                                    if(inherits(data,"data.frame")){
+                                                      span(paste0("(",nrow(data),"x",ncol(data),")"))
+                                                    }))
+              )
+            }))
+        )
+      ),
+      div(
+        strong("Shapes:",style="color:royalblue"),
+        div(
+          style=";font-size: 11px",
+          lapply(seq_along(shapel),function(i){
+            data<-shapel[[i]]
+            div(
+              tags$li(
+
+                strong(names(shapel)[i]),
+                div(style="padding-left: 20px",
+                    span(paste0(class(data),collapse=" "),paste0(as.character(st_geometry_type(data)),collapse=" "),
+                         if(names(shapel)[i]=="Extra-Shapes"){
+                           span(paste0("(",length(data)," shapes)"))
+                         })
+                )
+
+              )
+            )
+          })
+        )
+      ),
 
       div(
-        style="background: white",
-        #actionLink(ns("teste_comb"),"SAVE"),
-        # uiOutput(ns("bug")),
-
+        strong("Models:",style="color:royalblue"),
         div(
-
-          tabsetPanel(
-            id=ns('desc_options'),
-            selected="tab1",
-            tabPanel('1. Summaries',
-                     value="tab1",
-                     desctools_tab1$ui(ns("summaries")),
-                     uiOutput(ns("desc_tab1"))
-            ),
-            tabPanel('2. Boxplot',
-                     value="tab2",
-
-                     uiOutput(ns("desc_tab2"))
-            ),
-            tabPanel('3. Ridges',
-                     value="tab3",
-
-                     uiOutput(ns("desc_tab3"))
-            ),
-
-            tabPanel(
-              '4. Pair plot',
-              value="tab4",
-              uiOutput(ns("desc_tab4"))
-            ),
-            #  tabPanel('Histogram',value="tab_histo",uiOutput(ns("dtab_histogram"))),
-
-            tabPanel('5. Correlation plot',
-                     value="tab5",
-
-                     uiOutput(ns("desc_tab5"))
-            ),
-            tabPanel(
-              '6. MDS',
-              value="tab6",
-
-              uiOutput(ns("desc_tab6"))
-
-            ),
-            tabPanel(
-              '7. PCA',
-              value="tab7",
-
-              uiOutput(ns("desc_tab7"))
-            ),
-            tabPanel(
-              '8. RDA',
-              value="tab8",
-
-              uiOutput(ns("desc_tab8"))
-            ),
-            tabPanel(
-              '9. segRDA',
-              value="tab9",
-
-              uiOutput(ns("desc_tab9"))
-
-            )
-
-
-          )
-
+          style="padding-left: 20px;font-size: 11px",
+          if(!length(modelsl)>0){
+            "No saved model"
+          } else{
+            modelsl
+          }
 
         )
+      )
 
-
-      ))
   )
 
 }
-#' @export
-desctools$server<-function (id,vals ){
-
-  moduleServer(id,function(input,output,session){
-    box_caret_server("box_setup1")
-
-    ns<-session$ns
-
-    vals$rid_plot<-NULL
-    vals$rda_plot <-NULL
-    vals$smw_dp<-NULL
-    vals$segrda_model<-NULL
-    vals$mds<-NULL
-    vals$corr_plot<-NULL
-    vals$plot_dp<-NULL
-    vals$seg_rda_plot<-NULL
-    vals$pbox_plot<-NULL
-    vals$dp_smw<-NULL
-    vals$splitBP<-NULL
-
-
-
-
-    output$desc_tab1<-renderUI({
-      desctools_tab1$server("summaries",vals)
-      NULL
-    })
-
-
-    output$desc_tab2<-renderUI({
-      div(
-        desctools_tab2$ui(ns("boxplot")),
-        uiOutput(ns('boxplot_server'))
-      )
-    })
-    output$boxplot_server<-renderUI({
-      desctools_tab2$server("boxplot",vals)
-      NULL
-    })
-
-
-
-    output$desc_tab3<-renderUI({
-      div(
-        desctools_tab3$ui(ns("ridges")),
-        uiOutput(ns('ridges_server'))
-      )
-    })
-    output$ridges_server<-renderUI({
-      desctools_tab3$server("ridges",vals)
-      NULL
-    })
-
-    output$desc_tab4<-renderUI({
-      div(
-        desctools_tab4$ui(ns("ggpair")),
-        uiOutput(ns('ggpair_server'))
-      )
-    })
-    output$ggpair_server<-renderUI({
-      desctools_tab4$server("ggpair",vals)
-      NULL
-    })
-
-
-    output$desc_tab5<-renderUI({
-      div(
-        desctools_tab5$ui(ns("corr")),
-        uiOutput(ns('corr_server'))
-      )
-    })
-    output$corr_server<-renderUI({
-      desctools_tab5$server("corr",vals)
-      NULL
-    })
-
-
-    output$desc_tab6<-renderUI({
-      div(
-        desctools_tab6$ui(ns("mds")),
-        uiOutput(ns('mds_server'))
-      )
-    })
-    output$mds_server<-renderUI({
-      desctools_tab6$server("mds",vals)
-      NULL
-    })
-
-    output$desc_tab7<-renderUI({
-      div(
-        desctools_tab7$ui(ns("pca")),
-        uiOutput(ns('pca_server'))
-      )
-    })
-    output$pca_server<-renderUI({
-      desctools_tab7$server("pca",vals)
-      NULL
-    })
-
-
-
-    output$desc_tab8<-renderUI({
-      div(
-        desctools_tab8$ui(ns("rda")),
-        uiOutput(ns('rda_server'))
-      )
-    })
-    output$rda_server<-renderUI({
-      desctools_tab8$server("rda",vals)
-      NULL
-    })
-
-    output$desc_tab9<-renderUI({
-      div(
-        desctools_tab9$ui(ns("segrda")),
-        uiOutput(ns('segrda_server'))
-      )
-    })
-    output$segrda_server<-renderUI({
-      desctools_tab9$server("segrda",vals)
-      NULL
-    })
-
-
-
-    observe({
-      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8',"tab_omi",'tab2'))
-    })
-    getdata_descX<-reactive({
-      req(input$data_descX)
-      vals$saved_data[[input$data_descX]]})
-    observeEvent(input$data_descX,{
-      vals$desc_data_x<-vals$saved_data[[input$data_descX]]
-    })
-    observeEvent(vals$saved_data,{
-      choices=names(vals$saved_data)
-      selected=vals$cur_data
-      selected=get_selected_from_choices(selected,choices)
-      updatePickerInput(session,'data_descX',choices=choices, selected=selected)
-    })
-
-    observeEvent(input$data_descX,{
-      vals$cur_data<-input$data_descX
-    })
-
-
-    observe({
-      req(vals$update_state)
-      update_state<-vals$update_state
-      ids<-names(update_state)
-      update_on<-grepl(id,ids)
-      names(update_on)<-ids
-      to_loop<-names(which(update_on))
-      withProgress(min=1,max=length(to_loop),message="Restoring",{
-        for(i in to_loop) {
-          idi<-gsub(paste0(id,"-"),"",i)
-          incProgress(1)
-          restored<-restoreInputs2(session, idi, update_state[[i]])
-
-          if(isTRUE(restored)){
-            vals$update_state[[i]]<-NULL
+update_inputs<-function(inputs,input,restored,session){
+  updated<-F
+  for(i in seq_along(inputs) ){
+    cur_input<-inputs[[i]]
+    cur_value<-cur_restored<-restored[[paste0("cur_",cur_input)]]
+    if(!is.null(cur_restored))
+      if(!is.null(input[[cur_input]]))
+        if(length(input[[cur_input]])==length(cur_restored))
+          if(!is.null(input[[cur_input]])){
+            if(!is.null(cur_value)){
+              if(!identical(input[[cur_input]],cur_restored)){
+                if(is.numeric(cur_value)){
+                  updated<-T
+                  updateNumericInput(session,cur_input,value=cur_value)
+                } else if(is.logical(cur_value)){
+                  updated<-T
+                  updateCheckboxInput(session,cur_input,value=cur_value)
+                } else if(is.character(cur_value)) {
+                  updated<-T
+                  updateTextInput(session,cur_input,value=cur_value)
+                }
+              }
+            }
           }
 
-        }
-      })
 
-    })
+  }
+
+  updated
+}
+color_input<-function(id,label,selected=NULL,vals){
+  pickerInput_fromtop_live(
+    inputId = id,
+    label = label,
+    choices =     vals$colors_img$val,
+    choicesOpt = list(content =vals$colors_img$img),
+    selected=selected
+  )
+
+}
+get_summary_datalist<-function(datalist, which=c("numeric","factors","coords")){
 
 
+  numeric<-NULL
+  factors<-NULL
+  coords<-NULL
+  if('coords'%in%which){
+    coords<-attr(datalist,"coords")
+    if(!is.null(coords))
+      attr(coords,"name")<-"Coords"
+  }
+  if('factors'%in%which){
+    factors<-attr(datalist,"factors")
+
+    if(!is.null(factors))
+      attr(factors,"name")<-"Factor"
+  }
+  if('numeric'%in%which){
+    numeric<-datalist
+    attr(numeric,"name")<-"Numeric"
+  }
+
+  res<-list(numeric,factors,coords)
+  res<-res[sapply(res,length)>0]
+
+  df<-data.frame(do.call(rbind,lapply(res,function(data){
+    c(attr(data,"name"),  nrow(data),  ncol(data), sum(is.na(data)))
+  })))
+  colnames(df)<-c("Attributes","nrows","ncols","NAs")
+
+  na_styles<-lapply(1:nrow(df),function(i){
+    if(df$NAs[i]>0){
+      tags$style(HTML(paste0(".table0 tr:nth-child(",i,") > td:nth-child(4){
+                   color: red
+                 }")))
+    }
   })
+
+
+  div(
+    na_styles,
+    tags$style(HTML('.table0 .table{
+                  margin-bottom: 0px;
+                  color: blue
+  }
+                  .table0 .shiny-table.spacing-s>thead>tr>th{
+                  color: black;
+                  padding-top: 2px;
+    padding-bottom: 0px;
+                  }
+                 .table0 tr:nth-child(1) > td:nth-child(1){
+                 font-style: italic;
+                   color: black
+                 }
+                    .table0 tr:nth-child(2) > td:nth-child(1){
+                  font-style: italic;
+                    color: black
+                    }
+                    .table0 tr:nth-child(3) > td:nth-child(1){
+                  font-style: italic;
+                    color: black
+                  }
+
+                  .table0  .table.shiny-table>thead>tr>th{
+                  padding-right: 12px;
+    padding-left: 5px;
+                  }
+
+
+                  ')),
+
+    div(class="half-drop-inline table0",style=" margin-bottom: 0px;margin-top: -10px",
+        renderTable(df)
+    )
+  )
+
+
+
+}
+tiphelp5<-function(title,text,placement ="bottom"){
+  span(class="tip-80",
+       style="color: #3c8dbc;",
+       title,tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
+}
+tiphelp6<-function(text,placement ="bottom"){
+  span(class="tip-80",
+       style="color: #3c8dbc;",
+       tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
 }

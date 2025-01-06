@@ -1,313 +1,33 @@
+#' The databank_module provides a comprehensive user interface and server logic for managing and interacting with
+#' datasets in the iMESc application. It includes:
+#'
+#' ## Key Features:
+#' 1. Dataset Inspection and Management:
+#'    - View and edit data attributes such as numeric, factor, and coordinate attributes.
+#'    - Add, delete, and manage spatial shapes (base, layer, and extra shapes).
+#'    - Inspect Self-Organizing Maps (SOMs) and supervised model summaries.
+#'
+#' 2. Data Visualization and Interaction:
+#'    - Tabbed navigation for different dataset attributes:
+#'      numeric, factors, coordinates, shapes, SOMs, supervised models, and comments.
+#'    - Interactive tables for data editing with support for large datasets.
+#'    - Metrics visualization for supervised models, including resampling, final model, and test partition metrics.
+#'
+#' 3. User Actions:
+#'    - Rename columns, add or remove attributes, and manage comments for datasets.
+#'    - Upload and associate new data components, including coordinates and shape files.
+#'
+#' 4. Dynamic Data Handling:
+#'    - Supports large datasets with dynamic column splitting for efficient rendering.
+#'    - Enables conditional display of features based on dataset attributes (e.g., SOMs, supervised models).
+#'
+#' 5. Export and Download:
+#'    - Download datasets, summary tables, and comments.
+#'    - Export visualizations, including spatial plots and SOM summaries.
+#'
+#' 6. Integration with iMESc:
+#'    - Seamlessly integrates with other modules to support preprocessing, visualization, and model evaluation workflows.
 
-get_test_metrics<-function(m){
-  if(inherits(attr( m,"test"),"data.frame")){
-    test_data<-as.matrix(attr(m,"test"))
-    colnames(test_data)<-colnames(getdata_model(m))
-    pred<-suppressWarnings(predict(m,test_data))
-    if(inherits(attr(m,"sup_test"),"data.frame")){
-      obs<-attr(m,"sup_test")[,1]
-    } else{
-      obs<-attr(m,"sup_test")
-    }
-    if(length(obs)!=length(pred)){
-      df<-"None"
-    } else{
-      df<-cbind(data.frame(nobs=length(pred),rbind( caret::postResample(pred,obs))
-      ))
-    }
-    colnames(df)<-paste0("partition_",colnames(df))
-
-    return(df)
-  }
-  "None"
-
-}
-
-
-
-sl_metrics_table<-function(data,type="Classification"){
-  res<-lapply(available_models,function(tag){
-
-    models<-attr(data,tag)
-
-    res0<-lapply(models,function(x){
-
-      m<-x$m
-      training_model_type=m$modelType
-      if(training_model_type==type){
-        m$modelInfo$predict
-        available_models
-        #attr(m,"test")<-NULL
-        metrics<-metrics_default<-m$results[rownames(m$bestTune),]
-        metrics_default[colnames(m$bestTune)]<-NULL
-        colnames(metrics_default)<-paste0("resampling_",colnames(metrics_default))
-        metrics_tunning<-metrics[colnames(m$bestTune)]
-        #colnames(metrics_tunning)<-paste0("tunning_",colnames(metrics_tunning))
-
-        if(inherits(m$finalModel,"randomForest")){
-          pred<-rf_oob_pred(m$finalModel,getdata_model(m))
-        } else{
-          pred<-predict(m)
-
-        }
-
-        final_metrics<-data.frame(rbind(caret::postResample(pred,getdata_model(m,"test"))))
-
-        colnames(final_metrics)<-paste0("finalModel_",colnames(final_metrics))
-        partion_metrics<-    get_test_metrics(m)
-        tunning<-do.call(paste0,lapply(1:ncol(metrics_tunning),function(i){
-          name<-colnames(metrics_tunning)[i]
-          a<-paste0(name,'=',metrics_tunning[,i])
-          b<-NULL
-          if(i<ncol(metrics_tunning)){
-            b<-"<br>"
-          }
-          paste0(a,b)
-        }))
-
-        data.frame(
-          training_model_tag=tag,
-          training_model_name=attr(m,'model_name'),
-          modelInfo_model_type=training_model_type,
-          modelInfo_datalist_y=gety_datalist_model(m),
-          modelInfo_y=attr(m,"supervisor"),
-          modelInfo_nobs=nrow(m$trainingData),
-          metrics_default,
-          tunning=tunning,
-          final_metrics,
-          partion_metrics
-        )
-
-
-      } else{
-        NULL
-      }
-
-    })
-    res0<-res0[sapply(res0,length)>0]
-    data.table::rbindlist(res0, fill=T)
-  })
-  res<-res[sapply(res,length)>0]
-
-
-
-  result<-data.table::rbindlist(res, fill=T)
-
-
-
-  table<-data.frame(result)
-  colnames(table)<-colnames(result)
-  table
-}
-sl_metrics_format<-function(table,round){
-  end_training<-NULL
-  end_resampling<-NULL
-  end_partition<-NULL
-  end_final<-NULL
-  end_modelInfo<-NULL
-
-  et<-which(grepl("training",colnames(table)))
-  er<-which(grepl("tunning",colnames(table)))
-  ep<-which(grepl("partition",colnames(table)))
-  ef<-which(grepl("finalModel",colnames(table)))
-  ei<-which(grepl("modelInfo",colnames(table)))
-
-
-  if(length(et)>0)
-    end_training<-max(et)
-
-  if(length(er)>0)
-    end_resampling<-max(er)
-
-  if(length(ep)>0)
-    end_partition<-max(ep)
-
-  if(length(ef)>0)
-    end_final<-max(ef)
-
-  if(length(ei)>0)
-    end_modelInfo<-max(ei)
-
-
-  border_positions<-c(end_training,end_modelInfo,end_resampling,end_final,end_partition)
-  numeric_cols <- sapply(table, is.numeric)
-  req(length(numeric_cols)>0)
-  container=sl_metrics_container(table)
-  dt<-DT::formatStyle(
-    DT::formatStyle(
-      DT::datatable(
-        as.matrix(table),
-        extensions = c('FixedColumns',"FixedHeader"),
-
-        escape=F,
-        container =container,
-        options=list(
-          info=FALSE,dom = 't',
-
-
-          rownames=F,
-          autoWidth=T,
-          deferRender = TRUE,
-          scroller = TRUE,
-          info = FALSE,
-          fixedColumns = list(leftColumns = 2, rightColumns = 0),
-          fixedHeader = 2
-        )
-      )%>%
-        DT::formatRound(columns = which(numeric_cols), digits = round) ,
-
-      c(1), `border-left` = "solid 1px"
-    ),       border_positions, `border-right` = "solid 1px"
-  )
-
-
-
-}
-
-
-
-get_sl_metric_cols<-function(cols,left=F){withTags(
-  lapply(seq_along(cols),function(i){
-    if(i==length(cols)){
-      th(cols[i],style="border-right: 1px solid")
-    } else{
-      if(i==1&isTRUE(left)){
-        th(cols[i],style="border-left: 1px solid")
-      } else{
-        th(cols[i])
-      }
-
-    }
-  })
-)}
-
-
-sl_metrics_container<-function(table){
-  table<-data.frame(table)
-  #table=data.frame(table)
-  #rownames(table)<-NULL
-  #colnames(table)<-NULL
-  end_modelInfo<-length(which(grepl("modelInfo",colnames(table))))
-  end_training<-length(which(grepl("training",colnames(table))))
-  end_resampling<-length(which(grepl("resampling|tunning",colnames(table))))
-  end_partition<-length(which(grepl("partition",colnames(table))))
-  end_final<-length(which(grepl("finalModel",colnames(table))))
-
-
-
-
-  cols_modelInfo<-colnames(table)[grepl("modelInfo_",colnames(table))]
-  cols_training<-colnames(table)[grepl("training_",colnames(table))]
-  cols_resampling<-colnames(table)[grepl("tunning|resampling_",colnames(table))]
-  cols_finalModel<-colnames(table)[grepl("finalModel_",colnames(table))]
-  cols_partition<-colnames(table)[grepl("partition_",colnames(table))]
-
-
-  cols_modelInfo<-gsub('modelInfo_',"",cols_modelInfo)
-  cols_training<-gsub('training_',"",cols_training)
-  cols_resampling<-gsub('resampling_',"",cols_resampling)
-  cols_finalModel<-gsub('finalModel_',"",cols_finalModel)
-  cols_partition<-gsub('partition_',"",cols_partition)
-
-  res<-withTags(table(
-    class = 'display',
-    thead(
-      tr(
-        if(end_training>0){
-          #th(colspan = end_training, 'Models',style = "border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;")
-          HTML(paste0(
-            "<th style='border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;position: sticky;' class='sorting dtfc-fixed-left' tabindex='0' rowspan='1' colspan='",end_training,"'><span style='color: royalblue'>Models</span></th>"
-          ))
-
-        },
-        if(end_modelInfo>0){
-          #th(colspan = end_modelInfo, 'modelInfo',style = "border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;")
-          HTML(paste0(
-            "<th style='border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;' class='sorting dtfc-fixed-left' tabindex='0' rowspan='1' colspan='",end_modelInfo,"'><span style='color: royalblue'>modelInfo</span></th>"
-          ))
-
-        },
-
-        if(end_resampling>0){
-          th(colspan = end_resampling, span('Resampling metrics',style='color: royalblue'),style = "border-top: solid 1px;border-right: solid 1px;")
-        },
-        if(end_final>0){
-          th(colspan = end_final, span('finalModel metrics',style='color: royalblue'),style = "border-top: solid 1px;;border-right: solid 1px;")
-        },
-        if(end_partition>0){
-          th(colspan =end_partition, span('Test metrics',style='color: royalblue'),style = "border-top: solid 1px;border-right: solid 1px;")}
-      ),
-      tr(
-
-        if(length(cols_training)>0)
-          get_sl_metric_cols(cols_training, left=T),
-        if(length(cols_modelInfo)>0)
-          get_sl_metric_cols(cols_modelInfo, left=T),
-        if(length(cols_resampling)>0)
-          get_sl_metric_cols(cols_resampling),
-        if(length(cols_finalModel)>0)
-          get_sl_metric_cols(cols_finalModel),
-        if(length(cols_partition)>0)
-          get_sl_metric_cols(cols_partition)
-
-      )
-
-
-    )))
-  res
-
-}
-
-fixed_dt_con<-list()
-
-fixed_dt_con$ui<-function(id,data,max_length=100, label="Show columns:"){
-  if(is.null(data)){
-    return(NULL)
-  }
-  vecs<-split_vector_max_elements(1:ncol(data),max_length)
-  choices_containers<-sapply(vecs,function(x) paste(range(x),collapse="-"))
-  choices_names<-names(choices_containers)
-  names(choices_names)<-choices_containers
-  ns<-NS(id)
-  div(
-    pickerInput_fromtop(ns("data_container"),label , choices_names)
-
-  )
-}
-
-fixed_dt_con$server<-function(id,data,max_length=100){
-  moduleServer(id,function(input,output,session){
-
-    if(is.null(data)){
-      return(NULL)
-    }
-    vecs<-split_vector_max_elements(1:ncol(data),max_length)
-    data_containers<-lapply(vecs,function(x) data[,x])
-    output$data_render<-renderUI({
-      div(
-        class="half-drop-inline",
-        style="max-width: 100%; overflow-x: auto",
-        fixed_dt(data_containers[[input$data_container]],scrollY = "300px",scrollX=T)
-      )
-    })
-  })
-}
-fixed_dt_con$server2<-function(id,data,max_length=100){
-  moduleServer(id,function(input,output,session){
-
-    if(is.null(data)){
-      return(NULL)
-    }
-    vecs<-split_vector_max_elements(1:ncol(data),max_length)
-    data_containers<-lapply(vecs,function(x) data[,x])
-
-    if(!is.null(input$data_container))
-      return(data_containers[[input$data_container]])
-  })
-}
-split_vector_max_elements <- function(vec, max_length) {
-  split(vec, ceiling(seq_along(vec) / max_length))
-}
 #' @export
 databank_module<-list()
 #' @export
@@ -1473,4 +1193,305 @@ databank_module$server<-function(id, vals){
 
 
 
+}
+
+
+# Auxiliar functions
+get_test_metrics<-function(m){
+  if(inherits(attr( m,"test"),"data.frame")){
+    test_data<-as.matrix(attr(m,"test"))
+    colnames(test_data)<-colnames(getdata_model(m))
+    pred<-suppressWarnings(predict(m,test_data))
+    if(inherits(attr(m,"sup_test"),"data.frame")){
+      obs<-attr(m,"sup_test")[,1]
+    } else{
+      obs<-attr(m,"sup_test")
+    }
+    if(length(obs)!=length(pred)){
+      df<-"None"
+    } else{
+      df<-cbind(data.frame(nobs=length(pred),rbind( caret::postResample(pred,obs))
+      ))
+    }
+    colnames(df)<-paste0("partition_",colnames(df))
+
+    return(df)
+  }
+  "None"
+
+}
+sl_metrics_table<-function(data,type="Classification"){
+  res<-lapply(available_models,function(tag){
+
+    models<-attr(data,tag)
+
+    res0<-lapply(models,function(x){
+
+      m<-x$m
+      training_model_type=m$modelType
+      if(training_model_type==type){
+        m$modelInfo$predict
+        available_models
+        #attr(m,"test")<-NULL
+        metrics<-metrics_default<-m$results[rownames(m$bestTune),]
+        metrics_default[colnames(m$bestTune)]<-NULL
+        colnames(metrics_default)<-paste0("resampling_",colnames(metrics_default))
+        metrics_tunning<-metrics[colnames(m$bestTune)]
+        #colnames(metrics_tunning)<-paste0("tunning_",colnames(metrics_tunning))
+
+        if(inherits(m$finalModel,"randomForest")){
+          pred<-rf_oob_pred(m$finalModel,getdata_model(m))
+        } else{
+          pred<-predict(m)
+
+        }
+
+        final_metrics<-data.frame(rbind(caret::postResample(pred,getdata_model(m,"test"))))
+
+        colnames(final_metrics)<-paste0("finalModel_",colnames(final_metrics))
+        partion_metrics<-    get_test_metrics(m)
+        tunning<-do.call(paste0,lapply(1:ncol(metrics_tunning),function(i){
+          name<-colnames(metrics_tunning)[i]
+          a<-paste0(name,'=',metrics_tunning[,i])
+          b<-NULL
+          if(i<ncol(metrics_tunning)){
+            b<-"<br>"
+          }
+          paste0(a,b)
+        }))
+
+        data.frame(
+          training_model_tag=tag,
+          training_model_name=attr(m,'model_name'),
+          modelInfo_model_type=training_model_type,
+          modelInfo_datalist_y=gety_datalist_model(m),
+          modelInfo_y=attr(m,"supervisor"),
+          modelInfo_nobs=nrow(m$trainingData),
+          metrics_default,
+          tunning=tunning,
+          final_metrics,
+          partion_metrics
+        )
+
+
+      } else{
+        NULL
+      }
+
+    })
+    res0<-res0[sapply(res0,length)>0]
+    data.table::rbindlist(res0, fill=T)
+  })
+  res<-res[sapply(res,length)>0]
+
+
+
+  result<-data.table::rbindlist(res, fill=T)
+
+
+
+  table<-data.frame(result)
+  colnames(table)<-colnames(result)
+  table
+}
+sl_metrics_format<-function(table,round){
+  end_training<-NULL
+  end_resampling<-NULL
+  end_partition<-NULL
+  end_final<-NULL
+  end_modelInfo<-NULL
+
+  et<-which(grepl("training",colnames(table)))
+  er<-which(grepl("tunning",colnames(table)))
+  ep<-which(grepl("partition",colnames(table)))
+  ef<-which(grepl("finalModel",colnames(table)))
+  ei<-which(grepl("modelInfo",colnames(table)))
+
+
+  if(length(et)>0)
+    end_training<-max(et)
+
+  if(length(er)>0)
+    end_resampling<-max(er)
+
+  if(length(ep)>0)
+    end_partition<-max(ep)
+
+  if(length(ef)>0)
+    end_final<-max(ef)
+
+  if(length(ei)>0)
+    end_modelInfo<-max(ei)
+
+
+  border_positions<-c(end_training,end_modelInfo,end_resampling,end_final,end_partition)
+  numeric_cols <- sapply(table, is.numeric)
+  req(length(numeric_cols)>0)
+  container=sl_metrics_container(table)
+  dt<-DT::formatStyle(
+    DT::formatStyle(
+      DT::datatable(
+        as.matrix(table),
+        extensions = c('FixedColumns',"FixedHeader"),
+
+        escape=F,
+        container =container,
+        options=list(
+          info=FALSE,dom = 't',
+
+
+          rownames=F,
+          autoWidth=T,
+          deferRender = TRUE,
+          scroller = TRUE,
+          info = FALSE,
+          fixedColumns = list(leftColumns = 2, rightColumns = 0),
+          fixedHeader = 2
+        )
+      )%>%
+        DT::formatRound(columns = which(numeric_cols), digits = round) ,
+
+      c(1), `border-left` = "solid 1px"
+    ),       border_positions, `border-right` = "solid 1px"
+  )
+
+
+
+}
+get_sl_metric_cols<-function(cols,left=F){withTags(
+  lapply(seq_along(cols),function(i){
+    if(i==length(cols)){
+      th(cols[i],style="border-right: 1px solid")
+    } else{
+      if(i==1&isTRUE(left)){
+        th(cols[i],style="border-left: 1px solid")
+      } else{
+        th(cols[i])
+      }
+
+    }
+  })
+)}
+sl_metrics_container<-function(table){
+  table<-data.frame(table)
+  #table=data.frame(table)
+  #rownames(table)<-NULL
+  #colnames(table)<-NULL
+  end_modelInfo<-length(which(grepl("modelInfo",colnames(table))))
+  end_training<-length(which(grepl("training",colnames(table))))
+  end_resampling<-length(which(grepl("resampling|tunning",colnames(table))))
+  end_partition<-length(which(grepl("partition",colnames(table))))
+  end_final<-length(which(grepl("finalModel",colnames(table))))
+
+
+
+
+  cols_modelInfo<-colnames(table)[grepl("modelInfo_",colnames(table))]
+  cols_training<-colnames(table)[grepl("training_",colnames(table))]
+  cols_resampling<-colnames(table)[grepl("tunning|resampling_",colnames(table))]
+  cols_finalModel<-colnames(table)[grepl("finalModel_",colnames(table))]
+  cols_partition<-colnames(table)[grepl("partition_",colnames(table))]
+
+
+  cols_modelInfo<-gsub('modelInfo_',"",cols_modelInfo)
+  cols_training<-gsub('training_',"",cols_training)
+  cols_resampling<-gsub('resampling_',"",cols_resampling)
+  cols_finalModel<-gsub('finalModel_',"",cols_finalModel)
+  cols_partition<-gsub('partition_',"",cols_partition)
+
+  res<-withTags(table(
+    class = 'display',
+    thead(
+      tr(
+        if(end_training>0){
+          #th(colspan = end_training, 'Models',style = "border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;")
+          HTML(paste0(
+            "<th style='border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;position: sticky;' class='sorting dtfc-fixed-left' tabindex='0' rowspan='1' colspan='",end_training,"'><span style='color: royalblue'>Models</span></th>"
+          ))
+
+        },
+        if(end_modelInfo>0){
+          #th(colspan = end_modelInfo, 'modelInfo',style = "border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;")
+          HTML(paste0(
+            "<th style='border-top: solid 1px;border-left: solid 1px;border-right: solid 1px;' class='sorting dtfc-fixed-left' tabindex='0' rowspan='1' colspan='",end_modelInfo,"'><span style='color: royalblue'>modelInfo</span></th>"
+          ))
+
+        },
+
+        if(end_resampling>0){
+          th(colspan = end_resampling, span('Resampling metrics',style='color: royalblue'),style = "border-top: solid 1px;border-right: solid 1px;")
+        },
+        if(end_final>0){
+          th(colspan = end_final, span('finalModel metrics',style='color: royalblue'),style = "border-top: solid 1px;;border-right: solid 1px;")
+        },
+        if(end_partition>0){
+          th(colspan =end_partition, span('Test metrics',style='color: royalblue'),style = "border-top: solid 1px;border-right: solid 1px;")}
+      ),
+      tr(
+
+        if(length(cols_training)>0)
+          get_sl_metric_cols(cols_training, left=T),
+        if(length(cols_modelInfo)>0)
+          get_sl_metric_cols(cols_modelInfo, left=T),
+        if(length(cols_resampling)>0)
+          get_sl_metric_cols(cols_resampling),
+        if(length(cols_finalModel)>0)
+          get_sl_metric_cols(cols_finalModel),
+        if(length(cols_partition)>0)
+          get_sl_metric_cols(cols_partition)
+
+      )
+
+
+    )))
+  res
+
+}
+fixed_dt_con<-list()
+fixed_dt_con$ui<-function(id,data,max_length=100, label="Show columns:"){
+  if(is.null(data)){
+    return(NULL)
+  }
+  vecs<-split_vector_max_elements(1:ncol(data),max_length)
+  choices_containers<-sapply(vecs,function(x) paste(range(x),collapse="-"))
+  choices_names<-names(choices_containers)
+  names(choices_names)<-choices_containers
+  ns<-NS(id)
+  div(
+    pickerInput_fromtop(ns("data_container"),label , choices_names)
+
+  )
+}
+fixed_dt_con$server<-function(id,data,max_length=100){
+  moduleServer(id,function(input,output,session){
+
+    if(is.null(data)){
+      return(NULL)
+    }
+    vecs<-split_vector_max_elements(1:ncol(data),max_length)
+    data_containers<-lapply(vecs,function(x) data[,x])
+    output$data_render<-renderUI({
+      div(
+        class="half-drop-inline",
+        style="max-width: 100%; overflow-x: auto",
+        fixed_dt(data_containers[[input$data_container]],scrollY = "300px",scrollX=T)
+      )
+    })
+  })
+}
+fixed_dt_con$server2<-function(id,data,max_length=100){
+  moduleServer(id,function(input,output,session){
+
+    if(is.null(data)){
+      return(NULL)
+    }
+    vecs<-split_vector_max_elements(1:ncol(data),max_length)
+    data_containers<-lapply(vecs,function(x) data[,x])
+
+    if(!is.null(input$data_container))
+      return(data_containers[[input$data_container]])
+  })
+}
+split_vector_max_elements <- function(vec, max_length) {
+  split(vec, ceiling(seq_along(vec) / max_length))
 }

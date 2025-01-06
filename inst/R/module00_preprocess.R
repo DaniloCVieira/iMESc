@@ -515,9 +515,9 @@ quant$server<-function(id, data1,data2,height="120px",width="400px",fun='print_t
 
 tool1<-list()
 # The tool1$ui function defines the user interface for creating Datalists in iMESc.
-# It includes input fields for required (Numeric-Attribute) and optional attributes 
-# (Factor-Attribute, Coords-Attribute, Base Shape, Layer Shape). 
-# Users can either upload their own data or choose example datasets. 
+# It includes input fields for required (Numeric-Attribute) and optional attributes
+# (Factor-Attribute, Coords-Attribute, Base Shape, Layer Shape).
+# Users can either upload their own data or choose example datasets.
 # The interface provides tooltips and validations to ensure proper data formatting.
 tool1$ui<-function(id){
   ns<-NS(id)
@@ -1308,6 +1308,7 @@ tool2$server<-function(id,vals){
   })
 }
 
+# Rename & Reorder Datalist
 tool2_tab1<-list()
 tool2_tab1$ui<-function(id){
   ns<-NS(id)
@@ -1358,6 +1359,7 @@ tool2_tab1$server<-function(id,vals){
   })
 }
 
+# Merge Datalists by rows or columns
 tool2_tab2<-list()
 tool2_tab2$ui<-function(id){
   ns<-NS(id)
@@ -1591,6 +1593,7 @@ tool2_tab2$server<-function(id,vals){
   })
 }
 
+# Exchange Factors/Variables
 tool2_tab3<-list()
 tool2_tab3$ui<-function(id){
   ns<-NS(id)
@@ -2463,6 +2466,7 @@ tool2_tab3$server<-function(id,vals){
   })
 }
 
+# Replace Attributes
 tool2_tab4<-list()
 tool2_tab4$ui<-function(id){
   ns<-NS(id)
@@ -2671,6 +2675,7 @@ tool2_tab4$server<-function(id,vals){
   })
 }
 
+# Edit columns
 tool2_tab5<-list()
 tool2_tab5$ui<-function(id){
   ns<-NS(id)
@@ -3183,6 +3188,7 @@ tool2_tab5$server<-function(id,vals){
 
 }
 
+# Rename Saved Models
 tool2_tab6<-list()
 tool2_tab6$ui<-function(id){
   ns<-NS(id)
@@ -3320,6 +3326,7 @@ tool2_tab6$server<-function(id,vals){
   })
 }
 
+#Transpose Datalist
 tool2_tab7<-list()
 tool2_tab7$ui<-function(id){
   ns<-NS(id)
@@ -3450,6 +3457,7 @@ tool2_tab7$server<-function(id,vals){
   })
 }
 
+# Shapefiles toolbox
 tool2_tab8<-list()
 tool2_tab8$ui<-function(id){
   ns<-NS(id)
@@ -4580,6 +4588,7 @@ tool2_tab8$server<-function(id,vals){
   })
 }
 
+# Run custom scripts
 tool2_tab9<-list()
 tool2_tab9$ui<-function(id){
   ns<-NS(id)
@@ -4682,6 +4691,7 @@ tool2_tab9$server<-function(id,vals){
   })
 }
 
+# Datalist manager
 tool2_tab10<-list()
 tool2_tab10$ui<-function(id){
   ns<-NS(id)
@@ -4891,6 +4901,7 @@ tool2_tab10$server<-function(id,vals){
   })
 }
 
+# Delete Datalists
 tool2_tab11<-list()
 tool2_tab11$ui<-function(id){
   ns<-NS(id)
@@ -4940,6 +4951,7 @@ tool2_tab11$server<-function(id,vals){
 
   })
 }
+
 
 tool3$ui<-function(id){
   tips<-list("Remove rows with missing values",
@@ -5043,6 +5055,9 @@ tool3$ui<-function(id){
 
       ))
 }
+# The tool3$ui function provides an interface for advanced row filtering and manipulation in Datalists.
+# It includes options for removing rows with missing values or zero variance, matching IDs between Datalists,
+# filtering rows based on factors (via tree-based or subset-based selection), and manual row selection.
 tool3$update_server<-function(id, vals=NULL){
   moduleServer(id,function(input,output,session){
 
@@ -5063,6 +5078,9 @@ tool3$update_server<-function(id, vals=NULL){
 
   })
 }
+# The tool3$server function implements the server-side logic for row filtering and manipulation.
+# It processes user interactions, calculates rows to be removed based on various criteria, and updates the Datalist accordingly.
+# The server ensures that the filtered data is consistently maintained and ready for downstream tools in the application.
 tool3$server<-function(id, vals=NULL){
   moduleServer(id,function(input,output,session){
 
@@ -5386,7 +5404,9 @@ tool3$server<-function(id, vals=NULL){
   })
 }
 
-
+# The tool4$ui function provides an interface for column-based filtering and removal operations in a dataset.
+# It allows users to perform tasks such as individual column selection, removal based on values,
+# correlation-based filtering, and identification/removal of columns with zero or near-zero variance.
 tool4$ui<-function(id){
   tips<-list("Remove numeric variables contributing less than a specified percentage of the total sum across all observations.",
              "Manually select numeric variables based on column names.",
@@ -5471,6 +5491,10 @@ tool4$ui<-function(id){
       )
   )
 }
+# The tool4$server function implements the backend logic for column-based filtering and removal.
+# It processes user inputs, calculates columns to be removed based on specified criteria (e.g., value thresholds, correlation cutoffs),
+# and updates the dataset accordingly. The server also ensures that user interactions dynamically reflect in the dataset,
+# maintaining consistency for further data analysis tasks.
 tool4$server<-function(id,vals=NULL){
 
   moduleServer(id,function(input,output,session){
@@ -5826,6 +5850,11 @@ tool4$server<-function(id,vals=NULL){
     return(NULL)
   })
 }
+
+# The tool5$ui function provides a user interface for applying transformations and scaling to numeric attributes of a dataset.
+# It includes options for various transformation methods (e.g., from 'vegan' and 'caret' packages),
+# scaling and centering, and customizable transformation orders. The UI is designed for flexibility,
+# allowing users to select specific columns and view summaries of pre- and post-transformation data.
 tool5$ui<-function(id){
   tips_transf<-list(
     "Transform numeric attributes using methods from 'vegan' and 'caret' packages.",
@@ -5871,6 +5900,10 @@ tool5$ui<-function(id){
       )
   )
 }
+# The tool5$server function implements the logic for applying transformations and scaling to the dataset.
+# It processes user inputs, applies the selected transformations and scaling in the desired order, and updates the dataset.
+# The server also ensures that changes are dynamically reflected and provides feedback on the operations performed,
+# such as displaying summaries and handling user interactions effectively.
 tool5$server<-function(id,vals){
 
   moduleServer(id,function(input,output,session){
@@ -6100,7 +6133,12 @@ tool5$server<-function(id,vals){
     return({NULL})
   })
 }
+
 tool6<-list()
+# tool6$ui: Provides a user interface for handling missing data imputation in a dataset.
+# Users can choose the target attribute type (Numeric or Factor), select an imputation method
+# (e.g., knn, bagImpute, medianImpute, pmm, rf, or cart), and adjust relevant parameters like the number of neighbors for knn.
+# The UI also includes warnings for computationally intensive methods and tools for displaying imputation results.
 tool6$ui<-function(id){
   ns<-NS(id)
   div(
@@ -6131,6 +6169,11 @@ tool6$ui<-function(id){
 
   )
 }
+
+# tool6$server: Implements the logic for missing data imputation using the selected method and parameters.
+# It dynamically updates the dataset, handles user interactions (e.g., showing warnings, toggling input fields),
+# and integrates with tools for outlier handling. The server ensures that the imputation results are
+# appropriately reflected in the dataset and provides feedback on the imputation process.
 tool6$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     bag_name<-reactive({paste0("(imp_",input$na_method,")")})
@@ -6376,6 +6419,9 @@ tool6$server<-function(id,vals){
 }
 
 tool7<-list()
+# tool7$ui: Provides a user interface for creating data partitions, supporting balanced and random splits.
+# Users can specify partition type, target variables, and parameters like split size and seed for reproducibility.
+# Includes dynamic elements for selecting classification or regression models and adjusting inputs based on the chosen type.
 tool7$ui<-function(id){
   ns<-NS(id)
   div(style="height: 300px; ;display: flex;",
@@ -6416,6 +6462,9 @@ tool7$ui<-function(id){
       )
   )
 }
+# tool7$server: Implements the logic for generating data partitions, using user-defined settings and methods.
+# Handles balanced and random partitions, ensuring compatibility with classification or regression models.
+# Dynamically validates input data and updates partitions in the dataset. Outputs partition summaries and integrates with downstream tools.
 tool7$server<-function(id,vals=NULL){
 
   moduleServer(id,function(input,output,session){
@@ -6643,6 +6692,9 @@ tool7$server<-function(id,vals=NULL){
 }
 
 tool8<-list()
+# tool8$ui: Provides the user interface for aggregating numeric data based on selected factors.
+# Users can choose one or more factors for grouping and apply various aggregation functions (e.g., sum, mean, median).
+# Includes dynamic input elements and displays summaries of the original and aggregated datasets.
 tool8$ui<-function(id){
   ns<-NS(id)
   div(class="class_tool8",
@@ -6675,6 +6727,9 @@ tool8$ui<-function(id){
       )
   )
 }
+# tool8$server: Implements the backend logic for aggregating numeric data.
+# Handles user-defined grouping factors and aggregation functions to generate a summarized dataset.
+# Coordinates are aggregated (if present) to prevent data loss. Updates the aggregated results and ensures seamless integration with the main dataset.
 tool8$server<-function(id, vals=NULL){
 
   moduleServer(id,function(input,output,session){
@@ -6804,6 +6859,9 @@ tool8$server<-function(id, vals=NULL){
 }
 
 tool9<-list()
+# tool9$ui: Provides the user interface for creating and managing color palettes.
+# Users can select colors, add them to a temporary palette, and save them as reusable palettes.
+# Includes options to restart the current palette, view a preview of the new palette, and manage created palettes.
 tool9$ui<-function(id){
   ns<-NS(id)
   div(class="half-drop p20",
@@ -6852,6 +6910,9 @@ tool9$ui<-function(id){
   )
 
 }
+# tool9$server: Implements the backend logic for managing color palettes.
+# Handles user interactions such as adding colors, creating palettes, and updating the available palettes.
+# Ensures seamless integration of new palettes with the broader application, including visual previews and management options.
 tool9$server<-function (id,vals){
   moduleServer(id,function(input, output, session){
 
@@ -6912,6 +6973,9 @@ tool9$server<-function (id,vals){
 }
 
 tool10<-list()
+# tool10$ui: User interface for managing savepoints within the application.
+# Provides functionality to create savepoints (download as .rds files), load existing savepoints to restore the application state, and manage active savepoints.
+# Includes options for updating the savepoint on demand and showing active savepoint details.
 tool10$ui<-function(id){
   ns<-NS(id)
   div(class="half-drop p20",
@@ -6951,6 +7015,9 @@ tool10$ui<-function(id){
   )
 
 }
+# tool10$server: Backend logic for handling savepoint operations.
+# Implements the creation of savepoints by saving the application state to an .rds file, restoring the state from a selected .rds file, and managing savepoint details.
+# Handles user interactions for savepoint creation, loading, and toggling update behaviors, while ensuring data integrity during restoration or replacement.
 tool10$server<-function (id,vals){
   moduleServer(id,function(input, output, session){
 
@@ -7179,12 +7246,18 @@ tool10$server<-function (id,vals){
 }
 
 head_data<-list()
+# head_data$ui: User interface for visualizing data summaries.
+# Provides radio buttons to toggle between displaying the "head" (first rows), "full" dataset, or the structure ("str") of the data.
 head_data$ui<-function(id,options=1:4){
   ns<-NS(id)
   div(
     radioGroupButtons(ns("showas"),NULL , c("head","full","str")[options],status="small_GroupBtn")
   )
 }
+# head_data$server: Backend logic for managing data visualization.
+# Dynamically adjusts the displayed data based on user input ("head", "full", or "str").
+# Renders the data as either a table, a structured summary, or an interactive datatable, depending on the user selection and configuration.
+# Allows customization of height, width, and additional table properties like page length and display options.
 head_data$server<-function(id, data,height="200px", width="300px",dt=F,page_length=10,type="default",dom="tp"){
   moduleServer(id,function(input,output,session){
     style0<-paste0("overflow: auto;max-height: ",height,";max-width:",width)
@@ -7222,6 +7295,9 @@ head_data$server<-function(id, data,height="200px", width="300px",dt=F,page_leng
   })
 }
 
+# pp_data$ui: User interface for selecting and managing the active datalist.
+# Provides a dropdown menu for choosing a datalist from the saved datasets.
+# Includes a tooltip for better user guidance on the functionality.
 pp_data$ui<-function(id){
   ns<-NS(id)
   div(class="pp_datacontrol",style="display: none;",
@@ -7238,6 +7314,10 @@ pp_data$ui<-function(id){
       )
   )
 }
+# pp_data$server: Backend logic for handling datalist selection and data updates.
+# Dynamically updates the current datalist (`vals$cur_data`) based on user selection.
+# Ensures reactive management of the active dataset (`vals$pp_data`) and synchronizes it with user input.
+# Handles potential errors gracefully when accessing invalid or unavailable datasets.
 pp_data$server<-function(id,vals){
   moduleServer(id,function(input, output,session){
 
@@ -7257,7 +7337,6 @@ pp_data$server<-function(id,vals){
 
     data<-reactive({
       data<-try({
-
         vals$r_impute<-T
         req(input$data_upload)%in%names(vals$saved_data)
         data<-vals$saved_data[[input$data_upload]]
@@ -7271,7 +7350,6 @@ pp_data$server<-function(id,vals){
       } else{
         return(NULL)
       }
-
     })
 
 
@@ -7301,6 +7379,11 @@ pp_data$server<-function(id,vals){
 #' @export
 toolbar<-list()
 #' @export
+# toolbar$ui:
+# Defines the main toolbar interface, which provides access to a series of data manipulation tools.
+# Includes tabs for various preprocessing tasks such as filtering, transformations, imputation, and aggregation.
+# Dynamically updates the displayed content based on user interaction with the toolbar options.
+# Integrates icons and tooltips for better user navigation and understanding of available actions.
 toolbar$ui<-function(id){
   ns<-NS(id)
   choiceNames_preprocess<-{list(
@@ -7411,6 +7494,12 @@ toolbar$ui<-function(id){
   )
 }
 #' @export
+# toolbar$server:
+# Manages the logic for activating and controlling the selected tools from the toolbar.
+# Handles user interactions with the toolbar tabs, ensuring the correct tool modules are loaded and displayed.
+# Synchronizes the currently selected tool with the global `vals` reactive values, allowing for consistent state management across modules.
+# Ensures visual feedback by toggling UI elements based on the active tool, such as highlighting unsaved changes and updating tool titles.
+# Provides a seamless workflow for switching between tools and maintaining the context of the currently active dataset.
 toolbar$server<-function(id, vals=NULL){
   moduleServer(id,function(input, output,session){
 
@@ -7568,6 +7657,11 @@ toolbar$server<-function(id, vals=NULL){
 #' @export
 pre_process<-list()
 #' @export
+# pre_process$ui:
+# Builds the UI for the pre-processing module, providing a structured layout for data manipulation tools.
+# Includes sections for displaying and managing the active dataset, tracking changes, and interacting with preprocessing tools.
+# Dynamically integrates submodules like `pp_data` and `toolbar` to manage data operations.
+# Implements user-friendly features such as tooltips, modal dialogs, and collapsible panels for enhanced navigation and usability.
 pre_process$ui<-function(id){
   module_progress("Loading module: Pre-processing tools")
   ns<-NS(id)
@@ -7633,6 +7727,13 @@ Shiny.onInputChange('",ns('last_btn'),"', this.id);
   )
 }
 #' @export
+# pre_process$server:
+# Implements the server-side logic for the pre-processing module, coordinating interactions and state management.
+# Tracks changes to the active dataset (`vals$pp_data`) and integrates tools for creating, modifying, and saving data lists.
+# Manages the state and results of preprocessing tools, ensuring consistency across sessions.
+# Provides mechanisms for saving changes (either creating new datasets or replacing existing ones) and confirms user actions with modals.
+# Includes functionality for toggling visibility of elements, such as tracking panels and toolbars, to streamline user interactions.
+# Ensures smooth integration with other modules like `pp_data` and `toolbar`, leveraging their respective server functions.
 pre_process$server<-function(id, vals){
   moduleServer(id,function(input,output,session){
     ####

@@ -1,3 +1,1096 @@
+# This module provides an interactive interface for training and managing
+# supervised machine learning models in a Shiny application. It includes
+# both UI and server logic to facilitate:
+#
+# 1. Dataset and Variable Selection:
+#    - Allows users to select training and response datasets (X and Y).
+#    - Supports the selection of variables for both independent (X) and
+#      dependent (Y) datasets.
+#
+# 2. Supervised Learning Algorithms:
+#    - Integrates with the `caret` package to provide a wide range of
+#      machine learning algorithms.
+#    - Supports both classification and regression tasks.
+#
+# 3. Model Training:
+#    - Options for training single or multiple models with different target
+#      variables or configurations.
+#    - Allows partitioning of datasets into training and testing sets.
+#    - Supports customization of training parameters and multiple algorithms.
+#
+# 4. Model Management:
+#    - Save, replace, or delete trained models from the selected dataset.
+#    - Manage models directly through the interactive UI.
+#
+# 5. Visualization and Feedback:
+#    - Displays information about the training process, including data
+#      dimensions and partitioning details.
+#    - Provides warnings for potential issues (e.g., missing data).
+#
+# 6. Dynamic UI and Integration:
+#    - Uses dynamic UI components for flexible inputs and outputs.
+#    - Integrates with the `caret` and `caretEnsemble` packages for robust
+#      model training and evaluation.
+#' @export
+caret_train<-list()
+
+#' @export
+caret_train$ui<-function(id){
+  ns<-NS(id)
+  div(
+    div(class="inline_pickers",id=ns("model_type_panel"),
+        radioButtons(ns('model_type'),"Model type:",choices=c("Classification","Regression"),inline =T)),
+    div(
+      div(
+        style="display: flex;gap: 10px;align-items: flex-start",class="setup_box",
+        #div(tags$div("X",class="trailab")),
+        div(class="picker-flex picker-before-x",
+            uiOutput(ns('data_x')),
+
+        ),
+        div(style="display: flex;gap: 10px;",
+            div(class="picker-flex",
+                caret_model$ui(ns('model'))),
+            div(style="display: flex;",id=ns("model_model_name"),
+                div(class="picker-flex",
+                    uiOutput(ns('model_name'))),
+                div(class="save_changes",
+                    style="padding-top: 20px",
+                    tipify_ui(actionButton(ns("save_model"),icon("fas fa-save",style="color: #374061ff")),"Save the model in the current Datalist X", "right")),
+                div(style="padding-top: 20px; margin-left: 10px",
+                    tipify_ui(actionButton(ns("trash_model"),icon("trash")),"Click to remove the model","right"))
+            )
+
+        )
+
+      ),
+      div(style="margin-left: 20px;margin-top: -5px",align="left",shinyWidgets::dropMenu(actionLink(ns("filter_x"),"+ select columns",style="font-size: 11px;font-style: italic "),uiOutput(ns("filter_var"))))
+    ),
+    div(
+      style="display: flex; gap: 10px; align-items: flex-start",class="setup_box",
+      id=ns("model_y_panel"),
+      div(
+        div(class="picker-flex picker-before-y",
+            uiOutput(ns('data_y')),
+
+        ),
+        div(style="margin-left: 20px;margin-top: -5px",align="left",actionLink(ns("gotrain_loop"),"+ Train multiple models",style="font-size: 11px;font-style: italic "))
+      ),
+
+      tags$label("::",style="padding-top: 30px;"),
+      div(class="picker-flex",
+          uiOutput(ns("var_y"))
+
+      ),
+      div(class="picker-flex",
+          uiOutput(ns("partition"))
+
+      ),
+      div(class="picker-flex",
+          uiOutput(ns("partition_ref_out"))
+      )
+
+    ),
+    div(style="position: absolute; top: 0px;right: 0px; padding: 20px",
+        uiOutput(ns('print_train')),
+        uiOutput(ns('print_results'))
+    )
+
+  )
+
+}
+
+#' @export
+caret_train$server<-function(id,vals=NULL){
+  moduleServer(id,function(input,output,session){
+
+    ns<-session$ns
+
+
+    output$loop_part<-renderUI({
+      req(input$data_y)
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+      part_ref<-NULL
+      if(input$partition!="None"){
+        part_ref<-paste0("[",input$partition_ref,"]")
+      }
+
+      label_partition<-paste0(input$partition,part_ref)
+      value_partition<-"training"
+      names(value_partition)<-label_partition
+      yon<-input$yloop
+      req(length(yon)>0)
+      div(
+        div(
+          div(class="half-drop-inline",style="margin-top: 30px",
+              pickerInput_fromtop(
+                ns("yloop_partition"),
+                span("Partition:",tiphelp("Use a global partition defined in the Model Setup panel, or specify them individually.")),
+                choices=c(value_partition,"Variable-specific"="Custom"),
+                selected=vals$cur_yloop_partition
+              ),
+          ),
+          div(
+            class="picker_table",
+            uiOutput(ns("yloop_part_labels")),
+            uiOutput(ns("loop_part_pickers"))
+          )
+
+        )
+      )
+    })
+
+
+
+
+    output$yloop_part_labels<-renderUI({
+      req(input$yloop_partition=="Custom")
+      div(style="margin-top: -22px",
+          column(6,class="mp0",tags$label("Partition")),
+          column(6,class="mp0",tags$label("Test reference"))
+      )
+    })
+    observeEvent(input$yloop_partition,{
+      vals$cur_yloop_partition<-input$yloop_partition
+    })
+
+
+    output$loop_part_pickers<-renderUI({
+      req(input$data_y)
+      req(input$yloop_partition=="Custom")
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+      req(input$model_type)
+      if(input$model_type== 'Classification'){y<-factors}
+      part_cols<-colnames(factors)[grepl("Partition_",colnames(factors))]
+      yon<-input$yloop
+      req(length(yon)>0)
+
+      res<-lapply(1:ncol(y), function(i){
+        var<-colnames(y)[i]
+        part_col<-paste0("Partition_",var)
+        selected="None"
+        if(input$yloop_partition=="Custom"){
+          if(part_col%in%colnames(factors)){
+            selected=part_col
+          }
+        }
+
+        if(var%in%yon){
+          column(12,class='mp0',
+                 column(6,class='mp0',pickerInput_fromtop(ns(paste0("part_loop_",i)),NULL,choices=c("None",colnames(factors)), selected=selected, options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))),
+                 column(6,class='mp0',uiOutput(ns(paste0("part_loop_test_out",i))))
+          )} else{
+            column(12,class='mp0',emgray("Not training"),class="picker_fake")
+          }
+      })
+      do.call(div,list(res))
+    })
+    observe({
+
+      req(input$data_y)
+      req(input$yloop_partition=="Custom")
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+      req(input$model_type)
+      if(input$model_type== 'Classification'){y<-factors}
+      yon<-input$yloop
+      req(length(yon)>0)
+      try({
+        lapply(1:ncol(y), function(i){
+          var<-colnames(y)[i]
+          col<-input[[paste0("part_loop_",i)]]
+
+          if(length(col)>0)
+            if(col%in%colnames(factors)){
+              fac<-factors[,col]
+              output[[paste0("part_loop_test_out",i)]]<-renderUI({
+                pickerInput_fromtop(ns(paste0("part_loop_test",i)),NULL,choices=levels(fac), options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))})
+
+            } else{
+              output[[paste0("part_loop_test_out",i)]]<-renderUI({ NULL})
+            }
+        })
+      })
+
+    })
+
+
+
+
+    output$loop_vars<-renderUI({
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+      req(input$model_type)
+      if(input$model_type== 'Classification'){y<-factors}
+
+      choices<-colnames(y)
+      div(class="picker_open",
+          shinyWidgets::virtualSelectInput(
+            inputId = ns("yloop"),
+            label = "Y:",
+            optionHeight='24px',
+            choices = choices,
+            optionsCount = length(choices),
+            search = F,
+            keepAlwaysOpen = TRUE,
+            multiple =T,
+            hideClearButton=T,
+            alwaysShowSelectedOptionsCount=T,
+            optionsSelectedText="Variables selected",
+            optionSelectedText="Variables selected"
+          )
+      )
+
+    })
+
+
+
+
+
+
+
+    observeEvent(ignoreInit = T,input$gotrain_loop,{
+      showModal(
+        modalDialog(
+          title=div("Train multiple models"),
+          easyClose=T,
+          column(12,class="mp0 picker_loop",style="height: 340px; overflow-y: auto;",
+
+                 div(id=ns("yloop_page1"),
+                     column(6,class="mp0",style="",
+                            uiOutput(ns('loop_vars'))),
+                     column(6,class="mp0",style="max-width: 300px",
+
+                            uiOutput(ns('loop_part')))
+                 ),
+                 div(id=ns("yloop_page2"),style="display: none",
+                     uiOutput(ns("teste")),
+                     uiOutput(ns("yloop_page2_out"))
+                 )),
+          footer=div(actionButton(ns('yloop_cancel'),"Cancel"),
+                     hidden(actionButton(ns('yloop_prev'),"<< Previous")),
+                     actionButton(ns('yloop_next'),"Next >>"))
+
+        )
+      )
+
+    })
+    partition_df<-reactive({
+      y<-vals$saved_data[[input$data_y]]
+      req(input$model_type)
+      factors<-attr(y,"factors")
+      train_ids<-rownames(factors)
+      test_ids<-rownames(factors)
+      if(input$model_type== 'Classification'){y<-factors}
+      yon<-input$yloop
+      req(length(yon)>0)
+      res<-lapply(1:ncol(y), function(i){
+        if(input$yloop_partition=="None"){
+          partition<-"None"
+          partition_ref<-"None"
+
+        } else if(input$yloop_partition=="Custom"){
+          partition<-input[[paste0("part_loop_",i)]]
+          partition_ref<-input[[paste0("part_loop_test",i)]]
+          if(!is.null(partition)){
+            if(partition!="None"){
+              test<-factors[,partition]==partition_ref
+              train_ids<-rownames(factors)[!test]
+              test_ids<-rownames(factors)[test]
+            }
+          }
+
+
+        } else{
+          partition<-input$partition
+          partition_ref<-input$partition_ref
+          if(partition!="None"){
+            test<-factors[,partition]==partition_ref
+            train_ids<-rownames(factors)[!test]
+            test_ids<-rownames(factors)[test]
+          }
+        }
+        list(partition=partition,partition_ref=partition_ref,train_ids=train_ids,test_ids=test_ids)
+
+      })
+      names(res)<-colnames(y)
+      vals$partition_df<-res[input$yloop]
+      vals$y_loop<-y[input$yloop]
+      NULL
+    })
+
+
+    output$teste<-renderUI({
+      partition_df()
+    })
+    output$yloop_page2_out<-renderUI({
+      div(
+        div(
+          div(class = "alert_warning",style="",
+              div(strong(icon("triangle-exclamation",style="color: Dark yellow3"),"Warning:"),"Training multiple models can be time-consuming"),
+              div(style="padding: 10px; background: white; color: black;border: 5px solid #ffffcc",
+
+                  div(
+                    tags$div(icon("caret-right"),"Total number of models:",strong(length(input$yloop), style="color: red")),
+                    tags$div(icon("caret-right"),strong("New model names:"),
+                             div(
+                               style="max-height: 100px; overflow-y: auto; padding-left: 20px; background: #F0F0F0",
+                               uiOutput(ns("model_loop_names"))
+                             )
+
+                    ),
+
+
+                    tags$div(icon("caret-right"),"Any model already saved with this name(s) will be replaced. ", em("We suggest using this tool with a Datalist that does not have any saved RF models."))
+                  )
+
+              ))
+
+        ),
+        div(align="center",
+            div(strong("Click to proceed:")),
+            actionButton(ns("train_loop"),em(
+              "Train the",strong(length(input$yloop),style=
+                                   'color: red'),"models"
+            )))
+
+      )
+    })
+
+    observeEvent(input$yloop_cancel,{
+      removeModal()
+    })
+
+    yloop_pages<-reactiveVal(1)
+    observeEvent(input$gotrain_loop,{
+      yloop_pages(1)
+    })
+    observeEvent(input$yloop_next,{
+      req(yloop_pages()<2)
+      yloop_pages(yloop_pages()+1)
+    })
+    observeEvent(input$yloop_prev,{
+      req(yloop_pages()==2)
+      yloop_pages(yloop_pages()-1)
+    })
+
+
+    observe({
+      shinyjs::toggle('yloop_next', condition=length(input$yloop)>0&yloop_pages()==1)
+      shinyjs::toggle('yloop_prev', condition=yloop_pages()==2)
+      shinyjs::toggle('yloop_cancel', condition=yloop_pages()==1)
+      shinyjs::toggle('yloop_page1', condition=yloop_pages()==1)
+      shinyjs::toggle('yloop_page2', condition=yloop_pages()==2)
+    })
+
+    yloop_vars<-reactive({
+      req(input$model_type)
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+      if(input$model_type== 'Classification'){y<-factors}
+      yvars<-y[,input$yloop,drop=F]
+      yvars
+    })
+
+    yloop_partition<-reactive({
+      y<-vals$saved_data[[input$data_y]]
+      factors<-attr(y,"factors")
+
+    })
+
+
+    output$model_loop_names<-renderUI({
+      lapply(paste0(input$yloop,'~',input$data_x),function(x) tags$li(em(x)))
+
+    })
+
+
+    observeEvent(input$model_name,ignoreInit = T,{
+      vals$update_tab_results<-vals$cur_model_results
+    })
+
+    observeEvent(input$data_x,ignoreInit = T,{
+      vals$update_tab_results<-vals$cur_model_results
+    })
+
+
+
+    observeEvent(input$train_loop,ignoreInit = T,{
+      vals$train_loop<-TRUE
+    })
+
+    model_type<-reactiveVal()
+
+    caret_model$server('model',vals)
+    get_model<-reactive({
+      req(vals$cmodel)
+      req(input$model_name)
+      attr(data_x(),vals$cmodel)[[input$model_name]][[1]]
+    })
+    datalist_y<-reactive({
+      req(input$data_y%in%names(vals$saved_data))
+      data<-vals$saved_data[[input$data_y]]
+      data
+    })
+    output$print_train<-renderUI({
+      req(vals$cur_caret_tab)
+      req(vals$cur_caret_tab=="tab1")
+      req(x_train())
+      req(y_train())
+
+      div(
+
+        div(style="display: flex; font-size: 11px; margin-top: 20px",
+            div(style="margin-left: 10px; margin-top: 15px",
+                div(strong('x:')),
+                div(strong('y:'))),
+            div(style="margin-left: 10px",
+                div(strong("Training:")),
+                div(emgreen(paste0(dim(x_train()),collapse=" x "))),
+                div(emgreen(paste0(dim(y_train()),collapse=" x ")))),
+            if(dim(x_test())[1]>0)
+              div(style="margin-left: 10px",
+                  div(strong("Test:")),
+                  div(emgreen(paste0(dim(x_test()),collapse=" x "))),
+                  div(emgreen(paste0(dim(y_test()),collapse=" x "))))
+
+        )
+      )
+    })
+
+    output$validate_train<-renderUI({
+      x<-x_train()
+      y<-y_train()[,1]
+      validate(need(!anyNA(x),"NAs not allowed in X"))
+      validate(need(!anyNA(y),"NAs not allowed in Y"))
+    })
+    get_partition<-reactive({
+      data<-y_factors()
+      req(input$partition)
+      if(input$partition=="None"){
+        return(list(train=rownames(data),test=NULL))
+      } else{
+        req(input$partition%in%colnames(data))
+        part<-data[,input$partition]
+
+        validate(need(!anyNA(part),"Na not allowed"))
+        req(any(part%in%input$partition_ref))
+        test_ids<-which(part%in%input$partition_ref)
+        test=rownames(data)[test_ids]
+        train=rownames(data)[-test_ids]
+        return(list(train=train,test=test))
+      }
+
+    })
+    output$filter_var<-renderUI({
+
+      div(class="picker_open",
+          shinyWidgets::virtualSelectInput(
+            inputId = session$ns("filter"),
+            label = "Select the columns",
+            optionHeight='24px',
+            choices = colnames(data_x()),
+            selected=colnames(data_x()),
+            search = TRUE,
+            keepAlwaysOpen = TRUE,
+            multiple =T,
+            hideClearButton=T,
+            alwaysShowSelectedOptionsCount=T,
+            searchPlaceholderText="Select all",
+            optionsSelectedText="IDs selected",
+            optionSelectedText="IDs selected"
+          )
+      )
+
+
+    })
+    data_x<-reactive({
+      req(input$data_x)
+      req(input$data_x%in%names(vals$saved_data))
+      data<-vals$saved_data[[input$data_x]]
+      data
+    })
+
+    observe({
+      res<-try({
+        data<-data_x()
+        filter<-colnames(data)
+        if(length(input$filter)>0){
+          filter<-input$filter
+        }
+        req(filter%in%colnames(data))
+        data[,filter,drop=F]
+      })
+      req(!inherits(res,"try-error"))
+
+      vals$cur_datax<-res
+    })
+
+    x_train<-reactive({
+
+
+      data<-data_x()
+      filter<-colnames(data)
+      if(length(input$filter)>0){
+        filter<-input$filter
+      }
+      data<-data[get_partition()$train,,drop=F]
+      req(filter%in%colnames(data))
+      data<-data[,filter,drop=F]
+      data
+    })
+    x_test<-reactive({
+
+      data<-data_x()
+      filter<-colnames(data)
+      if(length(input$filter)>0){
+        filter<-input$filter
+      }
+      data<-data[get_partition()$test,,drop=F]
+      req(filter%in%colnames(data))
+      data<-data[,filter,drop=F]
+      data
+    })
+    y_train<-reactive({
+      req(input$var_y)
+      data<-get_data_y()
+      req(input$var_y%in%colnames(data))
+      data[get_partition()$train,input$var_y,drop=F]
+    })
+    y_test<-reactive({
+      req(input$var_y)
+      data<-get_data_y()
+      req(input$var_y%in%colnames(data))
+      data[get_partition()$test,input$var_y,drop=F]
+    })
+    y_factors<-reactive({
+      data<-datalist_y()
+      attr(data,"factors")
+    })
+    get_data_y<-reactive({
+      req(input$model_type)
+      if(input$model_type=="Classification"){
+        y_factors()
+      } else{
+        datalist_y()
+      }
+    })
+    available_models<-reactive({
+
+      req(input$data_x!="")
+
+      req(vals$cmodel)
+      attr(vals$saved_data[[input$data_x]],vals$cmodel)
+    })
+
+
+
+
+
+    observeEvent(input$model_name,{
+      vals$cur_model_name<-input$model_name
+    })
+    observeEvent(input$filter,{
+      vals$cur_filter_model<-input$filter
+    })
+    observeEvent(input$trash_model,ignoreInit = T,{
+      choices<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
+      ns<-session$ns
+      showModal(
+        modalDialog(
+          easyClose = T,
+          title="Remove models",
+          div(
+            shinyWidgets::virtualSelectInput(
+              inputId = ns("trash_picker"),
+              label = "Select the columns",
+              optionHeight='24px',
+              choices = choices,
+              search = TRUE,
+              keepAlwaysOpen = TRUE,
+              multiple =T,
+              hideClearButton=T,
+              alwaysShowSelectedOptionsCount=T,
+              searchPlaceholderText="Select all",
+              optionsSelectedText="Models selected",
+              optionSelectedText="Models selected"
+            ),
+            actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
+          ),
+          footer=div(modalButton("Close"))
+        )
+      )
+    })
+
+    observeEvent(input$trash_confirm,ignoreInit = T,{
+      req(vals$cmodel)
+      vals$update_tab_caret<-"tab1"
+      attr(vals$saved_data[[input$data_x]],vals$cmodel)[input$trash_picker]<-NULL
+      removeModal()
+    })
+
+
+
+    observeEvent(input$save_model,ignoreInit = T,{
+
+      m<-vals$cur_caret_model
+      model_names<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
+
+
+
+      model_name<-paste0(vals$trainSL_args$var_y,'~',vals$trainSL_args$data_x)
+
+      bag<-paste(vals$cmodel,'-',model_name)
+      new_names<-make.unique(c(model_names,bag))
+      name0<-new_names[length(new_names)]
+      if(length(model_names)==1){
+        choices<-"Create"
+      } else{
+        choices<-c("Create","Replace")
+      }
+
+      model_names<-model_names[-which(model_names=="new model")]
+
+      showModal(
+        modalDialog(
+          title=paste("Save",vals$cmodel,"model"),
+
+          footer=div(actionButton(ns("data_confirm"),strong("confirm")),
+                     modalButton("Cancel")),
+          div(style="padding: 20px",
+
+              div(class="half-drop",
+                  style="display: flex",
+                  div(style="width: 20%",
+                      radioButtons(ns("create_replace"),NULL,choices)
+                  ),
+                  div(style="padding-top: 10px",
+                      textInput(ns("newdatalit"),NULL,name0),
+                      hidden(selectInput(ns("overdatalist"),NULL,model_names))
+                  )
+              ),
+              div(style="padding-left: 30px",
+                  uiOutput(ns('newdata')),
+
+              )
+          )
+        )
+      )
+
+
+    })
+    observeEvent(input$create_replace,{
+      shinyjs::toggle("newdatalit",condition=input$create_replace=="Create")
+      shinyjs::toggle("overdatalist",condition=input$create_replace=="Replace")
+    })
+    observeEvent(input$data_confirm,ignoreInit = T,{
+
+
+      model<-vals$cmodel
+
+      m<-vals$cur_caret_model
+
+      if(is.null( attr(vals$saved_data[[input$data_x]],model))){
+        attr(vals$saved_data[[data_x()]],model)<-list()
+      }
+
+      if(input$create_replace=="Create"){
+        attr(m,"model_name")<-input$newdatalit
+        attr(vals$saved_data[[input$data_x]],model)[[input$newdatalit]]<-list(m=m)
+        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
+        vals$cur_model_name<-input$newdatalit
+
+      } else{
+        attr(m,"model_name")<-input$overdatalist
+        attr(vals$saved_data[[input$data_x]],model)[[input$overdatalist]]<-list(m=m)
+        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
+        vals$cur_model_name<-input$overdatalist
+      }
+      vals$newmodel<-NULL
+      removeModal()
+
+
+
+    })
+    observeEvent(input$data_x,{
+      req(input$data_x%in%names(vals$saved_data))
+      vals$cur_data_sl<-input$data_x
+    })
+
+    observeEvent(input$model_type,{
+      vals$cur_model_type<-input$model_type
+    })
+    observeEvent(input$var_y,ignoreInit = T,{
+      vals$cur_response<-input$var_y
+    })
+    observeEvent(input$partition,ignoreInit = T,{
+      vals$cur_test_partition<-input$partition
+    })
+    observeEvent(input$partition_ref,ignoreInit = T,{
+      vals$cur_testdata<-input$partition_ref
+    })
+    observe({
+      shinyjs::toggle("save_model",condition=input$model_name=="new model")
+    })
+    observe({
+      condition<-length(names(available_models())>0)
+      shinyjs::toggle("model_model_name", condition=condition)
+    })
+    observe({
+      choices<-names(available_models())
+      if(is.null(choices)){
+        vals$update_tab_caret<-"tab1"
+      }
+    })
+    observe({
+      shinyjs::toggle("partition_ref",condition=input$partition!="None")
+    })
+    observeEvent(model_type(),ignoreInit = T,{
+      updateRadioButtons(session,'model_type',choices=model_type(),inline =T, selected=vals$cur_model_type)
+    })
+
+
+
+    observeEvent(get_model(),{
+      vals$cur_caret_model<-get_model()
+    })
+
+
+
+    output$model_name<-renderUI({
+
+      choices<-names(available_models())
+
+      selected<-get_selected_from_choices(vals$cur_model_name,choices)
+      pickerInput_fromtop_live(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected)
+    })
+
+
+
+
+    observeEvent(x_train(),{
+      vals$cur_xtrain<-x_train()
+
+    })
+    observeEvent(y_train(),{
+      vals$cur_var_y<-y_train()
+    })
+
+    observeEvent(vals$cur_caret_tab,{
+      shinyjs::toggle("model_type_panel",condition=vals$cur_caret_tab=="tab1")
+      shinyjs::toggle("model_y_panel",condition=vals$cur_caret_tab=="tab1")
+    })
+    observeEvent(data_x(),{
+      choices<-colnames(data_x())
+      #selected<-get_all_selected_from_choices(vals$cur_filter_model,choices)
+      selected=choices
+
+      shinyWidgets::updateVirtualSelect(
+        "filter",
+        choices=choices,
+        selected=selected
+      )
+    })
+
+
+
+    observeEvent(vals$cmodel,{
+      req(vals$cmodel)
+      type=sort(caret::getModelInfo(vals$cmodel,regex = F)[[1]]$type)
+      model_type(type)
+    })
+
+
+
+
+
+    output$data_y<-renderUI({
+      pickerInput_fromtop_live(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y)
+    })
+
+
+
+    observe({
+
+
+      shinyjs::toggle(selector=".choices_tip_show",
+                      condition=isTRUE(input$show_nmodels))
+    })
+
+
+
+
+
+    get_dfmodels<-function(){
+      req(length(vals$saved_data)>0)
+      dfmodels<-sapply(names(vals$saved_data),function(data_x){
+        dx<-vals$saved_data[[data_x]]
+        as.character(lapply(c(models,"rfGA"),function(attr) {
+          n<-length(names(attr(dx,attr)))
+          if(n>0)
+            paste0(attr," (",n," trained models)")
+        }))
+
+      })
+      dfmodels<-data.frame(dfmodels)
+      colnames(dfmodels)<-names(vals$saved_data)
+      col=9
+      tips<-lapply(1:ncol(dfmodels),function(col) {
+        i<-colnames(dfmodels)[col]
+        x<-dfmodels[,i]
+        n<-x[x!="NULL"]
+
+        div(
+          class="choices_tip",
+          div(i),
+          div(class="choices_tip_show",
+              if(length(n)>0)
+                div(lapply(n,div),class="picker_tip") else{div("0 trained models",class="picker_tip tip_show")}
+          )
+
+        )
+      })
+      names(tips)<-names(vals$saved_data)
+      tips
+    }
+
+    output$data_x<-renderUI({
+
+
+      dflist<-get_dfmodels()
+      tips<-lapply(dflist, function(x) HTML(paste0(x)))
+
+      choices<-names(vals$saved_data)
+      div(
+
+        div(class="data_x",
+            uiOutput(ns("data_x_active")),
+            pickerInput_fromtop_live(ns("data_x"),
+                                     span("~ Training Datalist",tiphelp("Choose the Datalist containing your independent variables (X).")),
+                                     selected=vals$cur_data_sl,
+                                     choices=choices,
+                                     choicesOpt  =list(
+                                       content=tips
+                                     ),
+                                     options=shinyWidgets::pickerOptions(
+                                       header=uiOutput(ns("sho_saved_models"))
+                                     )
+
+
+
+            )
+        )
+      )
+    })
+
+    output$sho_saved_models<-renderUI({
+      checkboxInput(ns("show_nmodels"),actionLink(ns('show_nmodels_label'),span("Show trained models",tipright("Displays the number of saved models in each Datalist"))),value=F)
+    })
+
+    observeEvent(input$show_nmodels_label,{
+      value=ifelse(isFALSE(input$show_nmodels),T,F)
+      updateCheckboxInput(session,'show_nmodels',value=value)
+    })
+
+    observeEvent(input$show_nmodels,{
+      vals$show_nmodels<-input$show_nmodels
+    })
+
+    observe({
+      if(is.null(vals$cur_show_nmodels)){
+        vals$cur_show_nmodels<-F
+      }
+    })
+
+
+
+
+    output$var_y<-renderUI({
+      data<-get_data_y()
+      choices<-colnames(data)
+
+      selected<-get_selected_from_choices(vals$cur_response,choices)
+
+      pickerInput_fromtop_live(ns("var_y"),
+                               span("Variable",tipright("Choose the response Variable (Y)")),
+                               choices = choices,selected=selected)
+    })
+
+    output$partition<-renderUI({
+      data<-y_factors()
+      vals$cur_data_sl_y<-input$data_y
+      choices<-c("None",colnames(data))
+      selected<-get_selected_from_choices(vals$cur_test_partition,choices)
+
+
+      pickerInput_fromtop_live(ns("partition"),span("Partition",tipright("Select a factor to use as a reference for partitioning the data into training and testing sets")), choices=choices,selected=selected)
+    })
+
+    output$partition_ref_out<-renderUI({
+      req(input$partition!="None")
+      data<-y_factors()
+      choices<-levels(data[,input$partition])
+      selected<-get_selected_from_choices(vals$cur_testdata,choices)
+      pickerInput_fromtop_live(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
+    })
+
+
+    result<-reactive({
+      req(input$var_y)
+      list(
+        x_train=x_train(),
+        y_train=y_train(),
+        x_test=x_test(),
+        y_test=y_test(),
+        data_x=input$data_x,
+        data_y=input$data_y,
+        var_y=input$var_y,
+        partition=input$partition,
+        partition_ref=input$partition_ref
+      )
+    })
+
+    observeEvent(result(),{
+      vals$trainSL_args<-result()
+    })
+
+
+    return(NULL)
+
+  })
+}
+
+#' @export
+caret_model<-list()
+#' @export
+caret_model$ui<-function(id){
+  module_progress("Loading module: Supervised Algorithms")
+  ns<-NS(id)
+
+  div(
+
+    uiOutput(ns("model"))
+  )
+
+}
+#' @export
+caret_model$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+
+    ns<-session$ns
+    output$model<-renderUI({
+
+      div(
+        pickerInput_fromtop(ns("model"),span("Model",tipright("Select the machine learning algorithm for model training. If there are saved models corresponding to the selected Training Datalist, they will be displayed in the Custom Name dropdown")),
+                            options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"),
+                            choices =grupos_modelos(),
+                            selected=vals$cmodel,
+                            choicesOpt =list(content =get_model_subtext())
+
+        )
+      )
+    })
+
+    grupos_modelos <- function() {
+      grupos <- list()
+      model_list<-c(models,"rfGA")
+      # Agrupamento dos modelos
+      grupos <- list(
+        "Tree-based" = c("rf","gbm", "cforest", "rpart", "evtree"),
+        "Miscellaneous Methods" = c("nb", "knn","xyf", "glm"),
+        "Kernel" = c("gaussprRadial", "svmLinear", "svmRadial", "svmRadialCost"),
+
+        "Neural network" = c("dnn", "avNNet", "nnet", "pcaNNet", "monmlp", "mlpML"),
+        "Feature selection"=c("rfGA")
+      )
+
+      # Mapeamento dos modelos para os grupos
+      grupos_modelos <- list()
+      for (grupo in names(grupos)) {
+        modelos_grupo <- grupos[[grupo]]
+        modelos_no_grupo <- model_list[model_list %in% modelos_grupo]
+        grupos_modelos[[grupo]] <- modelos_no_grupo
+      }
+
+      return(grupos_modelos)
+    }
+
+    get_model_subtext<-reactive({
+
+
+      models_names<-c(names(models),'rfGA - Feature Selection using randomForest Genetic Algorithm')
+
+      names(models_names)<-c(models,'rfGA')
+      models_names<-models_names[ as.character(unlist(grupos_modelos()))]
+      names(models_names)<-NULL
+      mn<-strsplit(models_names," - ")
+
+
+      req(vals$trainSL_args$data_x)
+
+
+      data_x<-vals$trainSL_args$data_x
+
+      lapply(mn,function(x){
+        attr<-x[1]
+        n=length(attr(vals$saved_data[[data_x]],attr))
+        saved_models<-NULL
+        if(n>0){
+          saved_models<-HTML(paste0(span(span(class="model_ico",icon("hand-point-left")),n, " trained models",class="model_subtext")))}
+        HTML(paste(span(x[1],span(class="model_tag",x[2]),saved_models )))
+
+      })
+    })
+
+    observe({
+      vals$cmodel<-input$model
+    })
+
+
+
+
+    observeEvent(input$model,ignoreInit = T,{
+      #vals$cur_caret_model<-NULL
+      if(!is.null( vals$cmodel)){
+        pkg<-model_library[[vals$cmodel]]
+        sapply(pkg,detach_package)
+        message(paste0("detached:",pkg))
+
+      }
+
+
+
+    })
+    observe({
+      req(vals$update_state)
+      update_state<-vals$update_state
+      ids<-names(update_state)
+      update_on<-grepl(id,ids)
+      names(update_on)<-ids
+      to_loop<-names(which(update_on))
+      withProgress(min=1,max=length(to_loop),message="Restoring",{
+        for(i in to_loop) {
+          idi<-gsub(paste0(id,"-"),"",i)
+          incProgress(1)
+          restored<-restoreInputs2(session, idi, update_state[[i]])
+
+          if(isTRUE(restored)){
+            vals$update_state[[i]]<-NULL
+          }
+
+        }
+      })
+
+    })
+    return(NULL)
+
+
+  })
+}
+
+
 module_save_changes<-list()
 module_save_changes$ui<-function(id,vals=NULL){
   ns<-NS(id)
@@ -2475,9 +3568,6 @@ panel_box_caret4$server<-function(id,vals){
 
   })
 }
-
-
-
 get_cm_impact<-function(predtable,var){
   req(is.data.frame(predtable))
   req(nrow(predtable)>1)
@@ -2487,9 +3577,6 @@ get_cm_impact<-function(predtable,var){
   dft<-table(res$pred,res$obs)
   dft
 }
-
-
-
 rf_oob_pred_prob <- function(forest, X) {
 
   # Get individual predictions
@@ -2512,7 +3599,6 @@ rf_oob_pred_prob <- function(forest, X) {
 
   return(prob_matrix)
 }
-
 rf_oob_pred<-function(forest, X) {
   if(is.null(forest$inbag)){
     return(predict(forest, X))
@@ -2641,7 +3727,6 @@ permimp_metric<-function(predtable, m,metric="Accuracy", class=F, newdata=NULL,o
 
   metrics
 }
-
 sig_feature<-function(permimp,m){
   metric<-ifelse(m$modelType=='Regression','Rsquared','Accuracy')
   obs<- getdata_model(m,"test")
@@ -2702,8 +3787,6 @@ perm_add_sig<-function(perm_summary,sig,sig_value){
   }
   perm_summary
 }
-
-
 permutation_importance<-list()
 permutation_importance$ui<-function(id){
   ns<-NS(id)
@@ -2832,9 +3915,6 @@ permutation_importance$ui<-function(id){
   )
 }
 box21_help_content <- "Confusion Matrix after randomizing the selected variable"
-
-
-
 permutation_importance$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
 
@@ -5917,7 +6997,6 @@ box_title<-function(...){
 
   div(...,class="box_title")
 }
-
 fs<-list()
 fs$ui <- function(id){
   lab_resamling<-span(
@@ -7064,1062 +8143,4 @@ detach_package <- function(pkg, character.only = T)
 }
 detach_package<-function(...){
 
-}
-#' @export
-caret_train<-list()
-
-#' @export
-caret_train$ui<-function(id){
-  ns<-NS(id)
-  div(
-    div(class="inline_pickers",id=ns("model_type_panel"),
-        radioButtons(ns('model_type'),"Model type:",choices=c("Classification","Regression"),inline =T)),
-    div(
-      div(
-        style="display: flex;gap: 10px;align-items: flex-start",class="setup_box",
-        #div(tags$div("X",class="trailab")),
-        div(class="picker-flex picker-before-x",
-            uiOutput(ns('data_x')),
-
-        ),
-        div(style="display: flex;gap: 10px;",
-            div(class="picker-flex",
-                caret_model$ui(ns('model'))),
-            div(style="display: flex;",id=ns("model_model_name"),
-                div(class="picker-flex",
-                    uiOutput(ns('model_name'))),
-                div(class="save_changes",
-                    style="padding-top: 20px",
-                    tipify_ui(actionButton(ns("save_model"),icon("fas fa-save",style="color: #374061ff")),"Save the model in the current Datalist X", "right")),
-                div(style="padding-top: 20px; margin-left: 10px",
-                    tipify_ui(actionButton(ns("trash_model"),icon("trash")),"Click to remove the model","right"))
-            )
-
-        )
-
-      ),
-      div(style="margin-left: 20px;margin-top: -5px",align="left",shinyWidgets::dropMenu(actionLink(ns("filter_x"),"+ select columns",style="font-size: 11px;font-style: italic "),uiOutput(ns("filter_var"))))
-    ),
-    div(
-      style="display: flex; gap: 10px; align-items: flex-start",class="setup_box",
-      id=ns("model_y_panel"),
-      div(
-        div(class="picker-flex picker-before-y",
-            uiOutput(ns('data_y')),
-
-        ),
-        div(style="margin-left: 20px;margin-top: -5px",align="left",actionLink(ns("gotrain_loop"),"+ Train multiple models",style="font-size: 11px;font-style: italic "))
-      ),
-
-      tags$label("::",style="padding-top: 30px;"),
-      div(class="picker-flex",
-          uiOutput(ns("var_y"))
-
-      ),
-      div(class="picker-flex",
-          uiOutput(ns("partition"))
-
-      ),
-      div(class="picker-flex",
-          uiOutput(ns("partition_ref_out"))
-      )
-
-    ),
-    div(style="position: absolute; top: 0px;right: 0px; padding: 20px",
-        uiOutput(ns('print_train')),
-        uiOutput(ns('print_results'))
-    )
-
-  )
-
-}
-
-#' @export
-caret_train$server<-function(id,vals=NULL){
-  moduleServer(id,function(input,output,session){
-
-    ns<-session$ns
-
-
-    output$loop_part<-renderUI({
-      req(input$data_y)
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-      part_ref<-NULL
-      if(input$partition!="None"){
-        part_ref<-paste0("[",input$partition_ref,"]")
-      }
-
-      label_partition<-paste0(input$partition,part_ref)
-      value_partition<-"training"
-      names(value_partition)<-label_partition
-      yon<-input$yloop
-      req(length(yon)>0)
-      div(
-        div(
-          div(class="half-drop-inline",style="margin-top: 30px",
-              pickerInput_fromtop(
-                ns("yloop_partition"),
-                span("Partition:",tiphelp("Use a global partition defined in the Model Setup panel, or specify them individually.")),
-                choices=c(value_partition,"Variable-specific"="Custom"),
-                selected=vals$cur_yloop_partition
-              ),
-          ),
-          div(
-            class="picker_table",
-            uiOutput(ns("yloop_part_labels")),
-            uiOutput(ns("loop_part_pickers"))
-          )
-
-        )
-      )
-    })
-
-
-
-
-    output$yloop_part_labels<-renderUI({
-      req(input$yloop_partition=="Custom")
-      div(style="margin-top: -22px",
-          column(6,class="mp0",tags$label("Partition")),
-          column(6,class="mp0",tags$label("Test reference"))
-      )
-    })
-    observeEvent(input$yloop_partition,{
-      vals$cur_yloop_partition<-input$yloop_partition
-    })
-
-
-    output$loop_part_pickers<-renderUI({
-      req(input$data_y)
-      req(input$yloop_partition=="Custom")
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-      req(input$model_type)
-      if(input$model_type== 'Classification'){y<-factors}
-      part_cols<-colnames(factors)[grepl("Partition_",colnames(factors))]
-      yon<-input$yloop
-      req(length(yon)>0)
-
-      res<-lapply(1:ncol(y), function(i){
-        var<-colnames(y)[i]
-        part_col<-paste0("Partition_",var)
-        selected="None"
-        if(input$yloop_partition=="Custom"){
-          if(part_col%in%colnames(factors)){
-            selected=part_col
-          }
-        }
-
-        if(var%in%yon){
-          column(12,class='mp0',
-                 column(6,class='mp0',pickerInput_fromtop(ns(paste0("part_loop_",i)),NULL,choices=c("None",colnames(factors)), selected=selected, options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))),
-                 column(6,class='mp0',uiOutput(ns(paste0("part_loop_test_out",i))))
-          )} else{
-            column(12,class='mp0',emgray("Not training"),class="picker_fake")
-          }
-      })
-      do.call(div,list(res))
-    })
-    observe({
-
-      req(input$data_y)
-      req(input$yloop_partition=="Custom")
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-      req(input$model_type)
-      if(input$model_type== 'Classification'){y<-factors}
-      yon<-input$yloop
-      req(length(yon)>0)
-      try({
-        lapply(1:ncol(y), function(i){
-          var<-colnames(y)[i]
-          col<-input[[paste0("part_loop_",i)]]
-
-          if(length(col)>0)
-            if(col%in%colnames(factors)){
-              fac<-factors[,col]
-              output[[paste0("part_loop_test_out",i)]]<-renderUI({
-                pickerInput_fromtop(ns(paste0("part_loop_test",i)),NULL,choices=levels(fac), options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))})
-
-            } else{
-              output[[paste0("part_loop_test_out",i)]]<-renderUI({ NULL})
-            }
-        })
-      })
-
-    })
-
-
-
-
-    output$loop_vars<-renderUI({
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-      req(input$model_type)
-      if(input$model_type== 'Classification'){y<-factors}
-
-      choices<-colnames(y)
-      div(class="picker_open",
-          shinyWidgets::virtualSelectInput(
-            inputId = ns("yloop"),
-            label = "Y:",
-            optionHeight='24px',
-            choices = choices,
-            optionsCount = length(choices),
-            search = F,
-            keepAlwaysOpen = TRUE,
-            multiple =T,
-            hideClearButton=T,
-            alwaysShowSelectedOptionsCount=T,
-            optionsSelectedText="Variables selected",
-            optionSelectedText="Variables selected"
-          )
-      )
-
-    })
-
-
-
-
-
-
-
-    observeEvent(ignoreInit = T,input$gotrain_loop,{
-      showModal(
-        modalDialog(
-          title=div("Train multiple models"),
-          easyClose=T,
-          column(12,class="mp0 picker_loop",style="height: 340px; overflow-y: auto;",
-
-                 div(id=ns("yloop_page1"),
-                     column(6,class="mp0",style="",
-                            uiOutput(ns('loop_vars'))),
-                     column(6,class="mp0",style="max-width: 300px",
-
-                            uiOutput(ns('loop_part')))
-                 ),
-                 div(id=ns("yloop_page2"),style="display: none",
-                     uiOutput(ns("teste")),
-                     uiOutput(ns("yloop_page2_out"))
-                 )),
-          footer=div(actionButton(ns('yloop_cancel'),"Cancel"),
-                     hidden(actionButton(ns('yloop_prev'),"<< Previous")),
-                     actionButton(ns('yloop_next'),"Next >>"))
-
-        )
-      )
-
-    })
-    partition_df<-reactive({
-      y<-vals$saved_data[[input$data_y]]
-      req(input$model_type)
-      factors<-attr(y,"factors")
-      train_ids<-rownames(factors)
-      test_ids<-rownames(factors)
-      if(input$model_type== 'Classification'){y<-factors}
-      yon<-input$yloop
-      req(length(yon)>0)
-      res<-lapply(1:ncol(y), function(i){
-        if(input$yloop_partition=="None"){
-          partition<-"None"
-          partition_ref<-"None"
-
-        } else if(input$yloop_partition=="Custom"){
-          partition<-input[[paste0("part_loop_",i)]]
-          partition_ref<-input[[paste0("part_loop_test",i)]]
-          if(!is.null(partition)){
-            if(partition!="None"){
-              test<-factors[,partition]==partition_ref
-              train_ids<-rownames(factors)[!test]
-              test_ids<-rownames(factors)[test]
-            }
-          }
-
-
-        } else{
-          partition<-input$partition
-          partition_ref<-input$partition_ref
-          if(partition!="None"){
-            test<-factors[,partition]==partition_ref
-            train_ids<-rownames(factors)[!test]
-            test_ids<-rownames(factors)[test]
-          }
-        }
-        list(partition=partition,partition_ref=partition_ref,train_ids=train_ids,test_ids=test_ids)
-
-      })
-      names(res)<-colnames(y)
-      vals$partition_df<-res[input$yloop]
-      vals$y_loop<-y[input$yloop]
-      NULL
-    })
-
-
-    output$teste<-renderUI({
-      partition_df()
-    })
-    output$yloop_page2_out<-renderUI({
-      div(
-        div(
-          div(class = "alert_warning",style="",
-              div(strong(icon("triangle-exclamation",style="color: Dark yellow3"),"Warning:"),"Training multiple models can be time-consuming"),
-              div(style="padding: 10px; background: white; color: black;border: 5px solid #ffffcc",
-
-                  div(
-                    tags$div(icon("caret-right"),"Total number of models:",strong(length(input$yloop), style="color: red")),
-                    tags$div(icon("caret-right"),strong("New model names:"),
-                             div(
-                               style="max-height: 100px; overflow-y: auto; padding-left: 20px; background: #F0F0F0",
-                               uiOutput(ns("model_loop_names"))
-                             )
-
-                    ),
-
-
-                    tags$div(icon("caret-right"),"Any model already saved with this name(s) will be replaced. ", em("We suggest using this tool with a Datalist that does not have any saved RF models."))
-                  )
-
-              ))
-
-        ),
-        div(align="center",
-            div(strong("Click to proceed:")),
-            actionButton(ns("train_loop"),em(
-              "Train the",strong(length(input$yloop),style=
-                                   'color: red'),"models"
-            )))
-
-      )
-    })
-
-    observeEvent(input$yloop_cancel,{
-      removeModal()
-    })
-
-    yloop_pages<-reactiveVal(1)
-    observeEvent(input$gotrain_loop,{
-      yloop_pages(1)
-    })
-    observeEvent(input$yloop_next,{
-      req(yloop_pages()<2)
-      yloop_pages(yloop_pages()+1)
-    })
-    observeEvent(input$yloop_prev,{
-      req(yloop_pages()==2)
-      yloop_pages(yloop_pages()-1)
-    })
-
-
-    observe({
-      shinyjs::toggle('yloop_next', condition=length(input$yloop)>0&yloop_pages()==1)
-      shinyjs::toggle('yloop_prev', condition=yloop_pages()==2)
-      shinyjs::toggle('yloop_cancel', condition=yloop_pages()==1)
-      shinyjs::toggle('yloop_page1', condition=yloop_pages()==1)
-      shinyjs::toggle('yloop_page2', condition=yloop_pages()==2)
-    })
-
-    yloop_vars<-reactive({
-      req(input$model_type)
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-      if(input$model_type== 'Classification'){y<-factors}
-      yvars<-y[,input$yloop,drop=F]
-      yvars
-    })
-
-    yloop_partition<-reactive({
-      y<-vals$saved_data[[input$data_y]]
-      factors<-attr(y,"factors")
-
-    })
-
-
-    output$model_loop_names<-renderUI({
-      lapply(paste0(input$yloop,'~',input$data_x),function(x) tags$li(em(x)))
-
-    })
-
-
-    observeEvent(input$model_name,ignoreInit = T,{
-      vals$update_tab_results<-vals$cur_model_results
-    })
-
-    observeEvent(input$data_x,ignoreInit = T,{
-      vals$update_tab_results<-vals$cur_model_results
-    })
-
-
-
-    observeEvent(input$train_loop,ignoreInit = T,{
-      vals$train_loop<-TRUE
-    })
-
-    model_type<-reactiveVal()
-
-    caret_model$server('model',vals)
-    get_model<-reactive({
-      req(vals$cmodel)
-      req(input$model_name)
-      attr(data_x(),vals$cmodel)[[input$model_name]][[1]]
-    })
-    datalist_y<-reactive({
-      req(input$data_y%in%names(vals$saved_data))
-      data<-vals$saved_data[[input$data_y]]
-      data
-    })
-    output$print_train<-renderUI({
-      req(vals$cur_caret_tab)
-      req(vals$cur_caret_tab=="tab1")
-      req(x_train())
-      req(y_train())
-
-      div(
-
-        div(style="display: flex; font-size: 11px; margin-top: 20px",
-            div(style="margin-left: 10px; margin-top: 15px",
-                div(strong('x:')),
-                div(strong('y:'))),
-            div(style="margin-left: 10px",
-                div(strong("Training:")),
-                div(emgreen(paste0(dim(x_train()),collapse=" x "))),
-                div(emgreen(paste0(dim(y_train()),collapse=" x ")))),
-            if(dim(x_test())[1]>0)
-              div(style="margin-left: 10px",
-                  div(strong("Test:")),
-                  div(emgreen(paste0(dim(x_test()),collapse=" x "))),
-                  div(emgreen(paste0(dim(y_test()),collapse=" x "))))
-
-        )
-      )
-    })
-
-    output$validate_train<-renderUI({
-      x<-x_train()
-      y<-y_train()[,1]
-      validate(need(!anyNA(x),"NAs not allowed in X"))
-      validate(need(!anyNA(y),"NAs not allowed in Y"))
-    })
-    get_partition<-reactive({
-      data<-y_factors()
-      req(input$partition)
-      if(input$partition=="None"){
-        return(list(train=rownames(data),test=NULL))
-      } else{
-        req(input$partition%in%colnames(data))
-        part<-data[,input$partition]
-
-        validate(need(!anyNA(part),"Na not allowed"))
-        req(any(part%in%input$partition_ref))
-        test_ids<-which(part%in%input$partition_ref)
-        test=rownames(data)[test_ids]
-        train=rownames(data)[-test_ids]
-        return(list(train=train,test=test))
-      }
-
-    })
-    output$filter_var<-renderUI({
-
-      div(class="picker_open",
-          shinyWidgets::virtualSelectInput(
-            inputId = session$ns("filter"),
-            label = "Select the columns",
-            optionHeight='24px',
-            choices = colnames(data_x()),
-            selected=colnames(data_x()),
-            search = TRUE,
-            keepAlwaysOpen = TRUE,
-            multiple =T,
-            hideClearButton=T,
-            alwaysShowSelectedOptionsCount=T,
-            searchPlaceholderText="Select all",
-            optionsSelectedText="IDs selected",
-            optionSelectedText="IDs selected"
-          )
-      )
-
-
-    })
-    data_x<-reactive({
-      req(input$data_x)
-      req(input$data_x%in%names(vals$saved_data))
-      data<-vals$saved_data[[input$data_x]]
-      data
-    })
-
-    observe({
-      res<-try({
-        data<-data_x()
-        filter<-colnames(data)
-        if(length(input$filter)>0){
-          filter<-input$filter
-        }
-        req(filter%in%colnames(data))
-        data[,filter,drop=F]
-      })
-      req(!inherits(res,"try-error"))
-
-      vals$cur_datax<-res
-    })
-
-    x_train<-reactive({
-
-
-      data<-data_x()
-      filter<-colnames(data)
-      if(length(input$filter)>0){
-        filter<-input$filter
-      }
-      data<-data[get_partition()$train,,drop=F]
-      req(filter%in%colnames(data))
-      data<-data[,filter,drop=F]
-      data
-    })
-    x_test<-reactive({
-
-      data<-data_x()
-      filter<-colnames(data)
-      if(length(input$filter)>0){
-        filter<-input$filter
-      }
-      data<-data[get_partition()$test,,drop=F]
-      req(filter%in%colnames(data))
-      data<-data[,filter,drop=F]
-      data
-    })
-    y_train<-reactive({
-      req(input$var_y)
-      data<-get_data_y()
-      req(input$var_y%in%colnames(data))
-      data[get_partition()$train,input$var_y,drop=F]
-    })
-    y_test<-reactive({
-      req(input$var_y)
-      data<-get_data_y()
-      req(input$var_y%in%colnames(data))
-      data[get_partition()$test,input$var_y,drop=F]
-    })
-    y_factors<-reactive({
-      data<-datalist_y()
-      attr(data,"factors")
-    })
-    get_data_y<-reactive({
-      req(input$model_type)
-      if(input$model_type=="Classification"){
-        y_factors()
-      } else{
-        datalist_y()
-      }
-    })
-    available_models<-reactive({
-
-      req(input$data_x!="")
-
-      req(vals$cmodel)
-      attr(vals$saved_data[[input$data_x]],vals$cmodel)
-    })
-
-
-
-
-
-    observeEvent(input$model_name,{
-      vals$cur_model_name<-input$model_name
-    })
-    observeEvent(input$filter,{
-      vals$cur_filter_model<-input$filter
-    })
-    observeEvent(input$trash_model,ignoreInit = T,{
-      choices<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
-      ns<-session$ns
-      showModal(
-        modalDialog(
-          easyClose = T,
-          title="Remove models",
-          div(
-            shinyWidgets::virtualSelectInput(
-              inputId = ns("trash_picker"),
-              label = "Select the columns",
-              optionHeight='24px',
-              choices = choices,
-              search = TRUE,
-              keepAlwaysOpen = TRUE,
-              multiple =T,
-              hideClearButton=T,
-              alwaysShowSelectedOptionsCount=T,
-              searchPlaceholderText="Select all",
-              optionsSelectedText="Models selected",
-              optionSelectedText="Models selected"
-            ),
-            actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
-          ),
-          footer=div(modalButton("Close"))
-        )
-      )
-    })
-
-    observeEvent(input$trash_confirm,ignoreInit = T,{
-      req(vals$cmodel)
-      vals$update_tab_caret<-"tab1"
-      attr(vals$saved_data[[input$data_x]],vals$cmodel)[input$trash_picker]<-NULL
-      removeModal()
-    })
-
-
-
-    observeEvent(input$save_model,ignoreInit = T,{
-
-      m<-vals$cur_caret_model
-      model_names<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
-
-
-
-      model_name<-paste0(vals$trainSL_args$var_y,'~',vals$trainSL_args$data_x)
-
-      bag<-paste(vals$cmodel,'-',model_name)
-      new_names<-make.unique(c(model_names,bag))
-      name0<-new_names[length(new_names)]
-      if(length(model_names)==1){
-        choices<-"Create"
-      } else{
-        choices<-c("Create","Replace")
-      }
-
-      model_names<-model_names[-which(model_names=="new model")]
-
-      showModal(
-        modalDialog(
-          title=paste("Save",vals$cmodel,"model"),
-
-          footer=div(actionButton(ns("data_confirm"),strong("confirm")),
-                     modalButton("Cancel")),
-          div(style="padding: 20px",
-
-              div(class="half-drop",
-                  style="display: flex",
-                  div(style="width: 20%",
-                      radioButtons(ns("create_replace"),NULL,choices)
-                  ),
-                  div(style="padding-top: 10px",
-                      textInput(ns("newdatalit"),NULL,name0),
-                      hidden(selectInput(ns("overdatalist"),NULL,model_names))
-                  )
-              ),
-              div(style="padding-left: 30px",
-                  uiOutput(ns('newdata')),
-
-              )
-          )
-        )
-      )
-
-
-    })
-    observeEvent(input$create_replace,{
-      shinyjs::toggle("newdatalit",condition=input$create_replace=="Create")
-      shinyjs::toggle("overdatalist",condition=input$create_replace=="Replace")
-    })
-    observeEvent(input$data_confirm,ignoreInit = T,{
-
-
-      model<-vals$cmodel
-
-      m<-vals$cur_caret_model
-
-      if(is.null( attr(vals$saved_data[[input$data_x]],model))){
-        attr(vals$saved_data[[data_x()]],model)<-list()
-      }
-
-      if(input$create_replace=="Create"){
-        attr(m,"model_name")<-input$newdatalit
-        attr(vals$saved_data[[input$data_x]],model)[[input$newdatalit]]<-list(m=m)
-        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
-        vals$cur_model_name<-input$newdatalit
-
-      } else{
-        attr(m,"model_name")<-input$overdatalist
-        attr(vals$saved_data[[input$data_x]],model)[[input$overdatalist]]<-list(m=m)
-        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
-        vals$cur_model_name<-input$overdatalist
-      }
-      vals$newmodel<-NULL
-      removeModal()
-
-
-
-    })
-    observeEvent(input$data_x,{
-      req(input$data_x%in%names(vals$saved_data))
-      vals$cur_data_sl<-input$data_x
-    })
-
-    observeEvent(input$model_type,{
-      vals$cur_model_type<-input$model_type
-    })
-    observeEvent(input$var_y,ignoreInit = T,{
-      vals$cur_response<-input$var_y
-    })
-    observeEvent(input$partition,ignoreInit = T,{
-      vals$cur_test_partition<-input$partition
-    })
-    observeEvent(input$partition_ref,ignoreInit = T,{
-      vals$cur_testdata<-input$partition_ref
-    })
-    observe({
-      shinyjs::toggle("save_model",condition=input$model_name=="new model")
-    })
-    observe({
-      condition<-length(names(available_models())>0)
-      shinyjs::toggle("model_model_name", condition=condition)
-    })
-    observe({
-      choices<-names(available_models())
-      if(is.null(choices)){
-        vals$update_tab_caret<-"tab1"
-      }
-    })
-    observe({
-      shinyjs::toggle("partition_ref",condition=input$partition!="None")
-    })
-    observeEvent(model_type(),ignoreInit = T,{
-      updateRadioButtons(session,'model_type',choices=model_type(),inline =T, selected=vals$cur_model_type)
-    })
-
-
-
-    observeEvent(get_model(),{
-      vals$cur_caret_model<-get_model()
-    })
-
-
-
-    output$model_name<-renderUI({
-
-      choices<-names(available_models())
-
-      selected<-get_selected_from_choices(vals$cur_model_name,choices)
-      pickerInput_fromtop_live(ns("model_name"),span("Custom Name",tipright("Select the name of the saved model corresponding to the chosen dataset and method, if available. Only models from the selected Training Datalist and Method will be displayed.")),choices =choices,selected=selected)
-    })
-
-
-
-
-    observeEvent(x_train(),{
-      vals$cur_xtrain<-x_train()
-
-    })
-    observeEvent(y_train(),{
-      vals$cur_var_y<-y_train()
-    })
-
-    observeEvent(vals$cur_caret_tab,{
-      shinyjs::toggle("model_type_panel",condition=vals$cur_caret_tab=="tab1")
-      shinyjs::toggle("model_y_panel",condition=vals$cur_caret_tab=="tab1")
-    })
-    observeEvent(data_x(),{
-      choices<-colnames(data_x())
-      #selected<-get_all_selected_from_choices(vals$cur_filter_model,choices)
-      selected=choices
-
-      shinyWidgets::updateVirtualSelect(
-        "filter",
-        choices=choices,
-        selected=selected
-      )
-    })
-
-
-
-    observeEvent(vals$cmodel,{
-      req(vals$cmodel)
-      type=sort(caret::getModelInfo(vals$cmodel,regex = F)[[1]]$type)
-      model_type(type)
-    })
-
-
-
-
-
-    output$data_y<-renderUI({
-      pickerInput_fromtop_live(ns("data_y"),span("Datalist",tipright("Select the Datalist containing the response variable (Y)")),choices =names(vals$saved_data),selected=vals$cur_data_sl_y)
-    })
-
-
-
-    observe({
-
-
-      shinyjs::toggle(selector=".choices_tip_show",
-                      condition=isTRUE(input$show_nmodels))
-    })
-
-
-
-
-
-    get_dfmodels<-function(){
-      req(length(vals$saved_data)>0)
-      dfmodels<-sapply(names(vals$saved_data),function(data_x){
-        dx<-vals$saved_data[[data_x]]
-        as.character(lapply(c(models,"rfGA"),function(attr) {
-          n<-length(names(attr(dx,attr)))
-          if(n>0)
-            paste0(attr," (",n," trained models)")
-        }))
-
-      })
-      dfmodels<-data.frame(dfmodels)
-      colnames(dfmodels)<-names(vals$saved_data)
-      col=9
-      tips<-lapply(1:ncol(dfmodels),function(col) {
-        i<-colnames(dfmodels)[col]
-        x<-dfmodels[,i]
-        n<-x[x!="NULL"]
-
-        div(
-          class="choices_tip",
-          div(i),
-          div(class="choices_tip_show",
-              if(length(n)>0)
-                div(lapply(n,div),class="picker_tip") else{div("0 trained models",class="picker_tip tip_show")}
-          )
-
-        )
-      })
-      names(tips)<-names(vals$saved_data)
-      tips
-    }
-
-    output$data_x<-renderUI({
-
-
-      dflist<-get_dfmodels()
-      tips<-lapply(dflist, function(x) HTML(paste0(x)))
-
-      choices<-names(vals$saved_data)
-      div(
-
-        div(class="data_x",
-            uiOutput(ns("data_x_active")),
-            pickerInput_fromtop_live(ns("data_x"),
-                                     span("~ Training Datalist",tiphelp("Choose the Datalist containing your independent variables (X).")),
-                                     selected=vals$cur_data_sl,
-                                     choices=choices,
-                                     choicesOpt  =list(
-                                       content=tips
-                                     ),
-                                     options=shinyWidgets::pickerOptions(
-                                       header=uiOutput(ns("sho_saved_models"))
-                                     )
-
-
-
-            )
-        )
-      )
-    })
-
-    output$sho_saved_models<-renderUI({
-      checkboxInput(ns("show_nmodels"),actionLink(ns('show_nmodels_label'),span("Show trained models",tipright("Displays the number of saved models in each Datalist"))),value=F)
-    })
-
-    observeEvent(input$show_nmodels_label,{
-      value=ifelse(isFALSE(input$show_nmodels),T,F)
-      updateCheckboxInput(session,'show_nmodels',value=value)
-    })
-
-    observeEvent(input$show_nmodels,{
-      vals$show_nmodels<-input$show_nmodels
-    })
-
-    observe({
-      if(is.null(vals$cur_show_nmodels)){
-        vals$cur_show_nmodels<-F
-      }
-    })
-
-
-
-
-    output$var_y<-renderUI({
-      data<-get_data_y()
-      choices<-colnames(data)
-
-      selected<-get_selected_from_choices(vals$cur_response,choices)
-
-      pickerInput_fromtop_live(ns("var_y"),
-                               span("Variable",tipright("Choose the response Variable (Y)")),
-                               choices = choices,selected=selected)
-    })
-
-    output$partition<-renderUI({
-      data<-y_factors()
-      vals$cur_data_sl_y<-input$data_y
-      choices<-c("None",colnames(data))
-      selected<-get_selected_from_choices(vals$cur_test_partition,choices)
-
-
-      pickerInput_fromtop_live(ns("partition"),span("Partition",tipright("Select a factor to use as a reference for partitioning the data into training and testing sets")), choices=choices,selected=selected)
-    })
-
-    output$partition_ref_out<-renderUI({
-      req(input$partition!="None")
-      data<-y_factors()
-      choices<-levels(data[,input$partition])
-      selected<-get_selected_from_choices(vals$cur_testdata,choices)
-      pickerInput_fromtop_live(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
-    })
-
-
-    result<-reactive({
-      req(input$var_y)
-      list(
-        x_train=x_train(),
-        y_train=y_train(),
-        x_test=x_test(),
-        y_test=y_test(),
-        data_x=input$data_x,
-        data_y=input$data_y,
-        var_y=input$var_y,
-        partition=input$partition,
-        partition_ref=input$partition_ref
-      )
-    })
-
-    observeEvent(result(),{
-      vals$trainSL_args<-result()
-    })
-
-
-    return(NULL)
-
-  })
-}
-
-#' @export
-caret_model<-list()
-#' @export
-caret_model$ui<-function(id){
-  module_progress("Loading module: Supervised Algorithms")
-  ns<-NS(id)
-
-  div(
-
-    uiOutput(ns("model"))
-  )
-
-}
-#' @export
-caret_model$server<-function(id,vals){
-  moduleServer(id,function(input,output,session){
-
-    ns<-session$ns
-    output$model<-renderUI({
-
-      div(
-        pickerInput_fromtop(ns("model"),span("Model",tipright("Select the machine learning algorithm for model training. If there are saved models corresponding to the selected Training Datalist, they will be displayed in the Custom Name dropdown")),
-                            options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"),
-                            choices =grupos_modelos(),
-                            selected=vals$cmodel,
-                            choicesOpt =list(content =get_model_subtext())
-
-        )
-      )
-    })
-
-    grupos_modelos <- function() {
-      grupos <- list()
-      model_list<-c(models,"rfGA")
-      # Agrupamento dos modelos
-      grupos <- list(
-        "Tree-based" = c("rf","gbm", "cforest", "rpart", "evtree"),
-        "Miscellaneous Methods" = c("nb", "knn","xyf", "glm"),
-        "Kernel" = c("gaussprRadial", "svmLinear", "svmRadial", "svmRadialCost"),
-
-        "Neural network" = c("dnn", "avNNet", "nnet", "pcaNNet", "monmlp", "mlpML"),
-        "Feature selection"=c("rfGA")
-      )
-
-      # Mapeamento dos modelos para os grupos
-      grupos_modelos <- list()
-      for (grupo in names(grupos)) {
-        modelos_grupo <- grupos[[grupo]]
-        modelos_no_grupo <- model_list[model_list %in% modelos_grupo]
-        grupos_modelos[[grupo]] <- modelos_no_grupo
-      }
-
-      return(grupos_modelos)
-    }
-
-    get_model_subtext<-reactive({
-
-
-      models_names<-c(names(models),'rfGA - Feature Selection using randomForest Genetic Algorithm')
-
-      names(models_names)<-c(models,'rfGA')
-      models_names<-models_names[ as.character(unlist(grupos_modelos()))]
-      names(models_names)<-NULL
-      mn<-strsplit(models_names," - ")
-
-
-      req(vals$trainSL_args$data_x)
-
-
-      data_x<-vals$trainSL_args$data_x
-
-      lapply(mn,function(x){
-        attr<-x[1]
-        n=length(attr(vals$saved_data[[data_x]],attr))
-        saved_models<-NULL
-        if(n>0){
-          saved_models<-HTML(paste0(span(span(class="model_ico",icon("hand-point-left")),n, " trained models",class="model_subtext")))}
-        HTML(paste(span(x[1],span(class="model_tag",x[2]),saved_models )))
-
-      })
-    })
-
-    observe({
-      vals$cmodel<-input$model
-    })
-
-
-
-
-    observeEvent(input$model,ignoreInit = T,{
-      #vals$cur_caret_model<-NULL
-      if(!is.null( vals$cmodel)){
-        pkg<-model_library[[vals$cmodel]]
-        sapply(pkg,detach_package)
-        message(paste0("detached:",pkg))
-
-      }
-
-
-
-    })
-    observe({
-      req(vals$update_state)
-      update_state<-vals$update_state
-      ids<-names(update_state)
-      update_on<-grepl(id,ids)
-      names(update_on)<-ids
-      to_loop<-names(which(update_on))
-      withProgress(min=1,max=length(to_loop),message="Restoring",{
-        for(i in to_loop) {
-          idi<-gsub(paste0(id,"-"),"",i)
-          incProgress(1)
-          restored<-restoreInputs2(session, idi, update_state[[i]])
-
-          if(isTRUE(restored)){
-            vals$update_state[[i]]<-NULL
-          }
-
-        }
-      })
-
-    })
-    return(NULL)
-
-
-  })
 }

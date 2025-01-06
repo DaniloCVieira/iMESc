@@ -1,3 +1,36 @@
+# This module provides an interactive interface for performing K-Means
+# clustering in a Shiny application. It includes both a user interface
+# (UI) and server logic to facilitate:
+#
+# 1. Dataset Selection:
+#    - Users can select datasets and specify clustering targets
+#      (data points or SOM codebook).
+#
+# 2. Parameter Configuration:
+#    - Adjustable clustering parameters: number of clusters, iterations,
+#      algorithms, and seed for reproducibility.
+#
+# 3. Clustering Results:
+#    - Visualization of clusters using PCA representation or SOM plots.
+#    - Results display in tabular format.
+#
+# 4. Optimal Number of Clusters:
+#    - Methods for determining the optimal cluster count:
+#      - Elbow Method
+#      - Silhouette Method
+#      - Gap Statistic
+#
+# 5. Cluster Management:
+#    - Save, overwrite, or discard clustering results.
+#    - Options to create or update datasets with clustering labels.
+#
+# 6. Customization Options:
+#    - Interactive options for customizing plots (colors, shapes, labels, etc.).
+#
+# 7. Dynamic UI Features:
+#    - Dynamic updates for inputs, toggling visibility, and conditional UI
+#      rendering using `shinyjs`.
+
 #' @export
 k_means_module<-list()
 #' @export

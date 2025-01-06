@@ -1,305 +1,40 @@
-#' @noRd
-
-
-mod_comp_plot_options<-list()
-#' @export
-get_ggcompdata<-function(results,gg_metric=NULL){
-
-
-  if(!inherits(results,"resamples")){
-    req(inherits(results,"list"))
-    results<-resamples(results)
-  }
-  if(is.null(gg_metric)){
-    gg_metric<-results$metrics
-  }
-
-
-
-  results_values<-results$values
-  colnames(results_values)<-gsub("\\~","_split_metric_",colnames(results_values))
-
-
-
-  df<-reshape::melt(data.frame(results_values),"Resample")
-
-
-  df$variable<-as.character(df$variable)
-  metric_model<-data.frame(do.call(rbind,sapply(df$variable,function(x) strsplit(x,"_split_metric_"))))
-  colnames(metric_model)<-c("model_name","metric")
-  rownames(metric_model)<-NULL
-  rownames(df)<-NULL
-  df_box<-cbind(df['value'],metric_model)
-  df_box$model_name<-factor(df_box$model_name,rev(unique(df_box$model_name)))
-
-  colnames(df_box)<-c("y","x","metric")
-  df_box<-df_box[which(df_box$metric%in%gg_metric),]
-  req(nrow(df_box)>0)
-  df_box
-}
-ggbox_modelmetrics<-function(results,gg_base_size=12,
-                             gg_metric=NULL,gg_axis_size=11,gg_label_size=11,gg_lwd_size=1,gg_fill_lighten=0.3,gg_palette="turbo",gg_title_size=13,gg_theme="theme_minimal",newcolhabs=list("turbo"=viridis::turbo),type="boxplot", gg_text_size=12,gg_point_size=12,gg_fill="y",...) {
-
-
-  leg_name<-switch(gg_fill,
-                   "x"="Model name",
-                   "model_tag"="Model type",
-                   'supervisor'="Y")
-  fill<-newcolhabs[[gg_palette]](1)
-  fill<-colorspace::lighten(fill,gg_fill_lighten)
-  df_box<-get_ggcompdata(results,gg_metric)
-  df_box$x<-reorder(df_box$x,df_box$y,decreasing=T)
-
-
-  model_tags<-attr(results,"model_tags")
-  supervisor<-attr(results,"supervisor")
-  df_box$model_tag<-  model_tags[as.character(df_box$x)]
-  df_box$supervisor<-  supervisor[as.character(df_box$x)]
-  df_box$uniform=1
-  df_box$gg_fill<-factor(df_box[,gg_fill])
-  colors<-newcolhabs[[gg_palette]](nlevels(df_box$gg_fill))
-  colors<-colorspace::lighten(colors,gg_fill_lighten)
-  df_box$x<-factor(df_box$x,levels=   unique(df_box$x[order(df_box$y)]))
-  df_box$order<-as.numeric(df_box$gg_fill)
-
-  if(type=="boxplot"){
-    # colors<-newcolhabs[[input$gg_palette]](256)
-    p<-ggplot(df_box,aes(x=reorder(x,order),y=y,fill=gg_fill))+  stat_boxplot(geom='errorbar', linetype=1, width=0.3, linewidth=gg_lwd_size)+  geom_boxplot()+coord_flip()+scale_fill_manual(values=colors,name=leg_name)
-
-  } else if(type=="dotplot"){
-
-    df_mean<-aggregate(df_box[1],df_box[c("x","metric","gg_fill")],mean)
-    p<-ggplot(df_box,aes(x=reorder(x,order),y=y,color=gg_fill))+
-      stat_boxplot(geom='errorbar', linetype=1, width=0.3, linewidth=gg_lwd_size)+geom_point(data=df_mean,size=gg_base_size/4,aes(x,y))+coord_flip()+scale_color_manual(values=colors,name=leg_name)
-  } else if(type=="density"){
-
-    p<-ggplot(df_box)+geom_density(aes(y,colour =gg_fill,group=x), linewidth=gg_lwd_size)+facet_wrap(~metric,scales="free_x")+xlab("")+ylab("Value")+scale_color_manual(values=colors, name=leg_name)
-  }
-  if(type!='ggpairs'){
-    if(type=="density"){
-      scales='free'
-    } else{
-      scales='free_x'
-    }
-    p<-p+facet_wrap(~metric,scales= scales)+xlab("")+ylab("Value")
-    if(gg_fill=="uniform"){
-      p<-p+guides(fill="none")
-    }
-  } else{
-
-
-
-    df1<-df[grepl(paste0(gg_metric,collapse="|"),colnames(df))]
-    colnames(df1)<-results$models
-
-    p<-GGally::ggpairs(df1,
-               upper = list(
-                 continuous = GGally::wrap(
-                   "cor",
-                   size = gg_text_size,
-                   color=fill
-                 )
-               ),  # Adjust the size as needed
-               lower = list(
-                 continuous = GGally::wrap("points", size = gg_point_size, colour = fill)
-               ),
-               diag = list(
-                 continuous = GGally::wrap(
-                   "densityDiag",
-                   linewidth=gg_lwd_size,
-                   color=fill
-                 )
-               ))
-
-  }
-
-
-  p<-switch(gg_theme,
-            'theme_grey'={p+theme_grey(gg_base_size)},
-            'theme_bw'={p+theme_bw(gg_base_size)},
-            'theme_linedraw'={p+theme_linedraw(gg_base_size)},
-            'theme_light'={p+theme_light(gg_base_size)},
-            'theme_dark'={p+theme_dark(gg_base_size)},
-            'theme_minimal'={p+theme_minimal(gg_base_size)},
-            'theme_classic'={p+theme_classic(gg_base_size)},
-            'theme_void'={p+theme_void(gg_base_size)})
-
-  p+theme(
-    axis.text=element_text(size=gg_axis_size),
-    axis.title=element_text(size=gg_label_size),
-    strip.text = element_text(size = gg_title_size),
-  )
-}
-
-
-
-mod_comp_plot_options$ui<-function(id){
-  ns<-NS(id)
-  box_caret(
-    ns("box_c"),
-    color="#c3cc74ff",
-    title="Plot options",
-    show_tittle = T,
-    div(
-      div(
-        uiOutput(ns("gg_metric_out")),
-
-        pickerInput_fromtop(inputId = ns("gg_fill"),
-                            label = "+ Fill",
-                            choices =c("Y"="supervisor",'Model type'="model_tag","Model name"='x',"Uniform"="uniform")),
-
-        pickerInput_fromtop_live(inputId = ns("gg_palette"),
-                            label = "+ Palette",
-                            choices =NULL),
-        numericInput(ns("gg_fill_lighten"),"+ Lighten:", value=0.3,step=0.1),
-        numericInput(ns("gg_base_size"),"+ Base size:", value=12),
-        numericInput(ns("gg_title_size"),"+ Title size:", value=11),
-        numericInput(ns("gg_axis_size"),"+ Axis size:", value=11),
-        numericInput(ns("gg_label_size"),"+ Label size:", value=11),
-        numericInput(ns("gg_lwd_size"),"+ Line width:", value=1),
-        numericInput(ns("gg_text_size"),"+ Cor Size:", value=5),
-        numericInput(ns("gg_point_size"),"+ Point Size:", value=3),
-
-
-        pickerInput_fromtop(ns('gg_theme'),"+ Theme",choices=c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_dark','theme_minimal','theme_classic','theme_void')),
-
-      ))
-
-  )
-}
-#' @export
-mod_comp_plot_options$server<-function(id,vals,type="density"){
-  moduleServer(id,function(input,output,session){
-
-
-    if(type=="density"){
-      updatePickerInput(session,"gg_fill",choices=c("Model name"='x',"Y"="supervisor",'Model type'="model_tag"))
-    }
-
-    if(type=="ggpairs"){
-      hide('gg_fill')
-    }
-    ns<-session$ns
-    output$gg_metric_out<-renderUI({
-      multiple = T
-      results<-vals$resample_results
-      req(results)
-      if(type=="ggpairs"){
-        multipe=F
-      }
-      virtualPicker_unique(id=ns("gg_metric"),label="Metrics:",choices=results$metrics,multiple = multiple,selected =results$metrics,search=F)
-
-    })
-    observe({
-      shinyjs::toggle("run_plot_btn",condition=length(vals$resample_results)>0)
-    })
-    observe({
-
-      req(type!='ggpairs')
-      shinyjs::hide('gg_point_size')
-      shinyjs::hide('gg_text_size')
-    })
-
-    observeEvent(ignoreInit = T,input$gg_download,{
-      vals$hand_plot<-"generic_gg"
-      if(type=="ggpairs"){
-        vals$hand_plot<- 'Pairs-plot'
-        vals$desc_pairplot<-vals$box_metrics
-      }
-      module_ui_figs("downfigs")
-      generic=vals$box_metrics
-      datalist_name<-vals$cur_data
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message=type, name_c=paste0(vals$cur_comp,type,'_',  datalist_name=datalist_name))
-    })
-
-    getsolid_col<-reactive({
-      if(type!="ggpairs"){
-        return(1:length(vals$newcolhabs))
-      }
-      res<-lapply(vals$newcolhabs, function(x) x(2))
-      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
-      solid<-names(res1[res1==T])
-      pic<-which(vals$colors_img$val%in%solid)
-      pic
-    })
-    observeEvent(vals$newcolhabs,{
-      choices =vals$colors_img$val[getsolid_col()]
-      choicesOpt = list(content =vals$colors_img$img[getsolid_col()])
-      selected=choices[1]
-      updatePickerInput(session,'gg_palette',choices=choices,choicesOpt=choicesOpt,selected=selected)
-    })
-
-
-
-    args_plot<-reactive({
-      results<-vals$resample_results
-      req(!is.null(results))
-      list(
-
-        results=results,
-        gg_base_size=input$gg_base_size,
-        gg_title_size=input$gg_title_size,
-        gg_axis_size=input$gg_axis_size,
-        gg_label_size=input$gg_label_size,
-        gg_lwd_size=input$gg_lwd_size,
-        gg_fill_lighten=input$gg_fill_lighten,
-        gg_palette=input$gg_palette,
-        newcolhabs=vals$newcolhabs,
-        gg_theme=input$gg_theme,
-        gg_metric=input$gg_metric,
-        type=type,
-        gg_text_size=input$gg_text_size,
-        gg_point_size=input$gg_point_size,
-        gg_fill=input$gg_fill
-
-      )
-    })
-    observeEvent(args_plot(),{
-      shinyjs::addClass("run_plot_btn","save_changes")
-    })
-    get_plot<-eventReactive(input$run_plot,ignoreInit = T,{
-      args<-args_plot()
-
-      vals$box_metrics<-withProgress(do.call(ggbox_modelmetrics,args),min=NA,max=NA,message="Running...")
-      shinyjs::removeClass("run_plot_btn","save_changes")
-      vals$box_metrics
-    })
-
-
-    output$plot<-renderUI({
-      validate(need(length(vals$resample_results$models)>1,"Error: at least two models are needed"))
-      height=length(vals$resample_results$models)*70
-      if(height>600){
-        height=600
-      }
-      div(style='height: 500px; overflow-y: auto',
-        renderPlot({
-          get_plot()
-        },height=height)
-      )
-    })
-
-    output$page<-renderUI({
-      div(
-        div(id=ns('run_plot_btn'),class="save_changes",
-            actionButton(ns("run_plot"),"RUN>>",style="height: 24px;width: 60px; padding: 3px; font-size: 12px"),
-        ),
-        div(style="position: absolute; right: 5px;top: 30px",
-            actionLink(ns('gg_download'),"Download",icon('download')),
-        ),
-
-
-
-        uiOutput(ns("plot"))
-      )
-    })
-
-
-
-
-
-  })
-}
+# This module provides an interactive interface for comparing multiple
+# supervised machine learning models using various metrics and visualization
+# techniques. It includes both UI and server logic to facilitate:
+#
+# 1. Model Selection:
+#    - Allows users to select a Datalist containing saved models for comparison.
+#    - Provides filtering options to choose models based on their resampling
+#      methods and compatibility for comparison.
+#
+# 2. Comparison Options:
+#    - Supports comparisons based on performance metrics, resampling methods,
+#      and cross-validation results.
+#    - Provides summary statistics for all selected models.
+#
+# 3. Visualization:
+#    - Generates comparative plots, including:
+#        - Summary tables
+#        - Boxplots
+#        - Density plots
+#        - Dot plots
+#        - GGpairs scatterplot matrix
+#        - Pairwise comparisons
+#
+# 4. Dynamic UI and Integration:
+#    - Flexible UI elements that adapt based on the selected models and
+#      comparison metrics.
+#    - Integration with the `caret` package for model performance comparison
+#      and resampling analysis.
+#
+# 5. Download Functionality:
+#    - Allows users to download comparison summaries and plots for offline
+#      analysis and reporting.
+#
+# 6. Advanced Filtering:
+#    - Filters models based on attributes like resampling methods, number
+#      of folds, and number of repeats.
+#
 #' @export
 compare_models<-list()
 #' @export
@@ -367,67 +102,67 @@ compare_models$ui<-function(id){
     ),
     column(
       8,class="mp0",id=ns("box2"),
- div(class="box_comp_results",
-     box_caret(
-       ns("box_setup3"),
-       title="Results",
-       button_title2=div(
+      div(class="box_comp_results",
+          box_caret(
+            ns("box_setup3"),
+            title="Results",
+            button_title2=div(
 
-         div(
-           class="radio12",
-           radioGroupButtons(
-             ns("tab_results"),NULL,
-             choiceValues =paste0("tab",1:6),
-             selected="tab1",
-             choiceNames =c("3.1. Summary","3.2. Boxplot","3.3.densityplot","3.4. dotplot","3.5. GGpairs","3.6. Pairwise")
-           )
-         )
-       ),
-       div(
-         div(
-           style="position: absolute; right: 5px;top: 30px",
-           actionLink(ns('summary_download'),"Download",icon('download'))
-         ),
-         tabsetPanel(
-           id=ns("comp_results"),
-           type="hidden",
-           tabPanel(
-             "3.1. Summary",value="tab1",
-             div(
-               fluidRow(   style="overflow-x: scroll",
+              div(
+                class="radio12",
+                radioGroupButtons(
+                  ns("tab_results"),NULL,
+                  choiceValues =paste0("tab",1:6),
+                  selected="tab1",
+                  choiceNames =c("3.1. Summary","3.2. Boxplot","3.3.densityplot","3.4. dotplot","3.5. GGpairs","3.6. Pairwise")
+                )
+              )
+            ),
+            div(
+              div(
+                style="position: absolute; right: 5px;top: 30px",
+                actionLink(ns('summary_download'),"Download",icon('download'))
+              ),
+              tabsetPanel(
+                id=ns("comp_results"),
+                type="hidden",
+                tabPanel(
+                  "3.1. Summary",value="tab1",
+                  div(
+                    fluidRow(   style="overflow-x: scroll",
 
 
-                           column(12,style="margin-top: 30px",
-                                  uiOutput(ns('tab1_out'))
-                           )
-               )
-             )
-           ),
-           tabPanel(
-             "3.2. GGplot",value="tab2",
-             div(
-               uiOutput(ns("box_plot")))
-           ),
-           tabPanel("3.3. densityplot",value="tab3",
-                    uiOutput(ns('density_plot'))),
-           tabPanel("3.4. dotplot",value="tab4",
-                    div(
-                      uiOutput(ns("dot_plot")))),
-           tabPanel("3.5. ggpairs",value="tab5",
-                    div(
-                      uiOutput(ns('ggpairs_plot'))
-                    )),
-           tabPanel("3.7. Pairwise comparisons",
-                    value="tab6",
-                    div(style="overflow-x: auto",
-                        column(12,style="margin-top: 30px",
-                               uiOutput(ns('plot6')))
-                    ))
-         ),
-         uiOutput(ns("teste"))
-       ),
-     )
- )
+                                column(12,style="margin-top: 30px",
+                                       uiOutput(ns('tab1_out'))
+                                )
+                    )
+                  )
+                ),
+                tabPanel(
+                  "3.2. GGplot",value="tab2",
+                  div(
+                    uiOutput(ns("box_plot")))
+                ),
+                tabPanel("3.3. densityplot",value="tab3",
+                         uiOutput(ns('density_plot'))),
+                tabPanel("3.4. dotplot",value="tab4",
+                         div(
+                           uiOutput(ns("dot_plot")))),
+                tabPanel("3.5. ggpairs",value="tab5",
+                         div(
+                           uiOutput(ns('ggpairs_plot'))
+                         )),
+                tabPanel("3.7. Pairwise comparisons",
+                         value="tab6",
+                         div(style="overflow-x: auto",
+                             column(12,style="margin-top: 30px",
+                                    uiOutput(ns('plot6')))
+                         ))
+              ),
+              uiOutput(ns("teste"))
+            ),
+          )
+      )
     )
   )}
 #' @export
@@ -833,6 +568,307 @@ compare_models$server<-function(id,vals){
       })
 
     })
+
+
+  })
+}
+
+
+mod_comp_plot_options<-list()
+#' @export
+get_ggcompdata<-function(results,gg_metric=NULL){
+
+
+  if(!inherits(results,"resamples")){
+    req(inherits(results,"list"))
+    results<-resamples(results)
+  }
+  if(is.null(gg_metric)){
+    gg_metric<-results$metrics
+  }
+
+
+
+  results_values<-results$values
+  colnames(results_values)<-gsub("\\~","_split_metric_",colnames(results_values))
+
+
+
+  df<-reshape::melt(data.frame(results_values),"Resample")
+
+
+  df$variable<-as.character(df$variable)
+  metric_model<-data.frame(do.call(rbind,sapply(df$variable,function(x) strsplit(x,"_split_metric_"))))
+  colnames(metric_model)<-c("model_name","metric")
+  rownames(metric_model)<-NULL
+  rownames(df)<-NULL
+  df_box<-cbind(df['value'],metric_model)
+  df_box$model_name<-factor(df_box$model_name,rev(unique(df_box$model_name)))
+
+  colnames(df_box)<-c("y","x","metric")
+  df_box<-df_box[which(df_box$metric%in%gg_metric),]
+  req(nrow(df_box)>0)
+  df_box
+}
+ggbox_modelmetrics<-function(results,gg_base_size=12,
+                             gg_metric=NULL,gg_axis_size=11,gg_label_size=11,gg_lwd_size=1,gg_fill_lighten=0.3,gg_palette="turbo",gg_title_size=13,gg_theme="theme_minimal",newcolhabs=list("turbo"=viridis::turbo),type="boxplot", gg_text_size=12,gg_point_size=12,gg_fill="y",...) {
+
+
+  leg_name<-switch(gg_fill,
+                   "x"="Model name",
+                   "model_tag"="Model type",
+                   'supervisor'="Y")
+  fill<-newcolhabs[[gg_palette]](1)
+  fill<-colorspace::lighten(fill,gg_fill_lighten)
+  df_box<-get_ggcompdata(results,gg_metric)
+  df_box$x<-reorder(df_box$x,df_box$y,decreasing=T)
+
+
+  model_tags<-attr(results,"model_tags")
+  supervisor<-attr(results,"supervisor")
+  df_box$model_tag<-  model_tags[as.character(df_box$x)]
+  df_box$supervisor<-  supervisor[as.character(df_box$x)]
+  df_box$uniform=1
+  df_box$gg_fill<-factor(df_box[,gg_fill])
+  colors<-newcolhabs[[gg_palette]](nlevels(df_box$gg_fill))
+  colors<-colorspace::lighten(colors,gg_fill_lighten)
+  df_box$x<-factor(df_box$x,levels=   unique(df_box$x[order(df_box$y)]))
+  df_box$order<-as.numeric(df_box$gg_fill)
+
+  if(type=="boxplot"){
+    # colors<-newcolhabs[[input$gg_palette]](256)
+    p<-ggplot(df_box,aes(x=reorder(x,order),y=y,fill=gg_fill))+  stat_boxplot(geom='errorbar', linetype=1, width=0.3, linewidth=gg_lwd_size)+  geom_boxplot()+coord_flip()+scale_fill_manual(values=colors,name=leg_name)
+
+  } else if(type=="dotplot"){
+
+    df_mean<-aggregate(df_box[1],df_box[c("x","metric","gg_fill")],mean)
+    p<-ggplot(df_box,aes(x=reorder(x,order),y=y,color=gg_fill))+
+      stat_boxplot(geom='errorbar', linetype=1, width=0.3, linewidth=gg_lwd_size)+geom_point(data=df_mean,size=gg_base_size/4,aes(x,y))+coord_flip()+scale_color_manual(values=colors,name=leg_name)
+  } else if(type=="density"){
+
+    p<-ggplot(df_box)+geom_density(aes(y,colour =gg_fill,group=x), linewidth=gg_lwd_size)+facet_wrap(~metric,scales="free_x")+xlab("")+ylab("Value")+scale_color_manual(values=colors, name=leg_name)
+  }
+  if(type!='ggpairs'){
+    if(type=="density"){
+      scales='free'
+    } else{
+      scales='free_x'
+    }
+    p<-p+facet_wrap(~metric,scales= scales)+xlab("")+ylab("Value")
+    if(gg_fill=="uniform"){
+      p<-p+guides(fill="none")
+    }
+  } else{
+
+
+
+    df1<-df[grepl(paste0(gg_metric,collapse="|"),colnames(df))]
+    colnames(df1)<-results$models
+
+    p<-GGally::ggpairs(df1,
+               upper = list(
+                 continuous = GGally::wrap(
+                   "cor",
+                   size = gg_text_size,
+                   color=fill
+                 )
+               ),  # Adjust the size as needed
+               lower = list(
+                 continuous = GGally::wrap("points", size = gg_point_size, colour = fill)
+               ),
+               diag = list(
+                 continuous = GGally::wrap(
+                   "densityDiag",
+                   linewidth=gg_lwd_size,
+                   color=fill
+                 )
+               ))
+
+  }
+
+
+  p<-switch(gg_theme,
+            'theme_grey'={p+theme_grey(gg_base_size)},
+            'theme_bw'={p+theme_bw(gg_base_size)},
+            'theme_linedraw'={p+theme_linedraw(gg_base_size)},
+            'theme_light'={p+theme_light(gg_base_size)},
+            'theme_dark'={p+theme_dark(gg_base_size)},
+            'theme_minimal'={p+theme_minimal(gg_base_size)},
+            'theme_classic'={p+theme_classic(gg_base_size)},
+            'theme_void'={p+theme_void(gg_base_size)})
+
+  p+theme(
+    axis.text=element_text(size=gg_axis_size),
+    axis.title=element_text(size=gg_label_size),
+    strip.text = element_text(size = gg_title_size),
+  )
+}
+
+
+
+mod_comp_plot_options$ui<-function(id){
+  ns<-NS(id)
+  box_caret(
+    ns("box_c"),
+    color="#c3cc74ff",
+    title="Plot options",
+    show_tittle = T,
+    div(
+      div(
+        uiOutput(ns("gg_metric_out")),
+
+        pickerInput_fromtop(inputId = ns("gg_fill"),
+                            label = "+ Fill",
+                            choices =c("Y"="supervisor",'Model type'="model_tag","Model name"='x',"Uniform"="uniform")),
+
+        pickerInput_fromtop_live(inputId = ns("gg_palette"),
+                            label = "+ Palette",
+                            choices =NULL),
+        numericInput(ns("gg_fill_lighten"),"+ Lighten:", value=0.3,step=0.1),
+        numericInput(ns("gg_base_size"),"+ Base size:", value=12),
+        numericInput(ns("gg_title_size"),"+ Title size:", value=11),
+        numericInput(ns("gg_axis_size"),"+ Axis size:", value=11),
+        numericInput(ns("gg_label_size"),"+ Label size:", value=11),
+        numericInput(ns("gg_lwd_size"),"+ Line width:", value=1),
+        numericInput(ns("gg_text_size"),"+ Cor Size:", value=5),
+        numericInput(ns("gg_point_size"),"+ Point Size:", value=3),
+
+
+        pickerInput_fromtop(ns('gg_theme'),"+ Theme",choices=c('theme_bw','theme_grey','theme_linedraw','theme_light','theme_dark','theme_minimal','theme_classic','theme_void')),
+
+      ))
+
+  )
+}
+#' @export
+mod_comp_plot_options$server<-function(id,vals,type="density"){
+  moduleServer(id,function(input,output,session){
+
+
+    if(type=="density"){
+      updatePickerInput(session,"gg_fill",choices=c("Model name"='x',"Y"="supervisor",'Model type'="model_tag"))
+    }
+
+    if(type=="ggpairs"){
+      hide('gg_fill')
+    }
+    ns<-session$ns
+    output$gg_metric_out<-renderUI({
+      multiple = T
+      results<-vals$resample_results
+      req(results)
+      if(type=="ggpairs"){
+        multipe=F
+      }
+      virtualPicker_unique(id=ns("gg_metric"),label="Metrics:",choices=results$metrics,multiple = multiple,selected =results$metrics,search=F)
+
+    })
+    observe({
+      shinyjs::toggle("run_plot_btn",condition=length(vals$resample_results)>0)
+    })
+    observe({
+
+      req(type!='ggpairs')
+      shinyjs::hide('gg_point_size')
+      shinyjs::hide('gg_text_size')
+    })
+
+    observeEvent(ignoreInit = T,input$gg_download,{
+      vals$hand_plot<-"generic_gg"
+      if(type=="ggpairs"){
+        vals$hand_plot<- 'Pairs-plot'
+        vals$desc_pairplot<-vals$box_metrics
+      }
+      module_ui_figs("downfigs")
+      generic=vals$box_metrics
+      datalist_name<-vals$cur_data
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message=type, name_c=paste0(vals$cur_comp,type,'_',  datalist_name=datalist_name))
+    })
+
+    getsolid_col<-reactive({
+      if(type!="ggpairs"){
+        return(1:length(vals$newcolhabs))
+      }
+      res<-lapply(vals$newcolhabs, function(x) x(2))
+      res1<-unlist(lapply(res, function(x) x[1]==x[2]))
+      solid<-names(res1[res1==T])
+      pic<-which(vals$colors_img$val%in%solid)
+      pic
+    })
+    observeEvent(vals$newcolhabs,{
+      choices =vals$colors_img$val[getsolid_col()]
+      choicesOpt = list(content =vals$colors_img$img[getsolid_col()])
+      selected=choices[1]
+      updatePickerInput(session,'gg_palette',choices=choices,choicesOpt=choicesOpt,selected=selected)
+    })
+
+
+
+    args_plot<-reactive({
+      results<-vals$resample_results
+      req(!is.null(results))
+      list(
+
+        results=results,
+        gg_base_size=input$gg_base_size,
+        gg_title_size=input$gg_title_size,
+        gg_axis_size=input$gg_axis_size,
+        gg_label_size=input$gg_label_size,
+        gg_lwd_size=input$gg_lwd_size,
+        gg_fill_lighten=input$gg_fill_lighten,
+        gg_palette=input$gg_palette,
+        newcolhabs=vals$newcolhabs,
+        gg_theme=input$gg_theme,
+        gg_metric=input$gg_metric,
+        type=type,
+        gg_text_size=input$gg_text_size,
+        gg_point_size=input$gg_point_size,
+        gg_fill=input$gg_fill
+
+      )
+    })
+    observeEvent(args_plot(),{
+      shinyjs::addClass("run_plot_btn","save_changes")
+    })
+    get_plot<-eventReactive(input$run_plot,ignoreInit = T,{
+      args<-args_plot()
+
+      vals$box_metrics<-withProgress(do.call(ggbox_modelmetrics,args),min=NA,max=NA,message="Running...")
+      shinyjs::removeClass("run_plot_btn","save_changes")
+      vals$box_metrics
+    })
+
+
+    output$plot<-renderUI({
+      validate(need(length(vals$resample_results$models)>1,"Error: at least two models are needed"))
+      height=length(vals$resample_results$models)*70
+      if(height>600){
+        height=600
+      }
+      div(style='height: 500px; overflow-y: auto',
+        renderPlot({
+          get_plot()
+        },height=height)
+      )
+    })
+
+    output$page<-renderUI({
+      div(
+        div(id=ns('run_plot_btn'),class="save_changes",
+            actionButton(ns("run_plot"),"RUN>>",style="height: 24px;width: 60px; padding: 3px; font-size: 12px"),
+        ),
+        div(style="position: absolute; right: 5px;top: 30px",
+            actionLink(ns('gg_download'),"Download",icon('download')),
+        ),
+
+
+
+        uiOutput(ns("plot"))
+      )
+    })
+
+
+
 
 
   })

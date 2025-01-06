@@ -1,4 +1,4 @@
-
+# Replace outlier values with NA in the provided dataset based on a list of identified outliers.
 remove_outliers<-function(d1,outliers){
   for(i in 1:nrow(outliers)){
 
@@ -7,11 +7,13 @@ remove_outliers<-function(d1,outliers){
   }
   d1
 }
+# Identify outliers for each column of a dataset using quantiles and IQR-based thresholds.
 get_outliers<-function(data, q1=0.05,q2=0.95, upper_bound=1.5,lower_boud=1.5){
 
   outs<-lapply(1:ncol(data),function(column) detect_outliers(data, column,q1,q2, upper_bound=upper_bound,lower_boud=lower_boud))
   do.call(rbind,outs[sapply(outs,length)>0])
 }
+# Calculate the lower and upper bounds for identifying outliers based on IQR and thresholds.
 detect_outliers <- function(data, column,q1,q2, upper_bound=1.5,lower_boud=1.5) {
   # Check if the column exists in the dataset
 
@@ -46,6 +48,7 @@ detect_outliers <- function(data, column,q1,q2, upper_bound=1.5,lower_boud=1.5) 
     )
 }
 imesc_outliers<-list()
+# Define the user interface for the outlier detection module, including input controls and output panels.
 imesc_outliers$ui <- function(id,vals) {
   ns <- NS(id)
   fluidRow(
@@ -155,6 +158,7 @@ imesc_outliers$ui <- function(id,vals) {
     )
   )
 }
+# Define the server logic for the outlier detection module, including data processing and interactivity.
 imesc_outliers$server<-function (id,vals ){
 
 
@@ -510,6 +514,11 @@ quant$server<-function(id, data1,data2,height="120px",width="400px",fun='print_t
 }
 
 tool1<-list()
+# The tool1$ui function defines the user interface for creating Datalists in iMESc.
+# It includes input fields for required (Numeric-Attribute) and optional attributes 
+# (Factor-Attribute, Coords-Attribute, Base Shape, Layer Shape). 
+# Users can either upload their own data or choose example datasets. 
+# The interface provides tooltips and validations to ensure proper data formatting.
 tool1$ui<-function(id){
   ns<-NS(id)
   labels_create<-list(
@@ -735,6 +744,10 @@ tool1$ui<-function(id){
   )
 
 }
+# The tool1$server function handles the server-side logic for managing Datalist creation.
+# It processes user uploads, validates inputs, and dynamically generates Datalists.
+# The server also ensures that mandatory fields (e.g., Datalist name) are completed before proceeding
+# and supports resetting inputs, navigating through modal pages, and saving the Datalist to the app's storage.
 tool1$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     curpage<-reactiveVal(1)
@@ -1080,6 +1093,10 @@ tool1$server<-function(id,vals){
 }
 
 tool2<-list()
+# The tool2$ui function creates the user interface for managing and editing Datalists.
+# It provides a toolkit with multiple tabs, each corresponding to a specific operation:
+# renaming, merging, exchanging attributes, replacing values, editing columns, modifying datasets,
+# transposing data, managing shapefiles, executing custom code, generating outputs, and deleting Datalists.
 tool2$ui<-function(id){
   ns=NS(id)
   div(style="margin-top: -35px",
@@ -1161,6 +1178,9 @@ tool2$ui<-function(id){
 
   )
 }
+# The tool2$server function implements the server-side logic for the tool2 module.
+# It manages the functionality of each toolkit tab, including switching between tabs,
+# rendering the corresponding UI components, and calling their respective server logic.
 tool2$server<-function(id,vals){
 
   moduleServer(id,function(input,output,session){

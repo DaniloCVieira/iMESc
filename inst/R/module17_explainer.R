@@ -1472,7 +1472,15 @@ explainer_ggpair$ui<-function(id,title=NULL,tip=NULL){
 explainer_ggpair$server<-function(id,data,fun="plot_importance_ggpairs",vals){
   moduleServer(id,function(input,output,session){
 
+    fun0<-fun
+    if(fun0=="plot_importance_ggpairs"){
+      fun<-randomForestExplainer::plot_importance_ggpairs
+    }
 
+
+    if(fun0=="plot_importance_rankings"){
+      fun<-randomForestExplainer::plot_importance_rankings
+    }
     ns<-session$ns
     observeEvent(data,{
       choices=colnames(data)[-1]

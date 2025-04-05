@@ -27,13 +27,9 @@ app_server<-server<-function(input, output, session) {
 
   t0<-Sys.time()
 # Stop the R process when the Shiny session ends to prevent zombie processes.
-   session$onSessionEnded(function() {    stopApp()  })
+  # session$onSessionEnded(function() {    stopApp()  })
 
-  if ( dir.exists("inst2")) {
-    session$onSessionEnded(function() {
-      stopApp()
-    })
-  }
+
 
   #server_init<-Sys.time()
 
@@ -324,11 +320,11 @@ app_server<-server<-function(input, output, session) {
     showModal(removeModal())
   })
   output$confirm_note<-renderUI({
-    actionButton("confirm_note","4. Confirm")
+    actionButton("confirm_note","3. Confirm")
   })
   output$note_create<-renderUI({
     req(input$note_targ)
-    textAreaInput("note_new", "Comments:", value = gsub("<br/>","\n",attr(vals$saved_data[[input$note_targ]],"notes")), width = '500px',
+    textAreaInput("note_new", "2. Comments:", value = gsub("<br/>","\n",attr(vals$saved_data[[input$note_targ]],"notes")), width = '500px',
                   height = '150px', cols = NULL, rows = NULL, placeholder = NULL,
                   resize = "both")
   })

@@ -2446,8 +2446,13 @@ table_results_tab3$server<-function(id,vals){
     codebook_bp_som<-reactive({
       iind=codebook_indicate_hc()
       m<-current_som_model()
+      req(m)
+      req(m$codes)
+      req(is.list(m$codes))
       req(input$vfm_layer)
+      req(input$vfm_layer%in%names(m$data))
       m$data<-m$data[input$vfm_layer]
+      req(input$vfm_layer%in%names(m$codes))
       m$codes<-m$codes[input$vfm_layer]
       bp<-getbp_som2(m=m,indicate=iind$indicate,npic=iind$npic,hc=vals$cutsom)
       vals$biplot_som<-bp
@@ -2600,6 +2605,7 @@ table_results_tab3$server<-function(id,vals){
         vals$biplot_som<-bp
         args$points_palette
 
+
         p<-try(do.call(bmu_plot,args))
         req(!inherits(p,"try-error"))
         vals$bmus_plot<-p
@@ -2716,10 +2722,25 @@ table_results_tab3$server<-function(id,vals){
 
     observeEvent(data_x(),{
       choices<-c(colnames(attr(vals$saved_data[[data_x()]],"factors")))
-      updatePickerInput(session,'codebook_text_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+      selected_text<-get_selected_from_choices( vals$cur_codebook_text_factor,choices)
+      selected_points<-get_selected_from_choices( vals$cur_codebook_points_factor,choices)
+      updatePickerInput(session,'codebook_text_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T), selected=selected_text)
 
-      updatePickerInput(session,'codebook_points_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T))
+      updatePickerInput(session,'codebook_points_factor',choices=choices,options=shinyWidgets::pickerOptions(liveSearch=T), selected=selected_points)
     })
+
+    observeEvent(input$codebook_text_factor,{
+      vals$cur_codebook_text_factor<-input$codebook_text_factor
+    })
+
+
+    observeEvent(input$codebook_points_factor,{
+      vals$cur_codebook_points_factor<-input$codebook_points_factor
+    })
+
+
+
+
     observeEvent(input$codebook_addvfm,shinyjs::toggle("codebook_varfac_out",condition=isTRUE(input$codebook_addvfm)))
     observeEvent(input$codebook_addtext,{
       shinyjs::toggle("codebook_text_inputs",condition=isTRUE(input$codebook_addtext))
@@ -2862,10 +2883,28 @@ table_results_tab3$server<-function(id,vals){
       module_ui_figs("downfigs")
       generic=vals$bmus_plot
       name_c<-'bmu_plot'
+
+      if(input$codebook_somback_value=="uMatrix"){
+        name_c<-'som_umatrix'
+      }
+      if(input$codebook_somback_value=="property"){
+        name_c<-'som_property'
+      }
+      if(isTRUE(input$codebook_addpie)){
+        name_c<-'som_pies'
+      }
+
+
+
+
       if(input$codebook_somback_value=="property"){
 
         name_c=  gsub("[^[:alnum:]]","-", input$codebook_variable_pproperty)
       }
+
+
+
+
       datalist_name=attr(current_som_model(),'model_name')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot", name_c=name_c,datalist_name=datalist_name)
     })
@@ -3929,13 +3968,14 @@ table_predict_som$server<-function(id,vals){
       bp<-args$bp
       bp$id=NULL
       vals$biplot_som<-bp
+
       p<-do.call(bmu_plot,args)
 
       if(isTRUE(input$show_training)){
         ptrain<-points_training()
 
         ptrain$point<-"Training"
-        print(head(ptrain))
+
         colors<-vals$newcolhabs[[input$predcode_points_palette]](2)
         p<- p+geom_point(data=ptrain,aes(x_pt,y_pt,color=point),size=input$predcode_points_size+2)+scale_color_manual(values=c(colors),name="")
       }
@@ -4140,11 +4180,22 @@ table_predict_som$server<-function(id,vals){
     })
     observeEvent(ignoreInit = T,input$download_pbox6,{
 
+      name_c="som.pred"
+      try({
+        if(input$predcode_somback_value=="uMatrix"){
+          name_c<-'som.pred_umatrix'
+        }
+        if(input$predcode_somback_value=="property"){
+          name_c<-'som.pred_property'
+        }
+      })
+
+
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       generic=getbmu_plot()
       datalist_name=attr(current_som_model(),'model_name')
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot - predictions", name_c="bmu_pred",datalist_name=datalist_name)
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot - predictions", name_c=name_c,datalist_name=datalist_name)
     })
 
     message_download_perfomace<-reactive({

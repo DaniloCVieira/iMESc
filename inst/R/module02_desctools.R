@@ -2654,6 +2654,18 @@ desctools_tab7$server<-function(id,vals){
       updatePickerInput(session,'pca_points_factor'  ,choices=choices,selected= selected)
     })
 
+    observeEvent(getdata_descX(),{
+      choices=colnames(attr(getdata_descX(),"factors"))
+      selected=get_selected_from_choices(vals$cur_pca_text_factor,choices)
+      updatePickerInput(session,'pca_text_factor'  ,choices=choices,selected= selected)
+    })
+
+    observeEvent(input$pca_text_factor,{
+      vals$cur_pca_text_factor<-input$pca_text_factor
+    })
+
+
+
     observe({
       shinyjs::toggle('pca_points_out',condition = isTRUE(input$pca_points))
       shinyjs::toggle('pca_text_out',condition = isTRUE(input$pca_text))

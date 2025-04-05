@@ -28,7 +28,7 @@ imesc_withSpinner<-function(ui_element,
                             color = "#05668D",
                             size = .7,
                             color.background = getOption("spinner.color.background"),
-                            custom.css = T,
+                            #custom.css = T,
                             proxy.height = getOption("spinner.proxy.height"),
                             id = NULL,
                             image = "imesc_logo.png",
@@ -37,20 +37,23 @@ imesc_withSpinner<-function(ui_element,
                             hide.ui = getOption("spinner.hide.ui", default = TRUE),
                             caption = getOption("spinner.caption")){
 
-  shinycssloaders::withSpinner(ui_element,
-              type ,
-              color ,
-              size ,
-              color.background ,
-              custom.css ,
-              proxy.height ,
-              id ,
-              image ,
-              image.width ,
-              image.height ,
-              hide.ui ,
-              paste0("Loading module:",caption)
-              )
+  shinycssloaders::withSpinner(
+
+    ui_element=ui_element,
+    type =type,
+    color=color ,
+    size=size ,
+    color.background =color.background,
+   # custom.css=custom.css ,
+    proxy.height =proxy.height,
+    id =id,
+    image=image ,
+    image.width=image.width ,
+    image.height=image.height ,
+    hide.ui =hide.ui,
+    caption=paste0("Loading module:",caption)
+
+  )
 
 }
 

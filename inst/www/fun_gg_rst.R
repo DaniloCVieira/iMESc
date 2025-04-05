@@ -1595,7 +1595,7 @@ get_knn_leaf<-function(data,k=5,base_shape_args,
   coords<-coords[rownames(data),]
   newgrid<-get_grid(coords,limits,crs.info,resolution)
   z=data[,1]
-  m<-caret::train(x=coords,y=z,method="knn",trControl =trainControl(method="cv"),kmax =k)
+  m<-caret::train(x=coords,y=z,method="knn",trControl =caret::trainControl(method="cv"),kmax =k)
   newdata<-data.frame(newgrid)
   colnames(newdata)<-colnames(coords)
   pred<-predict(m,newdata=newdata)
@@ -1639,7 +1639,7 @@ get_caret_leaf<-function(data,base_shape_args,
   } else{
     y<-z
   }
-  m<-caret::train(x=coords,y=y,method=method,trControl =trainControl(method="cv"),tuneLength  =tuneLength )
+  m<-caret::train(x=coords,y=y,method=method,trControl =caret::trainControl(method="cv"),tuneLength  =tuneLength )
   newdata<-data.frame(newgrid)
   colnames(newdata)<-colnames(coords)
   if(method=="gaussprRadial"){

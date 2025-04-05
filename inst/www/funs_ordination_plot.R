@@ -51,10 +51,13 @@ get_selected_from_choices<-function(selected, choices){
 #' @export
 getbp_som2<-function(m,indicate,npic,hc){
 
+
+
   if(is.null(indicate)){return(NULL)}
   grid<-m$grid$pts
   grid.size<-nrow(grid)
   nb <- table(factor(m$unit.classif, levels=1:grid.size))
+
 
   CORMAP<-lapply(m$codes,function(x){
     apply(x,2,weighted.correlation,w=nb,grille=m)
@@ -314,7 +317,7 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
       if(isTRUE(scale_shape)){
         p<-p+geom_point(aes(x,y,color=points_factor, shape=points_factor), data=df1,size=points_size,show.legend=show.legend)+scale_shape(colnames(points_factor))
       } else{
-        p<-p+geom_point(aes(x,y,color=points_factor), data=df1,size=points_size,show.legend=show.legend)
+        p<-p+geom_point(aes(x,y,color=points_factor), shape=points_shape,data=df1,size=points_size,show.legend=show.legend)
       }
       p<-p+
         scale_color_manual(colnames(points_factor),values=col_points)

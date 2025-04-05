@@ -555,7 +555,7 @@ databank_module$server<-function(id, vals){
 
     output$comments<-renderUI({
       div(
-        h4(strong("Comments"),
+        h4(strong("Comments teste"),
            inline(uiOutput(ns('comments_edit'))),
            inline(uiOutput(ns('comments_remove'))),
            inline(uiOutput(ns('comments_down')))
@@ -1078,6 +1078,11 @@ databank_module$server<-function(id, vals){
       vals$cur_data<-input$data_bank
     })
 
+    observeEvent(vals$saved_data,{
+      updateRadioGroupButtons(session,"view_datalist", selected=vals$curview_databank)
+
+    })
+
     observeEvent(ignoreInit = T,input$view_datalist,
                  {vals$curview_databank<-input$view_datalist})
 
@@ -1154,13 +1159,36 @@ databank_module$server<-function(id, vals){
       modalDialog(
         title="Create a comment",
         easyClose = T,
-        footer=div(modalButton("Cancel"), inline(uiOutput("confirm_note"))),
+        footer=div(modalButton("Cancel"),
+                   actionButton(ns("confirm_note"),"3. Confirm")
+        ),
         div(
-          uiOutput("note_target"),
-          uiOutput("note_create")
+          uiOutput(ns("note_target")),
+          uiOutput(ns("note_create"))
         )
       )
     })
+    observeEvent(ignoreInit = T,input$confirm_note,{
+      vals$note<-gsub("\n",'<br/>',input$note_new)
+      attr(vals$saved_data[[input$note_targ]],"notes")<-vals$note
+      vals$note<-NULL
+      showModal(removeModal())
+    })
+
+
+    output$note_target<-renderUI({
+      # selected=NULL
+      # selected=ifelse(input$tabs=='menu_upload',input$data_bank,vals$cur_data)
+      tags$div(style="max-width: 250px",pickerInput(ns("note_targ"),"1. Select the target Datalist:",names(vals$saved_data), selected=vals$cur_data))
+    })
+    output$note_create<-renderUI({
+      req(input$note_targ)
+      textAreaInput(ns("note_new"), "2. Comments:", value = gsub("<br/>","\n",attr(vals$saved_data[[input$note_targ]],"notes")), width = '500px',
+                    height = '150px', cols = NULL, rows = NULL, placeholder = NULL,
+                    resize = "both")
+    })
+
+
 
     observeEvent(ignoreInit = T,input$comments_edit,{
       showModal( modal_comment())

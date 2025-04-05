@@ -2137,6 +2137,15 @@ tool2_tab3$server<-function(id,vals){
 
         colnames(newdat)<-make.unique(colnames(newdat))
         newdat<-data_migrate(saved_data[[from]],newdat)
+        attr(newdat,"base_shape")<-attr(saved_data[[to]],"base_shape")
+        attr(newdat,"layer_shape")<-attr(saved_data[[to]],"layer_shape")
+        attr(newdat,"extra_shape")<-attr(saved_data[[to]],"extra_shape")
+        attr(newdat,"coords")<-attr(saved_data[[to]],"coords")
+        attr(newdat,"scale")<-attr(saved_data[[to]],"scale")
+        attr(newdat,"transf")<-attr(saved_data[[to]],"transf")
+        attr(newdat,"filename")<-attr(saved_data[[to]],"filename")
+        attr(newdat,"datalist")<-attr(saved_data[[to]],"datalist")
+        attr(newdat,"datalist_root")<-attr(saved_data[[to]],"datalist_root")
         return(newdat)
       }
     }

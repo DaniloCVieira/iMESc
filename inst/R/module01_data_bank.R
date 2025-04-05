@@ -555,7 +555,7 @@ databank_module$server<-function(id, vals){
 
     output$comments<-renderUI({
       div(
-        h4(strong("Comments teste"),
+        h4(strong("Comments"),
            inline(uiOutput(ns('comments_edit'))),
            inline(uiOutput(ns('comments_remove'))),
            inline(uiOutput(ns('comments_down')))

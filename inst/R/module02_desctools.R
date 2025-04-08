@@ -5043,7 +5043,7 @@ datalist_overview<-function(data,available_models){
     'Layer-Shape'=attr(data,"layer_shape"),
     'Extra-Shapes'=attr(data,"extra_shape")
   )
-  shapel<-shapel[sapply(shapel,length)>0]
+
 
 
   attrs<-c(as.character(available_models),"pwRDA","som","kmeans")
@@ -5118,17 +5118,7 @@ datalist_overview<-function(data,available_models){
           lapply(seq_along(shapel),function(i){
             data<-shapel[[i]]
             div(
-              tags$li(
-
-                strong(names(shapel)[i]),
-                div(style="padding-left: 20px",
-                    span(paste0(class(data),collapse=" "),paste0(as.character(st_geometry_type(data)),collapse=" "),
-                         if(names(shapel)[i]=="Extra-Shapes"){
-                           span(paste0("(",length(data)," shapes)"))
-                         })
-                )
-
-              )
+              tags$li(strong(names(shapel)[i]))
             )
           })
         )

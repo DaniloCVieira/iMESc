@@ -320,18 +320,19 @@ accu_rf_reg<-function(observed,predicted)
 
 
 #' @export
-getConfusion<-function(rf){
+getConfusion<-function(rf,norm="overall"){
   ConfMat<-list()
   if(class(rf)[1]=="train"){
     validate(need(rf$modelType=="Classification","Confusion Matrices are only valid for Regression models"))
-    ConfMat<-caret::confusionMatrix(rf)
-  } else  if(class(rf)[1]=='table'){  ConfMat<-caret::confusionMatrix(rf)} else{
+    ConfMat<-caret::confusionMatrix(rf,norm=norm)
+  } else  if(class(rf)[1]=='table'){  ConfMat<-caret::confusionMatrix(rf,norm=norm)} else{
   if(sum(names(rf)=="finalModel")==0)
   {
     ConfMat$table<-rf$confusion[,-c(ncol(rf$confusion))]
     ConfMat$text<-NULL
-    ConfMat$table<-ConfMat$table/sum(ConfMat$table)
-  } else {  ConfMat<-caret::confusionMatrix(rf)}}
+    if(norm=="overall"){
+    ConfMat$table<-ConfMat$table/sum(ConfMat$table)}
+  } else {  ConfMat<-caret::confusionMatrix(rf,norm=norm)}}
 
   CM<-CMerror<-ConfMat$table
   CM3<-as.data.frame(matrix(NA,nrow(CM),ncol(CM)))
@@ -469,10 +470,19 @@ prf<-function(res_multi, sigs=T, sig.value=0.05,size_plot=10,
 
 
 
+format_cell_table<-function(tab,col_width=1){
+  tab<-as.data.frame(tab)
+  res<-data.frame(lapply(tab,function(x){
+    stringr::str_pad(x, width = col_width, side = "both")
+  }))
+  colnames(res)<-colnames(tab)
+  rownames(res)<-rownames(tab)
+  res
+}
 
 #' @export
-plotCM<-function(rf, palette="turbo",newcolhabs, font_color="black", title="Confusion Matrix", round_cm=3){
-  my.data=round(getConfusion(rf),round_cm)
+plotCM<-function(rf, palette="turbo",newcolhabs=list(turbo=viridis::turbo), font_color="black", title="Confusion Matrix", round_cm=3,norm="Percentual", cell_width=NULL){
+  my.data=round(getConfusion(rf,norm=norm),round_cm)
 
   my.data[,ncol(my.data)][is.na(my.data[,ncol(my.data)])]<-1
   acc<-sum(diag(as.matrix(my.data[,-ncol(my.data)])))/sum(my.data[,-ncol(my.data)])
@@ -483,10 +493,15 @@ plotCM<-function(rf, palette="turbo",newcolhabs, font_color="black", title="Conf
   col_vector<-getcolhabs(newcolhabs,palette,nrow(my.data))
   col_vector2<-c("white",col_vector)
 
-  tab<-cbind(paste0(1:nrow(my.data),"  "),as.matrix(my.data))
-  tab<-rbind(c("",1:nrow(my.data), "class.error"), tab)
+  tab<-cbind(paste0(rownames(my.data),"  "),as.matrix(my.data))
+  tab<-rbind(c("",rownames(my.data), "class.error"), tab)
 
-  tab<-formatC(tab,format = "f", digits = round_cm)
+  if(is.null(cell_width)){
+    tab<-formatC(tab,format = "f", digits = round_cm)
+  } else{
+    tab<-format_cell_table(tab,cell_width)
+  }
+
 
   ggtab<-ggpubr::ggtexttable(tab, rows = NULL,
                      theme = ggpubr::ttheme(
@@ -533,6 +548,9 @@ plotCM<-function(rf, palette="turbo",newcolhabs, font_color="black", title="Conf
 
 
   ggtab<-ggpubr::table_cell_bg(ggtab, 2:(nrow(tab)+1), ncol(tab), fill="white",color ="white")
+
+
+
 
 
   ggtab<-ggpubr::tab_add_title(

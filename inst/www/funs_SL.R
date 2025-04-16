@@ -820,7 +820,7 @@ ggplot_avNNet<-function(m=NULL,mod1,df_segments,dfneu,
 
 
 
-predict_cforest_tree<-function(tree,newdata){
+predict_cforest_tree<-function(tree,newdata, model){
   res<-c()
   for(i in 1:nrow(newdata)){
     node<-tree

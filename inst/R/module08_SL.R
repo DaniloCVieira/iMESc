@@ -2825,6 +2825,7 @@ msp_rf$ui<-function(id,vals){
                                 style="",actionButton(ns('run'),"RUN >>",style="height: 20px;font-size: 11px;padding: 2px")),
                             pickerInput_fromtop(ns("fm_tree"),"+ Tree",NULL,
                                                 options=shinyWidgets::pickerOptions(windowPadding="top",liveSearch = T)),
+
                             numericInput(ns('fm_round'),'+ Round',2),
                             pickerInput_fromtop(
                               ns("edge_type"), "+ Edge type",
@@ -2847,6 +2848,9 @@ msp_rf$ui<-function(id,vals){
                                                      choicesOpt = list(content =vals$colors_img$img),
                                                      selected=vals$cm_palette,
                                                      options=shinyWidgets::pickerOptions(windowPadding="top")),
+                            radioButtons(ns("fm_norm"),span("CM norm",tiphelp("Confusion Matrix Normalization")),c("Percental"="overall","None"="none"), inline=T),
+                            numericInput(ns("cm_cell_width"),span("Cell width",tiphelp("cell width")), value=1),
+
                             numericInput(ns("msp_plot_base_size"),"Base size",12),
                             numericInput(ns("text_size"),"Text size",8),
                             numericInput(ns("msp_plot_width"), "Plot width",600),
@@ -2906,22 +2910,45 @@ msp_rf$server<-function(id,model,vals){
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Tree from RandomForest",datalist_name=datalist_name,name_c="tree")
     })
-    getcm<-reactive({
+
+
+    getcm0<-reactive({
       m<-model
       predall=predall_rf()
       req(predall)
       req(input$fm_tree)
       obc<-getdata_model(m,"test")
       pred<-predall[,input$fm_tree]
-      tree_num=as.numeric(gsub("tree","",colnames(predall[input$fm_tree])))
-      cm<-table(pred,obc)
 
-      plotCM(cm, palette=input$fm_palette,vals$newcolhabs, font_color="black", title=paste0("Tree",tree_num), round_cm=3)
+      cm<-table(pred,obc)
+      if(input$fm_norm=="overall"){
+        cm<-cm/sum(cm)*100
+      }
+      cm
+    })
+
+
+    observeEvent(getcm0(),{
+      cm<-getcm0()
+      cm=round(getConfusion(cm,norm=input$fm_norm),input$fm_round)
+      value=max(sapply(cm, nchar))+2
+      updateNumericInput(session,'cm_cell_width',value=value)
+    })
+
+
+    getcm<-reactive({
+      cm<-getcm0()
+      predall=predall_rf()
+      tree_num=as.numeric(gsub("tree","",colnames(predall[input$fm_tree])))
+      plotCM(cm, palette=input$fm_palette,vals$newcolhabs, font_color="black", title=paste0("Tree",tree_num), round_cm=3, norm=input$fm_norm, cell_width = input$cm_cell_width)
     })
     output$treecm<-renderUI({
 
 
-      renderPlot(getcm())
+      div(
+        renderPlot(getcm()),
+        renderPrint(caret::confusionMatrix(getcm0(), norm=input$fm_norm))
+      )
     })
 
     predall_rf<-eventReactive(input$run,ignoreInit = T,{
@@ -3056,7 +3083,11 @@ msp_cforest$ui<-function(id,vals){
                  choicesOpt = list(
                    content =  vals$colors_img$img),
                  options=shinyWidgets::pickerOptions(windowPadding="top")
-               )
+               ),
+               radioButtons(ns("cforest_norm"),span("CM norm",tiphelp("Confusion Matrix Normalization")),c("Percental"="overall","None"="none"), inline=T),
+               numericInput(ns("cm_cell_width"),span("Cell width",tiphelp("cell width")), value=1),
+               numericInput(ns('cforest_round'),'+ Round',2),
+
              )
            )
 
@@ -3116,7 +3147,7 @@ msp_cforest$server<-function(id,model,vals){
       withProgress(min=1,max=ntrees,message="Running",{
         res<-sapply(1:ntrees,function(i){
           ct<-get_cTree(model$finalModel,i)
-          pred<-predict_cforest_tree(ct@tree,newdata)
+          pred<-predict_cforest_tree(ct@tree,newdata, model)
           metric<-caret::postResample(pred,obs)[model$metric]
           incProgress(1)
 
@@ -3212,7 +3243,8 @@ msp_cforest$server<-function(id,model,vals){
       )
     }
 
-    get_cm<-eventReactive(input$run,ignoreInit = T,{
+
+    get_cm00<-eventReactive(input$run,ignoreInit = T,{
       if(input$newdata=='Datalist'){
         newdata=vals$saved_data[[input$newdata_dl]]
         obs<-attr(newdata,"factors")[,attr(model,"supervisor")]
@@ -3227,10 +3259,35 @@ msp_cforest$server<-function(id,model,vals){
       }
 
       ct<-get_cTree(model$finalModel,as.numeric(input$tree))
-      pred<-predict_cforest_tree(ct@tree,newdata)
+      #  ct<-readRDS("teste.rds")[[1]]
+      #newdata<-readRDS("teste.rds")[[2]]
+
+      pred<-predict_cforest_tree(tree=ct@tree,newdata, model)
 
       cm<-table(pred,obs)
-      res<-plotCM(cm,input$palette,vals$newcolhabs,title=paste("Tree",input$tree))
+      cm
+    })
+
+    get_cm0<-reactive({
+     cm<-get_cm00()
+      if(input$cforest_norm=="overall"){
+        cm<-cm/sum(cm)*100
+      }
+      cm
+    })
+
+
+    observeEvent(get_cm0(),{
+      cm<-get_cm0()
+      cm=round(getConfusion(cm,norm=input$cforest_norm),input$cforest_round)
+      value=max(sapply(cm, nchar))+2
+      updateNumericInput(session,'cm_cell_width',value=value)
+    })
+
+
+    get_cm<-reactive({
+      cm<-get_cm0()
+      res<-plotCM(cm,input$palette,vals$newcolhabs,title=paste("Tree",input$tree), norm=input$cforest_norm,round_cm=input$cforest_round, cell_width =input$cm_cell_width )
       res
     })
 
@@ -3244,9 +3301,12 @@ msp_cforest$server<-function(id,model,vals){
 
     output$cm_cforest<-renderUI({
       validate(need(model$modelType=="Classification","Confusion matrices are only valid for classification models."))
-      renderPlot({
-        get_cm()
-      })
+      div(
+        renderPlot({
+          get_cm()
+        }),
+        renderPrint(caret::confusionMatrix(  get_cm0(), norm=input$cforest_norm))
+      )
     })
 
 
@@ -3866,20 +3926,25 @@ permutation_importance$ui<-function(id){
       tabPanel(
         "4.2. Confusion Matrix Post-Shuffling",value="tab2",
 
-        div(style="display: flex",
-            box_caret(ns('20'),title="Options",
-                      color="#c3cc74ff",
-                      div(class="inline_pickers",style="color: #05668D",
-                          selectizeInput(inputId = ns("var_feature_cm"),label = "+ Variable:",choices =NULL),
+        div(
+          column(4,class="mp0",
+                 box_caret(ns('20'),title="Options",
+                           color="#c3cc74ff",
+                           div(class="inline_pickers",style="color: #05668D",
+                               selectizeInput(inputId = ns("var_feature_cm"),label = "+ Variable:",choices =NULL),
 
-                          pickerInput_fromtop_live(inputId = ns("pal_feature_cm"),label = "+ Palette:",choices =NULL,
-                                                   options=shinyWidgets::pickerOptions(windowPadding="top")),
-                          textInput(ns("title_cm"),"Title", value=NULL)
-                      ),
+                               pickerInput_fromtop_live(inputId = ns("pal_feature_cm"),label = "+ Palette:",choices =NULL,
+                                                        options=shinyWidgets::pickerOptions(windowPadding="top")),
+                               radioButtons(ns("feature_norm"),span("CM norm",tiphelp("Confusion Matrix Normalization")),c("Percental"="overall","None"="none"), inline=T),
+                               numericInput(ns("cm_cell_width"),span("Cell width",tiphelp("cell width")), value=1),
+                               numericInput(ns('feature_round'),'+ Round',2),
+                               textInput(ns("title_cm"),"Title", value=NULL)
+                           ),
 
-            ),
+                 )
+                 ),
 
-            column(5,
+            column(8,class="mp0",
                    box_caret(ns('21'),title="Plot",click=F,
                              button_title = actionLink(ns('downp_feature_cm'),'Download',icon("download") ),
                              uiOutput(ns("feature_cm_plot"))))
@@ -4266,17 +4331,43 @@ permutation_importance$server<-function(id,vals){
     })
 
 
-    output$feature_cm_plot<-renderUI({
-      uiOutput(ns("feature_cm_plot"))
+    get_cm0<-reactive({
       req(length(m())>0)
       predtable<-attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$feature_rands
       req(predtable)
       dft<-get_cm_impact(predtable, var=input$var_feature_cm)
 
-      renderPlot({
-        vals$feature_cm_plot<-plotCM(dft, palette=input$pal_feature_cm,vals$newcolhabs, font_color="black", title=input$title_cm, round_cm=3)
-        vals$feature_cm_plot
+      if(input$feature_norm=="overall"){
+        dft<-dft/sum(dft)*100
+      }
+      req(nrow(dft)>0)
+      dft
+    })
+
+    observeEvent(get_cm0(),{
+      try({
+
+        cm<-get_cm0()
+        print(cm)
+        cm=round(getConfusion(cm,norm=input$feature_norm),input$feature_round)
+        value=max(sapply(cm, nchar))+2
+        updateNumericInput(session,'cm_cell_width',value=value)
+
       })
+    })
+
+
+    output$feature_cm_plot<-renderUI({
+
+      dft<-get_cm0()
+
+      div(
+        renderPlot({
+          vals$feature_cm_plot<-plotCM(dft, palette=input$pal_feature_cm,vals$newcolhabs, font_color="black", title=input$title_cm, round_cm=input$feature_round, norm=input$feature_norm, cell_width = input$cm_cell_width)
+          vals$feature_cm_plot
+        }),
+        renderPrint(caret::confusionMatrix(dft, norm=input$feature_norm))
+      )
     })
     getmetric<-reactive({
       metric<-ifelse(m()$modelType=='Regression','Rsquared','Accuracy')
@@ -5008,6 +5099,11 @@ confusion_module$ui<-function(id){
                        pickerInput_fromtop_live(inputId = ns("caretpalette"),
                                                 label = "+ Palette",NULL,
                                                 options=shinyWidgets::pickerOptions(windowPadding="top")),
+                       radioButtons(ns("cm_norm"),span("CM norm",tiphelp("Confusion Matrix Normalization")),c("Percental"="overall","None"="none"), inline=T),
+                       numericInput(ns("cm_cell_width"),span("Cell width",tiphelp("cell width")), value=1),
+
+                       numericInput(ns("cm_round"),"Round",2),
+
                        textInput(ns('cm_title'),"Title","Training"),
 
                        div(
@@ -5060,33 +5156,78 @@ confusion_module$server<-function(id, vals){
       data<-vals$caret_cm_train_table
       mod_downcenter <- callModule(module_server_downcenter, "downcenter",  vals=vals, message="Download Confusion Matrix",data=data, name=name)
     })
-    output$confusion_caret2<-renderPrint({
+
+
+
+
+
+    get_cm0<-reactive({
+
       validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
       req(input$caret_cm_type)
-      res<-if(input$caret_cm_type=="Resampling"){
-        caret::confusionMatrix(model())
+      if(input$caret_cm_type=="Resampling"){
+       cm=model()
       } else{
-        caret::confusionMatrix(predict(model()),model()$trainingData[,'.outcome'])
+        pred<-predict(model()$finalModel)
+        obs<-model()$trainingData[,'.outcome']
+        cm<-table(pred,obs)
+        if(input$cm_norm=="overall"){
+          cm<-cm/sum(cm)*100
+        }
+        cm<-round(cm,input$cm_round)
+
       }
+    cm
+
+    })
+
+    output$confusion_caret2<-renderPrint({
+      validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
+      cm<-get_cm0()
+      res<-caret::confusionMatrix(cm, norm=input$cm_norm)
       vals$caret_cm_train_table<-as.data.frame.matrix(res$table)
       res
     })
-    output$confusion_caret <- renderPlot({
+
+
+    get_cm0_2<-reactive({
+
       req(input$caretpalette)
       validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
       m<-model()
       req(input$caret_cm_type)
       if(input$caret_cm_type=="Resampling"){
-        cm<-table(m$pred$pred,m$pred$obs)
-
-        res<-plotCM(m, input$caretpalette,  newcolhabs=vals$newcolhabs,title=input$cm_title)
+        cm<-m
       } else  {
-        train<-getdata_model(m)
         cm<-table(predict(model()$finalModel),model()$trainingData[,'.outcome'])
-        cm<-cm/sum(cm)*100
-        res<-plotCM(cm,input$caretpalette,vals$newcolhabs,title=input$cm_title)
-
+        if(input$cm_norm=="overall"){
+          cm<-cm/sum(cm)*100
+        }
       }
+      cm
+
+    })
+
+
+
+
+
+
+
+    observeEvent(get_cm0_2(),{
+      cm<-get_cm0_2()
+      cm=round(getConfusion(cm,norm=input$cm_norm),input$cm_round)
+      value=max(sapply(cm, nchar))
+      updateNumericInput(session,'cm_cell_width',value=value)
+    })
+
+    output$confusion_caret <- renderPlot({
+      req(input$caretpalette)
+      validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
+      m<-model()
+      req(input$caret_cm_type)
+      cm<-get_cm0_2()
+      res<-plotCM(cm,input$caretpalette,vals$newcolhabs,title=input$cm_title, norm=input$cm_norm,round_cm=input$cm_round, cell_width=input$cm_cell_width)
       vals$caret_cm_train_plot<-res
       res
     })
@@ -6220,7 +6361,10 @@ model_predic$ui<-function(id){
                                 div(
                                   id=ns("cm_options"),
                                   uiOutput(ns('sl_pred_pal')),
-                                  numericInput(ns("round_predictionSL"),"+ Round",3,step=1),
+                                  radioButtons(ns("cmpred_norm"),span("CM norm",tiphelp("Confusion Matrix Normalization")),c("Percental"="overall","None"="none"), inline=T),
+                                  numericInput(ns("cm_cell_width"),span("Cell width",tiphelp("cell width")), value=1),
+
+                                  numericInput(ns("cmpred_round"),"+ Round",3,step=1),
                                   div(id=ns('down_cm_btn'),
                                       div(actionLink(ns("dowcenter_cmsl_pred"),span("+ Download Table",icon("fas fa-table")))),
                                       div(
@@ -6399,12 +6543,7 @@ model_predic$server<-function(id,vals){
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Confusion Matrix - Predictions",datalist_name=datalist_name,name_c=name_c)
 
     })
-    output$confusion_svm2_pred<-renderPrint({
-      req(model()$modelType=="Classification")
-      res<-caret::confusionMatrix(get_cm_pred())
-      vals$svm_cm_test<-  as.data.frame.matrix(res$table)
-      res
-    })
+
     observe({
       shinyjs::toggle('down_cm_btn',condition=model()$modelType=="Classification")
     })
@@ -6413,8 +6552,22 @@ model_predic$server<-function(id,vals){
       obs<-SL_predobs()$obs
       pred<-SL_predobs()$pred
       conf<-table(obs, pred)
+      if(input$cmpred_norm=="overall"){
+        conf<-conf/sum(conf)*100
+      }
+
+      req(nrow(conf)>0)
       conf
     })
+
+    observeEvent(get_cm_pred(),{
+      cm<-get_cm_pred()
+      cm=round(getConfusion(cm,norm=input$cmpred_norm),input$cmpred_round)
+      value=max(sapply(cm, nchar))+2
+      updateNumericInput(session,'cm_cell_width',value=value)
+    })
+
+
     output$confusion_sl_pred<-renderUI({
       req(model())
       req(model()$modelType=="Classification")
@@ -6424,7 +6577,7 @@ model_predic$server<-function(id,vals){
       div(
 
         renderPlot({
-          res<-plotCM(conf/sum(conf)*100, input$svmpalette_pred,  newcolhabs=vals$newcolhabs,round_cm=input$round_predictionSL,title=input$svm_cmpred_title)
+          res<-plotCM(conf, input$svmpalette_pred,  newcolhabs=vals$newcolhabs,round_cm=input$cmpred_round,title=input$svm_cmpred_title,norm=input$cmpred_norm, cell_width = input$cm_cell_width)
           vals$svm_cm_pred<-res
           res
         })
@@ -6432,7 +6585,12 @@ model_predic$server<-function(id,vals){
 
     })
 
-
+    output$confusion_svm2_pred<-renderPrint({
+      req(model()$modelType=="Classification")
+      res<-caret::confusionMatrix(get_cm_pred(), norm=input$cmpred_norm)
+      vals$svm_cm_test<-  as.data.frame.matrix(res$table)
+      res
+    })
 
     SL_predobs<-reactive({
       req(predictionSL())
@@ -7694,7 +7852,7 @@ caret_models$server<-function(id,vals){
           number = args_r$cv,
           repeats = args_r$repeats,
           p=args_r$pleaves/100,
-          savePredictions = "all",
+          savePredictions = "final",
           search =args_r$search,verboseIter=F,
           selectionFunction =args_r$selfinal
 
@@ -7848,7 +8006,7 @@ caret_models$server<-function(id,vals){
                 number = args_r$cv,
                 repeats = args_r$repeats,
                 p=args_r$pleaves/100,
-                savePredictions = "all",
+                savePredictions = "final",
                 search =args_r$search,verboseIter=F,
                 selectionFunction =args_r$selfinal
 

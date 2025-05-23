@@ -5492,7 +5492,14 @@ tool4$ui<-function(id){
                          )),
                      uiOutput(ns('nzv_message'))
                  )
-        )
+        ),
+        tabPanel(span("Match Columns with Datalist"),value="tab7",
+                 div(class="half-drop",
+                     uiOutput(ns('sync_ids')),
+                     uiOutput(ns("print_sync")),
+                     hidden(actionLink(ns("unsync_ids"),"Display Unmatched Columns")),
+                     uiOutput(ns("update_tab2")),
+                 )),
 
       ),
       div(style="position: absolute; left: 10px; top: 200px; width: 200px",
@@ -5819,9 +5826,12 @@ tool4$server<-function(id,vals=NULL){
         rm_col=rm_col(),
         nzv_val=nzv_val(),
         rm_cor=get_corrdata(),
-        rm_zv=rm_zv()
+        rm_zv=rm_zv(),
+        rm_col_match=rm_col_match()
       )
     })
+
+
     bag_name<-reactive({
       paste0(
         if(length(input$rareabund)>0) {
@@ -5836,6 +5846,97 @@ tool4$server<-function(id,vals=NULL){
 
       )
     })
+
+    ##
+
+    output$sync_ids<-renderUI({
+      selectInput(session$ns("sync_ids"),"Choose a Datalist for Column matching",names(vals$saved_data))
+    })
+
+    output$print_sync<-renderUI({
+      req(input$sync_ids)
+
+      renderPrint(match_summary())
+    })
+
+    observeEvent(col_match(),{
+      if(any(!col_match())){
+        shinyjs::show('unsync_ids')
+      } else{
+        shinyjs::hide('unsync_ids')
+      }
+    })
+
+    observeEvent(input$unsync_ids,{
+      showModal(
+        modalDialog(
+          easyClose=T,
+          print_unsync()
+        )
+      )
+    })
+
+
+
+    print_unsync<-reactive({
+      req(any(!col_match()))
+      primary_datalist<-attr(data(),"datalist_root")
+      secondary_datalist<-input$sync_ids
+
+      div(
+        span(
+          em(primary_datalist,style="color: SeaGreen"),
+          "does not contain the following Columns from",
+          em(secondary_datalist,style="color: SeaGreen"), ":"
+        ),
+        div(style="height: 200px; overflow-y:scroll;",
+            renderTable(
+              data.frame(unmached_is=rm_col_match())
+            )
+        )
+
+      )
+    })
+    match_summary<-reactive({
+      req(input$sync_ids)
+      req(length(col_match())>0)
+      primary_datalist<-attr(data(),"datalist_root")
+      secondary_datalist<-input$sync_ids
+      nd1<-ncol(data())
+      nd2<-ncol(vals$saved_data[[input$sync_ids]])
+      matches<-sum(col_match())
+      nonmaches<-sum(!col_match())
+
+      data.frame(Datalist=c(primary_datalist,secondary_datalist,"",""),
+                 col_count=c(nd1,nd2,matches,nonmaches),
+                 col.names=c("Primary",
+                             "Secondary",
+                             "Matched Columns",
+                             "Removed Columns")
+
+      )
+
+    })
+    col_match<-reactiveVal()
+    rm_col_match<-reactiveVal()
+
+    observeEvent(col_match(),{
+      rm_col_match(colnames(data())[!col_match()])
+    })
+    output$print_sync<-renderUI({
+      req(input$sync_ids)
+
+      div(style="overflow-x:scroll; width: 300px",
+          renderTable(match_summary(), rownames = T))
+
+    })
+
+    observeEvent(input$sync_ids,{
+      req(input$sync_ids)
+      match<-colnames(data())%in%colnames(vals$saved_data[[input$sync_ids]])
+      col_match(match)
+    })
+    ##
 
     v4_data<-reactive({
       data<-vals$pp_data
@@ -5855,6 +5956,9 @@ tool4$server<-function(id,vals=NULL){
     observeEvent(v4_data(),{
       vals$vtools$tool4<-v4_data()
     })
+
+
+
 
     return(NULL)
   })

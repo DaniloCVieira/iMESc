@@ -272,6 +272,7 @@ hc_module$ui<-function(id){
                            div(id=ns("hcut_btn"),class="save_changes",
                                actionButton(ns("run_hc"),"RUN >>")
                            ),
+                          # div(align="right",checkboxInput(ns("show_dendro"),"Show Dendrogram",T)),
 
                            uiOutput(ns("hcut_plot"))
                          )
@@ -647,6 +648,7 @@ hc_module$server<-function(id, vals){
       args
     })
     output$hcut_plot<-renderUI({
+      #req(isTRUE(input$show_dendro))
       renderPlot({
         args<-hcut_argsplot()
 

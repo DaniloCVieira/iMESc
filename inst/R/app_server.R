@@ -628,7 +628,31 @@ app_server<-server<-function(input, output, session) {
                   )
                 )),
               column(9,class="mp0",uiOutput("videos"))
-            ))
+            )),
+          tabPanel(
+            "Publication", value = "intro7",
+            column(
+              12, style = "background: white",
+              h4("Published Article"),
+              p(
+                tags$a(
+                  href = "https://www.frontiersin.org/journals/environmental-science/articles/10.3389/fenvs.2025.1533292/full",
+                  target = "_blank",
+                  "click here to access the online version at *Frontiers in Environmental Science*."
+                )
+              ),
+
+              tags$iframe(
+                src = "paper.pdf#zoom=100",
+                width = "100%",
+                height = "600px",
+                style = "border: none;"
+              )
+
+
+            )
+          )
+
 
         )
     )

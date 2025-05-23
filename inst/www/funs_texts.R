@@ -347,21 +347,23 @@ ppsummary <- function(m){
 
 
 #' @export
-textintro<-function(...){
+textintro <- function(...) {
   column(12,
-
-        column(12,
-               br(),
-               h4(strong("Welcome to",span('iMESc',style="font-family: 'Alata', sans-serif;"),style="color: #05668D")),
-               p("iMESc is a shiny-based application that allows the performance of end-to-end machine learning workflows. The available resources meet several needs of environmental workflows, but it is not restricted to. iMESc includes tools for data pre-processing, to perform descriptive statistics, supervised and unsupervised machine learning algorithms and interactive data visualization by means of graphs, maps, and tables. Throughout the app, data input and output are organized in modules enabling the creation of multiple ML pipelines. Additionally, it allows saving the workspace in a single file, contributing to the best practices in data-sharing and analysis reproducibility. The app is entirely written in the R programming language and thus it is free."),
-               p("iMESc allows users to create a savepoint, a single R object that can be reloaded later to restore analysis output."),
-               p("Get started by creating a Datalist. Use the",icon(verify_fa = FALSE,name=NULL,class="fas fa-plus"),"button."),
-               p("To ensure that iMESc content fits nicely on the screen, we recommend a landscape", strong("minimum resolution  of 1377 x 768 pixels.")))
-
-
-      )
-
+         column(12,
+                br(),
+                h4(strong("Welcome to", span('iMESc', style = "font-family: 'Alata', sans-serif;"), style = "color: #05668D")),
+                p(
+                  "iMESc is a shiny-based application that allows the performance of end-to-end machine learning workflows. The available resources meet several needs of environmental workflows, but it is not restricted to. iMESc includes tools for data pre-processing, to perform descriptive statistics, supervised and unsupervised machine learning algorithms and interactive data visualization by means of graphs, maps, and tables. Throughout the app, data input and output are organized in modules enabling the creation of multiple ML pipelines. Additionally, it allows saving the workspace in a single file, contributing to the best practices in data-sharing and analysis reproducibility. The app is entirely written in the R programming language and thus it is free. ",
+                  tags$a(href = "https://www.frontiersin.org/journals/environmental-science/articles/10.3389/fenvs.2025.1533292/full",
+                         target = "_blank", "Read the publication here.")
+                ),
+                p("iMESc allows users to create a savepoint, a single R object that can be reloaded later to restore analysis output."),
+                p("Get started by creating a Datalist. Use the", icon(verify_fa = FALSE, name = NULL, class = "fas fa-plus"), "button."),
+                p("To ensure that iMESc content fits nicely on the screen, we recommend a landscape", strong("minimum resolution of 1377 x 768 pixels."))
+         )
+  )
 }
+
 
 
 #' @export

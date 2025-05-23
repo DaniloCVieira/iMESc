@@ -5849,8 +5849,17 @@ tool4$server<-function(id,vals=NULL){
 
     ##
 
+
     output$sync_ids<-renderUI({
-      selectInput(session$ns("sync_ids"),"Choose a Datalist for Column matching",names(vals$saved_data))
+      choices<-names(vals$saved_data)
+      pic<-sapply(vals$saved_data,function(x)
+        any(   colnames(x)%in%colnames(vals$pp_data))
+     )
+
+
+      choices<-choices[pic]
+
+      selectInput(session$ns("sync_ids"),"Choose a Datalist for Column matching",choices)
     })
 
     output$print_sync<-renderUI({

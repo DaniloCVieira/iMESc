@@ -6551,6 +6551,7 @@ model_predic$server<-function(id,vals){
 
       obs<-SL_predobs()$obs
       pred<-SL_predobs()$pred
+      req(length(obs)==length(pred))
       conf<-table(obs, pred)
       if(input$cmpred_norm=="overall"){
         conf<-conf/sum(conf)*100
@@ -6561,10 +6562,14 @@ model_predic$server<-function(id,vals){
     })
 
     observeEvent(get_cm_pred(),{
-      cm<-get_cm_pred()
-      cm=round(getConfusion(cm,norm=input$cmpred_norm),input$cmpred_round)
-      value=max(sapply(cm, nchar))+2
-      updateNumericInput(session,'cm_cell_width',value=value)
+      try({
+
+        cm<-get_cm_pred()
+        cm=round(getConfusion(cm,norm=input$cmpred_norm),input$cmpred_round)
+        value=max(sapply(cm, nchar))+2
+        updateNumericInput(session,'cm_cell_width',value=value)
+
+      })
     })
 
 

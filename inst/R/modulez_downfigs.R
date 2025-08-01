@@ -1,7 +1,27 @@
 
 # module for downloading the figures
 #print.ggmatrix<-GGally:::print.ggmatrix
-print.ggmatrix<-GGally:::print
+print.ggmatrix<-function (x, newpage = is.null(vp), vp = NULL, ...) {
+  if (newpage) {
+    grid::grid.newpage()
+  }
+  grDevices::recordGraphics(requireNamespace("GGally", quietly = TRUE),
+                            list(), getNamespace("GGally"))
+  gtable <- GGally::ggmatrix_gtable(x, ...)
+  ggplot2::set_last_plot(x)
+  if (is.null(vp)) {
+    grid::grid.draw(gtable)
+  }  else {
+    if (is.character(vp)) {
+      grid::seekViewport(vp)
+    }    else {
+      grid::pushViewport(vp)
+    }
+    grid::grid.draw(gtable)
+    grid::upViewport()
+  }
+  invisible(data)
+}
 module_ui_figs<- function(id){
   ns<-NS(id)
   uiOutput(ns("go"))

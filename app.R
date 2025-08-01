@@ -23,7 +23,7 @@ load_R<-function(){
   if(TRUE){
     www_funs<-list.files("inst/R",pattern=".R",full.names = T)
     sapply(seq_along(www_funs),function(i){
-      print(i)
+
       source(www_funs[[i]])
     })
 

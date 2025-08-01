@@ -1,7 +1,7 @@
 
 # module for downloading the figures
-print.ggmatrix<-GGally:::print.ggmatrix
-
+#print.ggmatrix<-GGally:::print.ggmatrix
+print.ggmatrix<-GGally:::print
 module_ui_figs<- function(id){
   ns<-NS(id)
   uiOutput(ns("go"))

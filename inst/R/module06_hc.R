@@ -951,7 +951,7 @@ hc_module$server<-function(id, vals){
         removeTab("tabs_view","tab4")
         removeTab("tabs_view","tab5")
       } else{
-        insertTab("tabs_view",tabPanel('4. Codebook clusters',value="tab4"),select=T)
+        insertTab("tabs_view",tabPanel('4. Codebook clusters',value="tab4"),select=F)
         insertTab("tabs_view",tabPanel('5. Codebook screeplot',value='tab5')
         )
       }

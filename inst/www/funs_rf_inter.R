@@ -408,7 +408,7 @@ plot_mdd<-function (min_depth_frame, k = 10, min_no_of_trees = 0, mean_sample = 
     scale_fill_manual(values=getcolhabs(newcolhabs,palette, nlevels(as.factor(data$minimal_depth))))+
     coord_flip() +
     scale_x_discrete(limits = rev(levels(data$variable))) +
-    geom_errorbar(aes(ymin = mean_minimal_depth_label, ymax = mean_minimal_depth_label),size = 1.5) +
+    geom_errorbar(aes(ymin = mean_minimal_depth_label, ymax = mean_minimal_depth_label),linewidth = 1.5) +
     xlab("Variable") +
     ylab("Number of trees") +
     guides(fill = guide_legend(title = "Minimal depth")) +

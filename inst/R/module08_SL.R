@@ -6068,9 +6068,13 @@ model_results$server<-function(id,vals){
 
     observe({
       if(!isTRUE(input$stack)){
-        updateTextInput(session,"xlab",value=colnames(get_imp()))}else{
+        try(
+          updateTextInput(session,"xlab",value=colnames(get_imp())))
+      }else{
+        try(
           updateTextInput(session,"xlab",value='Influence Score')
-        }
+        )
+      }
     })
 
     args_feature<-reactive({
@@ -6177,7 +6181,7 @@ model_results$server<-function(id,vals){
       p<-p+xlab(xlab)+ylab(ylab)+theme(
         panel.grid.major = element_blank(),
         panel.background=element_rect(fill=NA, color="white"),
-        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
+        panel.border = element_rect(fill=NA,color="black", linewidth=0.5, linetype="solid"),
         strip.text.x = element_text(size = title_size),
         axis.line=element_line(),
         axis.text=element_text(size=feat_size),
@@ -7328,7 +7332,7 @@ fs$server<-function(id,vals){
 
     observeEvent(input$run,ignoreInit = T,{
 
-      rf_ga <-vals$model_error<-try(withProgress(do.call('gafs',vals$args_GA),min=NA,max=NA,message="Running"))
+      rf_ga <-vals$model_error<-try(withProgress(do.call(caret::gafs.default,vals$args_GA),min=NA,max=NA,message="Running"))
       req(!inherits(rf_ga,"try-error"))
 
       req(vals$cur_data_sl)

@@ -1319,8 +1319,7 @@ scree_smw_ggplot<-function(df){
       legend.position = "right",
       panel.grid.minor=element_blank(),
       legend.box = "vertical",
-      legend.box.just = "top",
-      legend.margin=margin(0, 0, 0, 0)
+      legend.box.just = "top"
     ) +
     guides(color = guide_legend(order=1,override.aes = list(linetype = linetype, shape = shape)),
            linetype = guide_legend(order=2, override.aes = list(color="black", shape=NA)))

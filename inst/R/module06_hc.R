@@ -1165,6 +1165,8 @@ hc_module$server<-function(id, vals){
 
     })
 
+
+
     hc_screeplot<-function(data,model_or_data="som codebook",model_name=1,disthc,screeplot_hc_k,whatmap=NULL,use_weights=F){
       cmd_log_type<-d_log_type<-p_log_type<-NULL
       cmd_log_message<-d_log_message<-p_log_message<-NULL
@@ -1177,7 +1179,9 @@ hc_module$server<-function(id, vals){
           weights<-NULL
         }
         dist=get_somdist_weighted(m,weights=weights,whatmap)
-        data_log<-capture_log1(cmdscale)(dist, k=30)
+
+
+        data_log<-capture_log1(cmdscale)(dist, k=dim(dist)[1]-1)
         data<-data_log[[1]]
         cmd_log_message<-sapply(data_log$logs,function(x) x$message)
         if(length(cmd_log_message)==0){
@@ -1248,6 +1252,7 @@ hc_module$server<-function(id, vals){
         smw<-vals$screeplot_results
         smw2<-get_screeplot_smw_sig(smw,tol)
         df<-get_ggdata_screesms(smw2,tol)
+
         p<-scree_smw_ggplot(df)
       }
       p

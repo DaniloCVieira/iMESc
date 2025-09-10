@@ -3290,6 +3290,7 @@ desctools_tab8$server<-function(id,vals){
       validate(need(!anyNA(vals$saved_data[[input$rda_Y]]), "Missing values (Datalist X) not allowed"))
 
       args<-rda_args()
+
       req(length(args$model)>0)
       vals$rda_plot<-do.call(ggrda,args)
       renderPlot({

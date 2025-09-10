@@ -2024,6 +2024,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
           args$data<- args$data_o
         }
         try({
+
           p<-do.call(gg_rst, args)
           args$p<-p
           p<-do.call(gg_add_titles,args)

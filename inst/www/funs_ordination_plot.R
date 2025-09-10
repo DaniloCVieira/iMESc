@@ -384,13 +384,13 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
   return(p)
 }
 
+library(vegan)
 #' @export
 ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=T, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5,  biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", species=T, species_n=5,  species_plot="text", species_size=4, species_shape=3, species_color="red",scale_shape=F,expandX=0.1,expandY=0.1,legend_points="",legend_response="",show_response_legend=T,
                 show_points_legend=T,xlab="RDA I", ylab="RDA II",show_axis_explain=T){
 
   {
 
-    un<-round(summary(model)$cont$importance[2,1:2]*100,2)
     con<-round(summary(model)$concont$importance[2,1:2]*100,2)
     if(isFALSE(constr)){labs<-un} else {labs<-con}
     if(isTRUE(show_axis_explain)){
@@ -399,10 +399,15 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
 
     }
 
+
+
     smry <- summary(model)
-    df1  <- data.frame(smry$sites[,1:2])
-    df2  <- data.frame(smry$biplot[,1:2])
-    df3  <- data.frame(smry$species[,1:2])
+
+    scores_model<-scores(model)
+
+    df1  <- data.frame(   scores_model$sites[,1:2])
+    df2  <- data.frame(scores_model$biplot[,1:2])
+    df3  <- data.frame(scores_model$species[,1:2])
     colnames(df1)<-colnames(df2)<-colnames(df3)<-c("x","y")
     range_df1_x <- range(df1$x)
     range_df1_y <- range(df1$y)

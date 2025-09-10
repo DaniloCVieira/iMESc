@@ -6548,10 +6548,11 @@ model_predic$server<-function(id,vals){
       shinyjs::toggle('down_cm_btn',condition=model()$modelType=="Classification")
     })
     get_cm_pred<-reactive({
-
+      req(model()$modelType=="Classification")
       obs<-SL_predobs()$obs
       pred<-SL_predobs()$pred
       req(length(obs)==length(pred))
+
       conf<-table(obs, pred)
       if(input$cmpred_norm=="overall"){
         conf<-conf/sum(conf)*100

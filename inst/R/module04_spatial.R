@@ -4570,7 +4570,7 @@ sptools_colors$ui<-function(id){
       div(
         checkboxInput(ns("reverse_palette"),"Reverse palette",F)
       ),
-      colourpicker::colourInput(ns('bg_color'),"Background","whitesmoke"),
+      colourpicker::colourInput(ns('bg_color'),"Background","white"),
     )
 
 

@@ -2305,7 +2305,7 @@ plot_variogram <- function(v, m, sized=F, show_vgm_lines=T) {
   g
 }
 gg_rst<-function(rst=NULL,data=NULL,limits=NULL,legend.text_size=13,layer_shape=NULL,extra_shape=NULL,breaks=T,nbreaks=5,pal="turbo",key.height=NULL,newcolhabs=list(turbo=viridis::turbo),add_extra_shape=F,add_base_shape=T,add_layer_shape=F,show_labels=F,labels=attr(rst,"factors")[1],cex.fac=13,col.fac="red",show_coords=F,col.coords="black",cex.coords=13,custom_breaks=NULL,layer_col="gray",lighten=0.4,layer_shape_border="gray",width_hint=0.15,cex_scabar=0.7,fillOpacity=1,reverse_palette=F,scale_radius=T,min_radius=1,max_radius=5,addCircles=T,addMinicharts=F,buffer_zize=1,
-                 fun="sum",factor_chart=1,args_extra_shape=NULL,data_depth=NULL,data_o=NULL,base_shape_args,layer_shape_args,factor=F,light=0,legend.position="none",show_scale_bar=F,breaks_on=T,leg_title=NULL,...) {
+                 fun="sum",factor_chart=1,args_extra_shape=NULL,data_depth=NULL,data_o=NULL,base_shape_args,layer_shape_args,factor=F,light=0,legend.position="none",show_scale_bar=F,breaks_on=T,leg_title=NULL,bg='white',...) {
 
   if(!isTRUE(factor)){
     custom_breaks00<-as.numeric(custom_breaks)
@@ -2449,7 +2449,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,legend.text_size=13,layer_shape=
   p<-p+
 
     theme(panel.grid.major = element_blank(),
-          panel.background = element_rect(fill = "white"),
+          panel.background = element_rect(fill = bg),
           panel.border = element_rect(fill=NA,
                                       color="black",
                                       linewidth=0.5,

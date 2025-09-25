@@ -1089,13 +1089,15 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         fillOpacity<-color_args1()$fillOpacity
         reverse_palette<-color_args1()$reverse_palette
         light<-color_args1()$light
+        bg<-color_args1()$bg
         newcolhabs<-vals$newcolhabs
         list(
           pal=pal,
           fillOpacity=fillOpacity,
           reverse_palette=reverse_palette,
           newcolhabs=vals$newcolhabs,
-          light=light
+          light=light,
+          bg=bg
         )})
 
       extra_shapes<-reactive({
@@ -4561,12 +4563,14 @@ sptools_colors$ui<-function(id){
         ),inline=T,width="400px"),
 
         numericInput(ns("fillOpacity"),'Fill opacity',min=0,max=1,0.8,step=0.1),
-        numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1)
+        numericInput(ns("light"),'Lightning',min=0,max=1,0,step=0.1),
+
 
       ),
       div(
         checkboxInput(ns("reverse_palette"),"Reverse palette",F)
-      )
+      ),
+      colourpicker::colourInput(ns('bg_color'),"Background","whitesmoke"),
     )
 
 
@@ -4580,7 +4584,7 @@ sptools_colors$server<-function(id){
     return(
       reactive({
 
-        list(pal='temp_palette',fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color)
+        list(pal='temp_palette',fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color, bg=input$bg_color)
       })
     )
   })
@@ -4592,6 +4596,10 @@ sptools_colors$server_update<-function(id,vals){
       list(
         pal=input$palette,fillOpacity=input$fillOpacity,reverse_palette=input$reverse_palette,light=input$light,scale_color=input$scale_color
       )
+    })
+
+    observe({
+      shinyjs::toggle('bg_color',condition = !vals$cur_modeplot%in%"leaflet")
     })
 
     observeEvent(result(),{

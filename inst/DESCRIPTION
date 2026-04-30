@@ -1,0 +1,106 @@
+Package: imesc
+Title: iMESc - an Interactive Machine Learning App for Environmental
+    Science
+Version: 1.0
+Authors@R: 
+    person("Danilo", "Vieira", , "vieiradc@yahoo.com.br", role = c("cre", "aut"))
+Description: iMESc is an Interactive Machine Learning App for
+    Environmental Science.
+License: file LICENSE
+URL: https://github.com/DaniloCVieira/iMESc
+BugReports: https://github.com/DaniloCVieira/iMESc/issues
+VignetteBuilder: 
+    knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0), shiny
+Suggests: 
+    knitr,
+    rmarkdown
+Imports: 
+    ade4,
+    automap,
+    aweSOM,
+    base64enc,
+    beepr,
+    caret,
+    colorspace,
+    colourpicker,
+    corrplot,
+    data.table,
+    dendextend,
+    dplyr,
+    DT,
+    e1071,
+    factoextra,
+    gbRd,
+    geodist,
+    GGally,
+    ggforce,
+    ggnewscale,
+    ggparty,
+    ggplot2,
+    ggpubr,
+    ggraph,
+    ggrepel,
+    ggridges,
+    gplots,
+    grDevices,
+    grid,
+    gridExtra,
+    gstat,
+    htmlwidgets,
+    httr,
+    igraph,
+    indicspecies,
+    jsonlite,
+    kernlab,
+    klaR,
+    kohonen,
+    leaflet,
+    leaflet.minicharts,
+    Metrics,
+    mice,
+    NCmisc,
+    NeuralNetTools,
+    party,
+    partykit,
+    pdp,
+    permute,
+    plot3D,
+    plotly,
+    plyr,
+    randomForest,
+    randomForestExplainer,
+    raster,
+    RColorBrewer,
+    readr,
+    readxl,
+    renv,
+    reshape,
+    reshape2,
+    scales,
+    scatterpie,
+    segRDA,
+    sf,
+    shinyBS,
+    shinybusy,
+    shinycssloaders,
+    shinydashboard,
+    shinydashboardPlus,
+    shinyjs,
+    shinyTree,
+    shinyWidgets,
+    sortable,
+    sp,
+    tibble,
+    tools,
+    utils,
+    vegan,
+    viridis,
+    webshot,
+    wesanderson,
+    writexl

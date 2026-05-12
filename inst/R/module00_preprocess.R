@@ -368,7 +368,7 @@ imesc_outliers$server<-function (id,vals ){
 
 }
 
-generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="Balanced"){
+generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="Balanced", groups=groups){
   if(part_type=="Random"){
     nobs<-nrow(data)
     p<-split_p/100
@@ -392,7 +392,8 @@ generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="B
   if(is.na(split_seed)){split_seed=NULL}
   set.seed(split_seed)
   p=((100-split_p)/100)
-  part<-caret::createDataPartition(y,p=p,list=T)[[1]]
+  print(groups)
+  part<-caret::createDataPartition(y,p=p,list=T, groups=groups)[[1]]
   train=rownames(data)[part]
   test=rownames(data)[-part]
   df<-data.frame(Partition=rep(NA,nrow(factors)),
@@ -6562,6 +6563,11 @@ tool7$ui<-function(id){
                 style="margin-left: 20px",
                 uiOutput(ns("split_y_out"))
             ),
+
+            div(class="medium",
+                style="margin-left: 40px",
+              uiOutput(ns('split_y_groups'))
+            ),
             div(class="medium",
                 style="margin-left: 40px",
                 numericInput(ns("split_p"),span(tiphelp("the percentage of data that goes to test","left"),"Size (%):"),value=20,min=0,max=99,step=1),
@@ -6599,6 +6605,10 @@ tool7$server<-function(id,vals=NULL){
 
 
 
+
+    observe({
+      shinyjs::toggle('split_y_groups',condition=input$split_t=="Regression")
+    })
     output$part_for<-renderUI({
       req(input$part_type=="Balanced")
       ns<-session$ns
@@ -6628,22 +6638,35 @@ tool7$server<-function(id,vals=NULL){
 
 
 
-
+    output$split_y_groups<-renderUI({
+      numericInput(
+        session$ns("groups"),
+        tags$label(span(tiphelp("For regression, this defines the number of quantile-based groups used during resampling. The sample is split into groups based on percentiles, and sampling is performed within these groups.",'left'),'Groups:'),style=""),
+        value = 5,
+        min = 2,
+        step = 1
+      )
+    })
 
     output$split_y_out<-renderUI({
       req(input$part_type=="Balanced")
       req(data())
       req(input$split_t)
       if(input$split_t%in%"Classification"){
+        groups_input<-NULL
         choices_factors<-colnames(attr(data(),"factors"))
       } else{
         choices_factors<-colnames(data())
+
       }
 
       # selected<-get_selected_from_choices(vals$cur_split_y,choices_factors)
       #selectInput(session$ns("split_y"),SelectedText="Columns selected", label=span(tiphelp("Select the target variable",'left'),'Y:'),choices=choices_factors,selected=vals$cur_split_y)
 
-      virtualPicker_unique(session$ns("split_y"),tags$label(span(tiphelp("Select the target variable. Choose multiple variables for creating multiple partition columns",'left'),'Y:'),style=""),choices_factors,selected=choices_factors[1],multiple =T)
+      div(
+        virtualPicker_unique(session$ns("split_y"),tags$label(span(tiphelp("Select the target variable. Choose multiple variables for creating multiple partition columns",'left'),'Y:'),style=""),choices_factors,selected=choices_factors[1],multiple =T)
+
+      )
     })
 
     observeEvent(input$split_y,{
@@ -6681,7 +6704,8 @@ tool7$server<-function(id,vals=NULL){
         split_y=input$split_y,
         split_p=input$split_p,
         split_seed=input$split_seed,
-        part_type=input$part_type
+        part_type=input$part_type,
+        groups=input$groups
       )
     })
 

@@ -146,17 +146,43 @@ feat<-function(m,moldels_importance,palette="turbo", newcolhabs=list(turbo=virid
 
 
 #' @export
-tiphelp<-function(text,placement ="bottom"){
-  tipify_ui(a(icon("fas fa-question-circle")),text,placement =placement)
+#'
+#'
+tiphelp_icon <- function(icon,text, placement = "bottom") {
+  tags$span(
+    icon,
+    class = "help-tip",
+    style = "margin-left: 4px; cursor: help; color: #2c7fb8;",
+    `data-placement` = placement,
+    `data-html` = "true",
+    `data-original-title` = text
+  )
 }
-tipright<-function(text,placement ="right",...){
-  tipify_ui(a(icon("fas fa-question-circle")),text,placement =placement)
+tiphelp <- function(text, placement = "bottom") {
+  tags$span(
+    icon("fas fa-question-circle"),
+    class = "help-tip",
+    style = "margin-left: 4px; cursor: help; color: #2c7fb8;",
+    `data-placement` = placement,
+    `data-html` = "true",
+    `data-original-title` = text
+  )
 }
+
+tipright <- function(text, placement = "right") {
+  tiphelp(text, placement = placement)
+}
+
+
+
+
+
+
 #' @export
 tiphelp3<-function(title,text,placement ="bottom"){
   span(
     style="color: #3c8dbc;",
-    title,tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
+    title,tiphelp(text,placement =placement ))
 }
 
 

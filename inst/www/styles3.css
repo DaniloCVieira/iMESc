@@ -89,13 +89,6 @@ font-size: 11px;font-style: italic; position: absolute; top: 0px; right: 0px
 
 
 
-.tip_panel .tippy-tooltip.material-theme {
-font-size: 12px;
-color: black;
-font-weight: 100;
-width: 500px
-}
-
 
 .ghost_box{
 background: GhostWhite; border: 1px solid #dfdfe6;
@@ -920,4 +913,45 @@ margin-left: -5px;
    max-width: 83vw;     /* Fill the height of the modal */
 
 }
+.bootstrap-select .dropdown-toggle .caret {
+    right: 5px
+}
+.bootstrap-select .dropdown-toggle .filter-option {
+    margin-right: 15px
+}
 
+.tooltip-inner {
+
+  text-align: left;
+  background-color: MidnightBlue;
+  z-index: 99999;
+}
+.tooltip-inner {
+
+  z-index: 999999999999;
+  opacity: 1;
+}
+.tooltip.bottom .tooltip-arrow {
+  top: 0;
+  left: 50%;
+  margin-left: 0px;
+  border-width: 0 5px 5px;
+  border-bottom-color: #000;
+}
+.tooltip .in {
+  background-color: MidnightBlue;
+  opacity: 1;
+  z-index: 99999;
+}
+.tooltip .fade {
+  background-color: MidnightBlue;
+  opacity: 1;
+  z-index: 9999999999;
+}
+
+.tip_panel .tippy-tooltip.material-theme {
+  font-size: 12px;
+  color: black;
+  font-weight: 100;
+  width: 500px
+}

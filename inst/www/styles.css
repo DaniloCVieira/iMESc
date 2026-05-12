@@ -135,9 +135,7 @@ border-radius: 0px 0px 0px 0px;
 background: white;
 }
 .dropdown-menu{z-index:10000 !important;}
-.tooltip {
-color: red;
-}
+
 
 .finesom_btn .btn{
 border-radius: 0px 0px 0px 0px;
@@ -1081,12 +1079,7 @@ margin: 0px;
 }
 
 
-.tooltip-inner {
 
-  text-align: left;
-background-color: MidnightBlue;
-z-index: 99999;
-}
 .div_fundo {
 margin: 2px;
 padding: 10px;
@@ -1094,28 +1087,8 @@ background: #f7f7f7ff;
 -webkit-box-shadow: inset 0px 0px 5px #797979ff;
 display: block;
 }
-.tooltip-inner {
 
-z-index: 999999999999;
-opacity: 1;
-}
-.tooltip.bottom .tooltip-arrow {
-top: 0;
-left: 50%;
-margin-left: 0px;
-border-width: 0 5px 5px;
-border-bottom-color: #000;
-}
-.tooltip .in {
- background-color: MidnightBlue;
-opacity: 1;
-z-index: 99999;
-}
-.tooltip .fade {
- background-color: MidnightBlue;
-opacity: 1;
-z-index: 9999999999;
-}
+
 
 
 #module_desctools-run_mds, {

@@ -5263,10 +5263,10 @@ get_summary_datalist<-function(datalist, which=c("numeric","factors","coords")){
 tiphelp5<-function(title,text,placement ="bottom"){
   span(class="tip-80",
        style="color: #3c8dbc;",
-       title,tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
+       title,tiphelp(text,placement =placement ))
 }
 tiphelp6<-function(text,placement ="bottom"){
   span(class="tip-80",
        style="color: #3c8dbc;",
-       tipify_ui(icon("fas fa-question-circle"),text,placement =placement ))
+       tiphelp(text,placement =placement ))
 }

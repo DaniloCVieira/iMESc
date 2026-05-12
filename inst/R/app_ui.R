@@ -112,6 +112,27 @@ app_ui<-ui<-function(request) {
       ")
       )
     ),
+   tags$script(HTML("
+  $(document).on('mouseenter', '.help-tip', function() {
+    var el = $(this);
+
+    if (!el.data('bs.tooltip')) {
+      el.tooltip({
+        container: 'body',
+        trigger: 'manual',
+        placement: el.data('placement') || 'bottom',
+        delay: { show: 0, hide: 0 },
+        animation: false
+      });
+    }
+
+    el.tooltip('show');
+  });
+
+  $(document).on('mouseleave', '.help-tip', function() {
+    $(this).tooltip('hide');
+  });
+")),
  # Loading overlay and spinner
     tags$script(
       HTML("

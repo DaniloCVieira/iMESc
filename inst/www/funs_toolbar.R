@@ -200,6 +200,21 @@ imesc_data<-function(path,sheet=NULL,attr){
     }
     data<-imesc_excel_sheets(path,sheet=sheet,attr=attr)
   }
+
+  date_class<-sapply(data,function(x){
+    inherits(x,"Date")
+  })
+  if(any(date_class)){
+    pic<-which(sapply(data,function(x){
+      inherits(x,"Date")
+    }))
+
+    data[,pic]<-as.numeric(data[,pic])
+
+  }
+
+
+
   facs<-which(unlist(lapply(data,class))=="character")
   if(length(facs)>0){
     facs2<-data[,facs]

@@ -127,6 +127,8 @@ source("inst/www/funs_SL.R")
 source("inst/www/fun_gg_rst.R")
 source("inst/www/funs_leaflet.R")
 source("inst/www/sankey.R")
+source("inst/www/funs_spatial_validation.R")
+
 
 #source("inst/www/funs_keras.R")
 #file.remove(paste0(getwd(), "/", 'bookmarks.rds'))

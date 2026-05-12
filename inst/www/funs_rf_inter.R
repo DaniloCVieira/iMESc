@@ -324,7 +324,7 @@ getConfusion<-function(rf,norm="overall"){
   ConfMat<-list()
   if(class(rf)[1]=="train"){
     validate(need(rf$modelType=="Classification","Confusion Matrices are only valid for Regression models"))
-    ConfMat<-caret::confusionMatrix(rf,norm=norm)
+    ConfMat<-confusionMatrix_train_imesc(rf,norm=norm)
   } else  if(class(rf)[1]=='table'){  ConfMat<-caret::confusionMatrix(rf,norm=norm)} else{
   if(sum(names(rf)=="finalModel")==0)
   {
@@ -571,46 +571,8 @@ plotCM<-function(rf, palette="turbo",newcolhabs=list(turbo=viridis::turbo), font
   return(ggtab)
 }
 
-#' @export
-resampName<-function (x, numbers = TRUE)
-{
-  if (!("control" %in% names(x)))
-    return("")
-  if (numbers) {
-    resampleN <- unlist(lapply(x$control$index, length))
-    numResamp <- length(resampleN)
-    out <- switch(tolower(x$control$method), none = "None",
-                  apparent = "Apparent", custom = paste("Custom Resampling (",
-                                                        numResamp, " reps)", sep = ""), timeslice = paste("Rolling Forecasting Origin Resampling (",
-                                                                                                          x$control$horizon, " held-out with", ifelse(x$control$fixedWindow,
-                                                                                                                                                      " a ", " no "), "fixed window)",
-                                                                                                          sep = ""), oob = "Out of Bag Resampling",
-                  boot = , optimism_boot = , boot_all = , boot632 = paste("Bootstrapped (",
-                                                                          numResamp, " reps)", sep = ""), cv = paste("Cross-Validated (",
-                                                                                                                     x$control$number, " fold)", sep = ""),
-                  repeatedcv = paste("Cross-Validated (", x$control$number,
-                                     " fold, repeated ", x$control$repeats,
-                                     " times)", sep = ""), lgocv = paste("Repeated Train/Test Splits Estimated (",
-                                                                         numResamp, " reps, ", round(x$control$p *
-                                                                                                       100, 1), "%)", sep = ""), loocv = "Leave-One-Out Cross-Validation",
-                  adaptive_boot = paste("Adaptively Bootstrapped (",
-                                        numResamp, " reps)", sep = ""), adaptive_cv = paste("Adaptively Cross-Validated (",
-                                                                                            x$control$number, " fold, repeated ", x$control$repeats,
-                                                                                            " times)", sep = ""), adaptive_lgocv = paste("Adaptive Repeated Train/Test Splits Estimated (",
-                                                                                                                                         numResamp, " reps, ", round(x$control$p,
-                                                                                                                                                                     2), "%)", sep = ""))
-  }  else {
-    out <- switch(tolower(x$control$method), none = "None",
-                  apparent = "(Apparent)", custom = "Custom Resampling",
-                  timeslice = "Rolling Forecasting Origin Resampling",
-                  oob = "Out of Bag Resampling", boot = "(Bootstrap)",
-                  optimism_boot = "(Optimism Bootstrap)", boot_all = "(Bootstrap All)",
-                  boot632 = "(Bootstrap 632 Rule)", cv = "(Cross-Validation)",
-                  repeatedcv = "(Repeated Cross-Validation)",
-                  loocv = "Leave-One-Out Cross-Validation", lgocv = "(Repeated Train/Test Splits)")
-  }
-  out
-}
+
+
 #' @export
 stringFunc<-function (x)
 {

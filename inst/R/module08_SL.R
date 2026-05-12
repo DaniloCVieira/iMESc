@@ -1,3 +1,7 @@
+
+
+##################
+
 # This module provides an interactive interface for training and managing
 # supervised machine learning models in a Shiny application. It includes
 # both UI and server logic to facilitate:
@@ -238,7 +242,7 @@ caret_train$server<-function(id,vals=NULL){
             multiple =T,
             hideClearButton=T,
             alwaysShowSelectedOptionsCount=T,
-            optionsSelectedText="Variables selected",
+            optionselectedText="Variables selected",
             optionSelectedText="Variables selected"
           )
       )
@@ -499,7 +503,7 @@ caret_train$server<-function(id,vals=NULL){
             hideClearButton=T,
             alwaysShowSelectedOptionsCount=T,
             searchPlaceholderText="Select all",
-            optionsSelectedText="IDs selected",
+            optionselectedText="IDs selected",
             optionSelectedText="IDs selected"
           )
       )
@@ -614,7 +618,7 @@ caret_train$server<-function(id,vals=NULL){
               hideClearButton=T,
               alwaysShowSelectedOptionsCount=T,
               searchPlaceholderText="Select all",
-              optionsSelectedText="Models selected",
+              optionselectedText="Models selected",
               optionSelectedText="Models selected"
             ),
             actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
@@ -1201,51 +1205,123 @@ reshape_args<-function(x,y,sl_formals,sl_ctl_formals,model){
   )
 }
 model_control<-list()
-model_control$ui<-function(id,vals){
-  vals$cur_model_params<-NULL
+model_control$ui <- function(id, vals) {
 
-  x<-vals$cur_xtrain
-  y<-vals$cur_var_y[,1]
-  model<-vals$cmodel
+  x <- vals$cur_xtrain
+  y <- vals$cur_var_y[, 1]
+  model <- vals$cmodel
+
   req(model)
+  req(x)
+  req(y)
 
-  ns<-NS(id)
-  re<-reshape_args(x,y,sl_formals,sl_ctl_formals,model)
-  classes=re$classes
-  argslist=re$argslist
-  len=re$len
+  ns <- shiny::NS(id)
+
+  re <- reshape_args(x, y, sl_formals, sl_ctl_formals, model)
+
+  classes <- re$classes
+  argslist <- re$argslist
+  len <- re$len
+
   req(len)
   req(classes)
 
-  if(all(names(vals$box_caret3_args)%in%names(argslist))){
-    for(i in names(vals$box_caret3_args)){
-      argslist[[i]]<-vals$box_caret3_args[[i]]
+  saved_args <- shiny::isolate(vals$box_caret3_args)
+
+  if (
+    !is.null(saved_args) &&
+    length(saved_args) > 0 &&
+    all(names(saved_args) %in% names(argslist))
+  ) {
+    for (i in names(saved_args)) {
+      argslist[[i]] <- saved_args[[i]]
     }
   }
-  lapply(seq_along(argslist),function(i){
-    id<-names(argslist)[i]
-    lab<-span(id,tipright(HTML(paste0(sl_tips[[model]][id,1]))))
-    value=argslist[[i]]
-    if(len[[i]]==0){
-      if(classes[i]=="NULL"){
-        value=NA
+
+  tagList(
+    lapply(seq_along(argslist), function(i) {
+
+      input_id <- names(argslist)[i]
+      input_class <- classes[[i]]
+      input_len <- len[[i]]
+      input_value <- argslist[[i]]
+
+      tip_txt <- sl_tips[[model]][input_id, 1]
+
+      lab <- span(
+        input_id,
+        tipright(HTML(paste0(tip_txt)))
+      )
+
+      if (input_len == 0) {
+
+        if (input_class == "NULL") {
+          input_value <- NA
+        }
+
+        return(
+          numericInput(
+            ns(input_id),
+            lab,
+            value = input_value
+          )
+        )
       }
-      numericInput(ns(id),lab,value)
-    } else  if(len[[i]]==1){
+
+      if (input_len == 1) {
+
+        if (input_class == "logical") {
+          return(
+            checkboxInput(
+              ns(input_id),
+              lab,
+              value = as.logical(input_value)
+            )
+          )
+        }
+
+        if (input_class == "numeric") {
+          return(
+            numericInput(
+              ns(input_id),
+              lab,
+              value = as.numeric(input_value)
+            )
+          )
+        }
+      }
+
+      if (input_len > 1) {
+
+        if (input_class == "character") {
+          return(
+            selectInput(
+              ns(input_id),
+              lab,
+              choices = input_value,
+              selected = input_value[[1]]
+            )
+          )
+        }
+
+        if (input_class == "numeric") {
+          return(
+            textInput(
+              ns(input_id),
+              lab,
+              value = paste(input_value, collapse = ", ")
+            )
+          )
+        }
+      }
+
+      NULL
+    })
+  )
+}
 
 
-      switch(classes[i],
-             "logical"=checkboxInput(ns(id),lab,as.logical(value)),
-             "numeric"=numericInput(ns(id),lab,as.numeric(value))
-      )
-    } else{
-      switch(classes[i],
-             "character"=selectInput(ns(id),lab,value),
-             "numeric"=textInput(ns(id),lab,paste(value,collapse=", ")),
-             "NULL"=
-      )
-    }
-  })}
+
 model="mlpML"
 msp_earth<-list()
 msp_earth$ui<-function(id,vals,model){
@@ -3335,8 +3411,6 @@ msp_cforest$server<-function(id,model,vals){
       }
 
       ct<-get_cTree(model$finalModel,as.numeric(input$tree))
-      #  ct<-readRDS("teste.rds")[[1]]
-      #newdata<-readRDS("teste.rds")[[2]]
 
       pred<-predict_cforest_tree(tree=ct@tree,newdata, model)
 
@@ -3345,7 +3419,7 @@ msp_cforest$server<-function(id,model,vals){
     })
 
     get_cm0<-reactive({
-     cm<-get_cm00()
+      cm<-get_cm00()
       if(input$cforest_norm=="overall"){
         cm<-cm/sum(cm)*100
       }
@@ -3554,72 +3628,36 @@ panel_box_caret2$server<-function(id,vals){
 }
 panel_box_caret4<-list()
 panel_box_caret4$ui<-function(id){
-  lab_resamling<-span(
-    class="tip_html150",
-    strong("Method:"),
-    tipright(
-      HTML(paste0(
-        tags$p(class="title",
-               "Resampling Methods:"),
-        tags$li(HTML(paste(
-          tags$strong(
-            class="topic",
-            "repeatedcv:"
-          ),
-          'Repeated K-fold cross validation'
-        ))),
-        tags$li(HTML(paste(
-          tags$strong(
-            class="topic",
-            "boot:"
-          ),
-          'Bootstrap for cross validation'
-        ))),
-        tags$li(HTML(paste(
-          tags$strong(
-            class="topic",
-            "LOOCV:"
-          ),
-          'Leave one out cross validation'
-        ))),
-        tags$li(HTML(paste(
-          tags$strong(
-            class="topic",
-            "LGOCV:"
-          ),
-          'Leave group out cross validation'
-        ))),
-        tags$li(HTML(paste(
-          tags$strong(
-            class="topic",
-            "adaptive_cv:"
-          ),
-          'Adaptative cross validation'
-        )))
 
-
-
-
-
-
-
-
-      )
-      ))
-  )
 
   ns<-NS(id)
   div(
     id=ns("resamp_parameters"),
+    tags$style(HTML("
+.tooltip{
+z-index: 9999999;
+position: absolute;
+min-width: 200px
+}
+
+                    ")),
+
     div(
 
-      pickerInput_fromtop(ns("method"),lab_resamling, choices=list("Repeated Cross-Validation"="repeatedcv",'Boot'="boot","Leave one out"="LOOCV","Leave-group out"="LGOCV","Adaptive CV"="adaptive_cv"),
+      pickerInput_fromtop(ns("method"),strong("Method:"), choices=list("Repeated Cross-Validation"="repeatedcv",'Boot'="boot","Leave one out"="LOOCV","Leave-group out"="LGOCV","Adaptive CV"="adaptive_cv","Spatial block CV"="spat_cv"),
                           options=shinyWidgets::pickerOptions(windowPadding="top")),
       div(id=ns('args_adapt'),class="map_side",
           numericInput(ns("adap_min"),"min",5),
           numericInput(ns("adap_alpha"),"alpha",0.05),
           selectInput(ns("adap_method"),"method",c('gls',"BT")),
           checkboxInput(ns("adap_complete"),"complete",T)
+
+      ),
+      div(
+        uiOutput(ns('cvsp_scheme_summary')),
+        div(align="center",
+            actionButton(ns("spatialBlocks_module"),"Create New Spatial CV scheme", style="height: 25px;margin: 2px; margin-left: 0px;padding: 2px;   padding-right: 5px;align-items: center; padding-left:5px; ")
+        )
 
       ),
       pickerInput_fromtop(ns("selfinal"),
@@ -3634,7 +3672,10 @@ panel_box_caret4$ui<-function(id){
       numericInput(ns("cv"), uiOutput(ns('label_cv')), value = 5),
       numericInput(ns("repeats"),span("Repeat",tipright("the number of complete sets of folds to compute")), value = 1),
       numericInput(ns("pleaves"), span( "Percentage:",tipright('the training percentage')), value = 10),
-      numericInput(ns("seed"), span("Seed",tipright(textseed())), value = NA)
+      numericInput(ns("seed"), span("Seed",tipright(textseed())), value = NA),
+
+
+
     )
 
   )
@@ -3646,6 +3687,8 @@ panel_box_caret4$server<-function(id,vals){
     observe({
       shinyjs::toggle("args_adapt",condition=input$method=="adaptive_cv")
     })
+
+
 
     observeEvent(input$selfinal_help,{
       showModal(modalDialog(
@@ -3663,10 +3706,668 @@ panel_box_caret4$server<-function(id,vals){
       shinyjs::toggle("cv",condition=input$method%in%c('cv','repeatedcv','boot','adaptive_cv'))
       shinyjs::toggle('repeats', condition=input$method%in%c('repeatedcv','adaptive_cv'))
       shinyjs::toggle("pleaves",condition=input$method=='LGOCV')
+
+      shinyjs::toggle("spatialBlocks_module",condition=input$method=='spat_cv')
+      shinyjs::toggle("cvsp_iteration",condition=input$method=='spat_cv' &input$cvsp_selection=="random")
+      shinyjs::toggle("cvsp_iteration2",input$cvsp_selection2=="random")
     })
 
 
 
+
+    observeEvent(input$cvsp_size,{
+      vals$cur_cvsp_size<-input$cvsp_size
+    })
+
+    output$cvsp_sizeout<-renderUI({
+      numericInput(ns("cvsp_size"), span( "Size:",tipright('Block size used to create spatial folds and separate training from testing data. The value must be provided in metres. Larger blocks increase spatial separation between folds, but may reduce the number of available blocks and lead to unbalanced folds. Use the size evaluation tool to explore different values.')), value = vals$cur_cvsp_size)
+    })
+
+    observeEvent(result_cvsp_sizeeval(),{
+      req(!is.null(result_cvsp_sizeeval()$best_result$size))
+      vals$cur_cvsp_size<-result_cvsp_sizeeval()$best_result$size
+    })
+
+    cvsp_params <- reactiveValues(
+      k = 5,
+      repeats = 1,
+      hexagon = TRUE,
+      selection = "random",
+      size = NA,
+      group = 5,
+      iteration = 100,
+      seed = NA,
+
+      k2 = 5,
+      repeats2 = 1,
+      n_sizes = 5,
+      size_min = NA,
+      size_max = NA,
+      range_mult_min = 0.25,
+      range_mult_max = 1.25,
+      min_blocks_per_fold = 2,
+      selection2 = "random",
+      hexagon2 = TRUE,
+      group2 = 5,
+      iteration2 = 100,
+      seed2 = NA
+    )
+
+
+    observe({
+      if (!is.null(input$cvsp_k)) cvsp_params$k <- input$cvsp_k
+      if (!is.null(input$cvsp_repeats)) cvsp_params$repeats <- input$cvsp_repeats
+      if (!is.null(input$cvsp_hexagon)) cvsp_params$hexagon <- input$cvsp_hexagon
+      if (!is.null(input$cvsp_selection)) cvsp_params$selection <- input$cvsp_selection
+      if (!is.null(input$cvsp_group)) cvsp_params$group <- input$cvsp_group
+      if (!is.null(input$cvsp_iteration)) cvsp_params$iteration <- input$cvsp_iteration
+      if (!is.null(input$cvsp_seed)) cvsp_params$seed <- input$cvsp_seed
+    })
+
+    observe({
+      if (!is.null(input$cvsp_k2)) cvsp_params$k2 <- input$cvsp_k2
+      if (!is.null(input$cvsp_repeats2)) cvsp_params$repeats2 <- input$cvsp_repeats2
+      if (!is.null(input$cvsp_n_sizes)) cvsp_params$n_sizes <- input$cvsp_n_sizes
+      if (!is.null(input$cvsp_size_min)) cvsp_params$size_min <- input$cvsp_size_min
+      if (!is.null(input$cvsp_size_max)) cvsp_params$size_max <- input$cvsp_size_max
+      if (!is.null(input$cvsp_range_mult_min)) cvsp_params$range_mult_min <- input$cvsp_range_mult_min
+      if (!is.null(input$cvsp_range_mult_max)) cvsp_params$range_mult_max <- input$cvsp_range_mult_max
+      if (!is.null(input$cvsp_min_blocks_per_fold)) cvsp_params$min_blocks_per_fold <- input$cvsp_min_blocks_per_fold
+      if (!is.null(input$cvsp_selection2)) cvsp_params$selection2 <- input$cvsp_selection2
+      if (!is.null(input$cvsp_hexagon2)) cvsp_params$hexagon2 <- input$cvsp_hexagon2
+      if (!is.null(input$cvsp_group2)) cvsp_params$group2 <- input$cvsp_group2
+      if (!is.null(input$cvsp_iteration2)) cvsp_params$iteration2 <- input$cvsp_iteration2
+      if (!is.null(input$cvsp_seed2)) cvsp_params$seed2 <- input$cvsp_seed2
+    })
+
+
+    output$spatial_cv_tab1<-renderUI({
+      div(
+
+        column( 5,class="mp0",
+                box_caret(
+                  ns('cvsp_parameters'),
+                  color="#c3cc74ff",
+                  title="Parameters",
+                  div(
+                    numericInput(ns("cvsp_k"), "Nº Folds",value=cvsp_params$k),
+                    numericInput(ns("cvsp_repeats"), "Repeats",value=cvsp_params$repeats),
+                    checkboxInput(ns("cvsp_hexagon"),span("Hexagonal spatial blocks"),value=cvsp_params$hexagon),
+                    pickerInput_fromtop(ns("cvsp_selection"),span("Selection",tipright('Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard does not work with hexagonal spatial blocks.')),c("random",'systematic','checkerboard'), selected = cvsp_params$selection),
+                    div(style="",
+                        uiOutput(ns("cvsp_sizeout")),
+                        uiOutput(ns("cvsp_size_warning"))
+                    ),
+
+                    numericInput(
+                      ns("cvsp_group"),
+                      span(
+                        "Groups:",
+                        tiphelp(
+                          "For regression, this defines the number of quantile-based groups used during resampling. The sample is split into groups based on percentiles, and sampling is performed within these groups. This helps preserve the distribution of the response variable across folds."
+                        )
+                      ),
+                      value = cvsp_params$group,
+                      min = 2,
+                      step = 1
+                    ),
+                    numericInput(ns("cvsp_iteration"), span( "Iteration:",tipright('The number of attempts to create folds with balanced records')), value = cvsp_params$iteration),
+                    numericInput(
+                      ns("cvsp_seed"),
+                      span(
+                        "Seed:",
+                        tipright(
+                          "Random seed used to make the size evaluation reproducible."
+                        )
+                      ),
+                      value = cvsp_params$seed,
+                      step = 1
+                    ),
+                    div(align="center",
+                        actionButton(
+                          ns("run_cv_spatial"),
+                          "Create spatial CV scheme",
+                          class = "btn-primary"
+                        )
+                    )
+
+                  )
+                )
+        ),
+        column(7,class="mp0",
+               box_caret(ns("cv_spatial_out"),
+                         title="Result",
+                         div(
+                           uiOutput(ns("cv_spatial_result"))
+                         )
+               ))
+
+
+
+
+      )
+    })
+    output$spatial_cv_tab2<-renderUI({
+
+      div(
+        column(5,class="mp0",
+               box_caret(ns("cvsp_sizeeval_out"),
+                         title="Parameters",
+                         div(
+                           numericInput(ns("cvsp_k2"), "Nº Folds",value=cvsp_params$k2 ),
+                           numericInput(ns("cvsp_repeats2"), "Repeats",value=cvsp_params$repeats2 ),
+
+
+                           numericInput(
+                             ns("cvsp_n_sizes"),
+                             span(
+                               "Number of sizes:",
+                               tipright(
+                                 "Number of candidate block sizes to test between the minimum and maximum values. For example, 5 will test five different block sizes."
+                               )
+                             ),
+                             value = cvsp_params$n_sizes,
+                             min = 2,
+                             step = 1
+                           ),
+
+                           numericInput(
+                             ns("cvsp_size_min"),
+                             span(
+                               "Minimum size:",
+                               tipright(
+                                 "Minimum block size to be tested, in metres. Leave empty to let the tool define this value automatically based on the estimated spatial autocorrelation range and study area extent."
+                               )
+                             ),
+                             value = cvsp_params$size_min
+                           ),
+
+                           numericInput(
+                             ns("cvsp_size_max"),
+                             span(
+                               "Maximum size:",
+                               tipright(
+                                 "Maximum block size to be tested, in metres. Leave empty to let the tool define the largest feasible value based on the number of folds and the approximate number of available spatial blocks."
+                               )
+                             ),
+                             value = cvsp_params$size_max
+                           ),
+
+                           numericInput( ns("cvsp_range_mult_min"), span( "Range multiplier min:", tipright( "Lower multiplier applied to the estimated spatial autocorrelation range to define the minimum candidate block size. For example, 0.25 tests block sizes starting at 25% of the estimated range." ) ), value = cvsp_params$range_mult_min, min = 0, step = 0.05 ),
+                           numericInput( ns("cvsp_range_mult_max"), span( "Range multiplier max:", tipright( "Upper multiplier applied to the estimated spatial autocorrelation range to define the maximum candidate block size. For example, 1.25 allows testing block sizes up to 125% of the estimated range, when feasible." ) ), value = cvsp_params$range_mult_max, min = 0, step = 0.05 ) ,
+
+                           numericInput(
+                             ns("cvsp_min_blocks_per_fold"),
+                             span(
+                               "Minimum blocks per fold:",
+                               tipright(
+                                 "Minimum approximate number of spatial blocks expected per fold. Higher values make the folds more stable, but may force the tool to use smaller block sizes."
+                               )
+                             ),
+                             value = cvsp_params$min_blocks_per_fold,
+                             min = 1,
+                             step = 1
+                           ),
+
+                           pickerInput_fromtop(ns("cvsp_selection2"),span("Selection",tipright('Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard does not work with hexagonal spatial blocks.')),c("random",'systematic','checkerboard'),selected=cvsp_params$selection2),
+                           checkboxInput(ns("cvsp_hexagon2"),span("Hexagonal spatial blocks"),value=cvsp_params$hexagon2),
+                           numericInput(
+                             ns("cvsp_group2"),
+                             span(
+                               "Groups:",
+                               tiphelp(
+                                 "For regression, this defines the number of quantile-based groups used during resampling. The sample is split into groups based on percentiles, and sampling is performed within these groups. This helps preserve the distribution of the response variable across folds."
+                               )
+                             ),
+                             value = cvsp_params$group2,
+                             min = 2,
+                             step = 1
+                           ),
+                           numericInput(
+                             ns("cvsp_iteration2"),
+                             span(
+                               "Iterations:",
+                               tipright(
+                                 "Number of random allocation attempts used to find a suitable fold distribution. Larger values may improve fold balance, but increase computation time."
+                               )
+                             ),
+                             value = cvsp_params$iteration2,
+                             min = 1,
+                             step = 1
+                           ),
+
+                           numericInput(
+                             ns("cvsp_seed2"),
+                             span(
+                               "Seed:",
+                               tipright(
+                                 "Random seed used to make the size evaluation reproducible."
+                               )
+                             ),
+                             value = cvsp_params$seed2,
+                             step = 1
+                           ),
+
+                           div(align="right",
+                               actionButton(
+                                 ns("run_size_eval"),
+                                 "Run size evaluation",
+                                 class = "btn-primary"
+                               )
+                           )
+
+                         )
+               )),
+
+        column(7,class="mp0",
+               box_caret(ns("cvsp_sizeeval_plot"),
+                         title="Result",
+                         button_title=actionLink(ns('down_cvsp_sizeeval'),'Download plot',icon('download')),
+                         div(
+                           style = "flex: 1 1 0; min-width: 0; overflow: hidden;",
+                           DT::DTOutput(ns("cvsp_sizeeval_summary"), width = "100%"),
+                           uiOutput(ns("cvsp_sizeeval_out"))
+
+                         )
+               ))
+      )
+
+
+
+    })
+    output$spatial_cv<-renderUI({
+      tabsetPanel(
+        #selected ="Size Evaluation Tool",
+        tabPanel("Create Spatial Folds",uiOutput(ns('spatial_cv_tab1'))),
+        tabPanel("Size Evaluation Tool",      uiOutput(ns('spatial_cv_tab2')))
+      )
+    })
+
+
+
+    observe({
+      shinyjs::toggle('cvsp_group',condition=is.numeric(vals$trainSL_args$y_train[,1]))
+      shinyjs::toggle('cvsp_group2',condition=is.numeric(vals$trainSL_args$y_train[,1]))
+    })
+
+    observeEvent(input$down_cvsp_sizeeval,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot02
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot",file=NULL)
+    })
+
+    observeEvent(input$down_cvsp_scheme,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot01
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot",file=NULL)
+    })
+    observeEvent(input$down_cvsp_scheme_tab,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot01_tab
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot-table",file=NULL)
+    })
+
+
+    observeEvent(input$down_cvsp_scheme00,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot00
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot",file=NULL)
+    })
+    observeEvent(input$down_cvsp_scheme_tab00,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot00_tab
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot-table",file=NULL)
+    })
+    observeEvent(input$run_cv_spatial,{
+      req(!is.na(input$cvsp_size))
+
+      sf_dat<-get_sfdata()
+      if(is.numeric(sf_dat$y)){
+        y<-sf_dat$y
+        sf_dat$y <- cut(y, unique(quantile(y, probs = seq(0, 1, length.out = input$cvsp_group))),
+                        include.lowest = TRUE)
+      }
+
+
+
+      res<-cv_spatial3(
+        x = sf_dat,
+        k = input$cvsp_k,
+        column = "y",
+        size = input$cvsp_size,
+        selection = input$cvsp_selection,
+        iteration = input$cvsp_iteration,
+        hexagon=input$cvsp_hexagon,
+        repeats=input$cvsp_repeats,
+        seed=input$cvsp_seed
+      )
+      print(res)
+      attr(res,"hexagon")<-input$cvsp_hexagon
+      attr(res,"selection")<-input$cvsp_selection
+      cvsp_scheme(res)
+
+    })
+
+    output$cv_spatial_result<-renderUI({
+
+      req(!is.null(cvsp_scheme()))
+      div(
+        div(style="background: #dbf4ffff; padding: 10px; font-size: 12px",
+            div(strong('Nº Folds:'),cvsp_scheme()$k),
+            div(strong("Block size:"),cvsp_scheme()$size, "meters"),
+            div(strong("Hexagon:"),attr(cvsp_scheme(),"hexagon")),
+            div(strong("Selection:"),attr(cvsp_scheme(),"selection")),
+            div(strong("Repeats:"),length(cvsp_scheme())),
+            div(pickerInput(ns("cvsp_showrepeat"),"Show Repeat:",names(cvsp_scheme())))
+        ),
+        uiOutput(ns('cv_spatial_out1'))
+      )
+
+    })
+    observeEvent(input$run_cv_spatial,{
+      if(is.na(input$cvsp_size)){
+        output$cvsp_size_warning<-renderUI({
+          div(
+            class='alert_warning',
+            div(
+              style="font-size: 12px; ",
+              em("No spatial block size was provided. Please enter a block size manually or use the 'Size Evaluation Tool' tab to explore candidate values.")
+            )
+
+          )
+        })
+      } else{
+        output$cvsp_size_warning<-renderUI({NULL})
+      }
+    })
+    observeEvent(input$cvsp_size,{
+      if(!is.na(input$cvsp_size)){
+        if(input$cvsp_size>0)
+          output$cvsp_size_warning<-renderUI({NULL})
+      }
+    })
+    observeEvent(input$cvsp_hexagon,{
+      updateCheckboxInput(session,"cvsp_hexagon2",value=input$cvsp_hexagon)
+    })
+    observeEvent(input$cvsp_selection,{
+      updatePickerInput(session,"cvsp_selection2",selected=input$cvsp_selection)
+    })
+    observeEvent(input$cvsp_k,{
+      updateNumericInput(session,"cvsp_k2",value=input$cvsp_k)
+    })
+
+    observeEvent(input$cvsp_iteration,{
+      updatePickerInput(session,"cvsp_iteration2",selected=input$cvsp_iteration)
+    })
+    observeEvent(input$spatialBlocks_module, {
+      cvsp_scheme(NULL)
+      result_cvsp_sizeeval(NULL)
+      vals$cur_cvsp_size<-NA
+      vals$cvsp<-NULL
+      showModal(modal_cvsp())
+    })
+
+    modal_cvsp<-function(){
+      modalDialog(
+        title = "Spatial Cross-Validation",
+        easyClose = TRUE,
+        size = "l",
+
+        uiOutput(ns("spatial_cv")),
+
+        footer = tagList(
+          modalButton("Cancel")
+        )
+      )
+    }
+
+    output$cvsp_sizeeval_summary <- DT::renderDT({
+
+      req(!is.null(result_cvsp_sizeeval()$summary))
+      DT::datatable(
+        result_cvsp_sizeeval()$summary,
+        extensions = c("FixedColumns"),
+        rownames = TRUE,
+        class = "nowrap compact",
+        width = "100%",
+        options = list(
+          dom = "t",
+          paging = FALSE,
+          info = FALSE,
+          ordering = TRUE,
+          autoWidth = FALSE,
+          scrollX = TRUE,
+          scrollY = "120px",
+          scrollCollapse = TRUE,
+          fixedColumns = list(
+            leftColumns = 2,
+            rightColumns = 0
+          ),
+          columnDefs = list(
+            list(width = "70px", targets = 0),
+            list(width = "90px", targets = 1),
+            list(width = "90px", targets = 2)
+          )
+        ),
+        callback = DT::JS(
+          "setTimeout(function(){",
+          "  table.columns.adjust().draw(false);",
+          "  if (table.fixedColumns) {",
+          "    table.fixedColumns().relayout();",
+          "  }",
+          "}, 300);"
+        )
+      )
+
+    })
+    output$cvsp_sizeeval_out<-renderUI({
+
+      wars<-attr(result_cvsp_sizeeval(),"warnings")
+      errs<-attr(result_cvsp_sizeeval(),"errors")
+
+
+      div(
+        style="padding-top: 10px",
+        if(length(result_cvsp_sizeeval())>0)
+          div(strong("Best Block Size: "),result_cvsp_sizeeval()$best_result$size, em("meters")),
+        if(!is.null(wars)){
+          div(class = "alert_warning",style="padding: 2px",
+              lapply(attr(result_cvsp_sizeeval(),"warnings"),div))
+        },
+        if(!is.null(errs)){
+          div(
+            class="alert alert-danger",role="alert",
+            icon("triangle-exclamation"),lapply(errs,div)
+          )
+        },
+        if(length(result_cvsp_sizeeval())>0){
+          div(
+
+
+            h4(strong("Spatial Block Scheme Summary:")),
+            div(style="display: flex; gap: 40px",
+                div(style="background: #dbf4ffff; padding: 10px; font-size: 12px",
+                    div(strong("Nº Folds:"),result_cvsp_sizeeval()$best_cv$k),
+                    div(strong("Suggested size:"),result_cvsp_sizeeval()$best_result$size, "meters"),
+                    div(strong("Hexagon:"),result_cvsp_sizeeval()$best_result$hexagon),
+                    div(strong("Selection:"),result_cvsp_sizeeval()$best_result$selection),
+                    div(pickerInput(ns("cvsp_showrepeat2"),"Show Repeat:",names(result_cvsp_sizeeval()$best_cv_list)))
+                ),
+                div(align="center",style="padding-top: 20px",
+                    actionButton(ns("use_this_cvsp"),"Use this scheme"), class="save_changes")
+            ),
+            uiOutput(ns("cvsp_evalplot")),
+
+
+
+          )
+        })
+
+    })
+    best_cvspatial<-reactiveVal()
+
+    observeEvent(result_cvsp_sizeeval(),{
+      req(!is.null(result_cvsp_sizeeval()$best_result$size))
+      best_cvspatial(result_cvsp_sizeeval()$best_cv_list)
+    })
+
+
+
+    observeEvent(input$use_this_cvsp,{
+      best<-best_cvspatial()
+      req(length(best)>0)
+      attr(best,"hexagon")<-result_cvsp_sizeeval()$best_result$hexagon
+      attr(best,"selection")<-result_cvsp_sizeeval()$best_result$selection
+      cvsp_scheme(best)
+      removeModal()
+    })
+    result_cvsp_sizeeval<-reactiveVal()
+    get_sfdata<-reactive({
+      args<-vals$trainSL_args
+      x<-args$x_train
+      y<-args$y_train[,1]
+
+      data_x=vals$saved_data[[args$data_x]]
+      coords<-attr(data_x,"coords")[rownames(x),]
+
+      grid_coord<-data.frame(coords,y)
+      sf_dat <- sf::st_as_sf(grid_coord, coords = colnames(coords), crs = 4326) |> sf::st_transform(3857)
+      sf_dat
+    })
+    observeEvent(input$run_size_eval,{
+      sf_dat<-get_sfdata()
+      if(is.na(input$cvsp_size_min)){
+        cvsp_size_min<-NULL
+      } else{
+        cvsp_size_min<-input$cvsp_size_min
+      }
+
+      if(is.na(input$cvsp_size_max)){
+        cvsp_size_max<-NULL
+      } else{
+        cvsp_size_max<-input$cvsp_size_max
+      }
+      seed = input$cvsp_seed2
+      if(is.na(seed)){
+        seed<-NULL
+      }
+      if(is.numeric(sf_dat$y)){
+        y<-sf_dat$y
+        sf_dat$y <- cut(y, unique(quantile(y, probs = seq(0, 1, length.out = input$cvsp_group2))),
+                        include.lowest = TRUE)
+      }
+
+
+
+      res_size <- size_evaluation(
+        sf_dat = sf_dat,
+        column = "y",
+        k = input$cvsp_k2,
+        n_sizes = input$cvsp_n_sizes,
+        size_min = cvsp_size_min,
+        size_max = cvsp_size_max,
+        range_multiplier = c(input$cvsp_range_mult_min,
+                             input$cvsp_range_mult_max),
+        min_blocks_per_fold = input$cvsp_min_blocks_per_fold,
+        selection = input$cvsp_selection2,
+        iteration = input$cvsp_iteration2,
+        hexagon =input$cvsp_hexagon2,
+        seed = seed,
+        repeats = input$cvsp_repeats2
+      )
+
+
+      result_cvsp_sizeeval(res_size)
+
+    })
+
+    vals$cur_cvsp_selection<-NULL
+    observeEvent(input$cvsp_selection,{
+      vals$cur_cvsp_selection<-input$cvsp_selection
+    })
+    observeEvent(input$cvsp_selection,{
+      if(input$cvsp_selection%in%c('checkerboard','predefined' ))
+        updateCheckboxInput(session,"cvsp_hexagon",value=F)
+    })
+    observeEvent(input$cvsp_selection2,{
+      if(input$cvsp_selection2%in%c('checkerboard','predefined' )){
+        updateCheckboxInput(session,"cvsp_hexagon2",value=F)
+      }
+    })
+
+    cvsp_scheme<-reactiveVal()
+    output$cvsp_scheme_summary <- renderUI({
+      req(input$method=="spat_cv")
+      if (is.null(cvsp_scheme())) {
+        div(style="padding: 10px; background: #fff8dbff; font-size: 12px;",
+            em("No spatial cross-validation scheme has been created yet. Use the 'Create spatial CV scheme' button to generate one.")
+        )
+      } else{
+        div(style="background-color:#dbf4ffff; padding: 10px; font-size: 12px; display: flex; gap: 5px",
+            div(
+              div(strong("Spatial CV scheme:")),
+              div(strong('Nº Folds:'),cvsp_scheme()$k),
+              div(strong("Block Size: "),cvsp_scheme()$size,"meters"),
+              div(strong("Hexagonal: "), attr(cvsp_scheme(),"hexagon")),
+              div(strong("Selection: "), attr(cvsp_scheme(),"selection")),
+              div(strong("Repeats:"),length(cvsp_scheme()))
+            ),
+            div(actionButton(ns("cv_details"),"See Details", style="padding: 2px; font-size: 12px"))
+
+
+        )
+
+      }
+    })
+    output$cvsp_scheme_details<-renderUI({
+      div(style="min-width: 800px",
+          div(
+
+            column(4,class="mp0",
+                   box_caret(ns("cvsp_details01a"),
+                             title="Parameters",
+                             div(
+                               style="background: #dbf4ffff; padding: 10px; font-size: 12px",
+                               div(strong('Nº Folds:'),cvsp_scheme()$k),
+                               div(strong("Block size:"),cvsp_scheme()$size, "meters"),
+                               div(strong("Hexagon:"),attr(cvsp_scheme(),"hexagon")),
+                               div(strong("Selection:"),attr(cvsp_scheme(),"selection")),
+                               div(strong("Repeats:"),length(cvsp_scheme())),
+                               div(pickerInput(ns("cvsp_detail_showrepeat"),"Show Repeats",names(cvsp_scheme())))
+
+                             )),
+            ),
+
+            column(8,class="mp0",
+                   uiOutput(ns("cvsp_scheme_details_plot"))
+            )
+          )
+
+      )
+    })
+    observeEvent(input$cv_details,{
+      showModal(
+        modalDialog(
+          size ="xl",
+          easyClose = T,
+          title="Selected Spatial CV scheme",
+          uiOutput(
+            ns('cvsp_scheme_details')
+          )
+        )
+      )
+    })
+    observeEvent(vals$trainSL_args,{
+      cvsp_scheme(NULL)
+      vals$cvsp<-NULL
+      result_cvsp_sizeeval(NULL)
+      vals$cur_cvsp_size<-NA
+    })
     output$label_cv<-renderUI({
       req(input$method)
       if(input$method=='boot'){
@@ -3680,6 +4381,98 @@ panel_box_caret4$server<-function(id,vals){
 
     })
 
+
+    output$cvsp_scheme_details_plot<-renderUI({
+      div(
+        box_caret(ns("cvsp_details01"),
+                  title="Folds",
+                  button_title=actionLink(ns('down_cvsp_scheme'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot01<-cv_plot2(cvsp_scheme(),x=get_sfdata(), repeats=input$cvsp_detail_showrepeat)
+                      vals$cvsp_plot01
+                    })
+                  )
+        ),
+        box_caret(ns("cvsp_details01tab"),
+                  title="Class Distribution",
+                  button_title=actionLink(ns('down_cvsp_scheme_tab'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot01_tab<-plot_test_fold_heatmap(cvsp_scheme()[[input$cvsp_detail_showrepeat]]$records)
+                      vals$cvsp_plot01_tab
+                    })
+                  )
+        )
+      )
+    })
+    output$cv_spatial_out1<-renderUI({
+      div(
+
+        box_caret(ns("cvsp_details00"),
+                  title="Folds",
+                  button_title=actionLink(ns('down_cvsp_scheme00'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot00<-cv_plot2(cvsp_scheme(),x=get_sfdata(),repeats=input$cvsp_showrepeat)
+                      vals$cvsp_plot00
+                    })
+                  )
+        ),
+        box_caret(ns("cvsp_details00tab"),
+                  title="Record table",
+                  button_title=actionLink(ns('down_cvsp_scheme_tab00'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot00_tab<-plot_test_fold_heatmap(cvsp_scheme()[[input$cvsp_showrepeat]]$records)
+                      vals$cvsp_plot00_tab
+                    })
+                  )
+        )
+
+      )
+    })
+    output$cvsp_evalplot<-renderUI({
+
+
+      div(
+        renderPlot({
+          vals$cvsp_plot02<-cv_plot2(
+            best_cvspatial(),
+            x=get_sfdata(),
+            repeats=input$cvsp_showrepeat2
+          )
+
+          vals$cvsp_plot02
+        }),
+        DT::renderDT({
+
+          DT::datatable(
+            best_cvspatial()[[input$cvsp_showrepeat2]]$records,
+            extensions = c("FixedColumns"),
+            rownames = TRUE,
+            class = "nowrap compact",
+            width = "100%",
+            options = list(
+              dom = "t",
+              paging = FALSE,
+              info = FALSE,
+              ordering = TRUE,
+              autoWidth = FALSE,
+              scrollX = TRUE,
+              scrollY = "120px",
+              scrollCollapse = TRUE,
+              fixedColumns = list(
+                leftColumns = 1,
+                rightColumns = 0
+              )
+
+            )
+          )
+
+        })
+      )
+    })
 
     result<-reactive({
       list(
@@ -3695,6 +4488,20 @@ panel_box_caret4$server<-function(id,vals){
         adap_complete=input$adap_complete
       )
     })
+    observeEvent(cvsp_scheme(),{
+      req(!is.null(cvsp_scheme()))
+      cvsp<-cvsp_scheme()
+      caret_folds <- repeated_blockcv_to_caret_from_list(cvsp)
+      attr(caret_folds,"params")<-list(k=cvsp_scheme()[[1]]$k,
+                                       size=cvsp_scheme()[[1]]$size,
+                                       hexagon=attr(cvsp_scheme(),"hexagon"),
+                                       selection=attr(cvsp_scheme(),"selection"),
+                                       repeats=length(cvsp_scheme()),
+                                       spcv=cvsp_scheme(),
+                                       sf_dat=get_sfdata())
+      vals$cvsp<-caret_folds
+    })
+
 
     observeEvent(result(),{
       vals$box_caret4_args<-result()
@@ -4018,12 +4825,12 @@ permutation_importance$ui<-function(id){
                            ),
 
                  )
-                 ),
+          ),
 
-            column(8,class="mp0",
-                   box_caret(ns('21'),title="Plot",click=F,
-                             button_title = actionLink(ns('downp_feature_cm'),'Download',icon("download") ),
-                             uiOutput(ns("feature_cm_plot"))))
+          column(8,class="mp0",
+                 box_caret(ns('21'),title="Plot",click=F,
+                           button_title = actionLink(ns('downp_feature_cm'),'Download',icon("download") ),
+                           uiOutput(ns("feature_cm_plot"))))
         )
 
       ),
@@ -4287,8 +5094,6 @@ permutation_importance$server<-function(id,vals){
 
     output$feature_importance_plot_wrap<-renderUI({
       req(input$feat_wrap!="All")
-      df<-feature_data_list()
-      #saveRDS(df,"df.rds")
       col<-vals$newcolhabs[[input$pal_feature]](2)
 
 
@@ -4571,9 +5376,6 @@ caret_pairs$server<-function(id,model,vals){
     observeEvent(input$gg_run,ignoreInit = T,{
       validate(need(length(input$ggpair.variables)>1,"Requires at least two variables"))
       args<-get_ggpair_args()
-      #saveRDS(args,"args.rfds")
-
-      # dettach(args)
       p<-do.call(gg_pairplot,args)
       get_ggpair(p)
 
@@ -5183,7 +5985,7 @@ confusion_module$ui<-function(id){
                        textInput(ns('cm_title'),"Title","Training"),
 
                        div(
-                         shinyBS::popify(actionLink(ns("downtable_cm_train"),span("+ Download",icon("fas fa-download"),icon("fas fa-table")),style  = "button_active"),NULL,"download CM table")
+                         #shinyBS::popify(actionLink(ns("downtable_cm_train"),span("+ Download",icon("fas fa-download"),icon("fas fa-table")),style  = "button_active"),NULL,"download CM table")
                        )))),
     column(8,class="mp0",
            box_caret(
@@ -5242,7 +6044,7 @@ confusion_module$server<-function(id, vals){
       validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
       req(input$caret_cm_type)
       if(input$caret_cm_type=="Resampling"){
-       cm=model()
+        cm=model()
       } else{
         pred<-predict(model()$finalModel)
         obs<-model()$trainingData[,'.outcome']
@@ -5253,7 +6055,7 @@ confusion_module$server<-function(id, vals){
         cm<-round(cm,input$cm_round)
 
       }
-    cm
+      cm
 
     })
 
@@ -5738,7 +6540,7 @@ model_results$server<-function(id,vals){
     })
     output$model_print<-renderUI({
       validate(need(inherits(model(),"train"),"No trained  models found"))
-      render_list(model())
+      renderPrint(print_train_imesc(model()))
     })
     output$print_inside_m<-renderUI({
       validate(need(inherits(model(),"train"),"No trained  models found"))
@@ -5992,7 +6794,7 @@ model_results$server<-function(id,vals){
         div(style="font-size: 11px",
 
             strong_forest("Running time"),
-            em(format(attr(model,"run_time")))
+            em(format(round(attr(model, "run_time"), 2)))
 
 
 
@@ -6033,7 +6835,8 @@ model_results$server<-function(id,vals){
                               ),
                               tip=tipright("Displays the default print of the trained model."),
                               div(id=ns('box7_content'),class="hei300",
-                                  uiOutput(ns('model_print'))
+                                  uiOutput(ns('model_print')),
+                                  actionButton(ns("cv_details"),"See spatial CV Details", style="padding: 2px; font-size: 12px")
                               )),
                     box_caret(ns('8'),click=F,
                               title="Model content",
@@ -6075,6 +6878,92 @@ model_results$server<-function(id,vals){
 
 
 
+      )
+    })
+
+
+
+
+
+    output$cvsp_scheme_details<-renderUI({
+      m<-model()
+      cv_params<-attr(m,"cvsp")
+      div(style="min-width: 800px",
+          div(
+
+            column(4,class="mp0",
+                   box_caret(ns("cvsp_details01a"),
+                             title="Parameters",
+                             div(
+                               style="background: #dbf4ffff; padding: 10px; font-size: 12px",
+                               div(strong('Nº Folds:'),cv_params$k),
+                               div(strong("Block size:"),cv_params$size, "meters"),
+                               div(strong("Hexagon:"),cv_params$hexagon),
+                               div(strong("Selection:"),cv_params$selection),
+                               div(strong("Repeats:"),cv_params$repeats),
+                               div(pickerInput(ns("cvsp_detail_showrepeat"),"Show Repeats",names(attr(m,"cvsp")$spcv)))
+
+                             )),
+            ),
+
+            column(8,class="mp0",
+                   uiOutput(ns("cvsp_scheme_details_plot"))
+            )
+          )
+
+      )
+    })
+
+    output$cvsp_scheme_details_plot<-renderUI({
+      m<-model()
+      cvsp_scheme<-attr(m,'cvsp')$spcv
+      get_sfdata<-attr(m,'cvsp')$sf_dat
+
+      div(
+        box_caret(ns("cvsp_details01"),
+                  title="Folds",
+                  button_title=actionLink(ns('down_cvsp_scheme'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot02<-cv_plot2(cvsp_scheme,x=get_sfdata, repeats=input$cvsp_detail_showrepeat)
+                      vals$cvsp_plot02
+                    })
+                  )
+        ),
+        box_caret(ns("cvsp_details01tab"),
+                  title="Class Distribution",
+                  button_title=actionLink(ns('down_cvsp_scheme_tab'),'Download plot',icon('download')),
+                  div(
+                    renderPlot({
+                      vals$cvsp_plot02_tab<-plot_test_fold_heatmap(cvsp_scheme[[input$cvsp_detail_showrepeat]]$records)
+                      vals$cvsp_plot02_tab
+                    })
+                  )
+        )
+      )
+    })
+    observeEvent(input$down_cvsp_scheme,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot02
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot",file=NULL)
+    })
+    observeEvent(input$down_cvsp_scheme_tab,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      generic<-vals$cvsp_plot02_tab
+      callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Spatial CV Plot",datalist_name=NULL,name_c="Spatial-CV-plot-table",file=NULL)
+    })
+    observeEvent(input$cv_details,{
+      showModal(
+        modalDialog(
+          size ="xl",
+          easyClose = T,
+          title="Spatial CV scheme",
+          uiOutput(
+            ns('cvsp_scheme_details')
+          )
+        )
       )
     })
     output$model_plot<-renderUI({
@@ -7242,7 +8131,7 @@ box_title<-function(...){
   div(...,class="box_title")
 }
 fs<-list()
-fs$ui <- function(id){
+fs$ui <- function(id) {
   lab_resamling<-span(
     class="tip_html150",
     strong("Method:"),
@@ -7284,6 +8173,13 @@ fs$ui <- function(id){
             "adaptive_cv:"
           ),
           'Adaptative cross validation'
+        ))),
+        tags$li(HTML(paste(
+          tags$strong(
+            class="topic",
+            "Spatial block CV:"
+          ),
+          'Spatial block K-fold cross-validation'
         )))
 
       )
@@ -7377,34 +8273,55 @@ fs$server<-function(id,vals){
       }
 
     })
-    observe(shinyjs::toggle("repeats",condition=input$method=="repeatedcv"))
+    observe({
+      req(input$method)
+      shinyjs::toggle("repeats", condition = identical(input$method, "repeatedcv"))
+    })
 
-    args_GA<-reactive({
-      x<-vals$cur_xtrain
-      y<-vals$cur_var_y[,1]
-      repeats = ifelse(grepl("[d_]cv$", input$method), input$repeats, NA)
+    args_GA <- reactive({
+
+      req(vals$cur_xtrain)
+      req(vals$cur_var_y)
+      req(input$method)
+      req(input$cv)
+      req(input$iters)
+      req(input$popSize)
+      req(input$pcrossover)
+      req(input$pmutation)
+      req(input$ntree)
+
+      x <- vals$cur_xtrain
+      y <- vals$cur_var_y[, 1]
+
+      gafs_control_args <- list(
+        functions = caret::rfGA,
+        method = input$method,
+        number = input$cv,
+        verbose = TRUE,
+        genParallel = TRUE
+      )
+
+      if (identical(input$method, "repeatedcv")) {
+        req(input$repeats)
+        gafs_control_args$repeats <- input$repeats
+      }
 
       list(
-        x = x, y = y,
+        x = x,
+        y = y,
         iters = input$iters,
-        gafsControl = caret::gafsControl(functions = caret::rfGA,
-                                         method = input$method,
-                                         number = input$cv,
-                                         repeats = repeats,
-                                         verbose=T,
-                                         genParallel=T
-        ),
-        popSize =input$popSize ,
-        pcrossover =input$pcrossover,
-        pmutation =input$pmutation,
-        verbose=T,
-        ntree=input$ntree
-
+        gafsControl = do.call(caret::gafsControl, gafs_control_args),
+        popSize = input$popSize,
+        pcrossover = input$pcrossover,
+        pmutation = input$pmutation,
+        verbose = TRUE,
+        ntree = input$ntree
       )
     })
-    observeEvent(args_GA(),{
-      vals$args_GA<-args_GA()
-    })
+    observeEvent(args_GA(), {
+      req(vals$cmodel %in% "rfGA")
+      vals$args_GA <- args_GA()
+    }, ignoreInit = TRUE)
 
     observeEvent(input$run,ignoreInit = T,{
 
@@ -7704,7 +8621,7 @@ caret_models$server<-function(id,vals){
           if(lib!="NULL")
             p(tiphelp("R package"),strong('Library:'),style="white-space: normal;",
               strong_forest(paste0(lib,collapse=", ")),
-              tipify_ui(actionLink(ns("model_help"),icon('fas fa-question-circle')),"Access the R documentation of the model","right"),
+              tiphelp_icon(actionLink(ns("model_help"),icon('fas fa-question-circle')),"Access the R documentation of the model","right"),
 
             ),
         if(vals$cmodel!='glm')
@@ -7715,17 +8632,22 @@ caret_models$server<-function(id,vals){
           ),
         p(tiphelp("If variable importance metrics is available for the model"),strong("Variable Importance:"),
           strong_forest(length(model_varImp[[vals$cmodel]])>0)),
-        p(tipify_ui(icon('tag'),"Subjects associated with the model"),strong('tags:'),style="white-space: normal;",
+        p(tiphelp_icon(icon('tag'),"Subjects associated with the model"),strong('tags:'),style="white-space: normal;",
           emforest(paste0(model_tags[[vals$cmodel]],collapse=", ")))
 
       )
     })
+
     output$panel_box_caret3<-renderUI({
       div(
         model_control$ui(ns("arg3"),vals),
         uiOutput(ns("box3_output"))
       )
     })
+    observeEvent(vals$cmodel, {
+      vals$cur_model_params <- NULL
+    }, ignoreInit = TRUE)
+
     output$panel_wei<-renderUI({
       choices<-names(vals$saved_data)
       choices<-choices[!choices%in%vals$cur_data_sl]
@@ -7915,6 +8837,7 @@ caret_models$server<-function(id,vals){
     observeEvent(input$run_train,ignoreInit = T,{
       vals$model_error0<-try({
         req(vals$cmodel)
+
         args<-vals$trainSL_args
         args_r<-vals$box_caret4_args
         x<-args$x_train
@@ -7943,6 +8866,19 @@ caret_models$server<-function(id,vals){
           selectionFunction =args_r$selfinal
 
         )
+        if(args_r$method=='spat_cv'){
+          validate(need(!is.null(vals$cvsp),"Spatial CV scheme not found!"))
+          req(!is.null(vals$cvsp))
+          caret_folds<-vals$cvsp
+          trControl_list$method<-"cv"
+          trControl_list$number<-attr(caret_folds,"params")$k
+          trControl_list$repeats<-NULL
+          trControl_list$p<-NULL
+          trControl_list$index <-caret_folds$index
+          trControl_list$indexOut <- caret_folds$indexOut
+        }
+
+
         if(args_r$method=="adaptive_cv") {
           trControl_list$adaptive=list(
             min=args_r$adap_min,
@@ -8005,6 +8941,10 @@ caret_models$server<-function(id,vals){
 
               do.call(caret::train,args_train)}), silent=T)
             time1<-Sys.time()
+            if(args_r$method=='spat_cv'){
+              attr(m,"cvsp")<-attr(vals$cvsp,"params")
+            }
+
             req(!inherits(m,"try-error"))
             attr(m,"test_partition")<-paste("Test data:",args$partition,"::",args$partition_ref)
             attr(m,"Y")<-paste(args$data_y,"::",args$var_y)
@@ -8342,24 +9282,27 @@ caret_models$server<-function(id,vals){
     })
 
     output$tab1_out<-renderUI({
-      panel_box_caret1$server('panel_box_caret1',vals)
-      panel_box_caret2$server("grid",vals)
-      model_control$server("arg3",vals)
-      panel_box_caret4$server('panel_box_caret4',vals)
+
       NULL
     })
-
+    panel_box_caret1$server('panel_box_caret1',vals)
+    panel_box_caret2$server("grid",vals)
+    model_control$server("arg3",vals)
+    panel_box_caret4$server('panel_box_caret4',vals)
+    fs$server("fsga",vals)
+    model_results$server("caret_results",vals)
+    model_predic$server("caret_pred",vals)
     output$fsout<-renderUI({
-      fs$server("fsga",vals)
+
       NULL
     })
 
     output$tab2_out<-renderUI({
-      model_results$server("caret_results",vals)
+
       NULL
     })
     output$tab3_out<-renderUI({
-      model_predic$server("caret_pred",vals)
+
       NULL
     })
 
@@ -8387,5 +9330,367 @@ detach_package <- function(pkg) {
       }
     )
   }
+}
+size_evaluation <- function(sf_dat,column = "y",autocor_column = NULL,k = 5,n_sizes = 5,size_min = NULL,size_max = NULL,range_multiplier = c(0.25, 1.25),min_blocks_per_fold = 2,selection = "random",iteration = 100,progress = FALSE,seed = 123, hexagon=T, repeats=1) {
+
+  set.seed(seed)
+
+  # ---------------------------------------------------------
+  # 1) Check whether the sf object is in a projected CRS
+  # ---------------------------------------------------------
+
+  if (sf::st_is_longlat(sf_dat)) {
+    stop(
+      "The sf_dat object is in longitude/latitude coordinates. ",
+      "Please transform it to a projected CRS in metres first, for example: sf::st_transform(sf_dat, 3857)."
+    )
+  }
+
+  if (!column %in% names(sf_dat)) {
+    stop("The column specified in 'column' does not exist in sf_dat.")
+  }
+
+  # ---------------------------------------------------------
+  # 2) Define the column used to estimate spatial autocorrelation
+  # ---------------------------------------------------------
+
+  sf_work <- sf_dat
+
+  if (is.null(autocor_column)) {
+
+    autocor_column <- column
+
+    if (!is.numeric(sf_work[[autocor_column]])) {
+      autocor_column <- ".autocor_numeric"
+      sf_work[[autocor_column]] <- as.numeric(as.factor(sf_work[[column]]))
+
+      warning(
+        "The variable '", column, "' is not numeric. ",
+        "An artificial numeric version was created to estimate spatial autocorrelation. ",
+        "This may be acceptable for exploratory diagnostics, but it is less defensible for nominal classes."
+      )
+    }
+  }
+
+  if (!autocor_column %in% names(sf_work)) {
+    stop("The column specified in 'autocor_column' does not exist in sf_dat.")
+  }
+
+  # ---------------------------------------------------------
+  # 3) Estimate spatial autocorrelation
+  # ---------------------------------------------------------
+
+  sac <- tryCatch(
+    cv_spatial_autocor2(
+      x = sf_work,
+      column = autocor_column
+    ),
+    error = function(e) e
+  )
+
+  range_est <- NA_real_
+
+  if (!inherits(sac, "error")) {
+    if ("range_table" %in% names(sac)) {
+      if ("range" %in% names(sac$range_table)) {
+        range_est <- suppressWarnings(
+          min(sac$range_table$range, na.rm = TRUE)
+        )
+      }
+    }
+  }
+
+  if (!is.finite(range_est)) {
+    range_est <- NA_real_
+  }
+
+  # ---------------------------------------------------------
+  # 4) Calculate the spatial dimensions of the study area
+  # ---------------------------------------------------------
+
+  bb <- sf::st_bbox(sf_work)
+
+  width_m  <- as.numeric(bb["xmax"] - bb["xmin"])
+  height_m <- as.numeric(bb["ymax"] - bb["ymin"])
+
+  short_side <- min(width_m, height_m)
+  long_side  <- max(width_m, height_m)
+
+  # Helper function to estimate the approximate number of blocks
+  approx_n_blocks <- function(size) {
+    ceiling(width_m / size) * ceiling(height_m / size)
+  }
+
+  # ---------------------------------------------------------
+  # 5) Define the maximum block size compatible with k folds
+  # ---------------------------------------------------------
+
+  size_grid <- seq(
+    from = short_side / 100,
+    to = short_side,
+    length.out = 1000
+  )
+
+  n_blocks_grid <- approx_n_blocks(size_grid)
+
+  min_blocks_total <- k * min_blocks_per_fold
+
+  possible_sizes <- size_grid[n_blocks_grid >= min_blocks_total]
+
+  if (length(possible_sizes) == 0) {
+    size_max_by_blocks <- short_side / sqrt(min_blocks_total)
+  } else {
+    size_max_by_blocks <- max(possible_sizes)
+  }
+
+  # ---------------------------------------------------------
+  # 6) Define size_min and size_max automatically
+  # ---------------------------------------------------------
+
+  if (is.null(size_max)) {
+
+    if (is.finite(range_est)) {
+      size_max <- min(
+        range_est * range_multiplier[2],
+        size_max_by_blocks
+      )
+    } else {
+      size_max <- size_max_by_blocks
+    }
+  }
+
+  if (is.null(size_min)) {
+
+    if (is.finite(range_est)) {
+      size_min <- min(
+        range_est * range_multiplier[1],
+        size_max * 0.5
+      )
+    } else {
+      size_min <- size_max * 0.25
+    }
+
+    size_min <- max(size_min, short_side / 100)
+  }
+
+  if (size_min >= size_max) {
+    size_min <- size_max * 0.25
+  }
+
+  # ---------------------------------------------------------
+  # 7) Create the sequence of block sizes to be tested
+  # ---------------------------------------------------------
+
+  sizes <- unique(round(seq(
+    from = size_min,
+    to = size_max,
+    length.out = n_sizes
+  )))
+
+  # ---------------------------------------------------------
+  # 8) Run blockCV for each block size
+  # ---------------------------------------------------------
+
+  results <- vector("list", length(sizes))
+  cv_objects <- vector("list", length(sizes))
+  cv_args<-list()
+  withProgress(min=0,max=length(sizes),message="Running",{
+    for (i in seq_along(sizes)) {
+
+      incProgress(1,message=paste0("Running size ",i,"/",length(sizes)))
+      s <- sizes[i]
+
+      warnings_i <- character()
+
+      set.seed(seed)
+      cv_i <- tryCatch(
+        withCallingHandlers(
+          cv_spatial2(
+            x = sf_work,
+            k = k,
+            column = column,
+            size = s,
+            selection = selection,
+            iteration = iteration,
+            progress = progress,
+            hexagon=hexagon
+          ),
+          warning = function(w) {
+            warnings_i <<- c(warnings_i, conditionMessage(w))
+            invokeRestart("muffleWarning")
+          }
+        ),
+        error = function(e) e
+      )
+
+      if (inherits(cv_i, "error")) {
+
+        results[[i]] <- data.frame(
+          size_m = s,
+          size_km = s / 1000,
+          approx_n_blocks = approx_n_blocks(s),
+          worked = FALSE,
+          warning = NA_character_,
+          error = cv_i$message,
+          min_n_test = NA_integer_,
+          max_n_test = NA_integer_,
+          mean_n_test = NA_real_,
+          sd_n_test = NA_real_,
+          folds_with_absent_classes = NA_integer_,
+          total_absent_class_cells = NA_integer_,
+          min_n_test_class = NA_integer_,
+          stringsAsFactors = FALSE
+        )
+
+        cv_objects[[i]] <- NULL
+
+      } else {
+
+        diag_i <- evaluate_fold_classes(
+          sf_dat = sf_work,
+          re = cv_i,
+          column = column
+        )
+
+        results[[i]] <- data.frame(
+          size_m = s,
+          size_km = s / 1000,
+          approx_n_blocks = approx_n_blocks(s),
+          worked = TRUE,
+          warning = ifelse(
+            length(warnings_i) == 0,
+            NA_character_,
+            paste(unique(warnings_i), collapse = " | ")
+          ),
+          error = NA_character_,
+          min_n_test = min(diag_i$n_test),
+          max_n_test = max(diag_i$n_test),
+          mean_n_test = mean(diag_i$n_test),
+          sd_n_test = stats::sd(diag_i$n_test),
+          folds_with_absent_classes = sum(diag_i$n_classes_absent_test > 0),
+          total_absent_class_cells = sum(diag_i$n_classes_absent_test),
+          min_n_test_class = min(diag_i$min_n_test_class),
+          stringsAsFactors = FALSE
+        )
+
+        cv_objects[[i]] <- cv_i
+      }
+
+      cv_args[[i]]<-list(
+        size = s,
+        selection = selection,
+        iteration = iteration,
+        seed=seed,
+        hexagon=hexagon
+      )
+    }
+  })
+
+
+  summary <- do.call(rbind, results)
+
+  names(cv_objects) <- paste0(sizes / 1000, "_km")
+  {
+    # ---------------------------------------------------------
+    # Select the best block size
+    # ---------------------------------------------------------
+
+    worked_rows <- which(summary$worked)
+
+    wars<-NULL
+    err<-NULL
+    if (length(worked_rows) == 0) {
+
+      err<-c(
+        "Failed: No block size worked."
+      )
+
+      out <- list()
+      attr(out,"err")<-err
+
+
+      return(out)
+    }
+
+    valid_rows <- worked_rows[is.na(summary$warning[worked_rows])]
+
+    if (length(valid_rows) > 0) {
+
+      # Preferred case: no warnings, choose the largest block size
+      candidate_rows <- valid_rows
+
+      best_row <- candidate_rows[
+        which.max(summary$size_m[candidate_rows])
+      ]
+
+    } else {
+
+      # Fallback case: all working sizes generated warnings.
+      # Choose the option with the fewest absent class cells.
+      candidate_rows <- worked_rows
+
+      ord <- order(
+        summary$total_absent_class_cells[candidate_rows],
+        summary$folds_with_absent_classes[candidate_rows],
+        -summary$size_m[candidate_rows],
+        summary$sd_n_test[candidate_rows],
+        na.last = TRUE
+      )
+
+      best_row <- candidate_rows[ord[1]]
+
+      wars<-c(
+        "All working block sizes generated warnings related to absent classes. ",
+        "The selected block size minimizes the number of absent class cells, ",
+        "then the number of affected folds, and then maximizes block size."
+      )
+    }
+
+    best_result <- cv_args[[best_row]]
+    best_cv <- cv_objects[[best_row]]
+  }
+
+
+  best_cv_list <- create_repeated_spatial_cv(
+    sf_dat = sf_work,
+    column = column,
+    best_cv = best_cv,
+    size = best_result$size,
+    k = k,
+    repeats = repeats,
+    selection = selection,
+    iteration = iteration,
+    hexagon = hexagon,
+    progress = progress,
+    seed = seed
+  )
+
+  out <- list(
+    summary = summary,
+    cv_objects = cv_objects,
+    autocorrelation = sac,
+    range_est_m = range_est,
+    range_est_km = range_est / 1000,
+    tested_sizes_m = sizes,
+    tested_sizes_km = sizes / 1000,
+    extent = data.frame(
+      width_m = width_m,
+      height_m = height_m,
+      short_side_m = short_side,
+      long_side_m = long_side
+    ),
+    best_result = best_result,
+    best_cv = best_cv,
+    best_cv_list = best_cv_list,
+    best_row = best_row,
+    repeats = repeats
+  )
+
+  # ---------------------------------------------------------
+  # 9) Return the best valid cv_spatial object
+  # ---------------------------------------------------------
+
+
+  return(out)
 }
 

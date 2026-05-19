@@ -169,9 +169,23 @@ tiphelp <- function(text, placement = "bottom") {
   )
 }
 
+tiphelp_icon <- function(icon,text, placement = "bottom") {
+  tags$span(
+    icon,
+    class = "help-tip",
+    style = "margin-left: 4px; cursor: help; color: #2c7fb8;",
+    `data-placement` = placement,
+    `data-html` = "true",
+    `data-original-title` = text
+  )
+}
+
+
+
 tipright <- function(text, placement = "right") {
   tiphelp(text, placement = placement)
 }
+
 
 
 

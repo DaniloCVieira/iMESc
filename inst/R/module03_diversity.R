@@ -137,14 +137,14 @@ diversity_tool$ui<-function(id){
                    div(style="display: flex;gap:15px",class="setup_box picker-flex",
 
                        div(style="display: flex;",
-                           div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                           div(tiphelp_icon(inline(tags$div("Y",class="trailab")),"Predictors")),
                            pickerInput(ns("omi_X"),NULL, choices=NULL)),
                        div(style="text-align: center",
                            div(strong("~")),
                            div(actionLink(ns("rev_rda"),icon("arrow-right-arrow-left"),style=""))
                        ),
                        div(style="display: flex;",
-                           div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                           div(tiphelp_icon(inline(tags$div("X",class="trailab")),"Response data")),
                            pickerInput(ns("omi_Y"),NULL, choices=NULL)),
                        actionButton(ns('run_niche'),"RUN")
 
@@ -186,7 +186,7 @@ diversity_tool$ui<-function(id){
                         ns("box5"),
                         title="Results",
                         button_title = span(actionLink(ns('downp_perf'),"Download",icon('download')),actionLink(ns('omi_down'),'Download',icon('download'))),
-                        div(align="right", tipify_ui(actionLink(ns('omi_save_datalist'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
+                        div(align="right", tiphelp_icon(actionLink(ns('omi_save_datalist'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results"),
                             uiOutput(ns('omi_plot1')),
                             uiOutput(ns('omi_tables'))
 
@@ -203,12 +203,12 @@ diversity_tool$ui<-function(id){
                  div(
                    div(style="display: flex;gap:15px",class="setup_box picker-flex",
                        div(style="display: flex;",
-                           div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                           div(tiphelp_icon(inline(tags$div("X",class="trailab")),"Response data")),
                            pickerInput(ns("simper_X"),NULL, choices=NULL)),
 
 
                        div(style="display: flex;",
-                           div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                           div(tiphelp_icon(inline(tags$div("Y",class="trailab")),"Predictors")),
                            pickerInput(ns("simper_Y"),NULL, choices=NULL),
                            pickerInput(ns("simper_group"),NULL, choices=NULL)),
 
@@ -251,7 +251,7 @@ diversity_tool$ui<-function(id){
                         ns("box5"),
                         title="Results",
                         button_title = actionLink(ns('download_simper'),"Download",icon('download')),
-                        div(align="right", tipify_ui(actionLink(ns('simper_create_dl'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results", options=list(container="body")),
+                        div(align="right", tiphelp_icon(actionLink(ns('simper_create_dl'),span("Create Datalist",icon("fas fa-file-signature"))),"Create a datalist with the results"),
 
                             uiOutput(ns('simper_tables'))
 
@@ -273,12 +273,12 @@ diversity_tool$ui<-function(id){
                      div(
                        div(style="display: flex;gap:15px",class="setup_box picker-flex",
                            div(style="display: flex;",
-                               div(tipify_ui(tags$div("X",class="trailab"),"Response data")),
+                               div(tiphelp_icon(inline(tags$div("X",class="trailab")),"Response data")),
                                pickerInput(ns("isp_X"),NULL, choices=NULL)),
 
 
                            div(style="display: flex;",
-                               div(tipify_ui(tags$div("Y",class="trailab"),"Predictors")),
+                               div(tiphelp_icon(inline(tags$div("Y",class="trailab")),"Predictors")),
                                pickerInput(ns("isp_Y"),NULL, choices=NULL),
                                pickerInput(ns("isp_group"),NULL, choices=NULL))
 
@@ -323,7 +323,7 @@ diversity_tool$ui<-function(id){
                          numericInput(ns('min.order'),span("min.order",tipright("The minimum order of site group combinations.Cannot be larger than max.order")),value=1),
 
                          numericInput(ns('max.order'),span("max.order",tipright("The maximum order of site group combinations to be considered")),value=2),
-                         numericInput(ns("seed"), strong("seed",tipify_ui(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1),
+                         numericInput(ns("seed"), strong("seed",tiphelp_icon(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1),
                          numericInput(ns('isp_nperm'),span("nperm",tipright("Number of permutations")),value=199),
                          numericInput(ns('isp_pvalue'),span("Sig.level"),value=0.05)
 
@@ -401,7 +401,7 @@ diversity_tool$ui<-function(id){
                                  checkboxInput(ns("isp_drop"),"drop levels",F),
                                  div(actionLink(ns('isp_order'),"Order labels")),
                                  div(style="position: absolute; top: 30px; right: 5px",align="right",
-                                     div(tipify_ui(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species", options=list(container="body")))
+                                     div(tiphelp_icon(actionLink(ns('isp_create_dl'),span("Create Datalist"),icon("fas fa-file-signature")),"Create a datalist with the top species"))
                                  )
                                ),
                                uiOutput(ns('isp_plot'))

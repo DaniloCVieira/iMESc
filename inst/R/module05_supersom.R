@@ -1,3 +1,4 @@
+
 #' ## Overview of the Self-Organizing Maps (SOM) Module
 #' The Self-Organizing Maps (SOM) module is a powerful tool for unsupervised learning and visualization
 #' of high-dimensional data in the iMESc application. This module leverages the Kohonen network algorithm
@@ -146,7 +147,7 @@ padding-left: 3px;
                 ns("box_setup4"),inline=F,
                 color="#c3cc74ff",
                 title="1.1. Set the grid",
-                tip=span(actionLink(ns("somgridhelp"), tipify_ui(icon("fas fa-question-circle"), "Click for more details")),
+                tip=span(actionLink(ns("somgridhelp"), tiphelp_icon(icon("fas fa-question-circle"), "Click for more details")),
                          actionLink(ns("resettopo"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
                 div(
                   tags$style(
@@ -173,7 +174,7 @@ max-width: 100px;
 "
                     )
                   ),
-                  div(checkboxInput(ns("sugtopo"), span('suggested topology',tipify_ui(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
+                  div(checkboxInput(ns("sugtopo"), span('suggested topology',tiphelp_icon(actionLink(ns("sugtopohelp"), icon("fas fa-question-circle")), "Click for more details")), value =T)),
                   div(
                     id = ns("topocontrol"),
                     div(
@@ -214,17 +215,17 @@ max-width: 100px;
                      color="#c3cc74ff",
                      inline=F,
                      title="1.2. Set the training parameters",
-                     tip=span(actionLink(ns("supersomhelp"), tipify_ui(
+                     tip=span(actionLink(ns("supersomhelp"), tiphelp_icon(
                        icon("fas fa-question-circle"), "Click for more details"
                      )),actionLink(ns("resetsom"), icon("fas fa-undo"),style="position: absolute;right: 20px;top: 4px")),
                      div(
                        div(class="inline_pickers2 som_train",
-                           pickerInput_fromtop(ns("distmethod"),div(style="",strong("dist.fcts",tipify_ui(icon("fas fa-question-circle"),"Distance measure between each neuron and input data"))),
+                           pickerInput_fromtop(ns("distmethod"),div(style="",strong("dist.fcts",tiphelp_icon(icon("fas fa-question-circle"),"Distance measure between each neuron and input data"))),
                                                choices = c("BrayCurtis","euclidean","sumofsquares","manhattan","tanimoto")),
                            pickerInput_fromtop(ns("normalizeDataLayers"),"normalizeLayers",
                                                choices = c("TRUE","FALSE")),
-                           numericInput(ns("rlen"),strong("rlen",tipify_ui(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
-                           numericInput(ns("seed"), strong("seed",tipify_ui(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
+                           numericInput(ns("rlen"),strong("rlen",tiphelp_icon(icon("fas fa-question-circle"),"The number of times the complete dataset will be presented to the network")),value =500,min = 1,step = 1),
+                           numericInput(ns("seed"), strong("seed",tiphelp_icon(icon("fas fa-question-circle"),"A numeric value. If supplied, it ensure that you get the same result if you start with that same seed each time you run the som analysis.")), value =NA, min=0, step=1)
                        ),
                        div(align = "center",
                            br(),
@@ -235,7 +236,7 @@ max-width: 100px;
 
                        div(
                          span(class="finesom_btn",
-                              tipify_ui(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
+                              tiphelp_icon(actionLink(ns("finesom"),"Fine tuning*"),"show all parameters available")
                          )),
                        div(id=ns("finetuning_som"),
                            div(id="finesom_out",class="map_control_style2",
@@ -501,7 +502,14 @@ imesc_supersom$server<-function (id,vals ){
              ),
              res,
              div(style="padding: 0px; padding-left: 10px",
-                 tipify_ui(actionLink(ns("ssom_add"),icon("fas fa-plus")),"Add layer","right"))
+                 actionLink(
+                   ns("ssom_add"),
+                   tiphelp_icon(icon("fas fa-plus"), "Add layer", "right"),
+                   onclick = "$('.tooltip').remove(); $('.help-tip').tooltip('hide');"
+                 )
+
+
+             )
 
       )
     })
@@ -959,7 +967,7 @@ imesc_supersom$server<-function (id,vals ){
                                 span(strong("Results:", tiphelp("SOM results. Click to see SOM results saved in the selected Datalist"))),
                                 choices=som_model_names(),
                                 selected=vals$cur_som_models),
-                    div(style="font-size: 16px; margin-left: -10px; margin-top: 5px",tipify_ui(actionLink(ns("som_model_delete"),icon("fas fa-trash-alt")),"Remove model"))
+                    div(style="font-size: 16px; margin-left: -10px; margin-top: 5px",tiphelp_icon(actionLink(ns("som_model_delete"),icon("fas fa-trash-alt")),"Remove model"))
 
                   ),
                   uiOutput(ns("som_cur"))
@@ -1001,7 +1009,14 @@ imesc_supersom$server<-function (id,vals ){
               div(
                 class="numlayers",
                 if(i==nrow(vals$ssom_tab0)){
-                  inline(div(tipify_ui(actionLink(ns("ssom_minus"),icon("fas fa-minus"),style="margin-right: 20px;"),"Remove layer","top")))
+                  inline(div(actionLink(
+                    ns("ssom_minus"),
+                    tiphelp_icon(icon("fas fa-minus"), "Remove layer", "top"),
+                    onclick = "$('.tooltip').remove(); $('.help-tip').tooltip('hide');",
+                    style="margin-right: 20px;"
+                  )))
+
+
 
 
                 },strong(i)
@@ -1677,10 +1692,10 @@ table_results_tab1$ui<-function(id){
         title="Downloads",
         color="#c3cc74ff",
         div(class='tip-80',
-          div(div(tipify_ui(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors"))),
-          div(tipify_ui(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)")),
-          div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
-          div(tipify_ui(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components")))
+            div(div(tiphelp_icon(actionLink(ns('create_codebook'),span("Create Datalist",icon("fas fa-file-signature")), style="button_active"),"Create a datalist  with the codebook vectors","right"))),
+            div(tiphelp_icon(actionLink(ns('save_bmu'),span("Save BMUs",icon("fas fa-file-signature")), style="button_active"),"Add the BMUs to the Factor-Attribute (training Data)","right")),
+            div(actionLink(ns("down_pcodes_results"), span("Download codebook results"))),
+            div(tiphelp_icon(downloadLink(ns("down_kohonen_results"), "Download model"),"download kohonen object as rds file containing the object of class kohonen with components","right")))
       )
     ),
     column(
@@ -1796,7 +1811,7 @@ table_results_tab3$ui<-function(id){
         hide_content = T,
         title=span(style="display: inline-block",
                    class="checktitle2",
-                   checkboxInput(ns("codebook_addvfm"),strong("Variable factor map",actionLink(ns("codebook_varfacmap"), tipify_ui(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=T,width="210px")
+                   checkboxInput(ns("codebook_addvfm"),strong("Variable factor map",actionLink(ns("codebook_varfacmap"), tiphelp_icon(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=T,width="210px")
         ),
 
         div(id=ns('codebook_varfac_out'),
@@ -1809,7 +1824,7 @@ table_results_tab3$ui<-function(id){
                                 choices =NULL,multiple=T),
 
             div(id=ns('codebook_vfm_out'),
-                div(tipify_ui(numericInput(ns("codebook_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                div(tiphelp_icon(numericInput(ns("codebook_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
                 div(numericInput(ns("vfm_max.overlaps"), "Max.Overlap", value = 10, min = 1)),
 
 
@@ -1836,7 +1851,7 @@ table_results_tab3$ui<-function(id){
             title=span(style="display: inline-block",
                        class="checktitle2",
 
-                       checkboxInput(ns("codebook_addpie"),strong("Variable pies",tipify_ui(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right")),value =F,width="160px"),
+                       checkboxInput(ns("codebook_addpie"),strong("Variable pies",tiphelp_icon(actionLink(ns("var_pie_help"), icon("fas fa-question-circle")),"Click for details","right")),value =F,width="160px"),
 
             ),
 
@@ -3180,7 +3195,7 @@ table_predict_som$ui<-function(id){
             hide_content = T,
             title=span(style="display: inline-block",
                        class="checktitle2",
-                       checkboxInput(ns("predcode_addvfm"),strong("Variable factor map",actionLink(ns("predcode_varfacmap"), tipify_ui(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=F,width="210px")
+                       checkboxInput(ns("predcode_addvfm"),strong("Variable factor map",actionLink(ns("predcode_varfacmap"), tiphelp_icon(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=F,width="210px")
             ),
 
             div(id=ns('predcode_varfac_out'),
@@ -3190,7 +3205,7 @@ table_predict_som$ui<-function(id){
                 ),
 
                 div(id=ns('predcode_vfm_out'),
-                    div(tipify_ui(numericInput(ns("predcode_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
+                    div(tiphelp_icon(numericInput(ns("predcode_npic"), "Number", value = 10, min = 2),"Number of variables to display")),
                     numericInput(ns("predcode_pclus.cex.var"), "Size", value = 1, min = 2),
                     pickerInput_fromtop(inputId = ns("predcode_p.clus.col.text"),
                                         label = "Color",
@@ -4458,5 +4473,4 @@ plot_torus <- function(m, R = 4, r = 3) {
 
   }
 }
-
 

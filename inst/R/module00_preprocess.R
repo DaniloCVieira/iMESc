@@ -6618,7 +6618,7 @@ tool7$server<-function(id,vals=NULL){
       selectInput(
         ns("split_t"),
         span(pophelp(
-          NULL,
+          '',
           HTML(paste0(
             p(HTML(paste0(strong("Choose the model type for which you are creating a partition")))),
             p(HTML(paste0(tags$li('For classification models, the random sampling is done within the levels of y in an attempt to balance the class distributions within the splits')))),
@@ -6850,8 +6850,7 @@ tool8$ui<-function(id){
             style="background-color: #f5f5f5;
           width: 50%;padding: 5px;",class="half-drop",
             div(strong("Aggregate:"),
-                popify(a(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle")),
-                       "Aggregate","The process involves two stages. First, collate individual cases of the Numeric-Attribute together with a grouping variable (unselected factors). Second, perform which calculation you want on each group of cases (selected factors)", options=list(container="body"))),
+                tiphelp("The process involves two stages. First, collate individual cases of the Numeric-Attribute together with a grouping variable (unselected factors). Second, perform which calculation you want on each group of cases (selected factors)")),
 
             div(class="virtual-180",
                 virtualPicker(ns('fac_descs'), "factor(s) selected")

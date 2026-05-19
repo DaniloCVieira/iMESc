@@ -895,8 +895,7 @@ output$module_sl_server<-renderUI({
   })
 
   once_savepoint<-reactiveVal(F)
-  observe(#input$savepoint_yes,
-          {
+  observe(input$savepoint_yes,{
     req(file.exists("savepoint.rds"))
     req(isFALSE(once_savepoint()))
     once_savepoint(TRUE)

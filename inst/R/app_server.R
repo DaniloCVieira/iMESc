@@ -651,6 +651,108 @@ app_server<-server<-function(input, output, session) {
 
 
             )
+          ),
+          tabPanel(
+            title = tagList(
+              icon("newspaper"),
+              "News"
+            ),
+            value = "news",
+            tags$style(HTML("
+    .news-card {
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 14px;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .news-card h4 {
+      margin-top: 10px;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+
+    .news-card p {
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .news-date {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .news-card-blue {
+      background: linear-gradient(135deg, #1f77b4, #0b3c5d);
+    }
+
+    .news-card-green {
+      background: linear-gradient(135deg, #2ca25f, #006d2c);
+    }
+  ")),
+            div(
+              style="padding: 10px; font-size: 12px",
+              div(
+                class = "news-card news-card-blue",
+
+                div(
+                  class = "news-date",
+                  "12 May 2026"
+                ),
+
+                h4(
+                  icon(
+                    name = NULL,
+                    class="custom_side-icon sup-icon"
+                  ),
+                  " Spatial Block Cross-Validation"
+                ),
+
+                div(
+                  "Spatial block cross-validation was implemented in the ",
+                  strong("Unsupervised Algorithms"),
+                  " menu, inside the ",
+                  strong("Resampling"),
+                  " box."
+                ),
+
+                div(
+                  "To use this option, select ",
+                  strong("\"Spatial Block CV\""),
+                  " and create a spatial validation scheme before running the analysis."
+                )
+              ),
+              div(
+                class = "news-card news-card-green",
+
+                div(
+                  class = "news-date",
+                  "12 May 2026"
+                ),
+
+                h4(
+                  icon("bug-slash"),
+                  " Leaflet bug fixes"
+                ),
+
+                div(
+                  "Bugs related to Leaflet maps in the ",
+                  strong("Spatial Tools"),
+                  " menu were fixed."
+                ),
+
+                div(
+                  "This update improves map rendering and spatial visualization stability inside iMESc."
+                )
+              )
+
+            )
+
           )
 
 

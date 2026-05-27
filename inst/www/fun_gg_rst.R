@@ -1305,7 +1305,7 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   if(isTRUE(addMinicharts)){
     map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light)
   }
-  map <- map %>% leaflet::addTiles() %>%
+  map <- map |> leaflet::addTiles() |>
     leaflet::addProviderTiles(providers)
 
 

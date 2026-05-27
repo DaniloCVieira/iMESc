@@ -158,8 +158,8 @@ tiphelp_icon <- function(icon,text, placement = "bottom") {
     `data-original-title` = text
   )
 }
-tiphelp <- function(text, placement = "bottom") {
-  tags$span(
+tiphelp <- function(text, placement = "bottom",class="tipnormal") {
+  tags$span(class=class,
     icon("fas fa-question-circle"),
     class = "help-tip",
     style = "margin-left: 4px; cursor: help; color: #2c7fb8;",

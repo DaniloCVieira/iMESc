@@ -1,3 +1,42 @@
+
+source("inst/R/install.R")
+install_imesc()
+
+## loading packages function
+load_packs<-function(){
+
+  #saveRDS(time000,'inst/www/time000.rds')
+  base_packs<-c("shiny",'colorRamps','data.table','shinyBS','colorspace','shinyWidgets','shinyjs')
+  sapply(seq_along(base_packs),function(i){
+    suppressPackageStartupMessages(library(base_packs[[i]],character.only = T))
+  })
+
+}
+## loading Modules
+load_R<-function(){
+  #if(!exists("data_migrate"))
+  if(TRUE){
+    www_funs<-list.files("inst/R",pattern=".R",full.names = T)
+    sapply(seq_along(www_funs),function(i){
+      source(www_funs[[i]])
+    })
+
+  }
+
+}
+
+
+
+loadedP<-load_packs()
+loadedR<-load_R()
+
+
+if(!exists("savepoint")){
+  savepoint<-readRDS("savepoint.rds")
+}
+
+
+
 # Replace outlier values with NA in the provided dataset based on a list of identified outliers.
 remove_outliers<-function(d1,outliers){
   for(i in 1:nrow(outliers)){
@@ -141,8 +180,8 @@ imesc_outliers$ui <- function(id,vals) {
               'Remove',
               div(style="overflow-x: auto",
                   div(style="display: flex",
-                    actionButton(ns('run_remove'),tiphelp5("Pre-RUN","This is a pre-run: selected targets will be replaced with NAs"),style="height: 30px"),
-                    div(actionLink(ns('reset'),"[reset]"))
+                      actionButton(ns('run_remove'),tiphelp5("Pre-RUN","This is a pre-run: selected targets will be replaced with NAs"),style="height: 30px"),
+                      div(actionLink(ns('reset'),"[reset]"))
                   ),
                   uiOutput(ns("result6")),
                   checkboxInput(ns('show_boxplot'),tiphelp5("Show boxplot","Generates a boxplot with selected targets")),
@@ -526,22 +565,34 @@ tool1$ui<-function(id){
 
     span(
       strong("Numeric-Attribute:",style="color:  SeaGreen"),
-      popify(actionLink(ns('uphelp'), icon("fas fa-question-circle")),"Upload the observations",textupload(),"right"),
+      tiphelp(textupload(),"right"),
     ),
     span(style="color:  #05668D",
          strong("Factor-Attribute:"),
-         popify(actionLink(ns('labhelp'), icon("fas fa-question-circle")),"Upload the factors",textlab(),"right")),
+         tiphelp(textlab(),"right")),
     span(style="color:  #05668D",
          strong(span("*"),"Coords-Attribute:"),
-         popify(actionLink(ns('cohelp'), icon("fas fa-question-circle")),"Upload the coordinates", textcoords(),"right")),
+         tiphelp( textcoords(),"right")),
     span(style="color:  #05668D",
-         strong(span("*"),"Base shape:",actionLink(ns("basehelp"), tipify_ui(icon("fas fa-question-circle"),"Click for more details")))),
+         strong(span("*"),"Base shape:",tiphelp(
+           "<div class='tip_large'>
+     <p><strong>Base shape</strong> is the main spatial polygon used as the geographic reference for map generation.</p>
+     <p>It can be used to define the map extent, delimit the study area, filter points, and clip interpolated surfaces or other spatial outputs.</p>
+     <p>The file must be an <code>.rds</code> object previously created in R, usually from a shapefile read with packages such as <code>sf</code>. The uploaded object should contain a polygon layer.</p>
+     <p>Alternatively, users can import shapefiles and add them as base shape later using the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>
+   </div>",
+           "right"))),
 
     span(style="color:  #05668D",
-         strong(span("*"),"Layer shape:",actionLink(ns("layerhelp"), tipify_ui(icon("fas fa-question-circle"),"Click for more details"))))
+         strong(span("*"),"Layer shape:",tiphelp("<p><strong>Layer shape</strong> is an additional spatial layer displayed on top of maps, such as land polygons, coastlines, islands, administrative boundaries, or other reference features.</p>
+   <p>Unlike the <strong>Base shape</strong>, it is not used as the main geographic reference, study-area boundary, or clipping mask.</p>
+   <p>Upload an <code>.rds</code> file containing a spatial vector object previously created in R, for example from a shapefile read with <code>sf</code>.</p>
+   <p>Alternatively, users can import shapefiles and add them as layer shapes later using the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>",
+                                                 "right")))
 
   )
   tags$div(
+
     class='dl_modal',
     modalDialog(
       div(
@@ -1784,8 +1835,8 @@ tool2_tab3$server<-function(id,vals){
     })
     output$import_from_data<-renderUI({
       pickerInput_fromtop_live(session$ns("import_from_data"),  "From:", choices=names(vals$saved_data),
-                  selected=vals$cur_import_from_data,
-                  #selected=names(vals$saved_data)[5]
+                               selected=vals$cur_import_from_data,
+                               #selected=names(vals$saved_data)[5]
       )
     })
     observeEvent(input$import_from_data,{
@@ -2133,7 +2184,7 @@ tool2_tab3$server<-function(id,vals){
           newdat<-new
         } else{
           newdat<-cbind(new,r_exchange)
-          }
+        }
 
 
         colnames(newdat)<-make.unique(colnames(newdat))
@@ -5855,7 +5906,7 @@ tool4$server<-function(id,vals=NULL){
       choices<-names(vals$saved_data)
       pic<-sapply(vals$saved_data,function(x)
         any(   colnames(x)%in%colnames(vals$pp_data))
-     )
+      )
 
 
       choices<-choices[pic]
@@ -6566,7 +6617,7 @@ tool7$ui<-function(id){
 
             div(class="medium",
                 style="margin-left: 40px",
-              uiOutput(ns('split_y_groups'))
+                uiOutput(ns('split_y_groups'))
             ),
             div(class="medium",
                 style="margin-left: 40px",
@@ -8127,5 +8178,169 @@ pre_process$server<-function(id, vals){
 
 
 
+
+
+
+
+
+ui<-fluidPage(style="padding-top: 20px; width: 100%; overflow: auto; height: 100vh",
+              actionLink('save_bug',"save_bug"),
+              tags$script(HTML("
+    $(document).ready(function() {
+      $('body').tooltip({
+        selector: '.help-tip',
+        container: 'body',
+        trigger: 'hover',
+        placement: function(tip, element) {
+          return $(element).data('placement') || 'bottom';
+        },
+        delay: { show: 0, hide: 0 }
+      });
+    });
+  ")),
+
+
+   tags$style(HTML('.tooltip {
+    z-index: 99999990000 !important;
+   }
+
+
+
+                   ')),
+              includeCSS("inst/www/styles.css"),
+              includeCSS("inst/www/styles2.css"),
+              includeCSS("inst/www/styles3.css"),
+              useShinyjs(),
+
+              pre_process$ui("preproc"),
+              uiOutput('preprocess')
+)
+server<-function(input,output,session){
+
+  observeEvent(input$save_bug,{
+    saveRDS(reactiveValuesToList(vals),"savepoint.rds")
+    print("saved")
+  })
+  vals<-reactiveValues()
+  #track_usage(storage_mode = store_null())
+  observeEvent(savepoint,{
+    for (var in names(savepoint) ) {
+      vals[[var]]<-savepoint[[var]]
+    }
+  })
+
+
+
+  output$preprocess<-renderUI({
+    pre_process$server("preproc", vals)
+    NULL
+  })
+
+}
+
+
+dbscan_custom <- function(data, eps, MinPts = 5, scale = FALSE, method = c("hybrid", "raw", "dist"), seeds = TRUE, showplot = FALSE, countmode = NULL) {
+
+  # Função auxiliar para calcular distâncias euclidianas
+  distcomb <- function(x, data) {
+    data <- t(data)
+    temp <- apply(x, 1, function(xi) sqrt(colSums((data - xi)^2)))
+    if (is.null(dim(temp))) matrix(temp, nrow(x), ncol(data)) else t(temp)
+  }
+
+  method <- match.arg(method)
+  data <- as.matrix(data)
+  n <- nrow(data)
+
+  if (scale) data <- scale(data)
+
+  cluster_labels <- rep(0L, n)
+  isseed <- logical(n)
+  reachability_count <- integer(n)
+  cluster_id <- 0L
+
+  for (i in seq_len(n)) {
+    if (!is.null(countmode) && i %in% countmode)
+      cat("Processing point", i, "of", n, "\n")
+
+    if (cluster_labels[i] != 0) next
+
+    unclassified <- which(cluster_labels == 0)
+
+    # Encontrar vizinhos
+    if (method == "dist") {
+      neighbors <- unclassified[data[i, unclassified] <= eps]
+    } else {
+      neighbors <- unclassified[
+        as.vector(distcomb(data[i, , drop = FALSE], data[unclassified, , drop = FALSE])) <= eps
+      ]
+    }
+
+    if (length(neighbors) + reachability_count[i] < MinPts) {
+      cluster_labels[i] <- -1  # Ruído
+    } else {
+      cluster_id <- cluster_id + 1
+      cluster_labels[i] <- cluster_id
+      isseed[i] <- TRUE
+
+      neighbors <- setdiff(neighbors, i)
+      unclassified <- setdiff(unclassified, i)
+      reachability_count[neighbors] <- reachability_count[neighbors] + 1
+
+      while (length(neighbors)) {
+        if (showplot) plot(data, col = 1 + cluster_labels, pch = 1 + isseed)
+
+        cluster_labels[neighbors] <- cluster_id
+        active_points <- neighbors
+        neighbors <- integer()
+
+        if (method == "hybrid") {
+          tempdist <- distcomb(data[active_points, , drop = FALSE], data[unclassified, , drop = FALSE])
+          frozen_unclassified <- unclassified
+        }
+
+        for (i2 in seq_along(active_points)) {
+          j <- active_points[i2]
+          if (showplot > 1) plot(data, col = 1 + cluster_labels, pch = 1 + isseed)
+
+          if (method == "dist") {
+            j_neighbors <- unclassified[data[j, unclassified] <= eps]
+          } else if (method == "hybrid") {
+            j_neighbors <- unclassified[
+              tempdist[i2, match(unclassified, frozen_unclassified)] <= eps
+            ]
+          } else {
+            j_neighbors <- unclassified[
+              as.vector(distcomb(data[j, , drop = FALSE], data[unclassified, , drop = FALSE])) <= eps
+            ]
+          }
+
+          if (length(j_neighbors) + reachability_count[j] >= MinPts) {
+            isseed[j] <- TRUE
+            cluster_labels[j_neighbors[cluster_labels[j_neighbors] < 0]] <- cluster_id
+            new_neighbors <- j_neighbors[cluster_labels[j_neighbors] == 0]
+            neighbors <- union(neighbors, new_neighbors)
+          }
+
+          reachability_count[j_neighbors] <- reachability_count[j_neighbors] + 1
+          unclassified <- setdiff(unclassified, j)
+        }
+      }
+    }
+  }
+
+  # Ajustar rótulos de ruído
+  cluster_labels[cluster_labels == -1] <- 0
+
+  if (showplot) plot(data, col = 1 + cluster_labels, pch = 1 + isseed)
+
+  out <- list(cluster = cluster_labels, eps = eps, MinPts = MinPts)
+  if (seeds && cluster_id > 0) out$isseed <- isseed
+
+  class(out) <- "dbscan"
+  return(out)
+}
+
+shinyApp(ui, server)
 
 

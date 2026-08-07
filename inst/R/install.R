@@ -179,6 +179,7 @@ install_imesc <- function(
   }
 
   options(repos = c(CRAN = repo))
+  dependency_types <- c("Depends", "Imports", "LinkingTo")
 
   message("Operating system: ", Sys.info()[["sysname"]])
   message("R version: ", getRversion())
@@ -342,7 +343,7 @@ install_imesc <- function(
         ask = FALSE,
         lib = lib,
         upgrade = FALSE,
-        dependencies = TRUE
+        dependencies = dependency_types
       )
 
     },
@@ -375,9 +376,35 @@ install_imesc <- function(
     warning(
       paste0(
         "An error occurred during package installation:\n",
-        installation_error
+        installation_error,
+        "\n\nTrying base R installation as a fallback."
       ),
       call. = FALSE
+    )
+
+    tryCatch(
+      {
+
+        install.packages(
+          to_install,
+          lib = lib,
+          repos = repo,
+          dependencies = dependency_types,
+          quiet = TRUE
+        )
+
+      },
+      error = function(e) {
+
+        warning(
+          paste0(
+            "Fallback installation also failed:\n",
+            conditionMessage(e)
+          ),
+          call. = FALSE
+        )
+
+      }
     )
 
   }

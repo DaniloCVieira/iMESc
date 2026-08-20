@@ -283,13 +283,57 @@ render_warning<-function(...,title="Warning:",point_icon=T,icon=icon("triangle-e
   )
 }
 
+normalize_som_whatmap<-function(m, whatmap=NULL){
+  n_codes<-length(m$codes)
+  code_names<-names(m$codes)
+
+  if(is.null(whatmap)||length(whatmap)==0){
+    return(NULL)
+  }
+
+  whatmap<-whatmap[!is.na(whatmap)]
+  if(length(whatmap)==0){
+    return(NULL)
+  }
+
+  if(is.numeric(whatmap)){
+    valid<-whatmap[whatmap>=1&whatmap<=n_codes]
+    if(length(valid)>0){
+      return(unique(valid))
+    }
+    return(NULL)
+  }
+
+  whatmap<-as.character(whatmap)
+  if(!is.null(code_names)&&length(code_names)==n_codes){
+    valid_names<-whatmap[whatmap%in%code_names]
+    if(length(valid_names)>0){
+      return(unique(valid_names))
+    }
+  }
+
+  numeric_whatmap<-suppressWarnings(as.integer(whatmap))
+  valid_numeric<-numeric_whatmap[!is.na(numeric_whatmap)&numeric_whatmap>=1&numeric_whatmap<=n_codes]
+  if(length(valid_numeric)>0){
+    return(unique(valid_numeric))
+  }
+
+  NULL
+}
+
 get_distsom_list<-function(m,whatmap){
+  whatmap<-normalize_som_whatmap(m,whatmap)
+  if(is.null(whatmap)){
+    whatmap<-seq_along(m$codes)
+  }
+
   lapply(whatmap,function(x){
     object.distances(m,"codes",x)
   })
 }
 
 get_somdist_weighted<-function(m,whatmap=NULL,weights=NULL){
+  whatmap<-normalize_som_whatmap(m,whatmap)
   if(is.null(whatmap)){
   return(object.distances(m,"codes"))
   }
@@ -300,6 +344,9 @@ get_somdist_weighted<-function(m,whatmap=NULL,weights=NULL){
     weights<-weights[pic_w]
   }
 
+  if(length(weights)!=length(dist_list)){
+    weights<-rep(1,length(dist_list))
+  }
   if(length(weights)==1){
     weights<-1
   }
@@ -330,6 +377,7 @@ imesc_hclutering<-function(data, k,hc_fun,hc_method,distance_metric=NULL, target
   if(class(m)[1]=="kohonen"){
     codes<-do.call(cbind,m$codes)
     rownames(codes)<-1:nrow(codes)
+    weights<-NULL
     if(!is.null(whatmap)){
       weights<-rep(1,length(whatmap))
       if(isTRUE(use_weights)){

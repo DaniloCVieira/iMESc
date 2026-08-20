@@ -554,21 +554,17 @@ tool1$ui <- function(id) {
   }
 
   labels_create <- list(
-
     span(
       strong("Numeric-Attribute:", style = "color:  SeaGreen"),
-      tiphelp_icon(
-        actionLink(ns("uphelp"), icon("fas fa-question-circle")),
-        textupload()
-      )
-    ),
+      tiphelp(
+        "csv or xlsx file where rows are the observations, columns are the variables  The first column must contain the observation labels. Columns containing characters are initially omitted and can later be included as binary columns by factor level.", "right")    ),
 
     span(
       style = "color:  #05668D",
       strong("Factor-Attribute:"),
       tiphelp_icon(
         actionLink(ns("labhelp"), icon("fas fa-question-circle")),
-        textlab()
+        "csv or xlsx file containg the factors for your data, which will be used for labeling, grouping and viewing the results. It can contain as many factors as you want.", "right"
       )
     ),
 
@@ -577,7 +573,7 @@ tool1$ui <- function(id) {
       strong(span("*"), "Coords-Attribute:"),
       tiphelp_icon(
         actionLink(ns("cohelp"), icon("fas fa-question-circle")),
-        textcoords()
+        "csv or xlsx file with the longitudes and latitudes of the observations. The first column must contain the name of the observations. The second and third columns must contain the longitude and latitude respectively", "right"
       )
     ),
 
@@ -586,7 +582,7 @@ tool1$ui <- function(id) {
       strong("Temporal-Attribute:"),
       tiphelp_icon(
         actionLink(ns("timehelp"), icon("fas fa-question-circle")),
-        texttime()
+        texttime(), "right"
       )
     ),
 

@@ -39,6 +39,112 @@ detach_package <- function(pkg) {
 
 
 # -----------------------------------------------------------------------------
+# Check Debian/Ubuntu system packages needed by source installs
+# -----------------------------------------------------------------------------
+
+check_debian_system_packages <- function() {
+
+  if (!identical(Sys.info()[["sysname"]], "Linux")) {
+    return(invisible(TRUE))
+  }
+
+  dpkg_query <- Sys.which("dpkg-query")
+
+  if (identical(unname(dpkg_query), "")) {
+    return(invisible(TRUE))
+  }
+
+  system_packages <- c(
+    "build-essential",
+    "gfortran",
+    "cmake",
+    "pkg-config",
+    "libfontconfig1-dev",
+    "libfreetype6-dev",
+    "libssl-dev",
+    "libabsl-dev",
+    "libnlopt-dev",
+    "libgdal-dev",
+    "gdal-bin",
+    "libgeos-dev",
+    "libproj-dev",
+    "libsqlite3-dev",
+    "libudunits2-dev",
+    "libcurl4-openssl-dev",
+    "libglpk-dev",
+    "libmagick++-dev",
+    "gsfonts",
+    "libpng-dev",
+    "zlib1g-dev",
+    "pandoc"
+  )
+
+  status <- suppressWarnings(
+    system2(
+      dpkg_query,
+      args = c(
+        "-W",
+        "-f=${binary:Package}\t${Status}\n",
+        system_packages
+      ),
+      stdout = TRUE,
+      stderr = FALSE
+    )
+  )
+
+  installed_rows <- status[
+    grepl(
+      "\tinstall ok installed",
+      status,
+      fixed = TRUE
+    )
+  ]
+
+  installed_packages <- sub(
+    "\t.*$",
+    "",
+    installed_rows
+  )
+
+  missing <- setdiff(
+    system_packages,
+    installed_packages
+  )
+
+  missing <- missing[
+    !grepl(
+      ":",
+      missing,
+      fixed = TRUE
+    )
+  ]
+
+  missing <- unique(missing)
+
+  missing <- missing[
+    nzchar(missing)
+  ]
+
+  if (length(missing) > 0L) {
+
+    stop(
+      paste0(
+        "Some Debian/Ubuntu system packages required by iMESc are missing:\n",
+        paste0("  - ", missing, collapse = "\n"),
+        "\n\nRun this command in the server terminal, then start iMESc again:\n",
+        "sudo apt update && sudo apt install -y \\\n  ",
+        paste(missing, collapse = " \\\n  ")
+      ),
+      call. = FALSE
+    )
+
+  }
+
+  invisible(TRUE)
+}
+
+
+# -----------------------------------------------------------------------------
 # Install required packages for iMESc
 #
 # Arguments:
@@ -185,6 +291,7 @@ install_imesc <- function(
   message("R version: ", getRversion())
   message("Installation library: ", normalizePath(lib))
   message("Checking iMESc packages...")
+  check_debian_system_packages()
 
 
   # ---------------------------------------------------------------------------

@@ -523,13 +523,13 @@ Read_Shapefile <- function(shp_path) {
 textupload<-function(...){
   as.character(
 
-    "csv or xlsx file where rows are the observations, columns are the variables  The first column must contain the observation labels. Columns containing characters are initially omitted and can later be included as binary columns by factor level."
+
 
   )}
 #' @export
 textlab<-function(...){
   as.character(
-    "csv or xlsx file containg the factors for your data, which will be used for labeling, grouping and viewing the results. It can contain as many factors as you want."
+
   )
 }
 
@@ -580,7 +580,7 @@ textseed<-function(...){
 textcoords<-function(...){
   paste(
     em('Required only for the spatial tools menu:'),
-    "csv or xlsx file with the longitudes and latitudes of the observations. The first column must contain the name of the observations. The second and third columns must contain the longitude and latitude respectively"
+
 
 
   )

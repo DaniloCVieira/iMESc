@@ -2140,10 +2140,6 @@ consensus_module$server <- function(id, vals, getdata_hc, getmodel_hc,
 
 
 
-
-
-
-
 # Hierarchical clustering modules
 
 elbow_smw_module<-list()
@@ -5566,6 +5562,9 @@ hc_module$server<-function(id, vals){
       if(is.null(vals$cur_whatmap)){
         m<-getmodel_hc()
         choices=names(m$codes)
+        if(is.null(choices)||length(choices)==0){
+          choices=seq_along(m$codes)
+        }
         vals$cur_whatmap<-choices
       }
     })
@@ -5574,16 +5573,23 @@ hc_module$server<-function(id, vals){
       observeEvent(getmodel_hc(),{
         m<-getmodel_hc()
         choices=names(m$codes)
+        if(is.null(choices)||length(choices)==0){
+          choices=seq_along(m$codes)
+        }
 
         if(length(choices)==1){
           choices=1
         }
         selected<-vals$som_whatmap
-        if(is.null(selected)){
+        if(!is.null(selected)){
+          selected<-selected[selected%in%choices]
+        }
+        if(is.null(selected)||length(selected)==0){
           selected=choices
         }
+        vals$som_whatmap<-if(length(choices)==1){NULL}else{selected}
         #updateCheckboxInput(session,"show_hcsom_fine",value=F)
-        shinyWidgets::updateVirtualSelect('som_whatmap',choices=choices,selected=choices)
+        shinyWidgets::updateVirtualSelect('som_whatmap',choices=choices,selected=selected)
       })
 
 
@@ -5592,11 +5598,21 @@ hc_module$server<-function(id, vals){
       observe({
         m<-getmodel_hc()
         choices=names(m$codes)
+        if(is.null(choices)||length(choices)==0){
+          choices=seq_along(m$codes)
+        }
 
         if(length(choices)==1){
           vals$som_whatmap<-NULL
         } else{
-          vals$som_whatmap<-input$som_whatmap
+          selected<-input$som_whatmap
+          if(!is.null(selected)){
+            selected<-selected[selected%in%choices]
+          }
+          if(is.null(selected)||length(selected)==0){
+            selected<-choices
+          }
+          vals$som_whatmap<-selected
         }
 
       })

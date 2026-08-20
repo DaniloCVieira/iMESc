@@ -5664,7 +5664,7 @@ sl_validation$server<-function(id,vals){
       if(is.null(attr(vals$saved_data[[vals$trainSL_args$data_x]],"coords"))){
         return(
           div(style="padding: 10px; background: #fdecea; font-size: 12px;",
-            "Error: Spatial Scheme not avaliable. Coords-Attribute not found in the Training Datalist"
+              "Error: Spatial Scheme not avaliable. Coords-Attribute not found in the Training Datalist"
           )
 
         )
@@ -11675,6 +11675,9 @@ sl_module$server<-function(id,vals){
           args_train$keep.forest=TRUE
           args_train$keep.inbag=T
         }
+
+        saveRDS(args_train,'args_train_blockcv.rds')
+        print("done")
         withProgress(
           message = paste("Running",vals$cmodel),
           min = NA,

@@ -79,51 +79,30 @@ check_debian_system_packages <- function() {
     "pandoc"
   )
 
-  status <- suppressWarnings(
-    system2(
-      dpkg_query,
-      args = c(
-        "-W",
-        "-f=${binary:Package}\t${Status}\n",
-        system_packages
-      ),
-      stdout = TRUE,
-      stderr = FALSE
-    )
-  )
-
-  installed_rows <- status[
-    grepl(
-      "\tinstall ok installed",
-      status,
-      fixed = TRUE
-    )
-  ]
-
-  installed_packages <- sub(
-    "\t.*$",
-    "",
-    installed_rows
-  )
-
-  missing <- setdiff(
+  installed <- vapply(
     system_packages,
-    installed_packages
+    function(pkg) {
+
+      result <- suppressWarnings(
+        system2(
+          dpkg_query,
+          args = c("-s", pkg),
+          stdout = TRUE,
+          stderr = FALSE
+        )
+      )
+
+      any(
+        grepl(
+          "^Status: install ok installed$",
+          result
+        )
+      )
+    },
+    logical(1)
   )
 
-  missing <- missing[
-    !grepl(
-      ":",
-      missing,
-      fixed = TRUE
-    )
-  ]
-
-  missing <- unique(missing)
-
-  missing <- missing[
-    nzchar(missing)
-  ]
+  missing <- system_packages[!installed]
 
   if (length(missing) > 0L) {
 
@@ -137,7 +116,6 @@ check_debian_system_packages <- function() {
       ),
       call. = FALSE
     )
-
   }
 
   invisible(TRUE)

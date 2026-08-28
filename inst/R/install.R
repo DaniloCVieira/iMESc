@@ -60,7 +60,7 @@ check_debian_system_packages <- function() {
     "cmake",
     "pkg-config",
     "libfontconfig1-dev",
-    "libfreetype6-dev",
+    "libfreetype-dev",
     "libssl-dev",
     "libabsl-dev",
     "libnlopt-dev",

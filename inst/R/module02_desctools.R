@@ -1,3 +1,4 @@
+
 #' The desctools module provides a comprehensive suite of tools for descriptive analysis and visualization of datasets in the iMESc application.
 #'
 #' ## Key Features:
@@ -103,6 +104,13 @@ desctools$ui<-function(id){
               value="tab9",
 
               uiOutput(ns("desc_tab9"))
+
+            ),
+            tabPanel(
+              '10. Temporal Descriptives',
+              value="tab10",
+
+              uiOutput(ns("desc_tab10"))
 
             )
 
@@ -240,10 +248,21 @@ desctools$server<-function (id,vals ){
       NULL
     })
 
+    output$desc_tab10<-renderUI({
+      div(
+        desctools_tab10$ui(ns("temporal_descriptives")),
+        uiOutput(ns('temporal_descriptives_server'))
+      )
+    })
+    output$temporal_descriptives_server<-renderUI({
+      desctools_tab10$server("temporal_descriptives",vals)
+      NULL
+    })
+
 
 
     observe({
-      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8',"tab_omi",'tab2'))
+      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8','tab10',"tab_omi",'tab2'))
     })
     getdata_descX<-reactive({
       req(input$data_descX)
@@ -5525,3 +5544,471 @@ tiphelp6<-function(text,placement ="bottom"){
        style="color: #3c8dbc;",
        tiphelp(text,placement =placement ))
 }
+
+
+# Logic for tab 10 - Temporal Descriptives
+desctools_tab10<-list()
+desctools_tab10$ui<-function(id){
+  ns<-NS(id)
+  help_label<-function(id,label){
+    span(
+      label,
+      tiphelp_icon(
+        actionLink(ns(id),label=NULL,icon=icon("fas fa-question-circle"),style="margin-left: 5px; font-size: 13px;"),
+        "Click for more details",
+        "right"
+      )
+    )
+  }
+  div(
+    class="tool2_tab10",
+    tags$script(HTML(paste0(
+      "$(document).off('changed.bs.select.temporalDescNumVars', \"select[id='",ns("num_vars"),"']\").on('changed.bs.select.temporalDescNumVars', \"select[id='",ns("num_vars"),"']\", function(){",
+      "var picker=$(this); var val=picker.val() || [];",
+      "if(val.length>1){setTimeout(function(){var wrapper=picker.closest('.bootstrap-select'); if(wrapper.hasClass('open')){wrapper.find('button.dropdown-toggle').trigger('click');}},60);}",
+      "});"
+    ))),
+
+    fluidRow(
+      column(
+        4,class="mp0",
+        box_caret(
+          ns("td_setup"),
+          title="Setup",
+          color="#c3cc74ff",
+          div(
+            pickerInput_fromtop_live(ns("data_x"),tiphelp5("Datalist","Select a Datalist with a Temporal-Attribute."),choices=NULL,options=pickerOptions(liveSearch=TRUE)),
+            uiOutput(ns("time_var_ui")),
+            uiOutput(ns("numeric_var_ui")),
+            uiOutput(ns("group_var_ui")),
+
+            pickerInput_fromtop(
+              ns("analysis"),
+              help_label("analysis_help","Analysis"),
+              choices=c("Time series"="series","Period summary"="period","Autocorrelation"="acf","Trend"="trend","Change"="change"),
+              selected="series"
+            ),
+            conditionalPanel(
+              condition=sprintf("input['%s'] == 'series'", ns("analysis")),
+              div(
+                style="display:flex; gap: 10px; align-items: flex-end; flex-wrap: wrap",
+                checkboxInput(ns("show_smooth"),tiphelp5("Smooth","Add a loess smoother to show the broad temporal pattern."),value=FALSE, width="100px"),
+                conditionalPanel(
+                  condition=sprintf("input['%s']", ns("show_smooth")),
+                  colourpicker::colourInput(ns("smooth_color"),NULL,value="#D95F02",showColour="background",allowTransparent=TRUE,width="50px")
+                )
+              ),
+              numericInput(ns("ma_window"),tiphelp5("Moving average","Trailing moving-average window. Use 1 to hide it."),value=1,min=1,step=1)
+            ),
+            conditionalPanel(
+              condition=sprintf("input['%s'] == 'period'", ns("analysis")),
+              pickerInput(ns("period_unit"),tiphelp5("Period","Summarize observations by calendar period when possible."),choices=c("Month"="month","Year"="year","Season"="season"),selected="month",width="180px")
+            ),
+            conditionalPanel(
+              condition=sprintf("input['%s'] == 'acf'", ns("analysis")),
+              numericInput(ns("acf_lag"),tiphelp5("Max lag","Maximum lag used by the autocorrelation function."),value=12,min=1,step=1)
+            )
+
+          )
+        ),
+
+        box_caret(
+          ns("td_plot_options"),
+          title="Plot options",
+          color="#c3cc74ff",
+          div(style="height: 200px; overflow-y: scroll",
+              pickerInput(
+                ns("theme"),
+                "Theme:",
+                choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),
+                selected="theme_bw",
+                width="170px"
+              ),
+              div(style="display:flex; gap: 8px; flex-wrap: wrap",
+                  numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1,width="120px"),
+
+                  numericInput(ns("point_size"),"Point:",value=2,min=0,step=.2,width="105px"),
+                  numericInput(ns("line_width"),"Line:",value=.7,min=0,step=.1,width="105px")
+              ),
+              div(style="display:flex; gap: 8px; flex-wrap: wrap",
+                  colourpicker::colourInput(ns("line_color"),"Line/points:",value="#05668D",showColour="background",allowTransparent=TRUE,width="130px"),
+                  conditionalPanel(
+                    condition=sprintf("input['%s'] == 'period'", ns("analysis")),
+                    colourpicker::colourInput(ns("fill_color"),"Box fill:",value="#81b37a",showColour="background",allowTransparent=TRUE,width="120px")
+                  )
+              ),
+              checkboxInput(ns("facet_vars"),tiphelp5("Facet variables","When more than one numeric variable is selected, draw each variable in its own panel."),value=TRUE),
+              checkboxInput(ns("free_y"),tiphelp5("Free Y scales","Allow each variable panel to use its own Y axis. Useful when variables use different units."),value=TRUE),
+              numericInput(ns("facet_ncol"),"Facet columns:",value=1,min=1,step=1,width="130px"),
+              numericInput(ns("x_angle"),tiphelp5("X labels angle","Rotation angle for X-axis labels, in degrees. Use 0 for horizontal labels, 45 for diagonal labels, or 90 for vertical labels."),value=0,min=0,max=90,step=5,width="140px"),
+              numericInput(ns("plot_height"),"Height:",value=480,min=250,step=20,width="105px"),
+          )
+        )
+      ),
+      column(
+        8,class="mp0",
+        box_caret(
+          ns("td_plot_box"),
+          title="Plot",
+          button_title=actionLink(ns("downp_temporal_desc"),span("Download plot",icon("fas fa-download"))),
+          div(uiOutput(ns("temporal_plot_ui")))
+        ),
+        box_caret(
+          ns("td_table_box"),
+          title="Table",
+          button_title=actionLink(ns("downcenter_temporal_desc"),span("Download table",icon("fas fa-table"))),
+          div(style="max-height: 260px; overflow-y: auto",tableOutput(ns("temporal_table")))
+        )
+      )
+    )
+  )
+}
+
+desctools_tab10$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    box_caret_server("td_setup")
+    box_caret_server("td_analysis")
+    box_caret_server("td_plot_options")
+    box_caret_server("td_plot_box")
+    box_caret_server("td_table_box")
+
+    modal_help<-function(title,...){
+      showModal(modalDialog(title=title,easyClose=TRUE,footer=modalButton("Close"),size="m",div(style="line-height: 1.45; font-size: 13px;",...)))
+    }
+    observeEvent(input$td_help,{
+      modal_help(
+        "Temporal Descriptives",
+        div(style="border-left: 5px solid #81b37a; background: #f5faf3; padding: 12px 14px; margin-bottom: 12px;",
+            h4("What this tab does",style="margin-top: 0; color: #2f6f3e;"),
+            p("This tab helps describe how one or more numeric variables change through time. It is descriptive: it summarizes, visualizes, and highlights temporal patterns without fitting predictive models."),
+            p("Select a temporal column, one or more numeric variables, and optionally a grouping factor. When several variables are selected, iMESc can draw each variable in a separate facet panel.")
+        ),
+        div(style="padding: 10px 12px; background: #f7f7f7; border-left: 5px solid #05668D;",
+            h4("Good first checks",style="margin-top: 0; color: #05668D;"),
+            p(strong("Time series"), " shows the observed trajectory."),
+            p(strong("Period summary"), " compares distributions by month, year, or season."),
+            p(strong("Autocorrelation"), " checks whether values remain similar across time lags."),
+            p(strong("Trend"), " estimates a simple overall increase or decrease."),
+            p(strong("Change"), " shows step-to-step differences.")
+        )
+      )
+    })
+    observeEvent(input$analysis_help,{
+      modal_help(
+        "Temporal analyses",
+        p(strong("Time series:"), " a direct plot of values through time. Use it to see peaks, dips, cycles, gaps, and broad changes."),
+        p(strong("Period summary:"), " groups observations by calendar periods such as month, year, or season. It is useful for seasonal comparisons."),
+        p(strong("Autocorrelation:"), " measures whether observations separated by a lag are similar. High positive autocorrelation means nearby time steps tend to have similar values."),
+        p(strong("Trend:"), " fits a simple straight line through time. It is a descriptive estimate of direction and strength, not a complete forecasting model."),
+        p(strong("Change:"), " calculates the difference from one ordered time step to the next. It helps identify abrupt increases or decreases.")
+      )
+    })
+
+    data_x<-reactive({
+      req(input$data_x)
+      req(input$data_x%in%names(vals$saved_data))
+      vals$saved_data[[input$data_x]]
+    })
+    time_data<-reactive({
+      time<-attr(data_x(),"time")
+      validate(need(!is.null(time)&&ncol(time)>0,"The selected Datalist has no Temporal-Attribute."))
+      time
+    })
+    numeric_vars<-reactive({
+      vars<-colnames(data_x())[vapply(data_x(),is.numeric,logical(1))]
+      validate(need(length(vars)>0,"The selected Datalist has no numeric variables."))
+      vars
+    })
+    factor_vars<-reactive({
+      fac<-attr(data_x(),"factors")
+      if(is.null(fac)||!ncol(fac)) return(character(0))
+      colnames(fac)
+    })
+    observeEvent(vals$saved_data,{
+      choices<-names(vals$saved_data)
+      selected<-get_selected_from_choices(vals$cur_data,choices)
+      updatePickerInput(session,"data_x",choices=choices,selected=selected)
+    })
+    output$time_var_ui<-renderUI({
+      choices<-colnames(time_data())
+      pickerInput_fromtop_live(session$ns("time_var"),tiphelp5("Temporal variable","Temporal-Attribute column used to order observations."),choices=choices,selected=get_selected_from_choices(input$time_var,choices),options=pickerOptions(liveSearch=TRUE))
+    })
+    output$numeric_var_ui<-renderUI({
+      choices<-numeric_vars()
+      selected<-isolate(input$num_vars)
+      if(is.null(selected)||!any(selected%in%choices)) selected<-choices[1]
+      selected<-selected[selected%in%choices]
+      pickerInput_fromtop_live(
+        session$ns("num_vars"),
+        tiphelp5("Numeric variables","Numeric-Attribute variables to describe through time. Select more than one to compare variables with facets."),
+        choices=choices,
+        selected=selected,
+        multiple=TRUE,
+        options=pickerOptions(
+          actionsBox=TRUE,
+          liveSearch=TRUE,
+          selectedTextFormat="count > 2",
+          countSelectedText="{0} variables selected",
+          size=8
+        )
+      )
+    })
+    output$group_var_ui<-renderUI({
+      choices<-c("None",factor_vars())
+      pickerInput_fromtop_live(session$ns("group_var"),tiphelp5("Group","Optional Factor-Attribute column used to split summaries and plots."),choices=choices,selected=get_selected_from_choices(input$group_var%||%"None",choices),options=pickerOptions(liveSearch=TRUE))
+    })
+
+    parse_temporal<-function(x){
+      if(inherits(x,c("POSIXct","POSIXlt"))) return(list(value=as.POSIXct(x),numeric=as.numeric(as.POSIXct(x)),is_date=TRUE))
+      if(inherits(x,"Date")) return(list(value=x,numeric=as.numeric(x),is_date=TRUE))
+      if(is.numeric(x)) return(list(value=x,numeric=as.numeric(x),is_date=FALSE))
+      x_chr<-as.character(x)
+      x_date<-suppressWarnings(as.Date(x_chr))
+      if(sum(!is.na(x_date))>0) return(list(value=x_date,numeric=as.numeric(x_date),is_date=TRUE))
+      ym<-grepl("^\\d{4}[-_/]\\d{1,2}$",x_chr)
+      if(any(ym,na.rm=TRUE)){
+        x_date<-suppressWarnings(as.Date(paste0(gsub("[_/]","-",x_chr),"-01")))
+        if(sum(!is.na(x_date))>0) return(list(value=x_date,numeric=as.numeric(x_date),is_date=TRUE))
+      }
+      lev<-unique(x_chr[!is.na(x_chr)])
+      list(value=factor(x_chr,levels=lev),numeric=as.numeric(factor(x_chr,levels=lev)),is_date=FALSE)
+    }
+
+    temporal_df<-reactive({
+      req(input$time_var,input$num_vars)
+      dat<-data_x()
+      tdat<-time_data()
+      ids<-rownames(dat)
+      validate(need(all(ids%in%rownames(tdat)),"Temporal-Attribute must contain all Numeric-Attribute observation IDs."))
+      vars<-input$num_vars
+      vars<-vars[vars%in%colnames(dat)]
+      validate(need(length(vars)>0,"Select at least one numeric variable."))
+      parsed<-parse_temporal(tdat[ids,input$time_var,drop=TRUE])
+      base<-data.frame(id=ids,time=parsed$value,time_num=parsed$numeric,stringsAsFactors=FALSE)
+      base$is_date<-parsed$is_date
+      if(!is.null(input$group_var)&&!identical(input$group_var,"None")){
+        fac<-attr(dat,"factors")
+        validate(need(!is.null(fac)&&input$group_var%in%colnames(fac)&&all(ids%in%rownames(fac)),"Selected group must exist in the Factor-Attribute."))
+        base$group<-as.character(fac[ids,input$group_var,drop=TRUE])
+      } else {
+        base$group<-"All"
+      }
+      long<-do.call(rbind,lapply(vars,function(v){
+        data.frame(base,variable=v,value=dat[ids,v,drop=TRUE],stringsAsFactors=FALSE)
+      }))
+      long<-long[complete.cases(long[,c("time_num","value","group","variable")]),,drop=FALSE]
+      validate(need(nrow(long)>1,"At least two complete temporal observations are required."))
+      long$variable<-factor(long$variable,levels=vars)
+      long
+    })
+
+    period_value<-function(df,unit){
+      if(isTRUE(df$is_date[1])){
+        tt<-as.POSIXlt(df$time)
+        if(unit=="year") return(as.character(tt$year+1900))
+        if(unit=="season"){
+          mm<-tt$mon+1
+          ss<-ifelse(mm%in%c(12,1,2),"Summer",ifelse(mm%in%c(3,4,5),"Autumn",ifelse(mm%in%c(6,7,8),"Winter","Spring")))
+          return(factor(ss,levels=c("Summer","Autumn","Winter","Spring")))
+        }
+        return(sprintf("%02d",tt$mon+1))
+      }
+      cut(df$time_num,breaks=min(max(2,length(unique(df$time_num))),12),include.lowest=TRUE)
+    }
+    summary_by<-function(df,by){
+      f<-stats::as.formula(paste("value ~",paste(by,collapse="+")))
+      res<-stats::aggregate(f,df,function(x)c(n=sum(!is.na(x)),mean=mean(x,na.rm=TRUE),median=stats::median(x,na.rm=TRUE),sd=if(length(na.omit(x))>1) stats::sd(x,na.rm=TRUE) else NA_real_,min=min(x,na.rm=TRUE),max=max(x,na.rm=TRUE)))
+      out<-do.call(data.frame,res)
+      names(out)<-gsub("^value\\.","",names(out))
+      out
+    }
+    series_summary<-reactive(summary_by(temporal_df(),c("variable","group","time")))
+    period_summary<-reactive({
+      df<-temporal_df()
+      df$period<-period_value(df,input$period_unit%||%"month")
+      summary_by(df,c("variable","group","period"))
+    })
+    aggregate_series<-function(df){
+      out<-stats::aggregate(value~variable+group+time+time_num,df,mean,na.rm=TRUE)
+      out[order(out$variable,out$group,out$time_num),,drop=FALSE]
+    }
+    trend_table<-reactive({
+      df<-aggregate_series(temporal_df())
+      keys<-split(df,list(df$variable,df$group),drop=TRUE)
+      res<-lapply(names(keys),function(k){
+        x<-keys[[k]]
+        if(nrow(x)<3||length(unique(x$time_num))<2) return(data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),N=nrow(x),Slope=NA,Intercept=NA,R2=NA,P_value=NA))
+        fit<-stats::lm(value~time_num,data=x)
+        sm<-summary(fit)
+        data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),N=nrow(x),Slope=unname(stats::coef(fit)[2]),Intercept=unname(stats::coef(fit)[1]),R2=unname(sm$r.squared),P_value=unname(sm$coefficients[2,4]),check.names=FALSE)
+      })
+      do.call(rbind,res)
+    })
+    acf_table<-reactive({
+      df<-aggregate_series(temporal_df())
+      keys<-split(df,list(df$variable,df$group),drop=TRUE)
+      res<-lapply(names(keys),function(k){
+        x<-keys[[k]]
+        y<-x$value
+        if(length(y)<3) return(data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),Lag=integer(0),ACF=numeric(0)))
+        ac<-stats::acf(y,lag.max=min(input$acf_lag%||%12,length(y)-1),plot=FALSE,na.action=stats::na.pass)
+        data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),Lag=as.integer(ac$lag[,1,1]),ACF=as.numeric(ac$acf[,1,1]))
+      })
+      do.call(rbind,res)
+    })
+    change_table<-reactive({
+      df<-aggregate_series(temporal_df())
+      keys<-split(df,list(df$variable,df$group),drop=TRUE)
+      res<-lapply(names(keys),function(k){
+        x<-keys[[k]]
+        x$Previous_value<-c(NA,head(x$value,-1))
+        x$Change<-x$value-x$Previous_value
+        x$Percent_change<-100*x$Change/x$Previous_value
+        data.frame(Variable=as.character(x$variable),Group=as.character(x$group),Time=x$time,Value=x$value,Previous_value=x$Previous_value,Change=x$Change,Percent_change=x$Percent_change,check.names=FALSE)
+      })
+      do.call(rbind,res)
+    })
+    table_result<-reactive({
+      analysis<-input$analysis%||%"series"
+      if(analysis=="period") return(period_summary())
+      if(analysis=="trend") return(trend_table())
+      if(analysis=="acf") return(acf_table())
+      if(analysis=="change") return(change_table())
+      series_summary()
+    })
+    moving_average<-function(x,k){
+      k<-as.integer(k)
+      if(is.na(k)||k<=1) return(rep(NA_real_,length(x)))
+      as.numeric(stats::filter(x,rep(1/k,k),sides=1))
+    }
+    plot_theme<-reactive({
+      switch(input$theme%||%"theme_bw",
+             theme_light=theme_light(base_size=input$base_size%||%12),
+             theme_minimal=theme_minimal(base_size=input$base_size%||%12),
+             theme_classic=theme_classic(base_size=input$base_size%||%12),
+             theme_grey=theme_grey(base_size=input$base_size%||%12),
+             theme_bw(base_size=input$base_size%||%12))
+    })
+    add_facets<-function(p,vars){
+      if(isTRUE(input$facet_vars)&&length(vars)>1){
+        p<-p+facet_wrap(~variable,scales=if(isTRUE(input$free_y)) "free_y" else "fixed",ncol=input$facet_ncol%||%1)
+      }
+      p
+    }
+    finish_plot<-function(p,vars){
+      p<-add_facets(p,vars)+plot_theme()
+      x_angle<-input$x_angle%||%0
+      if(!is.na(x_angle)&&x_angle>0){
+        p<-p+theme(axis.text.x=element_text(angle=x_angle,hjust=1))
+      }
+      p
+    }
+    temporal_plot<-reactive({
+      df<-temporal_df()
+      analysis<-input$analysis%||%"series"
+      vars<-levels(df$variable)
+      color_lab<-if(!is.null(input$group_var)&&!identical(input$group_var,"None")) input$group_var else "Group"
+      if(length(unique(df$group))==1){
+        color_scale<-scale_color_manual(values=input$line_color%||%"#05668D",guide="none")
+        fill_scale<-scale_fill_manual(values=input$fill_color%||%"#81b37a",guide="none")
+      } else {
+        color_scale<-NULL
+        fill_scale<-NULL
+      }
+
+      if(analysis=="period"){
+        df$period<-period_value(df,input$period_unit%||%"month")
+        p<-ggplot(df,aes(x=period,y=value,fill=group))+
+          geom_boxplot(alpha=.82,outlier.alpha=.55)+
+          labs(x="Period",y="Value",title="Period summary",fill=color_lab)+fill_scale
+        p<-finish_plot(p,vars)
+        vals$temporal_desc_plot<-p
+        return(p)
+      }
+
+      agg<-aggregate_series(df)
+      if(analysis=="trend"){
+        p<-ggplot(agg,aes(x=time,y=value,color=group,group=interaction(variable,group)))+
+          geom_point(alpha=.78,size=input$point_size%||%2)+
+          geom_line(alpha=.7,linewidth=input$line_width%||%.7)+
+          geom_smooth(method="lm",se=TRUE,linewidth=max(.4,input$line_width%||%.7))+
+          labs(x=input$time_var,y="Value",title="Trend through time",color=color_lab)+color_scale
+        p<-finish_plot(p,vars)
+        vals$temporal_desc_plot<-p
+        return(p)
+      }
+      if(analysis=="acf"){
+        ac<-acf_table()
+        ac$variable<-factor(ac$Variable,levels=vars)
+        p<-ggplot(ac,aes(x=Lag,y=ACF,color=Group,group=interaction(Variable,Group)))+
+          geom_hline(yintercept=0,color="gray45")+
+          geom_segment(aes(xend=Lag,y=0,yend=ACF),linewidth=input$line_width%||%.7)+
+          geom_point(size=input$point_size%||%2)+
+          labs(x="Lag",y="Autocorrelation",title="Autocorrelation",color=color_lab)+color_scale
+        p<-finish_plot(p,vars)
+        vals$temporal_desc_plot<-p
+        return(p)
+      }
+      if(analysis=="change"){
+        ch<-change_table()
+        ch$variable<-factor(ch$Variable,levels=vars)
+        p<-ggplot(ch,aes(x=Time,y=Change,color=Group,group=interaction(Variable,Group)))+
+          geom_hline(yintercept=0,color="gray45")+
+          geom_line(alpha=.75,linewidth=input$line_width%||%.7)+
+          geom_point(size=input$point_size%||%2,alpha=.8)+
+          labs(x=input$time_var,y="Change from previous time",title="Change through time",color=color_lab)+color_scale
+        p<-finish_plot(p,vars)
+        vals$temporal_desc_plot<-p
+        return(p)
+      }
+
+      agg$Moving_average<-ave(agg$value,agg$variable,agg$group,FUN=function(x) moving_average(x,input$ma_window%||%1))
+      p<-ggplot(agg,aes(x=time,y=value,color=group,group=interaction(variable,group)))+
+        geom_line(alpha=.68,linewidth=input$line_width%||%.7)+
+        geom_point(size=input$point_size%||%2,alpha=.82)+
+        labs(x=input$time_var,y="Value",title="Time series",color=color_lab)+color_scale
+      if(isTRUE(input$show_smooth)){
+        p<-p+geom_smooth(se=FALSE,linewidth=max(.4,input$line_width%||%.7),color=input$smooth_color%||%"#D95F02")
+      }
+      if(any(!is.na(agg$Moving_average))){
+        p<-p+geom_line(aes(y=Moving_average),linetype=2,linewidth=max(.4,input$line_width%||%.7))
+      }
+      p<-finish_plot(p,vars)
+      vals$temporal_desc_plot<-p
+      p
+    })
+    output$temporal_plot_ui<-renderUI({
+      vars<-input$num_vars
+      facet_ncol<-max(1,input$facet_ncol%||%2)
+      plot_height<-input$plot_height%||%480
+      if(isTRUE(input$facet_vars)&&length(vars)>1){
+        plot_height<-max(plot_height,260*ceiling(length(vars)/facet_ncol))
+      }
+      plotOutput(session$ns("temporal_plot"),height=paste0(plot_height,"px"))
+    })
+    output$temporal_plot<-renderPlot({
+      temporal_plot()
+    },height=function(){
+      vars<-input$num_vars
+      facet_ncol<-max(1,input$facet_ncol%||%2)
+      plot_height<-input$plot_height%||%480
+      if(isTRUE(input$facet_vars)&&length(vars)>1){
+        plot_height<-max(plot_height,260*ceiling(length(vars)/facet_ncol))
+      }
+      plot_height
+    })
+    output$temporal_table<-renderTable({
+      table_result()
+    },striped=TRUE,bordered=TRUE,spacing="xs")
+    observeEvent(input$downp_temporal_desc,ignoreInit=TRUE,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=temporal_plot(),message="Temporal descriptive plot",name_c=paste0("temporal_descriptives_",input$analysis%||%"series"),datalist_name=attr(data_x(),"datalist"))
+    })
+    observeEvent(input$downcenter_temporal_desc,ignoreInit=TRUE,{
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download temporal descriptive table",data=table_result(),name=paste0("temporal_descriptives_",input$analysis%||%"series"))
+    })
+  })
+}
+

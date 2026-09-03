@@ -129,6 +129,7 @@ source("inst/www/funs_leaflet.R")
 source("inst/www/sankey.R")
 source("inst/www/funs_spatial_validation.R")
 source("inst/www/funs_spatiotemporal_validation.R")
+source("inst/www/funs_smote.R")
 
 #source("inst/www/funs_keras.R")
 #file.remove(paste0(getwd(), "/", 'bookmarks.rds'))

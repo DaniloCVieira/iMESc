@@ -703,9 +703,105 @@ app_server<-server<-function(input, output, session) {
     .news-card-orange {
       background: linear-gradient(135deg, #e66101, #8c2d04);
     }
+
+    .news-list > .news-card:nth-child(6n+1) {
+      background: linear-gradient(135deg, #2f8f83, #14524d);
+    }
+
+    .news-list > .news-card:nth-child(6n+2) {
+      background: linear-gradient(135deg, #3867b7, #162f63);
+    }
+
+    .news-list > .news-card:nth-child(6n+3) {
+      background: linear-gradient(135deg, #b65f2a, #693016);
+    }
+
+    .news-list > .news-card:nth-child(6n+4) {
+      background: linear-gradient(135deg, #6d5aa8, #35265f);
+    }
+
+    .news-list > .news-card:nth-child(6n+5) {
+      background: linear-gradient(135deg, #8a7a23, #4c4210);
+    }
+
+    .news-list > .news-card:nth-child(6n+6) {
+      background: linear-gradient(135deg, #27719a, #10394f);
+    }
   ")),
             div(
+              class = "news-list",
               style="padding: 10px; font-size: 12px",
+              div(
+                class = "news-card",
+
+                div(
+                  class = "news-date",
+                  "3 September 2026"
+                ),
+
+                h4(
+                  icon("chart-line"),
+                  " Temporal Descriptives in Descriptive Tools"
+                ),
+
+                div(
+                  "A new ",
+                  strong("Temporal Descriptives"),
+                  " tab was added to the ",
+                  strong("Descriptive Tools"),
+                  " module."
+                ),
+
+                div(
+                  "Users can now summarize, plot, and inspect temporal patterns with time series plots, period summaries, autocorrelation, trend estimates, and change-through-time tables, with plot and table downloads."
+                )
+              ),
+              div(
+                class = "news-card news-card-green",
+
+                div(
+                  class = "news-date",
+                  "3 September 2026"
+                ),
+
+                h4(
+                  icon("shuffle"),
+                  " SMOTE for classification and regression"
+                ),
+
+                div(
+                  "A new ",
+                  strong("SMOTE"),
+                  " tool was added to the preprocessing toolbox for creating synthetic observations from imbalanced datasets."
+                ),
+
+                div(
+                  "The tool supports classification with classic SMOTE and Borderline-SMOTE, plus regression with SMOTER for rare low and/or high values of a numeric response. Users can combine predictor and response variables from compatible Datalists and optionally interpolate coordinate and temporal attributes from Datalist X."
+                )
+              ),
+              div(
+                class = "news-card news-card-blue",
+
+                div(
+                  class = "news-date",
+                  "3 September 2026"
+                ),
+
+                h4(
+                  icon("satellite"),
+                  " FZA satellite temporal example data"
+                ),
+
+                div(
+                  "The example data menu now includes ",
+                  strong("FZA satellite temporal data"),
+                  ", a temporal dataset from the Foz do Amazonas region."
+                ),
+
+                div(
+                  "This example includes Numeric, Coords, Temporal, Base-Shape, and Layer-Shape attributes, with monthly satellite-derived variables such as chlorophyll, primary productivity, sea-surface temperature, and related oceanographic predictors."
+                )
+              ),
               div(
                 class = "news-card news-card-blue",
 

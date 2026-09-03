@@ -1,7 +1,7 @@
 # Spatio-temporal validation helpers for iMESc.
 # These functions intentionally do not depend on the blockCV package.
 # Spatial folds are created with cv_spatial2(), defined in funs_spatial_validation.R.
-print('loaded')
+
 .stcv_require_sf <- function() {
   if (!requireNamespace("sf", quietly = TRUE)) {
     stop("The 'sf' package is required for spatial validation.")

@@ -1,5 +1,4 @@
 
-
 # Replace outlier values with NA in the provided dataset based on a list of identified outliers.
 remove_outliers<-function(d1,outliers){
   if(is.null(outliers) || !nrow(outliers)){
@@ -641,27 +640,49 @@ tool1$ui <- function(id) {
               )
             ),
 
-            div(
-              class = "insert_radio",
-              radioButtons(
-                ns("up_or_ex"),
-                NULL,
-                choiceValues = list("upload", "example"),
-                choiceNames = list(
-                  tiphelp_icon(
-                    strong("Upload"),
-                    "upload your own data",
-                    placement = "bottom"
-                  ),
-                  tiphelp_icon(
-                    strong("example"),
-                    "Use Nematode datasets from Araca Bay as example",
-                    placement = "bottom"
+            div(style="display: flex;",
+                div(
+                  class = "insert_radio",
+                  radioButtons(
+                    ns("up_or_ex"),
+                    NULL,
+                    choiceValues = list("upload", "example"),
+                    choiceNames = list(
+                      tiphelp_icon(
+                        strong("Upload"),
+                        "upload your own data",
+                        placement = "bottom"
+                      ),
+                      tiphelp_icon(
+                        strong("Example"),
+                        "Use one of the example datasets",
+                        placement = "bottom"
+                      )
+                    ),
+                    selected = "upload",
+                    inline = TRUE,
+                    width="200px"
                   )
                 ),
-                selected = "upload",
-                inline = TRUE
-              )
+
+                div(
+                  id = ns("example_dataset_box"),
+                  style = "display: none; margin-top: -35px; position: relative;",
+                  pickerInput(
+                    ns("example_dataset"),
+                    "Example dataset",
+                    choices = c(
+                      "Araca Bay nematodes and abiotic data" = "araca",
+                      "FZA satellite temporal data" = "fza"
+                    ),
+                    selected = "araca"
+                  ),
+                  actionLink(
+                    ns("example_data_help"),
+                    icon("fas fa-question-circle"),
+                    class = "example-data-help-btn"
+                  )
+                )
             ),
 
             div(
@@ -892,7 +913,7 @@ tool1$ui <- function(id) {
 
             div(
               id = ns("dl_example"),
-              style = "display: none",
+              style = "display: none; margin-top: -5px",
 
               div(
                 class = "dl_page",
@@ -908,11 +929,7 @@ tool1$ui <- function(id) {
                   div(
                     class = "form-group shiny-input-container",
                     tags$label("Name the Datalist"),
-                    div(
-                      class = "form-control fake_dl",
-                      "nema_araca/envi_araca",
-                      style = "width: 320px; ;padding: 7px"
-                    )
+                    uiOutput(ns("example_datalist_label"))
                   )
                 ),
 
@@ -938,11 +955,7 @@ tool1$ui <- function(id) {
                       div(
                         class = "form-group shiny-input-container",
                         tags$label("Numeric-Attribute"),
-                        div(
-                          class = "form-control fake_dl",
-                          "nematode/abiotic data from Araca Bay, Brazil",
-                          style = "width: 320px; ;padding: 7px; color: SeaGreen"
-                        )
+                        uiOutput(ns("example_numeric_label"))
                       )
                     )
                   ),
@@ -967,11 +980,7 @@ tool1$ui <- function(id) {
                       div(
                         class = "form-group shiny-input-container",
                         tags$label("Factor-Attribute"),
-                        div(
-                          class = "form-control fake_dl",
-                          "sampling factors for both Datalists",
-                          style = "width: 320px; ;padding: 7px; color: #05668D"
-                        )
+                        uiOutput(ns("example_factor_label"))
                       )
                     ),
 
@@ -990,11 +999,21 @@ tool1$ui <- function(id) {
                       div(
                         class = "form-group shiny-input-container",
                         tags$label("Coords-Attribute"),
-                        div(
-                          class = "form-control fake_dl",
-                          "sampling coordinates for both Datalists",
-                          style = "width: 320px; ;padding: 7px; color: #05668D"
-                        )
+                        uiOutput(ns("example_coords_label"))
+                      )
+                    ),
+
+                    div(
+                      style = "display: flex",
+
+                      div(class = "mlb-wide"),
+
+                      div(class = "mlb mblue"),
+
+                      div(
+                        class = "form-group shiny-input-container",
+                        tags$label("Temporal-Attribute"),
+                        uiOutput(ns("example_time_label"))
                       )
                     ),
 
@@ -1010,11 +1029,7 @@ tool1$ui <- function(id) {
                       div(
                         class = "form-group shiny-input-container",
                         tags$label("Base shape"),
-                        div(
-                          class = "form-control fake_dl",
-                          "base shape of the Araca Bay, for both Datalists",
-                          style = "width: 320px; ;padding: 7px; color: #05668D"
-                        )
+                        uiOutput(ns("example_base_shape_label"))
                       )
                     ),
 
@@ -1028,11 +1043,7 @@ tool1$ui <- function(id) {
                       div(
                         class = "form-group shiny-input-container",
                         tags$label("Layer shape"),
-                        div(
-                          class = "form-control fake_dl",
-                          "layer shape of the Araca Bay, for both Datalists",
-                          style = "width: 320px; ;padding: 7px; color: #05668D"
-                        )
+                        uiOutput(ns("example_layer_shape_label"))
                       )
                     )
                   )
@@ -1057,6 +1068,32 @@ tool1$ui <- function(id) {
             id = ns("dl_page3"),
             style = "display: none",
             "Page3"
+          ),
+
+          hidden(
+            div(
+              id = ns("example_data_help_panel"),
+              class = "example-data-help-panel",
+
+              div(
+                class = "example-data-help-card",
+
+                div(
+                  class = "example-data-help-header",
+                  h4(uiOutput(ns("example_data_help_title"))),
+                  actionLink(
+                    ns("example_data_help_close"),
+                    icon("fas fa-times"),
+                    class = "example-data-help-close"
+                  )
+                ),
+
+                div(
+                  class = "example-data-help-body",
+                  uiOutput(ns("example_data_help_content"))
+                )
+              )
+            )
           ),
 
           tags$style(HTML("
@@ -1091,6 +1128,86 @@ tool1$ui <- function(id) {
         color: gray;
         margin-bottom: 8px;
         font-size: 90%;
+      }
+
+      .example-data-help-btn {
+        position: absolute;
+        right: -26px;
+        top: 25px;
+        color: #2f8bc1;
+        font-size: 18px;
+        line-height: 18px;
+      }
+
+      .example-data-help-panel {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.82);
+        z-index: 20;
+      }
+
+      .example-data-help-card {
+        position: absolute;
+        top: 55px;
+        left: 80px;
+        width: 640px;
+        max-height: 390px;
+        overflow-y: auto;
+        background: white;
+        border: 1px solid #d8d8d8;
+        box-shadow: 0 2px 10px rgba(0,0,0,.22);
+        padding: 14px 18px;
+      }
+
+      .example-data-help-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #e6e6e6;
+        margin-bottom: 12px;
+      }
+
+      .example-data-help-header h4 {
+        margin: 0 0 8px 0;
+        color: #05668D;
+      }
+
+      .example-data-help-close {
+        color: #555;
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      .example-data-help-body {
+        color: #555;
+        font-size: 13px;
+      }
+
+      .example-data-help-body p {
+        margin-bottom: 8px;
+      }
+
+      .example-data-help-body ul {
+        padding-left: 18px;
+        margin-bottom: 10px;
+      }
+
+      .example-data-help-body table {
+        width: 100%;
+        margin-top: 8px;
+        font-size: 12px;
+      }
+
+      .example-data-help-body th {
+        color: #05668D;
+        border-bottom: 1px solid #ddd;
+        padding: 4px;
+      }
+
+      .example-data-help-body td {
+        border-bottom: 1px solid #eee;
+        padding: 4px;
+        vertical-align: top;
       }
     ")),
 
@@ -1146,6 +1263,192 @@ tool1$server <- function(id, vals) {
 
     getdatalist <- reactiveVal()
 
+    example_datasets <- list(
+      araca = list(
+        name = "nema_araca",
+        paired_name = "envi_araca",
+        datalist_label = "nema_araca/envi_araca",
+        numeric_label = "nematode/abiotic data from Araca Bay, Brazil",
+        factor_label = "sampling factors for both Datalists",
+        coords_label = "sampling coordinates for both Datalists",
+        time_label = "no temporal attribute",
+        base_shape_label = "base shape of the Araca Bay, for both Datalists",
+        layer_shape_label = "layer shape of the Araca Bay, for both Datalists",
+        numeric_path = "inst/www/nema_araca.csv",
+        paired_numeric_path = "inst/www/envi_araca.csv",
+        factor_path = "inst/www/factors_araca.csv",
+        coords_path = "inst/www/coords_araca.csv",
+        time_path = NULL,
+        base_shape_path = "inst/www/base_shape_araca.rds",
+        layer_shape_path = "inst/www/layer_shape_araca.rds"
+      ),
+      fza = list(
+        name = "fza_satellite",
+        paired_name = NULL,
+        datalist_label = "fza_satellite",
+        numeric_label = "satellite environmental data from Foz do Amazonas, Brazil",
+        factor_label = "automatically generated from Numeric-Attribute IDs",
+        coords_label = "satellite pixel coordinates from Foz do Amazonas",
+        time_label = "temporal attribute for the satellite time series",
+        base_shape_label = "base shape of Foz do Amazonas",
+        layer_shape_label = "layer shape of Foz do Amazonas",
+        numeric_path = "inst/www/fza_numeric.csv",
+        paired_numeric_path = NULL,
+        factor_path = NULL,
+        coords_path = "inst/www/fza_coords.csv",
+        time_path = "inst/www/fza_time.csv",
+        base_shape_path = "inst/www/fza_base_shape.rds",
+        layer_shape_path = "inst/www/fza_layer_shape.rds"
+      )
+    )
+
+    selected_example_key <- reactive({
+      key <- input$example_dataset
+
+      if (is.null(key) || !key %in% names(example_datasets)) {
+        return("araca")
+      }
+
+      key
+    })
+
+    selected_example <- reactive({
+      example_datasets[[selected_example_key()]]
+    })
+
+    example_label <- function(field, color = "#05668D") {
+      force(field)
+      force(color)
+
+      renderUI({
+        div(
+          class = "form-control fake_dl",
+          selected_example()[[field]],
+          style = paste0("width: 320px; ;padding: 7px; color: ", color)
+        )
+      })
+    }
+
+    output$example_datalist_label <- example_label("datalist_label", "SeaGreen")
+    output$example_numeric_label <- example_label("numeric_label", "SeaGreen")
+    output$example_factor_label <- example_label("factor_label")
+    output$example_coords_label <- example_label("coords_label")
+    output$example_time_label <- example_label("time_label")
+    output$example_base_shape_label <- example_label("base_shape_label")
+    output$example_layer_shape_label <- example_label("layer_shape_label")
+
+    output$example_data_help_title <- renderUI({
+      if (selected_example_key() == "fza") {
+        return("FZA satellite temporal data")
+      }
+
+      "Araca Bay example data"
+    })
+
+    output$example_data_help_content <- renderUI({
+      if (selected_example_key() == "fza") {
+        return(
+          div(
+            p(
+              strong("FZA satellite temporal data"),
+              " is an example Datalist from the Foz do Amazonas region, on the northern Brazilian continental margin. ",
+              "It was prepared from a NetCDF file containing monthly gridded oceanographic, biogeochemical, optical, wind, and sea-surface temperature variables. ",
+              "The original data were provided on a regular longitude-latitude grid."
+            ),
+            tags$ul(
+              tags$li(strong("Structure: "), "40 spatial points observed through 60 monthly time steps, totaling 2,400 space-time observations."),
+              tags$li(strong("Spatial sampling: "), "the 40 points correspond to grid cells with complete data across all variables and months, selected using a spatially distributed sampling procedure."),
+              tags$li(strong("Spatial resolution: "), "each sampled point represents the center of one original grid cell and inherits the original grid resolution of 0.0416667 degrees, approximately 4.6 km."),
+              tags$li(strong("Temporal coverage: "), "monthly data from 2021-01-01 to 2025-12-31."),
+              tags$li(strong("Attributes included: "), "Numeric, Factor, Coords-Attribute, Temporal-Attribute, Base-Shape, and Layer-Shape."),
+              tags$li(strong("Coordinates: "), "longitude and latitude in decimal degrees."),
+              tags$li(strong("Temporal attribute: "), "a date column named ", tags$code("data"), ".")
+            ),
+
+            tags$table(
+              tags$thead(
+                tags$tr(
+                  tags$th("Variable"),
+                  tags$th("Description"),
+                  tags$th("Units")
+                )
+              ),
+              tags$tbody(
+                tags$tr(tags$td(tags$code("CHL")), tags$td("Chlorophyll-a concentration"), tags$td("mg m-3")),
+                tags$tr(tags$td(tags$code("PP")), tags$td("Primary productivity"), tags$td("mg m-2 day-1")),
+                tags$tr(tags$td(tags$code("CDM")), tags$td("Coloured dissolved and detrital organic materials"), tags$td("m-1")),
+                tags$tr(tags$td(tags$code("mlotst")), tags$td("Density ocean mixed layer thickness"), tags$td("m")),
+                tags$tr(tags$td(tags$code("fe")), tags$td("Dissolved iron"), tags$td("mmol m-3")),
+                tags$tr(tags$td(tags$code("no3")), tags$td("Nitrate"), tags$td("mmol m-3")),
+                tags$tr(tags$td(tags$code("po4")), tags$td("Phosphate"), tags$td("mmol m-3")),
+                tags$tr(tags$td(tags$code("si")), tags$td("Dissolved silicate"), tags$td("mmol m-3")),
+                tags$tr(tags$td(tags$code("so")), tags$td("Salinity"), tags$td("PSU")),
+                tags$tr(tags$td(tags$code("uo")), tags$td("Eastward sea-water velocity"), tags$td("m s-1")),
+                tags$tr(tags$td(tags$code("vo")), tags$td("Northward sea-water velocity"), tags$td("m s-1")),
+                tags$tr(tags$td(tags$code("rotcor")), tags$td("Current vorticity"), tags$td("10^-5 s-1")),
+                tags$tr(tags$td(tags$code("divcor")), tags$td("Current divergence"), tags$td("10^-5 s-1")),
+                tags$tr(tags$td(tags$code("u")), tags$td("10 m U wind component"), tags$td("m s-1")),
+                tags$tr(tags$td(tags$code("v")), tags$td("10 m V wind component"), tags$td("m s-1")),
+                tags$tr(tags$td(tags$code("rotwind")), tags$td("Wind vorticity"), tags$td("10^-5 s-1")),
+                tags$tr(tags$td(tags$code("divwind")), tags$td("Wind divergence"), tags$td("10^-5 s-1")),
+                tags$tr(tags$td(tags$code("analysed_sst")), tags$td("Analysed sea surface temperature"), tags$td(HTML("&deg;C"))),
+                tags$tr(tags$td(tags$code("ZEU_mean")), tags$td("Depth of the bottom of the euphotic layer"), tags$td("m")),
+                tags$tr(tags$td(tags$code("PAR_mean")), tags$td("Photosynthetically available radiation"), tags$td("einstein m-2 day-1"))
+              )
+            )
+          )
+        )
+      }
+
+      div(
+        p(
+          "The Araca Bay examples include two Datalists from Araca Bay, located on the southeastern coast of Brazil."
+        ),
+        tags$ul(
+          tags$li(strong("envi_araca: "), "contains 141 samples with 9 environmental variables."),
+          tags$li(strong("nema_araca: "), "contains 141 samples with 194 free-living marine nematode species.")
+        ),
+        p(
+          "Both Datalists comprise five attributes: Numeric, Factor, Coords-Attribute, Base-Shape, and Layer-Shape."
+        ),
+        p(
+          "Studies that explored these data include Corte et al., 2017, Checon et al., 2018, and Vieira et al., 2021."
+        ),
+        h5(strong("References")),
+        tags$ul(
+          tags$li(
+            "Checon, H. H., Vieira, D. C., Corte, G. N., Sousa, E. C. P. M., Fonseca, G., & Amaral, A. C. Z. (2018). ",
+            "Defining soft bottom habitats and potential indicator species as tools for monitoring coastal systems: A case study in a subtropical bay. ",
+            em("Ocean & Coastal Management"),
+            ", 164, 68-78. ",
+            tags$a(href = "https://doi.org/10.1016/j.ocecoaman.2018.03.035", target = "_blank", "https://doi.org/10.1016/j.ocecoaman.2018.03.035")
+          ),
+          tags$li(
+            "Corte, G. N., Checon, H. H., Fonseca, G., Vieira, D. C., Gallucci, F., Domenico, M. Di, & Amaral, A. C. Z. (2017). ",
+            "Cross-taxon congruence in benthic communities: Searching for surrogates in marine sediments. ",
+            em("Ecological Indicators"),
+            ", 78, 173-182. ",
+            tags$a(href = "https://doi.org/10.1016/j.ecolind.2017.03.031", target = "_blank", "https://doi.org/10.1016/j.ecolind.2017.03.031")
+          ),
+          tags$li(
+            "Vieira, D. C., Gallucci, F., Corte, G. N., Checon, H. H., Zacagnini Amaral, A. C., & Fonseca, G. (2021). ",
+            "The relative contribution of non-selection and selection processes in marine benthic assemblages. ",
+            em("Marine Environmental Research"),
+            ", 163, 105223. ",
+            tags$a(href = "https://doi.org/10.1016/j.marenvres.2020.105223", target = "_blank", "https://doi.org/10.1016/j.marenvres.2020.105223")
+          )
+        )
+      )
+    })
+
+    observeEvent(input$example_data_help, {
+      shinyjs::show("example_data_help_panel")
+    }, ignoreInit = TRUE)
+
+    observeEvent(input$example_data_help_close, {
+      shinyjs::hide("example_data_help_panel")
+    }, ignoreInit = TRUE)
+
     reset_create_state <- function(reset_inputs = TRUE) {
       curpage("page1")
       name_dl(NULL)
@@ -1156,6 +1459,7 @@ tool1$server <- function(id, vals) {
       file_base(NULL)
       file_layer(NULL)
       getdatalist(NULL)
+      shinyjs::hide("example_data_help_panel")
 
       if (isTRUE(reset_inputs)) {
         shinyjs::reset("filedata")
@@ -1180,6 +1484,13 @@ tool1$server <- function(id, vals) {
     observeEvent(input$data_name, {
       req(input$data_name != "")
       shinyjs::removeClass(id = "dl_name", class = "alert_warning")
+    })
+
+    observe({
+      shinyjs::toggle("example_dataset_box", condition = input$up_or_ex == "example")
+      if (!identical(input$up_or_ex, "example")) {
+        shinyjs::hide("example_data_help_panel")
+      }
     })
 
     observe({
@@ -1456,7 +1767,7 @@ tool1$server <- function(id, vals) {
     })
 
     dataraw <- reactive({
-      path <- "inst/www/nema_araca.csv"
+      path <- selected_example()[["numeric_path"]]
 
       if (input$up_or_ex == "upload") {
         path <- file_data()
@@ -1470,7 +1781,7 @@ tool1$server <- function(id, vals) {
     read_labels <- reactive({
       datao <- dataraw()
 
-      path <- "inst/www/factors_araca.csv"
+      path <- selected_example()[["factor_path"]]
 
       if (input$up_or_ex == "upload") {
         path <- file_factors()
@@ -1484,7 +1795,7 @@ tool1$server <- function(id, vals) {
     read_coords <- reactive({
       datao <- dataraw()
 
-      path <- "inst/www/coords_araca.csv"
+      path <- selected_example()[["coords_path"]]
 
       if (input$up_or_ex == "upload") {
         path <- file_coords()
@@ -1498,7 +1809,7 @@ tool1$server <- function(id, vals) {
     read_time <- reactive({
       datao <- dataraw()
 
-      path <- NULL
+      path <- selected_example()[["time_path"]]
 
       if (input$up_or_ex == "upload") {
         path <- file_time()
@@ -1512,7 +1823,7 @@ tool1$server <- function(id, vals) {
     read_base <- reactive({
       if (input$up_or_ex == "example") {
 
-        readRDS("inst/www/base_shape_araca.rds")
+        readRDS(selected_example()[["base_shape_path"]])
 
       } else {
 
@@ -1547,7 +1858,7 @@ tool1$server <- function(id, vals) {
     read_layer <- reactive({
       if (input$up_or_ex == "example") {
 
-        readRDS("inst/www/layer_shape_araca.rds")
+        readRDS(selected_example()[["layer_shape_path"]])
 
       } else {
 
@@ -1581,7 +1892,7 @@ tool1$server <- function(id, vals) {
 
     create_current_datalist <- reactive({
 
-      create_DATALIST(
+      d1 <- create_DATALIST(
         input$up_or_ex,
         data = dataraw(),
         factors = read_labels(),
@@ -1589,14 +1900,23 @@ tool1$server <- function(id, vals) {
         time = read_time(),
         base_shape = read_base(),
         layer_shape = read_layer(),
-        name_example = "nema_araca",
+        name_example = selected_example()[["name"]],
         data_name = input$data_name
       )
+
+      if (input$up_or_ex == "example") {
+        attr(d1[[1]], "datalist") <- selected_example()[["name"]]
+        attr(d1[[1]], "filename") <- basename(selected_example()[["numeric_path"]])
+      }
+
+      d1
     })
 
     getdatalist_envi <- reactive({
 
-      path <- "inst/www/envi_araca.csv"
+      req(selected_example_key() == "araca")
+
+      path <- selected_example()[["paired_numeric_path"]]
 
       data <- imesc_data(path, input$sheet_data, "Numeric")
 
@@ -1608,11 +1928,12 @@ tool1$server <- function(id, vals) {
         time = read_time(),
         base_shape = read_base(),
         layer_shape = read_layer(),
-        name_example = "envi_araca",
+        name_example = selected_example()[["paired_name"]],
         data_name = input$data_name
       )
 
-      attr(d1[[1]], "datalist") <- "envi_araca"
+      attr(d1[[1]], "datalist") <- selected_example()[["paired_name"]]
+      attr(d1[[1]], "filename") <- basename(selected_example()[["paired_numeric_path"]])
 
       d1
     })
@@ -1646,8 +1967,12 @@ tool1$server <- function(id, vals) {
         return(x)
       }
 
-      if (!is.null(custom_format) && nzchar(custom_format)) {
-        format <- custom_format
+      if (!is.null(format) && format == "custom") {
+        if (!is.null(custom_format) && nzchar(custom_format)) {
+          format <- custom_format
+        } else {
+          format <- NULL
+        }
       }
 
       if (is.null(format) || format == "auto") {
@@ -1896,12 +2221,16 @@ tool1$server <- function(id, vals) {
                 width = "240px"
               ),
 
-              textInput(
-                session$ns(paste0("time_custom_", i)),
-                "Custom format:",
-                value = "",
-                placeholder = "e.g. %d/%m/%Y",
-                width = "180px"
+              conditionalPanel(
+                condition = paste0("input.time_format_", i, " == 'custom'"),
+                ns = session$ns,
+                textInput(
+                  session$ns(paste0("time_custom_", i)),
+                  "Custom format:",
+                  value = "",
+                  placeholder = "e.g. %d/%m/%Y",
+                  width = "180px"
+                )
               )
             )
           )
@@ -2062,27 +2391,30 @@ tool1$server <- function(id, vals) {
 
       datalist <- formatted_datalist()
 
+      inserted_idx <- length(vals$saved_data) + 1
       vals$saved_data[[length(vals$saved_data) + 1]] <- datalist[[1]]
       names(vals$saved_data)[length(vals$saved_data)] <- input$data_name
 
       if (input$up_or_ex == "example") {
 
-        names(vals$saved_data)[length(vals$saved_data)] <- "nema_araca"
-        vals$cur_data <- names(vals$saved_data)[length(vals$saved_data)]
+        names(vals$saved_data)[length(vals$saved_data)] <- selected_example()[["name"]]
 
-        envi <- getdatalist_envi()[[1]]
-        envi <- data_migrate(datalist[[1]], envi, "envi_araca")
+        if (selected_example_key() == "araca") {
+          envi <- getdatalist_envi()[[1]]
+          envi <- data_migrate(datalist[[1]], envi, selected_example()[["paired_name"]])
 
-        vals$saved_data[[length(vals$saved_data) + 1]] <- envi
-        names(vals$saved_data)[[length(vals$saved_data)]] <- "envi_araca"
+          vals$saved_data[[length(vals$saved_data) + 1]] <- envi
+          names(vals$saved_data)[[length(vals$saved_data)]] <- selected_example()[["paired_name"]]
+        }
 
       } else {
 
-        vals$cur_data <- names(vals$saved_data)[length(vals$saved_data)]
+        inserted_idx <- length(vals$saved_data)
 
       }
 
       names(vals$saved_data) <- make.unique(names(vals$saved_data))
+      vals$cur_data <- names(vals$saved_data)[inserted_idx]
 
       vals$newdata <- TRUE
 
@@ -2134,7 +2466,7 @@ tool1$server <- function(id, vals) {
         )
       }
 
-      if (input$up_or_ex == "example") {
+      if (input$up_or_ex == "example" && selected_example_key() == "araca") {
 
         div(
           style = "display: flex; gap: 10px",
@@ -2174,6 +2506,20 @@ tool2$ui<-function(id){
     )),
     after=10
   )
+  tool2_tabs<-append(
+    tool2_tabs,
+    list(span(
+      "SMOTE",
+      icon(
+        "fas fa-question-circle",
+        class="text-info",
+        `data-toggle`="tooltip",
+        `data-placement`="right",
+        title="Balance classes by creating synthetic observations from Numeric-Attribute variables."
+      )
+    )),
+    after=11
+  )
   div(style="margin-top: -35px",
       div(class="toolkit_items",style="width: 550px; height: 320px;      background: #00000095;; position: fixed;right: 0px; z-index: 9",),
       tags$style(HTML("
@@ -2210,7 +2556,7 @@ tool2$ui<-function(id){
 
         lapply(seq_along(tool2_tabs),function(i){
           style=""
-          if(i%in%c(13,14)){
+          if(i%in%c(14,15)){
             style="color: brown"
           }
           div(actionButton(ns(paste0('tool_kit_',i)),
@@ -2267,12 +2613,15 @@ tool2$ui<-function(id){
                                  tool2_tab11$ui(ns("space_time"))
                         ),
                         tabPanel(tool2_tabs[12],value="tab12",
-                                 tool2_tab12$ui(ns("code"))
+                                 tool2_tab12$ui(ns("smote"))
                         ),
                         tabPanel(tool2_tabs[13],value="tab13",
-                                 tool2_tab13$ui(ns("gen"))),
+                                 tool2_tab13$ui(ns("code"))
+                        ),
                         tabPanel(tool2_tabs[14],value="tab14",
-                                 tool2_tab14$ui(ns("deldatalist"))
+                                 tool2_tab14$ui(ns("gen"))),
+                        tabPanel(tool2_tabs[15],value="tab15",
+                                 tool2_tab15$ui(ns("deldatalist"))
                         )
             )
           )
@@ -2302,6 +2651,20 @@ tool2$server<-function(id,vals){
       )),
       after=10
     )
+    tool2_tabs<-append(
+      tool2_tabs,
+      list(span(
+        "SMOTE",
+        icon(
+          "fas fa-question-circle",
+          class="text-info",
+          `data-toggle`="tooltip",
+          `data-placement`="right",
+          title="Balance classes by creating synthetic observations from Numeric-Attribute variables."
+        )
+      )),
+      after=11
+    )
 
     shinyjs::onevent("mouseleave", "toolkit", {
       shinyjs::hide(selector=".toolkit_items")
@@ -2330,9 +2693,10 @@ tool2$server<-function(id,vals){
     tool2_tab9$server("time", vals)
     tool2_tab10$server("time_lag", vals)
     tool2_tab11$server("space_time", vals)
-    tool2_tab12$server("code", vals)
-    tool2_tab13$server("gen", vals)
-    tool2_tab14$server("deldatalist", vals)
+    tool2_tab12$server("smote", vals)
+    tool2_tab13$server("code", vals)
+    tool2_tab14$server("gen", vals)
+    tool2_tab15$server("deldatalist", vals)
 
 
 
@@ -3601,8 +3965,12 @@ tool2_tab3$server <- function(id, vals) {
         return(x)
       }
 
-      if (!is.null(custom_format) && nzchar(custom_format)) {
-        format <- custom_format
+      if (!is.null(format) && format == "custom") {
+        if (!is.null(custom_format) && nzchar(custom_format)) {
+          format <- custom_format
+        } else {
+          format <- NULL
+        }
       }
 
       if (is.null(format) || format == "auto") {
@@ -3729,12 +4097,16 @@ tool2_tab3$server <- function(id, vals) {
                 selected = "auto",
                 width = "240px"
               ),
-              textInput(
-                ns(paste0("time_custom_", safe_id(col_name))),
-                "Custom format:",
-                value = "",
-                placeholder = "e.g. %d/%m/%Y",
-                width = "180px"
+              conditionalPanel(
+                condition = paste0("input.time_format_", safe_id(col_name), " == 'custom'"),
+                ns = ns,
+                textInput(
+                  ns(paste0("time_custom_", safe_id(col_name))),
+                  "Custom format:",
+                  value = "",
+                  placeholder = "e.g. %d/%m/%Y",
+                  width = "180px"
+                )
               )
             )
           )
@@ -4405,8 +4777,12 @@ tool2_tab4$server <- function(id, vals) {
         return(x)
       }
 
-      if (!is.null(custom_format) && nzchar(custom_format)) {
-        format <- custom_format
+      if (!is.null(format) && format == "custom") {
+        if (!is.null(custom_format) && nzchar(custom_format)) {
+          format <- custom_format
+        } else {
+          format <- NULL
+        }
       }
 
       if (is.null(format) || format == "auto") {
@@ -4687,12 +5063,16 @@ tool2_tab4$server <- function(id, vals) {
                 width = "240px"
               ),
 
-              textInput(
-                session$ns(paste0("time_custom_", i)),
-                "Custom format:",
-                value = "",
-                placeholder = "e.g. %d/%m/%Y",
-                width = "180px"
+              conditionalPanel(
+                condition = paste0("input.time_format_", i, " == 'custom'"),
+                ns = session$ns,
+                textInput(
+                  session$ns(paste0("time_custom_", i)),
+                  "Custom format:",
+                  value = "",
+                  placeholder = "e.g. %d/%m/%Y",
+                  width = "180px"
+                )
               )
             )
           )
@@ -9337,9 +9717,715 @@ tool2_tab11$server<-function(id,vals){
   })
 }
 
+# SMOTE
+tool2_tab12 <- list()
+tool2_tab12$ui <- function(id) {
+  ns <- NS(id)
+  smote_help_label <- function(input_id, label) {
+    span(
+      label,
+      tiphelp_icon(
+        actionLink(
+          ns(input_id),
+          label = NULL,
+          icon = icon("fas fa-question-circle"),
+          style = "margin-left: 5px; font-size: 13px;"
+        ),
+        "Click for more details",
+        "right"
+      )
+    )
+  }
+
+  div(
+    #class = "tool2_tab9",
+    div(
+      class = "tool10 tool2_tab10",
+      style = "overflow-y: scroll; height: 100vh",
+      div(style = "position: fixed; right: 80vw;top: 50px ",
+          actionButton(ns("exit_tool12"), label = NULL, icon = icon("times"), style = "padding: 0px; font-size: 15px; width: 20px; height: 20px;background: Brown; color: white; border: 0px;")),
+      h4(
+        strong("SMOTE"),
+        tiphelp_icon(
+          actionLink(
+            ns("smote_title_help"),
+            label = NULL,
+            icon = icon("fas fa-question-circle"),
+            style = "margin-left: 8px; ;"
+          ),
+          "Click for more details",
+          "right"
+        )
+      ),
+
+      column(
+        7,class="mp0",
+        div(
+          class="model_setup",
+          box_caret(ns('0'),inline=F,
+                    title="Setup",
+                    div(
+                      div(class="inline_pickers",
+                          radioButtons(
+                            ns("problem_type"),
+                            smote_help_label("task_help", "Task"),
+                            choices = c("Classification" = "classification", "Regression" = "regression"),
+                            selected = "classification",
+                            inline = TRUE
+                          )),
+                      div(
+                        style="display: flex;gap: 10px;align-items: flex-start",class="setup_box",
+                        #div(tags$div("X",class="trailab")),
+                        div(class="picker-flex picker-before-x",
+                            div(
+                              class="data_x",
+                              pickerInput_fromtop_live(
+                                ns("data_x"),
+                                tiphelp5("Datalist X", "Datalist containing the predictor variables used to generate synthetic observations. Coords-Attribute and Temporal-Attribute are taken from this Datalist."),
+                                choices = NULL
+                              )
+                            ),
+
+                        ),
+                        div(style="display: flex;gap: 10px;",
+                            div(class="picker-flex",
+                                uiOutput(ns("numeric_vars_ui")))
+                        )
+                      ),
+                      div(
+                        style="display: flex; gap: 10px; align-items: flex-start",class="setup_box",
+                        id=ns("model_y_panel"),
+                        div(
+                          div(class="picker-flex picker-before-y",
+                              pickerInput_fromtop(
+                                ns("data_y"),
+                                tiphelp5("Datalist Y", "Datalist containing the response variable. Only Datalists with all X observation IDs are shown."),
+                                choices = NULL
+                              ),
+
+                          )
+                        ),
+                        tags$label("::",style="padding-top: 30px;"),
+                        div(class="picker-flex",
+                            uiOutput(ns("target_ui"))
+
+                        )
+                      ),
+                      uiOutput(ns("metadata_options_ui"))
+                    )
+          )),
+        box_caret(
+          ns("smote_settings"),
+          title = "SMOTE settings",
+          color = "#c3cc74ff",
+          div(style="display: flex",
+              div(
+                uiOutput(ns("smote_settings_ui")),
+                checkboxInput(
+                  ns("scale"),
+                  tiphelp5("Scale variables internally", "Recommended when numeric variables use different units or scales."),
+                  value = TRUE
+                )
+              ),
+              div(
+
+                actionButton(ns("preview_smote"), "Preview", style="height: 30px"),
+
+                div(
+                  class = "save_changes",
+                  actionButton(ns("run_smote"), "Run SMOTE", icon = icon("angles-right"), style="height: 30px; margin-top: 10px")
+                )
+              )
+          )
+        )
+
+      ),
+      column(5,class="mp0",
+             box_caret(
+               ns("smote_preview"),
+               title = "Preview output",
+               color = "#81b37aff",
+               div(
+                 uiOutput(ns("smote_summary")),
+                 div(style = "max-height: 260px; overflow-y: auto", tableOutput(ns("class_table"))),
+                 div(style = "max-height: 220px; overflow-y: auto; margin-top: 10px", tableOutput(ns("smote_attr_table")))
+               )
+             )),
+
+
+
+    )
+  )
+}
+tool2_tab12$server <- function(id, vals) {
+  moduleServer(id, function(input, output, session) {
+    smote_help_label <- function(input_id, label) {
+      span(
+        label,
+        tiphelp_icon(
+          actionLink(
+            session$ns(input_id),
+            label = NULL,
+            icon = icon("fas fa-question-circle"),
+            style = "margin-left: 5px; font-size: 13px;"
+          ),
+          "Click for more details",
+          "right"
+        )
+      )
+    }
+
+    smote_help_modal <- function(title, ...) {
+      showModal(
+        modalDialog(
+          title = title,
+          easyClose = TRUE,
+          footer = modalButton("Close"),
+          size = "m",
+          div(style = "line-height: 1.45; font-size: 13px;", ...)
+        )
+      )
+    }
+
+    observeEvent(input$exit_tool12, {
+      vals$exit_tool12 <- input$exit_tool12
+    })
+
+    observeEvent(input$smote_title_help, {
+      smote_help_modal(
+        div(strong("SMOTE"), span(" synthetic observations", style = "font-weight: 400; color: #666;")),
+        div(
+          style = "border-left: 5px solid #81b37a; background: #f5faf3; padding: 12px 14px; margin-bottom: 12px;",
+          h4("What this tool does", style = "margin-top: 0; color: #2f6f3e;"),
+          p("SMOTE creates new synthetic rows by interpolating between similar observations. It is useful when important cases are rare, so a model might otherwise learn mostly from the most common cases."),
+          p("The new rows are not copied observations. Each one is placed between an observed row and one of its nearest neighbors, using the selected numeric variables."),
+          p(strong("Datalist X"), " supplies the predictor variables and, when available, the coordinates and temporal information. ", strong("Datalist Y"), " supplies the response variable. Y must contain all observation IDs present in X; extra rows in Y are ignored.")
+        ),
+        fluidRow(
+          column(
+            6,
+            div(
+              style = "background: #f7f7f7; border-top: 3px solid #05668D; padding: 10px 12px; min-height: 150px;",
+              h4("Classification", style = "margin-top: 0; color: #05668D;"),
+              p("Use this when the target is a category, such as presence/absence, habitat type, or class label."),
+              p("The class must be stored in the Factor-Attribute. SMOTE then adds synthetic rows to under-represented classes.")
+            )
+          ),
+          column(
+            6,
+            div(
+              style = "background: #f7f7f7; border-top: 3px solid #2f6f3e; padding: 10px 12px; min-height: 150px;",
+              h4("Regression", style = "margin-top: 0; color: #2f6f3e;"),
+              p("Use this when the target is numeric, such as abundance, biomass, chlorophyll, temperature, or productivity."),
+              p("SMOTER focuses on rare low and/or high response values, then creates synthetic rows inside those rare ranges.")
+            )
+          )
+        ),
+        div(
+          style = "margin-top: 12px; padding: 10px 12px; background: #fff8e6; border-left: 5px solid #c3a53b;",
+          h4("Important interpretation", style = "margin-top: 0; color: #7a5a00;"),
+          p("Synthetic rows help the modelling step see rare situations more often. They should not be interpreted as new field samples or new satellite observations."),
+          p("If coordinates or dates are interpolated, they are metadata positions for the synthetic rows. They make the Datalist usable by spatial or temporal tools, but they are still synthetic metadata.")
+        ),
+        div(
+          style = "margin-top: 12px; padding: 10px 12px; background: #f7f7f7; border-left: 5px solid #777;",
+          h4("References", style = "margin-top: 0; color: #444;"),
+          tags$ul(
+            tags$li(
+              strong("Classic SMOTE: "),
+              "Chawla, N. V., Bowyer, K. W., Hall, L. O., & Kegelmeyer, W. P. (2002). ",
+              em("SMOTE: Synthetic Minority Over-sampling Technique. "),
+              "Journal of Artificial Intelligence Research, 16, 321-357. https://doi.org/10.1613/JAIR.953"
+            ),
+            tags$li(
+              strong("Borderline-SMOTE: "),
+              "Han, H., Wang, W.-Y., & Mao, B.-H. (2005). ",
+              em("Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning. "),
+              "In Advances in Intelligent Computing, Lecture Notes in Computer Science, 3644, 878-887. https://doi.org/10.1007/11538059_91"
+            ),
+            tags$li(
+              strong("SMOTE for regression / SMOTER: "),
+              "Torgo, L., Ribeiro, R. P., Pfahringer, B., & Branco, P. (2013). ",
+              em("SMOTE for Regression. "),
+              "In Progress in Artificial Intelligence, Lecture Notes in Computer Science, 8154, 378-389. https://doi.org/10.1007/978-3-642-40669-0_33"
+            )
+          )
+        )
+      )
+    })
+
+    observeEvent(input$task_help, {
+      smote_help_modal(
+        "SMOTE task",
+        p(strong("Classification"), " uses a categorical column from the Factor-Attribute as the class to balance. Synthetic observations are generated inside each class using Numeric-Attribute variables."),
+        p(strong("Regression"), " uses SMOTER. Instead of balancing classes, it identifies rare low and/or high ranges of a numeric response and creates synthetic observations inside those rare regions."),
+        p("Use classification when the modelling target is a factor. Use regression when the target is continuous and the important cases are under-represented in one or both tails of the response.")
+      )
+    })
+
+    observeEvent(input$strategy_help, {
+      smote_help_modal(
+        "Oversampling strategy",
+        p(strong("Balance to largest group"), " increases each selected class or rare region until it has the same size as the largest group."),
+        p(strong("Percent per group"), " adds a percentage of synthetic observations relative to the current size of each selected group. With 100%, a group with 20 observations receives 20 synthetic observations."),
+        p(strong("Ratio of largest group"), " targets a fraction of the largest group size. A ratio of 0.5 targets half of the largest group; 1 targets equality with the largest group.")
+      )
+    })
+
+    observeEvent(input$mode_help, {
+      smote_help_modal(
+        "Classification mode",
+        p(strong("Classic SMOTE"), " creates synthetic observations between a minority-class observation and one of its same-class nearest neighbors."),
+        p(strong("Borderline-SMOTE 1"), " focuses generation on minority observations near class boundaries, where many neighbors belong to other classes."),
+        p(strong("Borderline-SMOTE 2"), " also focuses on boundary observations, but can generate part of the synthetic points toward nearby majority observations. This is more aggressive and should be inspected carefully.")
+      )
+    })
+
+    observeEvent(input$rare_help, {
+      smote_help_modal(
+        "Rare response range",
+        p("SMOTER needs to know which part of the continuous response is under-represented or analytically important."),
+        p(strong("High values"), " oversamples only the upper tail of the response. ", strong("Low values"), " oversamples only the lower tail. ", strong("Low and high values"), " oversamples both tails."),
+        p("The rare quantile defines where those tails begin.")
+      )
+    })
+
+    observeEvent(input$rare_q_help, {
+      smote_help_modal(
+        "Rare quantile",
+        p("The rare quantile sets the fraction of observations treated as rare in each selected tail of the response."),
+        p("For example, 0.10 with high values means the highest 10% of response values are treated as rare. With low and high values, the lowest 10% and highest 10% are both treated as rare regions."),
+        p("Each selected rare region needs at least two complete observations because SMOTER interpolates between neighboring rare cases.")
+      )
+    })
+
+    open_metadata_help <- function() {
+      smote_help_modal(
+        "Synthetic coordinates and dates",
+        p("When enabled, Coords-Attribute and Temporal-Attribute values from Datalist X are interpolated between the same seed observation and neighbor used by SMOTE or SMOTER."),
+        p("This keeps the output Datalist aligned for spatial or temporal tools, but these values should be interpreted as metadata positions for synthetic observations, not as newly observed sampling locations or dates."),
+        p("When disabled, synthetic rows are kept in those attributes with NA values.")
+      )
+    }
+
+    observeEvent(input$metadata_coords_help, {
+      open_metadata_help()
+    })
+
+    observeEvent(input$metadata_time_help, {
+      open_metadata_help()
+    })
+
+    data_x <- reactive({
+      req(input$data_x)
+      req(input$data_x %in% names(vals$saved_data))
+      vals$saved_data[[input$data_x]]
+    })
+
+    compatible_y_choices <- reactive({
+      req(input$data_x)
+      req(input$data_x %in% names(vals$saved_data))
+      x_ids <- rownames(vals$saved_data[[input$data_x]])
+      names(vals$saved_data)[vapply(vals$saved_data, function(dat_y) {
+        all(x_ids %in% rownames(dat_y))
+      }, logical(1))]
+    })
+
+    observeEvent(vals$saved_data, {
+      updatePickerInput(session, "data_x", choices = names(vals$saved_data), selected = vals$cur_data)
+    })
+
+    observe({
+      choices <- compatible_y_choices()
+      selected <- if (!is.null(input$data_y) && input$data_y %in% choices) input$data_y else if (input$data_x %in% choices) input$data_x else choices[1]
+      updatePickerInput(session, "data_y", choices = choices, selected = selected)
+    })
+
+    data_y <- reactive({
+      req(input$data_y)
+      req(input$data_y %in% compatible_y_choices())
+      vals$saved_data[[input$data_y]]
+    })
+
+    factors_y <- reactive({
+      factors <- attr(data_y(), "factors")
+      validate(need(!is.null(factors) && ncol(factors) > 0, "The selected response Datalist has no Factor-Attribute."))
+      factors
+    })
+
+    numeric_vars <- reactive({
+      dat <- data_x()
+      colnames(dat)[vapply(dat, is.numeric, logical(1))]
+    })
+
+    numeric_y_vars <- reactive({
+      dat <- data_y()
+      colnames(dat)[vapply(dat, is.numeric, logical(1))]
+    })
+
+    copy_x_attrs <- function(out, x_data, rows) {
+      coords <- attr(x_data, "coords")
+      time <- attr(x_data, "time")
+      if (!is.null(coords)) {
+        attr(out, "coords") <- coords[rows, , drop = FALSE]
+      }
+      if (!is.null(time)) {
+        attr(out, "time") <- time[rows, , drop = FALSE]
+      }
+      attr(out, "base_shape") <- attr(x_data, "base_shape")
+      attr(out, "layer_shape") <- attr(x_data, "layer_shape")
+      attr(out, "extra_shape") <- attr(x_data, "extra_shape")
+      attr(out, "datalist_root") <- attr(x_data, "datalist_root") %||% attr(x_data, "datalist")
+      out
+    }
+
+    working_datalist <- function(type, vars) {
+      x_data <- data_x()
+      y_data <- data_y()
+      x_ids <- rownames(x_data)
+
+      if (!all(x_ids %in% rownames(y_data))) {
+        stop("Datalist Y must contain all observation IDs from Datalist X.")
+      }
+
+      if (identical(type, "regression")) {
+        req(input$response_var)
+        vars <- setdiff(vars, input$response_var)
+        out <- x_data[x_ids, vars, drop = FALSE]
+        out[[input$response_var]] <- y_data[x_ids, input$response_var, drop = TRUE]
+        out <- out[, c(input$response_var, vars), drop = FALSE]
+        factors <- attr(x_data, "factors")
+        if (!is.null(factors)) {
+          attr(out, "factors") <- factors[x_ids, , drop = FALSE]
+        }
+        return(copy_x_attrs(out, x_data, x_ids))
+      }
+
+      req(input$class_factor)
+      factors_y <- attr(y_data, "factors")
+      if (is.null(factors_y) || !input$class_factor %in% colnames(factors_y)) {
+        stop("The selected class factor must exist in Datalist Y.")
+      }
+      if (!all(x_ids %in% rownames(factors_y))) {
+        stop("The Factor-Attribute from Datalist Y must contain all observation IDs from Datalist X.")
+      }
+
+      out <- x_data[x_ids, vars, drop = FALSE]
+      factors <- attr(x_data, "factors")
+      if (is.null(factors)) {
+        factors <- data.frame(row.names = x_ids)
+      } else {
+        factors <- factors[x_ids, , drop = FALSE]
+      }
+      factors[[input$class_factor]] <- factors_y[x_ids, input$class_factor, drop = TRUE]
+      attr(out, "factors") <- factors
+      copy_x_attrs(out, x_data, x_ids)
+    }
+
+    output$target_ui <- renderUI({
+      if (identical(input$problem_type, "regression")) {
+        vars <- numeric_y_vars()
+        validate(need(length(vars) > 0, "The selected response Datalist has no numeric variables."))
+        return(
+          pickerInput_fromtop(
+            session$ns("response_var"),
+            tiphelp5("Response variable", "Numeric-Attribute variable whose rare low and/or high values will be oversampled with SMOTER."),
+            choices = vars,
+            selected = vars[1]
+          )
+        )
+      }
+
+      factors <- factors_y()
+      choices <- colnames(factors)
+      pickerInput_fromtop(
+        session$ns("class_factor"),
+        tiphelp5("Class factor", "Factor-Attribute column containing the classes to balance."),
+        choices = choices,
+        selected = choices[1]
+      )
+    })
+
+    output$numeric_vars_ui <- renderUI({
+      vars <- numeric_vars()
+      validate(need(length(vars) > 0, "The selected Datalist has no numeric variables."))
+      if (identical(input$problem_type, "regression")) {
+        req(input$response_var)
+        vars <- setdiff(vars, input$response_var)
+        validate(need(length(vars) > 0, "SMOTER requires at least one numeric predictor besides the response."))
+      }
+      pickerInput_fromtop(
+        session$ns("vars"),
+        tiphelp5("Predictors", "Numeric-Attribute variables used as predictors to generate synthetic observations. Leave all selected to use the available Numeric-Attribute variables."),
+        choices = vars,
+        selected = vars,
+        multiple = TRUE,
+        options = pickerOptions(actionsBox = TRUE)
+      )
+    })
+
+    output$smote_settings_ui <- renderUI({
+      common <- list(
+        pickerInput(
+          session$ns("strategy"),
+          smote_help_label("strategy_help", "Strategy"),
+          choices = c(
+            "Balance to largest group" = "balance",
+            "Percent per group" = "percent",
+            "Ratio of largest group" = "ratio"
+          ),
+          selected = "balance",
+          width = "250px"
+        )
+      )
+
+      if (identical(input$problem_type, "regression")) {
+        return(
+          div(
+            common,
+            pickerInput(
+              session$ns("rare"),
+              smote_help_label("rare_help", "Rare range"),
+              choices = c("High values" = "upper", "Low values" = "lower", "Low and high values" = "both"),
+              selected = "upper",
+              width = "250px"
+            ),
+            div(
+              style = "display: flex; gap: 8px; flex-wrap: wrap",
+              numericInput(session$ns("rare_q"), smote_help_label("rare_q_help", "Rare quantile"), value = 0.1, min = 0.01, max = 0.49, step = 0.01, width = "160px"),
+              numericInput(session$ns("N"), tiphelp5("N (%)", "Oversampling percentage used by the percent strategy."), value = 100, min = 0, step = 10, width = "110px"),
+              numericInput(session$ns("ratio"), tiphelp5("Ratio", "Target rare-region size as a fraction of the largest group."), value = 1, min = 0.01, step = 0.05, width = "110px"),
+              numericInput(session$ns("seed"), tiphelp5("Seed", "Optional random seed for reproducible synthetic observations."), value = NA, step = 1, width = "110px"),
+              numericInput(session$ns("k"), tiphelp5("k", "Number of rare-region neighbors used to generate synthetic observations."), value = 5, min = 1, step = 1, width = "110px"),
+              numericInput(session$ns("p"), tiphelp5("p", "Minkowski distance order. Use 2 for Euclidean distance."), value = 2, min = 1, step = 1, width = "110px")
+            )
+          )
+        )
+      }
+
+      div(
+        common,
+        pickerInput(
+          session$ns("mode"),
+          smote_help_label("mode_help", "Mode"),
+          choices = c(
+            "Classic SMOTE" = "none",
+            "Borderline-SMOTE 1" = "bsmote1",
+            "Borderline-SMOTE 2" = "bsmote2"
+          ),
+          selected = "none",
+          width = "250px"
+        ),
+        div(
+          style = "display: flex; gap: 8px; flex-wrap: wrap",
+          numericInput(session$ns("N"), tiphelp5("N (%)", "Oversampling percentage used by the percent strategy."), value = 100, min = 0, step = 10, width = "110px"),
+          numericInput(session$ns("ratio"), tiphelp5("Ratio", "Target class size as a fraction of the largest class."), value = 1, min = 0.01, step = 0.05, width = "110px"),
+          numericInput(session$ns("seed"), tiphelp5("Seed", "Optional random seed for reproducible synthetic observations."), value = NA, step = 1, width = "110px"),
+          numericInput(session$ns("k"), tiphelp5("k", "Number of same-class neighbors used to generate synthetic observations."), value = 5, min = 1, step = 1, width = "110px"),
+          numericInput(session$ns("k_full"), tiphelp5("k full", "Number of full-dataset neighbors used to detect borderline observations."), value = 10, min = 1, step = 1, width = "110px"),
+          numericInput(session$ns("p"), tiphelp5("p", "Minkowski distance order. Use 2 for Euclidean distance."), value = 2, min = 1, step = 1, width = "110px")
+        )
+      )
+    })
+
+    output$metadata_options_ui <- renderUI({
+      dat <- data_x()
+      coords <- attr(dat, "coords")
+      time <- attr(dat, "time")
+      has_coords <- !is.null(coords) && nrow(coords) > 0
+      has_time <- !is.null(time) && nrow(time) > 0
+
+      if (!has_coords && !has_time) {
+        return(NULL)
+      }
+
+      div(
+        style = "margin-top: 8px",
+        if (has_coords) {
+          checkboxInput(
+            session$ns("synth_coords"),
+            smote_help_label("metadata_coords_help", "Interpolate Coords-Attribute"),
+            value = FALSE
+          )
+        },
+        if (has_time) {
+          checkboxInput(
+            session$ns("synth_time"),
+            smote_help_label("metadata_time_help", "Interpolate Temporal-Attribute"),
+            value = FALSE
+          )
+        },
+        emgray("Coordinate and temporal interpolation is optional because it creates metadata positions for synthetic observations.")
+      )
+    })
+
+    smote_result <- reactiveVal()
+    smote_error <- reactiveVal()
+
+    run_smote <- function() {
+      vars <- input$vars
+      if (is.null(vars) || !length(vars)) {
+        vars <- numeric_vars()
+      }
+
+      seed <- suppressWarnings(as.integer(input$seed))
+      if (is.na(seed)) {
+        seed <- NULL
+      }
+
+      task <- input$problem_type %||% "classification"
+      new_name <- paste0(input$data_x, if (identical(task, "regression")) "_smoter" else "_smote")
+
+      tryCatch(
+        {
+          if (identical(task, "regression")) {
+            req(input$response_var)
+            dat <- working_datalist("regression", vars)
+            vars <- setdiff(vars, input$response_var)
+            out <- imesc_smoter(
+              data = dat,
+              response_column = input$response_var,
+              vars = vars,
+              rare = input$rare,
+              rare_q = input$rare_q,
+              strategy = input$strategy,
+              N = input$N,
+              ratio = input$ratio,
+              k = input$k,
+              p = input$p,
+              scale = input$scale,
+              seed = seed,
+              synth_coords = isTRUE(input$synth_coords),
+              synth_time = isTRUE(input$synth_time),
+              newname = new_name
+            )
+          } else {
+            req(input$class_factor)
+            dat <- working_datalist("classification", vars)
+            out <- imesc_smote(
+              data = dat,
+              class_column = input$class_factor,
+              vars = vars,
+              strategy = input$strategy,
+              N = input$N,
+              ratio = input$ratio,
+              k = input$k,
+              k_full = input$k_full,
+              mode = input$mode,
+              p = input$p,
+              scale = input$scale,
+              seed = seed,
+              synth_coords = isTRUE(input$synth_coords),
+              synth_time = isTRUE(input$synth_time),
+              newname = new_name
+            )
+          }
+          attr(out, "datalist_root") <- input$data_x
+          attr(out, "bag") <- new_name
+          attr(out, "smote")$datalist_x <- input$data_x
+          attr(out, "smote")$datalist_y <- input$data_y
+          smote_error(NULL)
+          smote_result(out)
+          out
+        },
+        error = function(e) {
+          smote_result(NULL)
+          smote_error(conditionMessage(e))
+          NULL
+        }
+      )
+    }
+
+    observeEvent(input$preview_smote, {
+      run_smote()
+    })
+
+    observeEvent(input$run_smote, {
+      dat <- run_smote()
+      req(dat)
+      vals$newdatalist <- dat
+      vals$tosave <- dat
+      vals$bagname <- attr(dat, "bag")
+      module_save_changes$ui(session$ns("smote_save"), vals)
+    })
+
+    module_save_changes$server("smote_save", vals)
+
+    output$smote_summary <- renderUI({
+      if (!is.null(smote_error())) {
+        return(div(class = "alert_warning", strong("SMOTE error: "), smote_error()))
+      }
+
+      dat <- smote_result()
+
+      if (is.null(dat)) {
+        return(emgray("Run Preview to inspect the class balance before saving."))
+      }
+
+      info <- attr(dat, "smote")
+
+      if (identical(info$task, "regression")) {
+        return(
+          div(
+            div(strong("Synthetic observations added: "), emgreen(info$added)),
+            div(strong("Numeric predictors used: "), emgreen(length(info$variables))),
+            div(strong("Response variable: "), emgreen(info$response_column)),
+            div(strong("Rare range: "), emgreen(info$rare)),
+            div(strong("Datalist X / Y: "), emgreen(paste(info$datalist_x, "/", info$datalist_y)))
+          )
+        )
+      }
+
+      div(
+        div(strong("Synthetic observations added: "), emgreen(info$added)),
+        div(strong("Numeric variables used: "), emgreen(length(info$variables))),
+        div(strong("Class factor: "), emgreen(info$class_column)),
+        div(strong("Datalist X / Y: "), emgreen(paste(info$datalist_x, "/", info$datalist_y)))
+      )
+    })
+
+    output$class_table <- renderTable({
+      dat <- smote_result()
+      req(dat)
+      info <- attr(dat, "smote")
+      groups <- union(names(info$before), names(info$after))
+      before <- info$before[groups]
+      after <- info$after[groups]
+      before[is.na(before)] <- 0
+      after[is.na(after)] <- 0
+      data.frame(
+        Group = groups,
+        Before = as.integer(before),
+        After = as.integer(after),
+        Added = as.integer(after) - as.integer(before),
+        check.names = FALSE
+      )
+    })
+
+    output$smote_attr_table <- renderTable({
+      dat <- smote_result()
+      req(dat)
+      info <- attr(dat, "smote")
+      has_coords <- !is.null(attr(dat, "coords"))
+      has_time <- !is.null(attr(dat, "time"))
+
+      data.frame(
+        Attribute = c("Numeric-Attribute", "Factor-Attribute", "Coords-Attribute", "Temporal-Attribute"),
+        Handling = c(
+          if (identical(info$task, "regression")) paste("SMOTER generated", info$added, "synthetic rows from the selected numeric predictors and response.") else paste("SMOTE generated", info$added, "synthetic rows from the selected numeric variables."),
+          if (identical(info$task, "regression")) "Existing factor columns are NA for synthetic rows; SMOTE_source and SMOTER_region mark original/synthetic rows and rare regions." else "The selected class factor was assigned to synthetic rows; other factor columns are NA and SMOTE_source marks original/synthetic rows.",
+          if (has_coords && isTRUE(info$synth_coords)) "Synthetic coordinates were interpolated from the SMOTE seed and neighbor using Datalist X coordinates." else if (has_coords) "Synthetic coordinate rows were created with NA values. Coords-Attribute comes from Datalist X." else "No Coords-Attribute available in Datalist X.",
+          if (has_time && isTRUE(info$synth_time)) "Synthetic temporal values were interpolated from the SMOTE seed and neighbor using Datalist X time." else if (has_time) "Synthetic temporal rows were created with NA values. Temporal-Attribute comes from Datalist X." else "No Temporal-Attribute available in Datalist X."
+        ),
+        check.names = FALSE
+      )
+    })
+  })
+}
+
 # Run custom scripts
-tool2_tab12<-list()
-tool2_tab12$ui<-function(id){
+tool2_tab13<-list()
+tool2_tab13$ui<-function(id){
   ns<-NS(id)
   shortcut_ns <- gsub("[^A-Za-z0-9]", "", ns("run_code"))
   div(
@@ -9383,7 +10469,7 @@ tool2_tab12$ui<-function(id){
     )
   )
 }
-tool2_tab12$server<-function(id,vals){
+tool2_tab13$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
 
     r_code<-reactiveVal()
@@ -9476,8 +10562,8 @@ tool2_tab12$server<-function(id,vals){
 }
 
 # Datalist manager
-tool2_tab13 <- list()
-tool2_tab13$ui <- function(id) {
+tool2_tab14 <- list()
+tool2_tab14$ui <- function(id) {
   ns <- NS(id)
 
   div(
@@ -9520,7 +10606,7 @@ tool2_tab13$ui <- function(id) {
     )
   )
 }
-tool2_tab13$server <- function(id, vals) {
+tool2_tab14$server <- function(id, vals) {
 
   moduleServer(id, function(input, output, session) {
 
@@ -9892,8 +10978,8 @@ tool2_tab13$server <- function(id, vals) {
 }
 
 # Delete Datalists
-tool2_tab14<-list()
-tool2_tab14$ui<-function(id){
+tool2_tab15<-list()
+tool2_tab15$ui<-function(id){
   ns<-NS(id)
   div(class="p10",
       div(strong("Delete Datalists")),
@@ -9904,7 +10990,7 @@ tool2_tab14$ui<-function(id){
       )
   )
 }
-tool2_tab14$server<-function(id,vals){
+tool2_tab15$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
 
     observeEvent(vals$saved_data,{
@@ -13557,6 +14643,7 @@ toolbar$server<-function(id, vals=NULL){
   })
 }
 
+
 #' @export
 pre_process<-list()
 #' @export
@@ -13849,7 +14936,6 @@ pre_process$server<-function(id, vals){
       shinyjs::toggleClass(selector=".swib",class='off')
     })
     observeEvent(input$create_datalist,ignoreInit = T,{
-      vals$reset_create_datalist <- Sys.time()
       showModal(tool1$ui(session$ns("tool1")))
       #vals$cur_dl<-1
     })
@@ -13873,6 +14959,10 @@ pre_process$server<-function(id, vals){
       updateNavbarPage(session,"toolbar-radio_cogs", selected="tool_close")
       shinyjs::hide(selector=".fade_pp")
     })
+    observeEvent(vals$exit_tool12,{
+      updateNavbarPage(session,"toolbar-radio_cogs", selected="tool_close")
+      shinyjs::hide(selector=".fade_pp")
+    })
     observeEvent(input$save_bug,{
       saveRDS(reactiveValuesToList(input),"input.rds")
 
@@ -13881,4 +14971,3 @@ pre_process$server<-function(id, vals){
     toolbar$server("toolbar",vals)
   })
 }
-

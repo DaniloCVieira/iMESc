@@ -60,7 +60,7 @@ check_debian_system_packages <- function() {
     "cmake",
     "pkg-config",
     "libfontconfig1-dev",
-    "libfreetype-dev",
+    "libfreetype6-dev",
     "libssl-dev",
     "libabsl-dev",
     "libnlopt-dev",
@@ -79,30 +79,51 @@ check_debian_system_packages <- function() {
     "pandoc"
   )
 
-  installed <- vapply(
-    system_packages,
-    function(pkg) {
-
-      result <- suppressWarnings(
-        system2(
-          dpkg_query,
-          args = c("-s", pkg),
-          stdout = TRUE,
-          stderr = FALSE
-        )
-      )
-
-      any(
-        grepl(
-          "^Status: install ok installed$",
-          result
-        )
-      )
-    },
-    logical(1)
+  status <- suppressWarnings(
+    system2(
+      dpkg_query,
+      args = c(
+        "-W",
+        "-f=${binary:Package}\t${Status}\n",
+        system_packages
+      ),
+      stdout = TRUE,
+      stderr = FALSE
+    )
   )
 
-  missing <- system_packages[!installed]
+  installed_rows <- status[
+    grepl(
+      "\tinstall ok installed",
+      status,
+      fixed = TRUE
+    )
+  ]
+
+  installed_packages <- sub(
+    "\t.*$",
+    "",
+    installed_rows
+  )
+
+  missing <- setdiff(
+    system_packages,
+    installed_packages
+  )
+
+  missing <- missing[
+    !grepl(
+      ":",
+      missing,
+      fixed = TRUE
+    )
+  ]
+
+  missing <- unique(missing)
+
+  missing <- missing[
+    nzchar(missing)
+  ]
 
   if (length(missing) > 0L) {
 
@@ -116,6 +137,7 @@ check_debian_system_packages <- function() {
       ),
       call. = FALSE
     )
+
   }
 
   invisible(TRUE)

@@ -1260,31 +1260,36 @@ sl_metrics_format<-function(table,round){
   numeric_cols <- sapply(table, is.numeric)
   req(length(numeric_cols)>0)
   container=sl_metrics_container(table)
-  dt<-DT::formatStyle(
+  dt <- DT::formatStyle(
     DT::formatStyle(
-      DT::datatable(
-        as.matrix(table),
-        extensions = c('FixedColumns',"FixedHeader"),
-
-        escape=F,
-        container =container,
-        options=list(
-          info=FALSE,dom = 't',
-
-
-          rownames=F,
-          autoWidth=T,
-          deferRender = TRUE,
-          scroller = TRUE,
-          info = FALSE,
-          fixedColumns = list(leftColumns = 2, rightColumns = 0),
-          fixedHeader = 2
-        )
-      )%>%
-        DT::formatRound(columns = which(numeric_cols), digits = round) ,
-
-      c(1), `border-left` = "solid 1px"
-    ),       border_positions, `border-right` = "solid 1px"
+      DT::formatRound(
+        DT::datatable(
+          as.matrix(table),
+          extensions = c("FixedColumns", "FixedHeader"),
+          escape = FALSE,
+          container = container,
+          options = list(
+            info = FALSE,
+            dom = "t",
+            rownames = FALSE,
+            autoWidth = TRUE,
+            deferRender = TRUE,
+            scroller = TRUE,
+            fixedColumns = list(
+              leftColumns = 2,
+              rightColumns = 0
+            ),
+            fixedHeader = 2
+          )
+        ),
+        columns = which(numeric_cols),
+        digits = round
+      ),
+      c(1),
+      `border-left` = "solid 1px"
+    ),
+    border_positions,
+    `border-right` = "solid 1px"
   )
 
 

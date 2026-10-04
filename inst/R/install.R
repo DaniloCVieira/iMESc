@@ -60,7 +60,7 @@ check_debian_system_packages <- function() {
     "cmake",
     "pkg-config",
     "libfontconfig1-dev",
-    "libfreetype6-dev",
+    "libfreetype-dev",
     "libssl-dev",
     "libabsl-dev",
     "libnlopt-dev",
@@ -79,51 +79,30 @@ check_debian_system_packages <- function() {
     "pandoc"
   )
 
-  status <- suppressWarnings(
-    system2(
-      dpkg_query,
-      args = c(
-        "-W",
-        "-f=${binary:Package}\t${Status}\n",
-        system_packages
-      ),
-      stdout = TRUE,
-      stderr = FALSE
-    )
-  )
-
-  installed_rows <- status[
-    grepl(
-      "\tinstall ok installed",
-      status,
-      fixed = TRUE
-    )
-  ]
-
-  installed_packages <- sub(
-    "\t.*$",
-    "",
-    installed_rows
-  )
-
-  missing <- setdiff(
+  is_installed <- vapply(
     system_packages,
-    installed_packages
+    function(pkg) {
+
+      result <- suppressWarnings(
+        system2(
+          dpkg_query,
+          args = c(
+            "-W",
+            "-f='${Status}'",
+            shQuote(pkg)
+          ),
+          stdout = TRUE,
+          stderr = FALSE
+        )
+      )
+
+      length(result) > 0L &&
+        any(grepl("install ok installed", result, fixed = TRUE))
+    },
+    logical(1)
   )
 
-  missing <- missing[
-    !grepl(
-      ":",
-      missing,
-      fixed = TRUE
-    )
-  ]
-
-  missing <- unique(missing)
-
-  missing <- missing[
-    nzchar(missing)
-  ]
+  missing <- system_packages[!is_installed]
 
   if (length(missing) > 0L) {
 
@@ -137,8 +116,9 @@ check_debian_system_packages <- function() {
       ),
       call. = FALSE
     )
-
   }
+
+  message("All required Debian/Ubuntu system packages are installed.")
 
   invisible(TRUE)
 }

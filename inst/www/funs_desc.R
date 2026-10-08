@@ -786,3 +786,126 @@ desc_xy_issues_ui<-function(res){
                              icon("circle-info")," ",paste(res$warn,collapse=" "))
   )
 }
+
+# ---- Scatter plot (Descriptive tools, tab 11) ------------------------------------------
+# x, y: named vectors (names = observation IDs), possibly from different Datalists;
+# color: optional one-column data.frame (factor or numeric) with IDs as rownames.
+#' @export
+desc_scatter_data<-function(x,y,color=NULL){
+  ids<-intersect(names(x),names(y))
+  validate(need(length(ids)>0,"X and Y have no observation IDs in common. Choose Datalists that share the same observations."))
+  if(!is.null(color)) ids<-intersect(ids,rownames(color))
+  validate(need(length(ids)>0,"The coloring Datalist has none of the observations of X and Y."))
+  df<-data.frame(id=ids,x=x[ids],y=y[ids],stringsAsFactors=FALSE)
+  if(!is.null(color)){
+    df$color<-color[ids,1]
+    attr(df,"color_name")<-colnames(color)
+  }
+  df<-df[!is.na(df$x)&!is.na(df$y),,drop=FALSE]
+  validate(need(nrow(df)>1,"At least two observations with X and Y values are needed."))
+  attr(df,"n_left_out")<-length(union(names(x),names(y)))-nrow(df)
+  attr(df,"color_name")<-if(!is.null(color)) colnames(color) else NULL
+  df
+}
+
+# groups used by trends, aggregation and statistics: the color factor, if any
+desc_scatter_group<-function(df){
+  if(!is.null(df$color)&&is.factor(df$color)) df$color else factor(rep("All",nrow(df)))
+}
+
+#' @export
+desc_scatter_stats<-function(df){
+  df$group<-desc_scatter_group(df)
+  is_time<-inherits(df$x,c("Date","POSIXt"))
+  out<-do.call(rbind,lapply(split(df,df$group,drop=TRUE),function(s){
+    xn<-as.numeric(s$x)
+    if(nrow(s)<3||stats::sd(xn)==0||stats::sd(s$y)==0){
+      return(data.frame(Group=as.character(s$group[1]),n=nrow(s),Pearson_r=NA,Spearman_rho=NA,R2=NA,Slope=NA,Intercept=NA,P_value=NA))
+    }
+    fit<-stats::lm(s$y~xn)
+    sm<-summary(fit)
+    data.frame(Group=as.character(s$group[1]),n=nrow(s),
+               Pearson_r=stats::cor(xn,s$y),
+               Spearman_rho=suppressWarnings(stats::cor(xn,s$y,method="spearman")),
+               R2=sm$r.squared,Slope=unname(stats::coef(fit)[2]),Intercept=unname(stats::coef(fit)[1]),
+               P_value=sm$coefficients[2,4])
+  }))
+  rownames(out)<-NULL
+  if(is_time) attr(out,"note")<-"With time on X, the slope is the change in Y per day (Date) or per second (date-time)."
+  out
+}
+
+#' @export
+gg_desc_scatter<-function(df,agg="none",err="se",show_raw=TRUE,trend="none",trend_se=TRUE,
+                          one_to_one=FALSE,log_x=FALSE,log_y=FALSE,facet=FALSE,
+                          colors=NULL,color_breaks=NULL,point_size=2,alpha=0.7,line_color="#05668D",
+                          theme="theme_bw",base_size=12,title="",xlab="X",ylab="Y",
+                          legend.position="right",x_angle=0){
+  has_color<-!is.null(df$color)
+  color_num<-has_color&&is.numeric(df$color)
+  df$group<-desc_scatter_group(df)
+  grouped<-nlevels(df$group)>1
+  color_title<-attr(df,"color_name")
+  theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
+  pal_n<-function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n)
+
+  p<-ggplot2::ggplot(df,ggplot2::aes(x=x,y=y))
+  if(isTRUE(one_to_one)) p<-p+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")
+
+  # raw points
+  if(identical(agg,"none")||isTRUE(show_raw)){
+    a<-if(identical(agg,"none")) alpha else min(alpha,0.25)
+    if(color_num){
+      p<-p+ggplot2::geom_point(ggplot2::aes(color=color),size=point_size,alpha=a)+
+        ggplot2::scale_color_gradientn(colours=if(is.null(colors)) grDevices::hcl.colors(256,"viridis") else colors(256),
+                                       name=color_title,limits=range(c(df$color,color_breaks),na.rm=TRUE),
+                                       breaks=if(is.null(color_breaks)) ggplot2::waiver() else color_breaks)
+    } else if(grouped){
+      p<-p+ggplot2::geom_point(ggplot2::aes(color=group),size=point_size,alpha=a)
+    } else{
+      p<-p+ggplot2::geom_point(color=line_color,size=point_size,alpha=a)
+    }
+  }
+
+  # mean +/- SE or SD of Y at each X value (per group)
+  if(!identical(agg,"none")){
+    sm<-do.call(rbind,lapply(split(df,list(df$group,df$x),drop=TRUE),function(s){
+      n<-sum(!is.na(s$y))
+      sdv<-if(n>1) stats::sd(s$y,na.rm=TRUE) else NA_real_
+      data.frame(x=s$x[1],group=s$group[1],mean=mean(s$y,na.rm=TRUE),n=n,
+                 err=if(identical(err,"sd")) sdv else sdv/sqrt(n))
+    }))
+    sm<-sm[order(sm$group,sm$x),,drop=FALSE]
+    if(grouped&&!color_num){
+      p<-p+ggplot2::geom_errorbar(data=sm,ggplot2::aes(x=x,ymin=mean-err,ymax=mean+err,color=group),inherit.aes=FALSE,width=0,na.rm=TRUE)+
+        ggplot2::geom_line(data=sm,ggplot2::aes(x=x,y=mean,color=group,group=group),inherit.aes=FALSE)+
+        ggplot2::geom_point(data=sm,ggplot2::aes(x=x,y=mean,color=group),inherit.aes=FALSE,size=point_size*1.2)
+    } else{
+      p<-p+ggplot2::geom_errorbar(data=sm,ggplot2::aes(x=x,ymin=mean-err,ymax=mean+err),inherit.aes=FALSE,width=0,color=line_color,na.rm=TRUE)+
+        ggplot2::geom_line(data=sm,ggplot2::aes(x=x,y=mean),inherit.aes=FALSE,color=line_color)+
+        ggplot2::geom_point(data=sm,ggplot2::aes(x=x,y=mean),inherit.aes=FALSE,color=line_color,size=point_size*1.2)
+    }
+    attr(p,"aggregated")<-sm
+  }
+
+  # trend lines fitted on the raw data (per group)
+  if(!identical(trend,"none")){
+    if(grouped&&!color_num){
+      p<-p+ggplot2::geom_smooth(ggplot2::aes(color=group,fill=group,group=group),method=trend,formula=y~x,se=isTRUE(trend_se),alpha=0.15,linewidth=0.9)
+    } else{
+      p<-p+ggplot2::geom_smooth(method=trend,formula=y~x,se=isTRUE(trend_se),color="#B2182B",fill="#B2182B",alpha=0.15,linewidth=0.9)
+    }
+  }
+
+  if(grouped&&!color_num){
+    p<-p+ggplot2::scale_color_manual(values=pal_n(nlevels(df$group)),name=color_title)+
+      ggplot2::scale_fill_manual(values=pal_n(nlevels(df$group)),name=color_title)
+  }
+  if(isTRUE(facet)&&grouped) p<-p+ggplot2::facet_wrap(~group)
+  if(isTRUE(log_x)&&!inherits(df$x,c("Date","POSIXt"))) p<-p+ggplot2::scale_x_log10()
+  if(isTRUE(log_y)) p<-p+ggplot2::scale_y_log10()
+  p<-p+ggplot2::labs(x=xlab,y=ylab,title=title)+theme_fun(base_size=base_size)+
+    ggplot2::theme(legend.position=legend.position)
+  if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  p
+}

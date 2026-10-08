@@ -112,6 +112,13 @@ desctools$ui<-function(id){
 
               uiOutput(ns("desc_tab10"))
 
+            ),
+            tabPanel(
+              '11. Scatter plot',
+              value="tab11",
+
+              uiOutput(ns("desc_tab11"))
+
             )
 
 
@@ -259,10 +266,21 @@ desctools$server<-function (id,vals ){
       NULL
     })
 
+    output$desc_tab11<-renderUI({
+      div(
+        desctools_tab11$ui(ns("scatter")),
+        uiOutput(ns('scatter_server'))
+      )
+    })
+    output$scatter_server<-renderUI({
+      desctools_tab11$server("scatter",vals)
+      NULL
+    })
+
 
 
     observe({
-      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8','tab10',"tab_omi",'tab2'))
+      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8','tab10','tab11',"tab_omi",'tab2'))
     })
     getdata_descX<-reactive({
       req(input$data_descX)
@@ -5397,9 +5415,20 @@ datalist_overview<-function(data,available_models){
   dfl<-list(
     'Numeric-Attribute'=data,
     'Factor-Attribute'=attr(data,"factors"),
-    'Coords-Attribute'=attr(data,"coords")
+    'Coords-Attribute'=attr(data,"coords"),
+    'Temporal-Attribute'=attr(data,"time")
   )
   dfl<-dfl[sapply(dfl,length)>0]
+
+  # temporal columns with their class and range
+  time_details<-function(time){
+    lapply(colnames(time),function(col){
+      x<-time[[col]]
+      x<-x[!is.na(x)]
+      rng<-if(length(x)&&(inherits(x,c("Date","POSIXt"))||is.numeric(x))) paste0(" [",format(min(x))," - ",format(max(x)),"]") else ""
+      div(style="padding-left: 20px",paste0(col,": ",paste(class(time[[col]]),collapse="/"),rng))
+    })
+  }
 
 
   shapel<-list(
@@ -5470,7 +5499,8 @@ datalist_overview<-function(data,available_models){
                 div(style="padding-left: 20px",span(class(data),
                                                     if(inherits(data,"data.frame")){
                                                       span(paste0("(",nrow(data),"x",ncol(data),")"))
-                                                    }))
+                                                    })),
+                if(identical(names(dfl)[i],"Temporal-Attribute")) time_details(data)
               )
             }))
         )
@@ -6101,3 +6131,203 @@ desctools_tab10$server<-function(id,vals){
   })
 }
 
+# Logic for tab 11 - Scatter plot
+# X and Y can come from different Datalists (matched by observation ID); X can be a
+# Numeric-Attribute variable or a Temporal-Attribute column. Points can be colored by a
+# factor or a numeric variable, summarised (mean +/- SE/SD at each X) and fitted with trends.
+desctools_tab11<-list()
+desctools_tab11$ui<-function(id){
+  ns<-NS(id)
+  div(
+    column(4,class="mp0",style="height: calc(100vh - 200px);overflow: auto",
+           box_caret(ns("sc_x"),title="X axis",color="#c3cc74ff",
+                     div(
+                       pickerInput_fromtop(ns("x_dl"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
+                       radioButtons(ns("x_attr"),NULL,c("Numeric-Attribute"="numeric","Temporal-Attribute"="time"),inline=TRUE),
+                       pickerInput_fromtop(ns("x_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+                     )),
+           box_caret(ns("sc_y"),title="Y axis",color="#c3cc74ff",
+                     div(
+                       pickerInput_fromtop(ns("y_dl"),tiphelp5("Datalist:","Can be a different Datalist from X; observations are matched by their IDs."),choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
+                       pickerInput_fromtop(ns("y_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+                     )),
+           box_caret(ns("sc_color"),
+                     title=span(style="display: inline-block",class="checktitle",
+                                checkboxInput(ns("use_color"),label=strong("Color points"),value=FALSE,width="150px")),
+                     color="#c3cc74ff",
+                     div(id=ns("color_out"),
+                         pickerInput_fromtop_live(ns("palette"),"Palette:",choices=NULL),
+                         points_color_source$ui(ns("sc_col")),
+                         checkboxInput(ns("facet"),tiphelp5("One panel per group","Available when the points are colored by a factor."),value=FALSE)
+                     )),
+           box_caret(ns("sc_summary"),title="Summary and trend",color="#c3cc74ff",
+                     div(
+                       pickerInput_fromtop(ns("agg"),tiphelp5("Aggregate Y","Mean of Y at each X value (and color group), with error bars. Useful when X is time or has repeated values."),
+                                           choices=c("None (all points)"="none","Mean +/- SE"="se","Mean +/- SD"="sd"),selected="none"),
+                       checkboxInput(ns("show_raw"),"Show raw points behind the means",value=TRUE),
+                       pickerInput_fromtop(ns("trend"),tiphelp5("Trend","Fitted on the raw observations, one line per color group."),
+                                           choices=c("None"="none","Linear (lm)"="lm","Smooth (loess)"="loess"),selected="none"),
+                       checkboxInput(ns("trend_se"),"Confidence band",value=TRUE),
+                       checkboxInput(ns("one_to_one"),"1:1 line",value=FALSE),
+                       div(style="display: flex; gap: 10px",
+                           checkboxInput(ns("log_x"),"log10 X",value=FALSE),
+                           checkboxInput(ns("log_y"),"log10 Y",value=FALSE))
+                     )),
+           box_caret(ns("sc_style"),title="Plot options",color="#c3cc74ff",hide_content=TRUE,
+                     div(
+                       div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                           numericInput(ns("point_size"),"Point:",value=2,min=0,step=0.2,width="90px"),
+                           numericInput(ns("alpha"),"Alpha:",value=0.7,min=0,max=1,step=0.1,width="90px"),
+                           numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1,width="90px")),
+                       colourpicker::colourInput(ns("line_color"),"Points/lines (no groups):",value="#05668D",showColour="background"),
+                       pickerInput_fromtop(ns("theme"),"Theme:",choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),selected="theme_bw"),
+                       textInput(ns("title"),"Title:",value=""),
+                       textInput(ns("xlab"),"X label:",value=""),
+                       textInput(ns("ylab"),"Y label:",value=""),
+                       pickerInput_fromtop(ns("legend"),"Legend:",choices=c("right","bottom","top","left","none"),selected="right"),
+                       div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                           numericInput(ns("x_angle"),"X angle:",value=0,min=0,max=90,step=15,width="90px"),
+                           numericInput(ns("height"),"Height:",value=480,min=200,step=20,width="90px"))
+                     ))
+    ),
+    column(8,class="mp0",
+           box_caret(ns("sc_plot"),title="Plot",
+                     button_title=actionLink(ns("down_plot"),span("Download plot",icon("fas fa-download"))),
+                     div(uiOutput(ns("note")),uiOutput(ns("plot_ui")))),
+           box_caret(ns("sc_table"),title="Statistics",
+                     button_title=actionLink(ns("down_table"),span("Download table",icon("fas fa-table"))),
+                     div(style="overflow-x: auto",tableOutput(ns("stats")),uiOutput(ns("stats_note"))))
+    )
+  )
+}
+
+desctools_tab11$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    for(b in c("sc_x","sc_y","sc_color","sc_summary","sc_plot","sc_table")) box_caret_server(b)
+    box_caret_server("sc_style",hide_content=TRUE)
+
+    observeEvent(vals$saved_data,{
+      choices<-names(vals$saved_data)
+      updatePickerInput(session,"x_dl",choices=choices,selected=get_selected_from_choices(isolate(input$x_dl)%||%vals$cur_data,choices))
+      updatePickerInput(session,"y_dl",choices=choices,selected=get_selected_from_choices(isolate(input$y_dl)%||%vals$cur_data,choices))
+    })
+    observeEvent(vals$newcolhabs,{
+      updatePickerInput(session,"palette",choices=vals$colors_img$val,choicesOpt=list(content=vals$colors_img$img),
+                        selected=get_selected_from_choices(isolate(input$palette)%||%"turbo",vals$colors_img$val))
+    })
+    observe({
+      shinyjs::toggle("color_out",condition=isTRUE(input$use_color))
+      shinyjs::toggle("show_raw",condition=!identical(input$agg,"none"))
+      shinyjs::toggle("trend_se",condition=!identical(input$trend,"none"))
+    })
+
+    x_data<-reactive({
+      req(input$x_dl%in%names(vals$saved_data))
+      vals$saved_data[[input$x_dl]]
+    })
+    y_data<-reactive({
+      req(input$y_dl%in%names(vals$saved_data))
+      vals$saved_data[[input$y_dl]]
+    })
+    x_table<-reactive({
+      d<-x_data()
+      if(identical(input$x_attr,"time")){
+        tt<-attr(d,"time")
+        validate(need(!is.null(tt)&&ncol(tt)>0,paste0("Datalist '",input$x_dl,"' has no Temporal-Attribute.")))
+        return(tt)
+      }
+      d[,vapply(d,is.numeric,logical(1)),drop=FALSE]
+    })
+    observeEvent(x_table(),{
+      choices<-colnames(x_table())
+      updatePickerInput(session,"x_var",choices=choices,selected=get_selected_from_choices(isolate(input$x_var),choices))
+    })
+    observeEvent(y_data(),{
+      choices<-colnames(y_data())[vapply(y_data(),is.numeric,logical(1))]
+      updatePickerInput(session,"y_var",choices=choices,selected=get_selected_from_choices(isolate(input$y_var),choices))
+    })
+
+    color_df<-points_color_source$server("sc_col",vals,reactive(x_data()))
+
+    x_vec<-reactive({
+      req(input$x_var%in%colnames(x_table()))
+      v<-x_table()[[input$x_var]]
+      if(identical(input$x_attr,"time")&&!inherits(v,c("Date","POSIXt"))&&!is.numeric(v)){
+        g<-guess_time_settings(v)
+        validate(need(g$type%in%c("date","datetime"),"The temporal column could not be read as dates. Format it in the Databank (Date)."))
+        v<-convert_time_column(v,g$type,g$format,g$custom)
+      }
+      setNames(v,rownames(x_table()))
+    })
+    y_vec<-reactive({
+      req(input$y_var%in%colnames(y_data()))
+      setNames(y_data()[[input$y_var]],rownames(y_data()))
+    })
+    sc_data<-reactive({
+      col<-if(isTRUE(input$use_color)) color_df() else NULL
+      desc_scatter_data(x_vec(),y_vec(),col)
+    })
+
+    sc_plot<-reactive({
+      df<-sc_data()
+      pal<-if(isTRUE(input$use_color)&&isTRUE(input$palette%in%names(vals$newcolhabs))) vals$newcolhabs[[input$palette]] else NULL
+      gg_desc_scatter(
+        df,
+        agg=if(identical(input$agg,"none")) "none" else "mean",
+        err=input$agg,
+        show_raw=isTRUE(input$show_raw),
+        trend=input$trend%||%"none",
+        trend_se=isTRUE(input$trend_se),
+        one_to_one=isTRUE(input$one_to_one),
+        log_x=isTRUE(input$log_x),log_y=isTRUE(input$log_y),
+        facet=isTRUE(input$facet),
+        colors=pal,color_breaks=if(isTRUE(input$use_color)) attr(color_df(),"breaks") else NULL,
+        point_size=input$point_size%||%2,alpha=input$alpha%||%0.7,
+        line_color=input$line_color%||%"#05668D",
+        theme=input$theme%||%"theme_bw",base_size=input$base_size%||%12,
+        title=input$title,
+        xlab=if(nzchar(input$xlab%||%"")) input$xlab else input$x_var,
+        ylab=if(nzchar(input$ylab%||%"")) input$ylab else input$y_var,
+        legend.position=input$legend%||%"right",
+        x_angle=input$x_angle%||%0
+      )
+    })
+    output$plot_ui<-renderUI({
+      plotOutput(ns("plot"),height=paste0(input$height%||%480,"px"))
+    })
+    output$plot<-renderPlot({
+      suppressMessages(print(sc_plot()))
+    })
+    output$note<-renderUI({
+      df<-sc_data()
+      notes<-character(0)
+      if(isTRUE(attr(df,"n_left_out")>0)) notes<-c(notes,paste0(attr(df,"n_left_out")," observation(s) without a match in both Datalists (or with missing values) were left out; ",nrow(df)," plotted."))
+      if(!identical(input$agg,"none")&&isTRUE(input$use_color)&&is.numeric(df$color)) notes<-c(notes,"Means are not colored by a numeric variable; color by a factor to get one mean line per group.")
+      if(!length(notes)) return(NULL)
+      div(style="font-size: 11px; color: #8a6d3b; padding: 0px 5px 4px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
+    })
+    sc_stats<-reactive(desc_scatter_stats(sc_data()))
+    output$stats<-renderTable({
+      sc_stats()
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs")
+    output$stats_note<-renderUI({
+      note<-attr(sc_stats(),"note")
+      if(is.null(note)) return(NULL)
+      div(style="font-size: 11px; color: #555555",em(note))
+    })
+
+    observeEvent(input$down_plot,ignoreInit=TRUE,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=sc_plot(),message="Scatter plot",
+                 name_c=paste0("scatter_",input$y_var,"_vs_",input$x_var),datalist_name=input$y_dl)
+    })
+    observeEvent(input$down_table,ignoreInit=TRUE,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download scatter statistics",
+                 data=sc_stats(),name=paste0("scatter_stats_",input$y_var,"_vs_",input$x_var))
+    })
+  })
+}

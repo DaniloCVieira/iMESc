@@ -1,373 +1,439 @@
 
-# Replace outlier values with NA in the provided dataset based on a list of identified outliers.
-remove_outliers<-function(d1,outliers){
-  if(is.null(outliers) || !nrow(outliers)){
-    return(d1)
-  }
-  stopifnot(all(c("id","var") %in% names(outliers)))
-  row_idx<-match(outliers$id, rownames(d1))
-  col_idx<-match(outliers$var, colnames(d1))
-  ok<-!is.na(row_idx)&!is.na(col_idx)
-  if(any(ok)){
-    d1[cbind(row_idx[ok], col_idx[ok])]<-NA
-  }
-  d1
-}
-# Identify outliers for each column of a dataset using quantiles and IQR-based thresholds.
-get_outliers<-function(data, q1=0.05,q2=0.95, upper_bound=1.5,lower_boud=1.5){
-  numeric_columns<-which(vapply(data,is.numeric,logical(1)))
-  if(!length(numeric_columns)){
-    return(data.frame())
-  }
-  outs<-lapply(numeric_columns,function(column) {
-    detect_outliers(data, column,q1,q2, upper_bound=upper_bound,lower_boud=lower_boud)
-  })
-  outs<-Filter(Negate(is.null),outs)
-  if(!length(outs)){
-    return(data.frame())
-  }
-  do.call(rbind,outs)
-}
-# Calculate the lower and upper bounds for identifying outliers based on IQR and thresholds.
-detect_outliers <- function(data, column,q1,q2, upper_bound=1.5,lower_boud=1.5) {
-  values <- data[[column]]
-  if(!is.numeric(values)){
-    return(NULL)
-  }
-  Q1 <- quantile(values, q1, na.rm = TRUE, names=FALSE)
-  Q3 <- quantile(values, q2, na.rm = TRUE, names=FALSE)
-  IQR <- Q3 - Q1
-  lower_bound <- Q1 - lower_boud * IQR
-  upper_bound <- Q3 + upper_bound * IQR
-  indices <- which(values < lower_bound | values > upper_bound)
-  if(!length(indices)){
-    return(NULL)
-  }
-  var <- colnames(data)[column]
-  data.frame(
-    variable=var,
-    var=var,
-    id=rownames(data)[indices],
-    value = values[indices],
-    Q1=as.numeric(Q1),
-    mean=mean(values,na.rm=TRUE),
-    Q3=as.numeric(Q3),
-    max=max(values,na.rm=TRUE),
-    stringsAsFactors=FALSE
-  )
-}
-imesc_outliers<-list()
-# Define the user interface for the outlier detection module, including input controls and output panels.
-imesc_outliers$ui <- function(id,vals) {
-  ns <- NS(id)
-  fluidRow(
-    column(
-      12, class = "mp0",
-      column(
-        4, class = "mp0",
-        box_caret(
-          ns("box1"),
-          title = "Setup",
-          color = "#c3cc74ff",
-          div(
-
-            virtualPicker(
-              ns("data_x"),
-              label=tiphelp5("Datalist", "Select the target datalist"),
-              choices=names(vals$saved_data), width='200px',optionHeight="20px",keepAlwaysOpen=F,
-              style="height: 24px",multiple = F
-            ),
-            numericInput(
-              ns("q1"),
-              tiphelp5("Quantile 1 (Q1)", "Enter the lower quantile threshold for detecting outliers (e.g., 0.05)."),
-              value = 0.05,
-              min = 0,
-              max = 1,
-              step = 0.01
-            ),
-            numericInput(
-              ns("q2"),
-              tiphelp5("Quantile 2 (Q2)", "Enter the upper quantile threshold for detecting outliers (e.g., 0.95)."),
-              value = 0.95,
-              min = 0,
-              max = 1,
-              step = 0.01
-            ),
-            numericInput(
-              ns("upper_bound"),
-              tiphelp5("Upper Bound Multiplier", "Set the multiplier for the upper bound (e.g., 1.5)."),
-              value = 1.5,
-              min = 0,
-              step = 0.1
-            ),
-            numericInput(
-              ns("lower_boud"),
-              tiphelp5("Lower Bound Multiplier", "Set the multiplier for the lower bound (e.g., 1.5)."),
-              value = 1.5,
-              min = 0,
-              step = 0.1
-            ),
-            actionButton(ns("run_outlier"),"RUN>>")
-
-          )),
-        div(id=ns("remove_control"),
-            box_caret(
-              ns("box2"),
-              color = "#c3cc74ff",
-              title="Select targets to remove",
-              div(style='display:flex',
-                  uiOutput(ns("result3"))
-
-              )
-            )
-        )
+# Outlier Handling (Options, tool 12): detection (univariate, temporal and multivariate),
+# visual inspection, selection of the flagged values and treatment into a new Datalist.
+tool2_outliers<-list()
+tool2_outliers$ui<-function(id){
+  ns<-NS(id)
+  div(
+    div(
+      class="tool10 tool2_tab10",
+      style="overflow-y: scroll; height: 100vh",
+      div(style="position: fixed; right: 80vw;top: 50px ",
+          actionButton(ns("exit_tool_outliers"),label=NULL,icon=icon("times"),style="padding: 0px; font-size: 15px; width: 20px; height: 20px;background: Brown; color: white; border: 0px;")),
+      h4(strong("Outlier Handling"),
+         tiphelp_icon(actionLink(ns("help"),label=NULL,icon=icon("fas fa-question-circle"),style="margin-left: 8px;"),"Click for more details","right")),
+      div(class="model_setup",
+          box_caret(ns("out_setup"),inline=F,title="Setup",color="#374061ff",
+                    div(style="display: flex;gap: 10px;height: 50px",class="setup_box",
+                        div(class="picker-flex",
+                            pickerInput_fromtop_live(ns("data_x"),"Datalist:",choices=NULL)),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("vars"),tiphelp5("Variables:","Numeric-Attribute variables to check."),choices=NULL,multiple=TRUE,
+                                                options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,selectedTextFormat="count > 3",countSelectedText="{0} variables selected"))),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("group"),tiphelp5("Group by:","Optional Factor-Attribute: the limits are computed within each level (e.g. each site or season), so values that are typical of one group are not flagged because of the others."),choices=c("None"="none"))),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("transf"),tiphelp5("Detect on:","Scale used by the detection. Skewed variables (e.g. concentrations, counts) are better checked on a log scale. The treated values are always written in the original units."),
+                                                choices=c("Original values"="none","log10"="log10","log(1+x)"="log1p","Square root"="sqrt"),selected="none")),
+                        div(id=ns("time_box"),class="picker-flex",
+                            pickerInput_fromtop(ns("time_col"),tiphelp5("Time:","Temporal-Attribute column used to order the observations (Hampel filter and index plots)."),choices=NULL))
+                    ))),
+      column(4,class="mp0",
+             box_caret(ns("out_detect"),title="Detection",color="#c3cc74ff",
+                       div(
+                         pickerInput_fromtop(ns("method"),
+                                             span("Method:",tiphelp_icon(actionLink(ns("method_help"),label=NULL,icon=icon("fas fa-question-circle"),style="margin-left: 5px; font-size: 13px;"),"Click for more details","right")),
+                                             choices=out_method_choices,selected="mad"),
+                         uiOutput(ns("method_help")),
+                         div(id=ns("k_box"),numericInput(ns("k"),"k:",value=3.5,min=0,step=0.5)),
+                         div(id=ns("q_box"),style="display: flex; gap: 8px",
+                             numericInput(ns("q1"),tiphelp5("Lower quartile:","Use 0.25 and 0.75 for the classical Tukey fences."),value=0.25,min=0,max=1,step=0.05,width="120px"),
+                             numericInput(ns("q2"),"Upper quartile:",value=0.75,min=0,max=1,step=0.05,width="120px")),
+                         div(id=ns("p_box"),style="display: flex; gap: 8px",
+                             numericInput(ns("p1"),"Lower percentile:",value=0.01,min=0,max=1,step=0.01,width="120px"),
+                             numericInput(ns("p2"),"Upper percentile:",value=0.99,min=0,max=1,step=0.01,width="120px")),
+                         div(id=ns("gesd_box"),style="display: flex; gap: 8px",
+                             numericInput(ns("max_out"),tiphelp5("Max outliers:","Upper bound for the number of outliers tested in each variable (and group)."),value=10,min=1,step=1,width="120px"),
+                             numericInput(ns("alpha"),"Alpha:",value=0.05,min=0.001,max=0.5,step=0.01,width="100px")),
+                         div(id=ns("window_box"),numericInput(ns("window"),tiphelp5("Half window:","Number of neighbouring time steps on each side used for the rolling median and MAD."),value=5,min=1,step=1)),
+                         div(id=ns("maha_box"),numericInput(ns("maha_alpha"),tiphelp5("Alpha:","Observations with a squared distance above the chi-square quantile 1 - alpha (degrees of freedom = number of variables) are flagged."),value=0.025,min=0.0001,max=0.5,step=0.005)),
+                         div(id=ns("direction_box"),
+                             pickerInput_fromtop(ns("direction"),"Flag values:",choices=c("Below and above the limits"="both","Below the lower limit only"="low","Above the upper limit only"="high"),selected="both")),
+                         actionButton(ns("run"),"Detect",icon=icon("magnifying-glass"))
+                       )),
+             box_caret(ns("out_treat"),title="Treatment",color="#c3cc74ff",
+                       div(
+                         uiOutput(ns("selection_ui")),
+                         pickerInput_fromtop(ns("action"),tiphelp5("Action:","Replace by NA: the values can then be filled with the Data imputation tool. Cap: values beyond the limits receive the limit (winsorizing). Median: the median of the variable (in the group), computed without the flagged values. Remove: the observations are deleted from the Datalist."),
+                                             choices=c("Replace by NA"="na","Cap at the limits"="cap","Replace by the median"="median","Remove the observations"="remove"),selected="na"),
+                         div(style="display: flex; gap: 10px",
+                             actionButton(ns("preview"),"Preview",style="height: 30px"),
+                             div(class="save_changes",
+                                 actionButton(ns("save"),"Create Datalist",icon=icon("fas fa-save"),style="height: 30px")))
+                       ))
       ),
-      column(
-        8,class="mp0",
-        box_caret(
-          ns("box3"),
-          title="Plot",
-          button_title2=
-            radioGroupButtons(
-              ns("result"),NULL,
-              c("Summary","Result","Remove"),selected='Summary'
-            ),
-          tabsetPanel(
-            title=NULL,
-            id=ns("result_panel"),
-            type="hidden",
-            tabPanel(
-              'Summary',
-              uiOutput(ns("result1"))
-            ),
-            tabPanel(
-              'Result',
-              div(style="overflow-x: auto",
-                  uiOutput(ns("result2"))
-              )
-            ),
-            tabPanel(
-              'Remove',
-              div(style="overflow-x: auto",
-                  div(style="display: flex",
-                      actionButton(ns('run_remove'),tiphelp5("Pre-RUN","This is a pre-run: selected targets will be replaced with NAs"),style="height: 30px"),
-                      div(actionLink(ns('reset'),"[reset]"))
-                  ),
-                  uiOutput(ns("result6")),
-                  checkboxInput(ns('show_boxplot'),tiphelp5("Show boxplot","Generates a boxplot with selected targets")),
-
-                  div(
-                    uiOutput(ns('result5'))
-                  )
-              )
-            )
-          )
-        )
+      column(8,class="mp0",
+             box_caret(ns("out_results"),title="Results",
+                       button_title=span(actionLink(ns("down_plot"),span("Download plot",icon("fas fa-download"))),
+                                         actionLink(ns("down_table"),span("Download table",icon("fas fa-table")),style="margin-left: 10px")),
+                       button_title2=radioGroupButtons(ns("view"),NULL,c("Summary"="summary","Plots"="plots","Flagged values"="flags","Preview"="preview")),
+                       div(
+                         uiOutput(ns("status")),
+                         div(id=ns("plot_opts"),style="display: flex; gap: 10px",
+                             pickerInput_fromtop(ns("plot_type"),"Plot:",choices=NULL,width="220px"),
+                             div(id=ns("plot_vars_box"),
+                                 pickerInput_fromtop(ns("plot_vars"),"Variables:",choices=NULL,multiple=TRUE,width="220px",
+                                                     options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,selectedTextFormat="count > 2"))),
+                             numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1,width="90px")),
+                         uiOutput(ns("results_ui"))
+                       ))
       )
     )
   )
 }
-# Define the server logic for the outlier detection module, including data processing and interactivity.
-imesc_outliers$server<-function (id,vals ){
 
+tool2_outliers$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    for(b in c("out_setup","out_detect","out_treat","out_results")) box_caret_server(b)
+    first_or<-function(sel,choices) if(length(sel)==1&&sel%in%choices) sel else unname(choices[1])
 
-
-  moduleServer(id,function(input, output, session){
-    observeEvent(input$result,{
-      updateTabsetPanel(session,'result_panel',selected=input$result)
+    observeEvent(input$exit_tool_outliers,{
+      vals$exit_tool_outliers<-input$exit_tool_outliers
     })
-
-    observe({
-      shinyjs::toggle('remove_control', condition=input$result=="Remove")
-    })
-
-
-    cur_outliers<-reactiveVal()
-    observeEvent(input$run_outlier,ignoreInit = T,{
-      data<-vals$saved_data[[input$data_x]]
-      outs<-get_outliers(data,
-                         q1=input$q1,
-                         q2=input$q2,
-                         upper_bound=input$upper_bound,
-                         lower_boud=input$lower_boud)
-
-      cur_outliers(outs)
-
-
-    })
-
-    output$result1<-renderUI({
-      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
-      outs<-  cur_outliers()
-      n_outliers<-sapply(split(outs,outs$variable),nrow)
-
-
-      div(
-        div(em("Total number of outlier values detected:"),  strong(sum(n_outliers))),
-        div(class="half-drop-inline",
-            fixed_dt(   data.frame(n_outliers))
-
+    observeEvent(input$help,{
+      showModal(modalDialog(
+        title="Outlier Handling",easyClose=TRUE,footer=modalButton("Close"),size="l",
+        div(style="line-height: 1.45; font-size: 13px;",
+            div(style="border-left: 5px solid #81b37a; background: #f5faf3; padding: 12px 14px; margin-bottom: 12px;",
+                h4("Workflow",style="margin-top: 0; color: #2f6f3e;"),
+                p("1. ",strong("Setup:")," choose the Datalist, the variables, an optional grouping factor and the scale of the detection."),
+                p("2. ",strong("Detection:")," choose a method and click Detect. Nothing is changed in the data."),
+                p("3. ",strong("Results:")," inspect the summary, the plots and the flagged values. An extreme value is not necessarily an error: check whether it is a measurement problem or a real, rare event."),
+                p("4. ",strong("Treatment:")," keep only the flags you want to treat, choose an action, Preview it and Create a new Datalist. The original Datalist is not modified."),
+                p(em("The detection methods are explained in the help next to the Method selector.")))
         )
-      )
+      ))
+    })
+    observeEvent(input$method_help,{
+      method_box<-function(title,color,...){
+        div(style=paste0("border-left: 5px solid ",color,"; background: #fafafa; padding: 8px 12px; margin-bottom: 10px;"),
+            h4(title,style=paste0("margin-top: 0; color: ",color,";")),...)
+      }
+      showModal(modalDialog(
+        title="Outlier detection methods",easyClose=TRUE,footer=modalButton("Close"),size="l",
+        withMathJax(div(
+          class="formulas",style="line-height: 1.45; font-size: 13px;",
+          p("Each method computes limits (or a distance) for every selected variable and, with ",strong("Group by"),", separately within each level of the factor. With ",strong("Detect on")," = log10, log(1+x) or square root, the detection uses the transformed values and the limits are converted back to the original units. ",strong("Flag values")," restricts the univariate methods to the low or the high side."),
+          method_box("IQR (Tukey fences)","#05668D",
+                     p("$$Q_1 - k\\,\\mathrm{IQR} \\le x_i \\le Q_3 + k\\,\\mathrm{IQR}, \\qquad \\mathrm{IQR}=Q_3-Q_1$$"),
+                     p("Values outside the fences are flagged. ",strong("k = 1.5")," marks mild outliers and ",strong("k = 3")," extreme outliers (Tukey 1977). The quartiles can be changed (e.g. 0.10 and 0.90 for wider fences). Makes no assumption of normality and is little affected by the outliers themselves, but on skewed variables it flags many values of the long tail: use Detect on = log10 for such variables. Score: distance beyond the fence, in IQR units.")),
+          method_box("Z-score (mean / SD)","#05668D",
+                     p("$$z_i=\\frac{x_i-\\bar{x}}{s}, \\qquad |z_i|>k$$"),
+                     p("Usual k = 3. Assumes approximately normal data. The mean and the standard deviation are pulled by the outliers, which can hide them (masking), especially in small samples; prefer the robust z.")),
+          method_box("Robust z (median / MAD)","#05668D",
+                     p("$$z_i^{\\mathrm{rob}}=\\frac{x_i-\\tilde{x}}{\\mathrm{MAD}}, \\qquad \\mathrm{MAD}=1.4826\\cdot\\mathrm{median}\\left(|x_i-\\tilde{x}|\\right), \\qquad |z_i^{\\mathrm{rob}}|>k$$"),
+                     p("\\(\\tilde{x}\\) is the median; the constant 1.4826 makes the MAD comparable to the SD for normal data. Usual k = 3.5 (Iglewicz & Hoaglin 1993). Robust: the outliers barely change the median and the MAD. If more than half of the values are equal, MAD = 0 and nothing is flagged.")),
+          method_box("Percentiles","#05668D",
+                     p("$$x_i<P_{\\mathrm{low}} \\quad \\text{or} \\quad x_i>P_{\\mathrm{high}}$$"),
+                     p("Always flags about the same fraction of the data (e.g. 1% on each side), even when there are no outliers. Use it for trimming or winsorizing the tails, not to find errors.")),
+          method_box("Generalized ESD (Rosner 1983)","#05668D",
+                     p("For \\(j = 1, \\dots, r\\) the most extreme value is removed and tested:"),
+                     p("$$R_j=\\frac{\\max_i |x_i-\\bar{x}|}{s}, \\qquad \\lambda_j=\\frac{(n-j)\\,t_{p,\\,n-j-1}}{\\sqrt{\\left(n-j-1+t_{p,\\,n-j-1}^2\\right)(n-j+1)}}, \\qquad p=1-\\frac{\\alpha}{2(n-j+1)}$$"),
+                     p("The number of outliers is the largest j with \\(R_j>\\lambda_j\\). A formal test for up to r (Max outliers) outliers in approximately normal data; it avoids the masking of the simple z-score.")),
+          method_box("Hampel filter (time series)","#2f6f3e",
+                     p("$$|x_t-\\mathrm{med}_t|>k\\cdot\\mathrm{MAD}_t$$"),
+                     p("\\(\\mathrm{med}_t\\) and \\(\\mathrm{MAD}_t\\) are computed in a moving window with the w neighbouring time steps on each side (Half window), ordered by the Time column. It finds spikes that are unusual for their period but not extreme for the whole series (e.g. a summer value in winter). With several sites, use Group by = site so that each series is filtered separately. Usual k = 3.")),
+          method_box("Mahalanobis distance (multivariate)","#8a4f9e",
+                     p("$$D_i^2=(\\mathbf{x}_i-\\boldsymbol{\\mu})^{\\top}\\,\\boldsymbol{\\Sigma}^{-1}\\,(\\mathbf{x}_i-\\boldsymbol{\\mu}), \\qquad D_i^2>\\chi^2_{p,\\,1-\\alpha}$$"),
+                     p("Flags observations with an unusual combination of values, considering the correlations among the p variables, even when each value alone is ordinary. The cutoff is the chi-square quantile with p degrees of freedom. Uses complete observations and needs more observations than variables; constant or collinear variables make \\(\\boldsymbol{\\Sigma}\\) singular. The classical \\(\\boldsymbol{\\mu}\\) and \\(\\boldsymbol{\\Sigma}\\) are pulled by the outliers."),
+                     p(strong("Robust version:")," \\(\\boldsymbol{\\mu}\\) and \\(\\boldsymbol{\\Sigma}\\) are re-estimated iteratively without the 25% most distant observations, and \\(\\boldsymbol{\\Sigma}\\) is rescaled so that \\(\\mathrm{median}(D^2)=\\chi^2_{p,\\,0.5}\\). The outliers then stand out instead of masking each other. The Q-Q plot compares the distances with the chi-square distribution."))
+        ))
+      ))
     })
 
-
-    output$result2<-renderUI({
-      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
-      div(class="half-drop-inline",
-          fixed_dt(  cur_outliers())
-
-      )
+    # ---- setup
+    observeEvent(vals$saved_data,{
+      ok<-vapply(vals$saved_data,function(d) any(vapply(d,is.numeric,logical(1))),logical(1))
+      ch<-names(vals$saved_data)[ok]
+      updatePickerInput(session,"data_x",choices=ch,selected=first_or(isolate(input$data_x)%||%vals$cur_data,ch))
     })
-
-
-    boxplot<-reactive({
-      req(input$show_boxplot)
-      outs<-cur_outliers()
-      req(outs)
-      row<-as.numeric(input$out_selected)
-      req(length(row)>0)
-      outs<-outs[row,]
-
-      data<-pre_run()
-      d1<-data[,unique(outs$variable)]
-
-      oi<-split(outs$id, outs$variable)
-      d2<-reshape2::melt(data.frame(id=rownames(d1),d1),"id")
-      li<-split(d2,d2$variable)
-      d3<-do.call(rbind,lapply(names(li),function(i){
-        x<-li[[i]]
-        x$out_flag<-x$id%in%oi[[i]]
-        x
-      }))
-      res<-data.frame(d3)
-      p<-ggplot(res, aes(x=variable, y=value))
-      p<-p+stat_boxplot(geom='errorbar', linetype=1, width=0.3,color='gray20')+
-        geom_boxplot(fill="white")+  geom_boxplot(varwidth =F,size=1,color="gray20")
-      p+ geom_point(
-        aes(color = out_flag)
-      )+scale_color_manual(values=c("red","darkblue"))+
-        theme(
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
-        )
-    })
-
-    bag<-reactiveVal(F)
-    output$result6<-renderUI({
-      req(isTRUE(bag()))
-      outs<-cur_outliers()
-      row<-as.numeric(input$out_selected)
-      req(length(row)>0)
-
-      outs<-outs[row,]
-
-      n_outliers<- nrow(outs)
-      div(style="display: flex; gap: 20px",
-          div(
-            em("Total number of outlier values replaced by NAs:"),  strong(sum(n_outliers))
-          ),
-          div(class="save_changes",
-              actionButton(session$ns("save"),icon("fas fa-save"))
-          )
-      )
-    })
-
-    observeEvent(input$save,{
-
-      data_o<-vals$saved_data[[input$data_x]]
-      data<-pre_run()
-      data<-data_migrate(data_o,data)
-      bag<-paste0(input$data_x,"_","rm_outs")
-      attr(data,"bag")<-bag
-      vals$newdatalist<-data
-      module_save_changes$ui(session$ns("isp-create"), vals)
-    })
-    module_save_changes$server("isp-create", vals)
-
-
-
-    output$result5<-renderUI({
-
-
-
-      renderPlot(
-        boxplot()
-
-      )
-    })
-
-    output$result4<-renderUI({
-      outs<-cur_outliers()
-      row<-as.numeric(input$out_selected)
-      renderPrint(
-        outs[row,]
-      )
-    })
-
-    observe({
-      shinyjs::toggle('reset',condition=length(input$out_selected)>0)
-      shinyjs::toggle('run_remove',condition=length(input$out_selected)>0)
-    })
-
-    observeEvent(input$reset,{
-      bag(FALSE)
-      pre_run(vals$saved_data[[input$data_x]])
-    })
-    pre_run<-reactiveVal()
-
-
-    observeEvent(input$data_x,{
+    data<-reactive({
       req(input$data_x%in%names(vals$saved_data))
-      pre_run(vals$saved_data[[input$data_x]])
+      vals$saved_data[[input$data_x]]
+    })
+    num_vars<-reactive({
+      d<-data()
+      colnames(d)[vapply(d,is.numeric,logical(1))]
+    })
+    observeEvent(num_vars(),{
+      ch<-num_vars()
+      old<-isolate(input$vars)
+      updatePickerInput(session,"vars",choices=ch,selected=if(length(old)&&all(old%in%ch)) old else ch)
+    })
+    observeEvent(data(),{
+      fac<-attr(data(),"factors")
+      ch<-c("None"="none",if(!is.null(fac)) colnames(fac))
+      updatePickerInput(session,"group",choices=ch,selected=first_or(isolate(input$group),ch))
+      tt<-attr(data(),"time")
+      tch<-if(!is.null(tt)&&ncol(tt)) colnames(tt) else character(0)
+      updatePickerInput(session,"time_col",choices=tch,selected=first_or(isolate(input$time_col),tch))
+      shinyjs::toggle("time_box",condition=length(tch)>0)
+      result(NULL)
+    })
+    group_vec<-reactive({
+      if(identical(input$group%||%"none","none")) return(NULL)
+      fac<-attr(data(),"factors")
+      req(input$group%in%colnames(fac))
+      fac[rownames(data()),input$group]
+    })
+    time_vec<-reactive({
+      tt<-attr(data(),"time")
+      if(is.null(tt)||!isTRUE(input$time_col%in%colnames(tt))) return(NULL)
+      v<-tryCatch(desc_scatter_vector(as.data.frame(tt)[rownames(data()),,drop=FALSE],input$time_col,"time"),error=function(e) NULL)
+      if(is.null(v)) return(NULL)
+      unname(v)
     })
 
-    observeEvent(input$run_remove,{
-      outs<-cur_outliers()
-      row<-as.numeric(input$out_selected)
-      req(length(row)>0)
-      outs<-outs[row,]
-      data<-vals$saved_data[[input$data_x]]
-      newdata<-remove_outliers(data,outs)
-      pre_run(newdata)
-      bag(T)
+    # ---- method options
+    observeEvent(input$method,{
+      k<-switch(input$method,iqr=1.5,z=3,mad=3.5,hampel=3,NULL)
+      if(!is.null(k)) updateNumericInput(session,"k",value=k)
     })
-    output$result3<-renderUI({
-      validate(need(length(cur_outliers())>0,"Outliers were not analysed yet"))
-      outs<-cur_outliers()
-      outs$input_id<-1:nrow(outs)
-      choices=split(outs[c('id' ,"input_id")],outs$variable)
+    observe({
+      m<-input$method%||%"mad"
+      shinyjs::toggle("k_box",condition=m%in%c("iqr","z","mad","hampel"))
+      shinyjs::toggle("q_box",condition=identical(m,"iqr"))
+      shinyjs::toggle("p_box",condition=identical(m,"pct"))
+      shinyjs::toggle("gesd_box",condition=identical(m,"gesd"))
+      shinyjs::toggle("window_box",condition=identical(m,"hampel"))
+      shinyjs::toggle("maha_box",condition=m%in%out_multivariate)
+      shinyjs::toggle("direction_box",condition=!m%in%out_multivariate)
+    })
+    output$method_help<-renderUI({
+      txt<-switch(input$method%||%"mad",
+                  iqr="Flags values below Q1 - k IQR or above Q3 + k IQR. k = 1.5: mild outliers; k = 3: extreme outliers.",
+                  z="Flags values more than k standard deviations from the mean. Assumes approximate normality.",
+                  mad="Flags values more than k MADs from the median (k = 3.5 is usual). Robust to the outliers themselves.",
+                  pct="Flags values outside the chosen percentiles (always a fixed fraction of the data).",
+                  gesd="Rosner test for up to 'Max outliers' outliers per variable, for approximately normal data.",
+                  hampel="Compares each value with the rolling median and MAD of its neighbours in time (ordered by the Time column or by the row order). Use Group by for several sites.",
+                  maha="Flags observations whose combination of values is unusual (distance to the centre, accounting for correlations). Uses complete observations.",
+                  maha_robust="Mahalanobis distance with the centre and covariance estimated after trimming the most distant observations, so that outliers do not mask each other.")
+      div(style="font-size: 11px; color: #555555; padding-bottom: 6px",em(txt))
+    })
 
-      choices=lapply(choices,function(x){
-        v=x$input_id
-        names(v)<-x$id
-        v
-      })
+    # ---- detection
+    result<-reactiveVal(NULL)
+    observeEvent(input$run,ignoreInit=TRUE,{
+      d<-data()
+      vars<-input$vars[input$vars%in%num_vars()]
+      if(!length(vars)){
+        showNotification("Select at least one numeric variable.",type="warning")
+        return()
+      }
+      if(input$method%in%out_multivariate&&length(vars)<2){
+        showNotification("The Mahalanobis distance needs at least two variables.",type="warning")
+        return()
+      }
+      if(identical(input$method,"hampel")&&is.null(time_vec())) showNotification("No Time column: the Hampel filter uses the row order of the Datalist.",type="message")
+      r<-tryCatch(out_detect(d,vars,input$method,k=input$k%||%3.5,q=c(input$q1,input$q2),p=c(input$p1,input$p2),
+                             alpha=if(input$method%in%out_multivariate) input$maha_alpha else input$alpha,
+                             max_out=input$max_out%||%10,window=input$window%||%5,
+                             group=group_vec(),time=time_vec(),direction=input$direction%||%"both",transf=input$transf%||%"none"),
+                  error=function(e) conditionMessage(e))
+      if(is.character(r)){
+        showNotification(paste("Detection failed:",r),type="error")
+        return()
+      }
+      r$datalist<-input$data_x
+      r$group<-group_vec()
+      result(r)
+      treated(NULL)
+      ptypes<-if(identical(r$type,"multivariate")) c("Distance"="distance","Chi-square Q-Q"="qq") else
+        c("Boxplot"="box","Index / time series"="index","Histogram"="hist","Flags per variable"="count","Flag map (observations x variables)"="heat")
+      updatePickerInput(session,"plot_type",choices=ptypes,selected=first_or(isolate(input$plot_type),ptypes))
+      pv<-r$vars
+      updatePickerInput(session,"plot_vars",choices=pv,selected=pv[seq_len(min(12,length(pv)))])
+      updateRadioGroupButtons(session,"view",selected="summary")
+      ach<-if(identical(r$type,"multivariate")) c("Replace the observation values by NA"="na","Remove the observations"="remove") else
+        c("Replace by NA"="na","Cap at the limits"="cap","Replace by the median"="median","Remove the observations"="remove")
+      updatePickerInput(session,"action",choices=ach,selected=first_or(isolate(input$action),ach))
+    })
+    flags<-reactive({
+      r<-result()
+      validate(need(!is.null(r),"Choose the setup and the method, then click Detect."))
+      f<-r$flags
+      if(is.null(f)) f<-data.frame()
+      f
+    })
 
-
-
+    # ---- selection of the flags to treat (all selected by default)
+    output$selection_ui<-renderUI({
+      f<-tryCatch(flags(),error=function(e) NULL)
+      if(is.null(f)||!nrow(f)) return(div(style="font-size: 11px; color: #555555; padding-bottom: 6px",em("Run the detection to select the flagged values to treat.")))
+      lab<-paste0(f$id,if(!is.null(f$value)) paste0(" (",signif(f$value,4),")") else "",
+                  if(length(unique(f$group))>1) paste0(" [",f$group,"]") else "")
+      v<-as.character(seq_len(nrow(f)))
+      choices<-lapply(split(seq_len(nrow(f)),as.character(f$variable)),function(ii) stats::setNames(v[ii],lab[ii]))
       div(
-        virtualPicker(
-          session$ns("out_selected"),
-          label = NULL,
-          choices = choices,
-          multiple = TRUE,
-          search = TRUE,
-          showGroups = TRUE,
-          style="font-size: ",
-          width="250px"
-        )
+        tags$label(tiphelp5("Flags to treat:","All flagged values are selected; deselect those that are valid observations.")),
+        virtualPicker(ns("selected"),label=NULL,choices=choices,selected=v,multiple=TRUE,search=TRUE,showGroups=TRUE,keepAlwaysOpen=FALSE,width="260px")
       )
-
-
+    })
+    selected_flags<-reactive({
+      f<-flags()
+      req(nrow(f)>0)
+      sel<-suppressWarnings(as.integer(input$selected))
+      sel<-sel[!is.na(sel)&sel<=nrow(f)]
+      f[sel,,drop=FALSE]
     })
 
-    observeEvent(input$data_x,{
-      vals$cur_data<-input$data_x
+    # ---- treatment
+    treated<-reactiveVal(NULL)
+    run_treatment<-function(){
+      r<-result()
+      if(is.null(r)){
+        showNotification("Run the detection first.",type="warning")
+        return(NULL)
+      }
+      if(!identical(r$datalist,input$data_x)){
+        showNotification("The Datalist changed: run the detection again.",type="warning")
+        return(NULL)
+      }
+      f<-tryCatch(selected_flags(),error=function(e) NULL)
+      if(is.null(f)||!nrow(f)){
+        showNotification("No flagged values selected.",type="warning")
+        return(NULL)
+      }
+      d<-vals$saved_data[[r$datalist]]
+      out<-out_treat(d,f,input$action,vars=r$vars,group=r$group)
+      attr(out,"n_flags")<-nrow(f)
+      treated(out)
+      out
+    }
+    observeEvent(input$preview,ignoreInit=TRUE,{
+      if(!is.null(run_treatment())) updateRadioGroupButtons(session,"view",selected="preview")
+    })
+    observeEvent(input$save,ignoreInit=TRUE,{
+      out<-run_treatment()
+      req(out)
+      d<-vals$saved_data[[result()$datalist]]
+      new<-data_migrate(d,out)
+      attr(new,"bag")<-paste0(result()$datalist,"_",switch(input$action,remove="no_outliers",cap="capped",median="outliers_median","outliers_NA"))
+      vals$newdatalist<-new
+      module_save_changes$ui(ns("outliers_save"),vals)
+    })
+    module_save_changes$server("outliers_save",vals)
+
+    # ---- results
+    output$status<-renderUI({
+      r<-result()
+      if(is.null(r)) return(NULL)
+      f<-r$flags
+      nf<-if(is.null(f)) 0 else nrow(f)
+      nobs<-if(is.null(f)) 0 else length(unique(f$id))
+      ntot<-nrow(vals$saved_data[[r$datalist]]%||%data.frame())
+      txt<-if(identical(r$type,"multivariate")) paste0(nf," observation(s) flagged out of ",ntot,".") else
+        paste0(nf," value(s) flagged in ",nobs," observation(s) (",round(100*nobs/max(1,ntot),1),"% of the ",ntot," observations).")
+      div(style="padding: 2px 5px 6px 5px; font-size: 12px",
+          strong(txt),
+          if(length(r$errors)) div(style="color: #8a6d3b; font-size: 11px",icon("circle-info")," Not computed for ",paste(r$errors,collapse="; ")))
+    })
+    observe({
+      shinyjs::toggle("plot_opts",condition=identical(input$view,"plots"))
+      r<-result()
+      shinyjs::toggle("plot_vars_box",condition=!is.null(r)&&identical(r$type,"univariate")&&!isTRUE(input$plot_type%in%c("count","heat")))
+    })
+    plot_cells<-reactive({
+      r<-result()
+      req(r$type=="univariate")
+      v<-input$plot_vars
+      if(!length(v)) v<-r$vars
+      cells<-r$cells[as.character(r$cells$variable)%in%v,,drop=FALSE]
+      cells$variable<-droplevels(cells$variable)
+      cells
+    })
+    current_plot<-reactive({
+      r<-result()
+      validate(need(!is.null(r),"Choose the setup and the method, then click Detect."))
+      view<-input$view%||%"summary"
+      bs<-input$base_size%||%12
+      if(identical(view,"preview")){
+        tr<-treated()
+        validate(need(!is.null(tr),"Click Preview in the Treatment box."))
+        d<-vals$saved_data[[r$datalist]]
+        vs<-if(identical(input$action,"remove")) r$vars else unique(c(as.character(selected_flags()$variable)))
+        if(identical(vs,"(all variables)")) vs<-r$vars
+        return(gg_out_compare(d,tr,vs[seq_len(min(12,length(vs)))],base_size=bs))
+      }
+      if(identical(r$type,"multivariate")) return(gg_out_maha(r$obs,if(identical(input$plot_type,"qq")) "qq" else "distance",base_size=bs))
+      switch(input$plot_type%||%"box",
+             index=gg_out_index(plot_cells(),base_size=bs),
+             hist=gg_out_hist(plot_cells(),base_size=bs),
+             count=gg_out_count(r$summary,base_size=bs),
+             heat=gg_out_heat(r$flags,r$vars,base_size=bs),
+             gg_out_box(plot_cells(),base_size=bs))
+    })
+    plot_height<-reactive({
+      r<-result()
+      if(is.null(r)||identical(r$type,"multivariate")) return(450)
+      if(isTRUE(input$plot_type%in%c("count","heat"))&&identical(input$view,"plots")) return(max(450,if(identical(input$plot_type,"heat")) 14*min(60,length(unique(r$flags$id)))+120 else 450))
+      nv<-length(input$plot_vars%||%r$vars)
+      max(420,230*ceiling(nv/ceiling(sqrt(nv))))
+    })
+    output$plot<-renderPlot({
+      p<-current_plot()
+      suppressWarnings(suppressMessages(print(p)))
+    })
+    current_table<-reactive({
+      r<-result()
+      validate(need(!is.null(r),"Choose the setup and the method, then click Detect."))
+      view<-input$view%||%"summary"
+      if(identical(view,"flags")){
+        f<-r$flags
+        validate(need(!is.null(f)&&nrow(f)>0,"No values were flagged."))
+        cols<-intersect(c("id","variable","group","time","value","lower","upper","distance","cutoff","score","side"),colnames(f))
+        f<-f[,cols,drop=FALSE]
+        if(!is.null(f$time)) f$time<-format(f$time)
+        return(f)
+      }
+      if(identical(view,"preview")){
+        tr<-treated()
+        validate(need(!is.null(tr),"Click Preview in the Treatment box."))
+        d<-vals$saved_data[[r$datalist]]
+        return(do.call(rbind,lapply(r$vars,function(v) data.frame(
+          Variable=v,
+          N_before=sum(!is.na(d[[v]])),N_after=if(v%in%colnames(tr)) sum(!is.na(tr[[v]])) else NA,
+          Mean_before=mean(d[[v]],na.rm=TRUE),Mean_after=mean(tr[[v]],na.rm=TRUE),
+          SD_before=stats::sd(d[[v]],na.rm=TRUE),SD_after=stats::sd(tr[[v]],na.rm=TRUE),
+          Min_after=suppressWarnings(min(tr[[v]],na.rm=TRUE)),Max_after=suppressWarnings(max(tr[[v]],na.rm=TRUE))))))
+      }
+      r$summary
+    })
+    output$table<-renderTable({
+      current_table()
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
+    output$results_ui<-renderUI({
+      view<-input$view%||%"summary"
+      if(identical(view,"plots")) return(plotOutput(ns("plot"),height=paste0(plot_height(),"px")))
+      if(identical(view,"preview")){
+        tr<-treated()
+        info<-if(!is.null(tr)){
+          d<-vals$saved_data[[result()$datalist]]
+          if(identical(input$action,"remove")) paste0(nrow(d)-nrow(tr)," observation(s) removed; ",nrow(tr)," remain.")
+          else paste0(attr(tr,"n_flags")," flagged value(s) treated (",switch(input$action,cap="capped at the limits",median="replaced by the median","replaced by NA"),").")
+        }
+        return(div(
+          if(!is.null(info)) div(style="font-size: 12px; padding: 2px 5px",strong(info)),
+          plotOutput(ns("plot"),height="420px"),
+          div(style="overflow-x: auto",tableOutput(ns("table")))
+        ))
+      }
+      div(style="overflow-x: auto; max-height: 520px; overflow-y: auto",tableOutput(ns("table")))
     })
 
-
+    observeEvent(input$down_plot,ignoreInit=TRUE,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=current_plot(),message="Outlier plot",name_c=paste0("outliers_",input$plot_type%||%"plot"),datalist_name=input$data_x)
+    })
+    observeEvent(input$down_table,ignoreInit=TRUE,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download outlier table",data=current_table(),name=paste0("outliers_",input$view%||%"summary","_",input$data_x))
+    })
   })
-
 }
 
 generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="Balanced", groups=5){
@@ -2416,6 +2482,20 @@ tool2$ui<-function(id){
   tool2_tabs<-append(
     tool2_tabs,
     list(span(
+      "Outlier Handling",
+      icon(
+        "fas fa-question-circle",
+        class="text-info",
+        `data-toggle`="tooltip",
+        `data-placement`="right",
+        title="Detect, inspect and treat outliers (univariate, temporal and multivariate methods)."
+      )
+    )),
+    after=11
+  )
+  tool2_tabs<-append(
+    tool2_tabs,
+    list(span(
       "SMOTE",
       icon(
         "fas fa-question-circle",
@@ -2425,10 +2505,10 @@ tool2$ui<-function(id){
         title="Balance classes by creating synthetic observations from Numeric-Attribute variables."
       )
     )),
-    after=11
+    after=12
   )
   div(style="margin-top: -35px",
-      div(class="toolkit_items",style="width: 550px; height: 320px;      background: #00000095;; position: fixed;right: 0px; z-index: 9",),
+      div(class="toolkit_items",style="width: 550px; height: 410px;      background: #00000095;; position: fixed;right: 0px; z-index: 9",),
       tags$style(HTML("
       .tool2_tab9 .half-drop .form-control,
 .tool2_tab9,
@@ -2463,7 +2543,7 @@ tool2$ui<-function(id){
 
         lapply(seq_along(tool2_tabs),function(i){
           style=""
-          if(i%in%c(14,15)){
+          if(i%in%c(15,16)){
             style="color: brown"
           }
           div(actionButton(ns(paste0('tool_kit_',i)),
@@ -2520,14 +2600,17 @@ tool2$ui<-function(id){
                                  tool2_tab11$ui(ns("space_time"))
                         ),
                         tabPanel(tool2_tabs[12],value="tab12",
-                                 tool2_tab12$ui(ns("smote"))
+                                 tool2_outliers$ui(ns("outliers"))
                         ),
                         tabPanel(tool2_tabs[13],value="tab13",
-                                 tool2_tab13$ui(ns("code"))
+                                 tool2_tab12$ui(ns("smote"))
                         ),
                         tabPanel(tool2_tabs[14],value="tab14",
-                                 tool2_tab14$ui(ns("gen"))),
+                                 tool2_tab13$ui(ns("code"))
+                        ),
                         tabPanel(tool2_tabs[15],value="tab15",
+                                 tool2_tab14$ui(ns("gen"))),
+                        tabPanel(tool2_tabs[16],value="tab16",
                                  tool2_tab15$ui(ns("deldatalist"))
                         )
             )
@@ -2561,6 +2644,20 @@ tool2$server<-function(id,vals){
     tool2_tabs<-append(
       tool2_tabs,
       list(span(
+        "Outlier Handling",
+        icon(
+          "fas fa-question-circle",
+          class="text-info",
+          `data-toggle`="tooltip",
+          `data-placement`="right",
+          title="Detect, inspect and treat outliers (univariate, temporal and multivariate methods)."
+        )
+      )),
+      after=11
+    )
+    tool2_tabs<-append(
+      tool2_tabs,
+      list(span(
         "SMOTE",
         icon(
           "fas fa-question-circle",
@@ -2570,7 +2667,7 @@ tool2$server<-function(id,vals){
           title="Balance classes by creating synthetic observations from Numeric-Attribute variables."
         )
       )),
-      after=11
+      after=12
     )
 
     shinyjs::onevent("mouseleave", "toolkit", {
@@ -2596,6 +2693,7 @@ tool2$server<-function(id,vals){
       function() tool2_tab9$server("time", vals),
       function() tool2_tab10$server("time_lag", vals),
       function() tool2_tab11$server("space_time", vals),
+      function() tool2_outliers$server("outliers", vals),
       function() tool2_tab12$server("smote", vals),
       function() tool2_tab13$server("code", vals),
       function() tool2_tab14$server("gen", vals),
@@ -14862,6 +14960,10 @@ pre_process$server<-function(id, vals){
       shinyjs::hide(selector=".fade_pp")
     })
     observeEvent(vals$exit_tool12,{
+      updateNavbarPage(session,"toolbar-radio_cogs", selected="tool_close")
+      shinyjs::hide(selector=".fade_pp")
+    })
+    observeEvent(vals$exit_tool_outliers,{
       updateNavbarPage(session,"toolbar-radio_cogs", selected="tool_close")
       shinyjs::hide(selector=".fade_pp")
     })

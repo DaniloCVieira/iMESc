@@ -440,3 +440,383 @@ guess_time_settings<-function(x){
   }
   res
 }
+
+# ---- Outlier handling (Options > Outlier Handling) -----------------------------------------
+# Detection works on (optionally transformed) values, by variable and group; limits are
+# reported back in the original units so that values can be capped.
+
+#' @export
+out_method_choices<-list(
+  "Univariate"=c("Robust z (median/MAD) - recommended"="mad","IQR (Tukey fences)"="iqr","Z-score (mean/SD)"="z","Percentiles"="pct","Generalized ESD (Rosner)"="gesd"),
+  "Temporal"=c("Hampel filter (rolling median/MAD)"="hampel"),
+  "Multivariate"=c("Mahalanobis distance"="maha","Robust Mahalanobis (trimmed)"="maha_robust")
+)
+out_multivariate<-c("maha","maha_robust")
+
+#' @export
+out_transform<-function(v,transf="none"){
+  suppressWarnings(switch(transf,
+                          log10=ifelse(v>0,log10(v),NA),
+                          log1p=ifelse(v>-1,log1p(v),NA),
+                          sqrt=ifelse(v>=0,sqrt(v),NA),
+                          v))
+}
+#' @export
+out_back<-function(v,transf="none"){
+  switch(transf,log10=10^v,log1p=expm1(v),sqrt=ifelse(v<0,0,v^2),v)
+}
+
+# generalized extreme studentized deviate test (Rosner 1983): indices of the outliers
+#' @export
+out_gesd<-function(v,max_out=10,alpha=0.05){
+  n<-length(v)
+  r<-min(max_out,floor((n-1)/2))
+  if(r<1) return(integer(0))
+  idx<-seq_len(n)
+  x<-v
+  removed<-integer(0)
+  R<-numeric(0)
+  lam<-numeric(0)
+  for(i in seq_len(r)){
+    s<-stats::sd(x)
+    if(!is.finite(s)||s==0) break
+    dev<-abs(x-mean(x))/s
+    j<-which.max(dev)
+    R<-c(R,dev[j])
+    removed<-c(removed,idx[j])
+    x<-x[-j]
+    idx<-idx[-j]
+    nn<-n-i+1
+    t<-stats::qt(1-alpha/(2*nn),nn-2)
+    lam<-c(lam,(nn-1)*t/sqrt((nn-2+t^2)*nn))
+  }
+  if(!length(R)) return(integer(0))
+  k<-max(c(0,which(R>lam)))
+  if(k==0) integer(0) else removed[seq_len(k)]
+}
+
+# limits, score and flag of one vector (NA kept as not flagged)
+#' @export
+out_univariate<-function(x,method="iqr",k=1.5,q=c(0.25,0.75),p=c(0.01,0.99),alpha=0.05,max_out=10,ord=NULL,window=5){
+  n<-length(x)
+  lower<-upper<-score<-rep(NA_real_,n)
+  flag<-rep(FALSE,n)
+  ok<-!is.na(x)
+  v<-x[ok]
+  if(length(v)<3) return(list(lower=lower,upper=upper,score=score,flag=flag))
+  if(method%in%c("iqr","z","mad","pct")){
+    if(identical(method,"iqr")){
+      Q<-stats::quantile(v,q,names=FALSE)
+      I<-Q[2]-Q[1]
+      lim<-c(Q[1]-k*I,Q[2]+k*I)
+      score<-if(I>0) ifelse(x<Q[1],(Q[1]-x)/I,ifelse(x>Q[2],(x-Q[2])/I,0)) else rep(NA_real_,n)
+    } else if(identical(method,"z")){
+      s<-stats::sd(v)
+      lim<-mean(v)+c(-1,1)*k*s
+      score<-if(s>0) abs(x-mean(v))/s else rep(NA_real_,n)
+    } else if(identical(method,"mad")){
+      s<-stats::mad(v)
+      lim<-stats::median(v)+c(-1,1)*k*s
+      score<-if(s>0) abs(x-stats::median(v))/s else rep(NA_real_,n)
+    } else{
+      lim<-stats::quantile(v,p,names=FALSE)
+    }
+    lower[]<-lim[1]
+    upper[]<-lim[2]
+    flag<-ok&(x<lim[1]|x>lim[2])
+  }
+  if(identical(method,"gesd")){
+    idx<-which(ok)
+    fl<-out_gesd(x[idx],max_out,alpha)
+    flag[idx[fl]]<-TRUE
+    s<-stats::sd(v)
+    score<-if(s>0) abs(x-mean(v))/s else rep(NA_real_,n)
+    keep<-x[ok&!flag]
+    lower[]<-min(keep)
+    upper[]<-max(keep)
+  }
+  if(identical(method,"hampel")){
+    if(is.null(ord)) ord<-seq_len(n)
+    o<-order(ord)
+    xs<-x[o]
+    w<-max(1,round(window))
+    lo<-hi<-sc<-rep(NA_real_,n)
+    for(i in seq_len(n)){
+      win<-xs[max(1,i-w):min(n,i+w)]
+      win<-win[!is.na(win)]
+      if(length(win)<3) next
+      m<-stats::median(win)
+      s<-stats::mad(win)
+      lo[i]<-m-k*s
+      hi[i]<-m+k*s
+      if(s>0&&!is.na(xs[i])) sc[i]<-abs(xs[i]-m)/s
+    }
+    lower[o]<-lo
+    upper[o]<-hi
+    score[o]<-sc
+    flag<-ok&!is.na(lower)&(x<lower|x>upper)
+  }
+  list(lower=lower,upper=upper,score=score,flag=flag)
+}
+
+# squared Mahalanobis distances; the robust version trims the most distant observations
+# iteratively and rescales the covariance (consistency with the chi-square median)
+#' @export
+out_mahalanobis<-function(X,robust=FALSE,alpha=0.01,trim=0.25){
+  X<-as.matrix(X)
+  p<-ncol(X)
+  n<-nrow(X)
+  if(n<=p+1) stop("needs more complete observations than variables")
+  center<-colMeans(X)
+  S<-stats::cov(X)
+  inv<-tryCatch(solve(S),error=function(e) NULL)
+  if(is.null(inv)) stop("the covariance matrix is singular (constant or collinear variables)")
+  if(isTRUE(robust)){
+    for(it in seq_len(20)){
+      d<-stats::mahalanobis(X,center,S)
+      keep<-d<=stats::quantile(d,1-trim)
+      if(sum(keep)<=p+1) break
+      c2<-colMeans(X[keep,,drop=FALSE])
+      S2<-stats::cov(X[keep,,drop=FALSE])
+      if(is.null(tryCatch(solve(S2),error=function(e) NULL))) break
+      done<-max(abs(c2-center))<1e-8
+      center<-c2
+      S<-S2
+      if(done) break
+    }
+    d<-stats::mahalanobis(X,center,S)
+    S<-S*stats::median(d)/stats::qchisq(0.5,p)
+  }
+  d2<-stats::mahalanobis(X,center,S)
+  cut<-stats::qchisq(1-alpha,p)
+  list(d2=d2,cutoff=cut,flag=d2>cut)
+}
+
+#' @export
+out_detect<-function(d,vars,method="iqr",k=1.5,q=c(0.25,0.75),p=c(0.01,0.99),alpha=0.05,max_out=10,window=5,
+                     group=NULL,time=NULL,direction="both",transf="none"){
+  ids<-rownames(d)
+  g<-if(is.null(group)) factor(rep("All",nrow(d))) else factor(group)
+  if(method%in%out_multivariate){
+    X<-sapply(vars,function(v) out_transform(d[[v]],transf))
+    X<-matrix(X,nrow=nrow(d),dimnames=list(ids,vars))
+    errors<-character(0)
+    obs<-do.call(rbind,lapply(split(seq_len(nrow(d)),g),function(ii){
+      Xi<-X[ii,,drop=FALSE]
+      cc<-stats::complete.cases(Xi)
+      r<-tryCatch(out_mahalanobis(Xi[cc,,drop=FALSE],robust=identical(method,"maha_robust"),alpha=alpha),error=function(e) conditionMessage(e))
+      gl<-as.character(g[ii[1]])
+      if(is.character(r)){
+        errors<<-c(errors,paste0(gl,": ",r))
+        return(NULL)
+      }
+      data.frame(id=ids[ii][cc],group=gl,index=ii[cc],distance=sqrt(r$d2),cutoff=sqrt(r$cutoff),
+                 d2=r$d2,chisq_cutoff=r$cutoff,p=length(vars),flag=r$flag,stringsAsFactors=FALSE)
+    }))
+    if(!is.null(obs)){
+      rownames(obs)<-NULL
+      if(!is.null(time)) obs$time<-time[obs$index]
+    }
+    flags<-if(is.null(obs)) NULL else obs[obs$flag,,drop=FALSE]
+    if(!is.null(flags)&&nrow(flags)){
+      flags$variable<-"(all variables)"
+      flags$side<-"multivariate"
+      flags$score<-flags$distance
+    }
+    summ<-if(is.null(obs)) NULL else do.call(rbind,lapply(split(obs,obs$group),function(s)
+      data.frame(Group=s$group[1],Variables=length(vars),Complete_obs=nrow(s),Cutoff_distance=s$cutoff[1],
+                 Flagged_obs=sum(s$flag),Percent=100*mean(s$flag),Max_distance=max(s$distance))))
+    return(list(type="multivariate",method=method,obs=obs,flags=flags,summary=summ,errors=errors,vars=vars,transf=transf))
+  }
+  cells<-do.call(rbind,lapply(vars,function(v){
+    do.call(rbind,lapply(split(seq_len(nrow(d)),g),function(ii){
+      xo<-d[[v]][ii]
+      xt<-out_transform(xo,transf)
+      ord<-if(!is.null(time)) as.numeric(time[ii]) else ii
+      r<-out_univariate(xt,method,k,q,p,alpha,max_out,ord,window)
+      side<-ifelse(!is.na(xt)&!is.na(r$lower)&xt<r$lower,"low",ifelse(!is.na(xt)&!is.na(r$upper)&xt>r$upper,"high",""))
+      fl<-r$flag&switch(direction,low=side=="low",high=side=="high",TRUE)
+      out<-data.frame(id=ids[ii],index=ii,variable=v,group=as.character(g[ii]),value=xo,value_t=xt,
+                      lower_t=r$lower,upper_t=r$upper,lower=out_back(r$lower,transf),upper=out_back(r$upper,transf),
+                      score=r$score,side=side,flag=fl,stringsAsFactors=FALSE)
+      if(!is.null(time)) out$time<-time[ii]
+      out
+    }))
+  }))
+  rownames(cells)<-NULL
+  cells$variable<-factor(cells$variable,levels=vars)
+  flags<-cells[cells$flag,,drop=FALSE]
+  rolling<-identical(method,"hampel")
+  summ<-do.call(rbind,lapply(split(cells,list(cells$variable,cells$group),drop=TRUE),function(s){
+    data.frame(Variable=as.character(s$variable[1]),Group=s$group[1],n=sum(!is.na(s$value_t)),
+               Low=sum(s$flag&s$side=="low"),High=sum(s$flag&s$side=="high"),Flagged=sum(s$flag),
+               Percent=100*sum(s$flag)/max(1,sum(!is.na(s$value_t))),
+               Lower_limit=if(rolling) NA else s$lower[1],Upper_limit=if(rolling) NA else s$upper[1],
+               Min=suppressWarnings(min(s$value,na.rm=TRUE)),Max=suppressWarnings(max(s$value,na.rm=TRUE)),
+               stringsAsFactors=FALSE)
+  }))
+  rownames(summ)<-NULL
+  list(type="univariate",method=method,cells=cells,flags=flags,summary=summ,errors=character(0),vars=vars,transf=transf)
+}
+
+# treatment of the selected flags: NA, capping at the limits, median, or removal of the observations
+#' @export
+out_treat<-function(d,flags,action="na",vars=NULL,group=NULL){
+  if(is.null(flags)||!nrow(flags)) return(d)
+  if(identical(action,"remove")) return(d[!rownames(d)%in%unique(flags$id),,drop=FALSE])
+  if(identical(flags$variable[1],"(all variables)")){
+    d[rownames(d)%in%flags$id,vars]<-NA
+    return(d)
+  }
+  ri<-match(flags$id,rownames(d))
+  for(v in unique(as.character(flags$variable))){
+    f<-flags[as.character(flags$variable)==v,,drop=FALSE]
+    r<-match(f$id,rownames(d))
+    new<-switch(action,
+                cap=ifelse(f$side=="low",f$lower,f$upper),
+                median={
+                  # median of the group, computed without the flagged values
+                  x<-d[[v]]
+                  x[r]<-NA
+                  g<-if(is.null(group)) rep("All",nrow(d)) else as.character(group)
+                  med<-tapply(x,g,stats::median,na.rm=TRUE)
+                  unname(med[g[r]])
+                },
+                rep(NA_real_,nrow(f)))
+    d[r,v]<-new
+  }
+  d
+}
+
+# ---- Outlier plots
+out_theme<-function(base_size=12) ggplot2::theme_bw(base_size=base_size)
+
+#' @export
+gg_out_box<-function(cells,base_size=12,ncol=NULL,point_size=1.6){
+  grouped<-length(unique(cells$group))>1
+  cells<-cells[!is.na(cells$value_t),,drop=FALSE]
+  cells$Status<-factor(ifelse(cells$flag,"Flagged","Kept"),levels=c("Kept","Flagged"))
+  cells$x<-if(grouped) cells$group else ""
+  p<-ggplot2::ggplot(cells,ggplot2::aes(x=x,y=value_t))+
+    ggplot2::geom_boxplot(outlier.shape=NA,fill="gray95",width=0.5)+
+    ggplot2::geom_jitter(ggplot2::aes(color=Status,size=Status),width=0.15,height=0,alpha=0.7)+
+    ggplot2::scale_color_manual(values=c(Kept="gray45",Flagged="#D7301F"),drop=FALSE)+
+    ggplot2::scale_size_manual(values=c(Kept=point_size*0.7,Flagged=point_size*1.3),drop=FALSE)
+  lim<-unique(cells[!is.na(cells$lower_t),c("variable","group","x","lower_t","upper_t")])
+  if(nrow(lim)&&nrow(lim)==nrow(unique(cells[,c("variable","group")]))){
+    p<-p+ggplot2::geom_errorbar(data=lim,ggplot2::aes(x=x,ymin=lower_t,ymax=upper_t),inherit.aes=FALSE,width=0.7,linetype=2,color="#2166AC")
+  }
+  p+ggplot2::facet_wrap(~variable,scales="free",ncol=ncol)+
+    ggplot2::labs(x=NULL,y="Value",color=NULL,size=NULL)+out_theme(base_size)
+}
+
+#' @export
+gg_out_index<-function(cells,base_size=12,ncol=NULL,point_size=1.6){
+  has_time<-!is.null(cells$time)&&inherits(cells$time,c("Date","POSIXt"))
+  cells$xx<-if(has_time) cells$time else cells$index
+  cells<-cells[!is.na(cells$value_t),,drop=FALSE]
+  cells<-cells[order(cells$variable,cells$group,cells$xx),,drop=FALSE]
+  grouped<-length(unique(cells$group))>1
+  p<-ggplot2::ggplot(cells,ggplot2::aes(x=xx,y=value_t))
+  if(any(!is.na(cells$lower_t))){
+    p<-p+ggplot2::geom_ribbon(ggplot2::aes(ymin=lower_t,ymax=upper_t,group=group),fill="#2166AC",alpha=0.12)
+  }
+  p<-p+if(grouped) ggplot2::geom_point(ggplot2::aes(color=group),size=point_size*0.7,alpha=0.6) else ggplot2::geom_point(color="gray45",size=point_size*0.7,alpha=0.6)
+  fl<-cells[cells$flag,,drop=FALSE]
+  if(nrow(fl)) p<-p+ggplot2::geom_point(data=fl,color="#D7301F",size=point_size*1.4,shape=21,stroke=1.1)
+  p+ggplot2::facet_wrap(~variable,scales="free_y",ncol=ncol)+
+    ggplot2::labs(x=if(has_time) "Time" else "Observation (order in the Datalist)",y="Value",color=if(grouped) "Group" else NULL,
+                  caption="Shaded band: limits. Red circles: flagged values.")+out_theme(base_size)
+}
+
+#' @export
+gg_out_hist<-function(cells,base_size=12,ncol=NULL){
+  cells<-cells[!is.na(cells$value_t),,drop=FALSE]
+  p<-ggplot2::ggplot(cells,ggplot2::aes(x=value_t))+
+    ggplot2::geom_histogram(bins=30,fill="#77AADD",color="white")
+  lim<-unique(cells[!is.na(cells$lower_t),c("variable","group","lower_t","upper_t")])
+  if(nrow(lim)&&nrow(lim)==nrow(unique(cells[,c("variable","group")]))){
+    p<-p+ggplot2::geom_vline(data=lim,ggplot2::aes(xintercept=lower_t),linetype=2,color="#2166AC")+
+      ggplot2::geom_vline(data=lim,ggplot2::aes(xintercept=upper_t),linetype=2,color="#2166AC")
+  }
+  fl<-cells[cells$flag,,drop=FALSE]
+  if(nrow(fl)) p<-p+ggplot2::geom_rug(data=fl,ggplot2::aes(x=value_t),color="#D7301F",length=ggplot2::unit(0.06,"npc"),linewidth=0.8)
+  p+ggplot2::facet_wrap(~variable,scales="free",ncol=ncol)+
+    ggplot2::labs(x="Value",y="Count",caption="Dashed lines: limits. Red marks: flagged values.")+out_theme(base_size)
+}
+
+# which observations concentrate the flags
+#' @export
+gg_out_heat<-function(flags,vars,max_obs=60,base_size=12){
+  validate(need(!is.null(flags)&&nrow(flags)>0,"No flagged values."))
+  cnt<-sort(table(flags$id),decreasing=TRUE)
+  top<-names(cnt)[seq_len(min(max_obs,length(cnt)))]
+  f<-flags[flags$id%in%top,,drop=FALSE]
+  f$id<-factor(f$id,levels=rev(top))
+  f$variable<-factor(as.character(f$variable),levels=vars)
+  f$Side<-factor(f$side,levels=c("low","high"))
+  ggplot2::ggplot(f,ggplot2::aes(x=variable,y=id,fill=Side))+
+    ggplot2::geom_tile(color="white")+
+    ggplot2::scale_fill_manual(values=c(low="#2166AC",high="#D7301F"),drop=FALSE)+
+    ggplot2::scale_x_discrete(drop=FALSE)+
+    ggplot2::labs(x=NULL,y="Observation",title=if(length(cnt)>max_obs) paste0("The ",max_obs," observations with most flags") else NULL)+
+    out_theme(base_size)+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=45,hjust=1))
+}
+
+#' @export
+gg_out_count<-function(summ,base_size=12){
+  s<-stats::aggregate(cbind(Low,High)~Variable,summ,sum)
+  long<-data.frame(Variable=rep(s$Variable,2),Side=factor(rep(c("low","high"),each=nrow(s)),levels=c("low","high")),n=c(s$Low,s$High))
+  long$Variable<-factor(long$Variable,levels=unique(summ$Variable))
+  ggplot2::ggplot(long,ggplot2::aes(x=Variable,y=n,fill=Side))+
+    ggplot2::geom_col()+
+    ggplot2::scale_fill_manual(values=c(low="#2166AC",high="#D7301F"))+
+    ggplot2::labs(x=NULL,y="Flagged values")+out_theme(base_size)+
+    ggplot2::theme(axis.text.x=ggplot2::element_text(angle=45,hjust=1))
+}
+
+#' @export
+gg_out_maha<-function(obs,view="distance",base_size=12,point_size=1.6){
+  validate(need(!is.null(obs)&&nrow(obs)>0,"The distances could not be computed."))
+  obs$Status<-factor(ifelse(obs$flag,"Flagged","Kept"),levels=c("Kept","Flagged"))
+  grouped<-length(unique(obs$group))>1
+  if(identical(view,"qq")){
+    obs<-do.call(rbind,lapply(split(obs,obs$group),function(s){
+      s<-s[order(s$d2),,drop=FALSE]
+      s$theoretical<-stats::qchisq(stats::ppoints(nrow(s)),df=s$p[1])
+      s
+    }))
+    p<-ggplot2::ggplot(obs,ggplot2::aes(x=theoretical,y=d2))+
+      ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")+
+      ggplot2::geom_point(ggplot2::aes(color=Status),size=point_size)+
+      ggplot2::labs(x="Chi-square quantiles",y="Squared Mahalanobis distance",caption="Points far above the line deviate from multivariate normality.")
+  } else{
+    has_time<-!is.null(obs$time)&&inherits(obs$time,c("Date","POSIXt"))
+    obs$xx<-if(has_time) obs$time else obs$index
+    p<-ggplot2::ggplot(obs,ggplot2::aes(x=xx,y=distance))+
+      ggplot2::geom_hline(ggplot2::aes(yintercept=cutoff),linetype=2,color="#2166AC")+
+      ggplot2::geom_point(ggplot2::aes(color=Status),size=point_size)+
+      ggplot2::labs(x=if(has_time) "Time" else "Observation (order in the Datalist)",y="Mahalanobis distance",caption="Dashed line: chi-square cutoff.")
+  }
+  p<-p+ggplot2::scale_color_manual(values=c(Kept="gray45",Flagged="#D7301F"),drop=FALSE)+out_theme(base_size)
+  if(grouped) p<-p+ggplot2::facet_wrap(~group,scales="free")
+  p
+}
+
+# original vs treated values of the changed variables
+#' @export
+gg_out_compare<-function(before,after,vars,base_size=12,ncol=NULL){
+  vars<-vars[vars%in%colnames(before)]
+  long<-rbind(
+    do.call(rbind,lapply(vars,function(v) data.frame(variable=v,Data="Original",value=before[[v]]))),
+    do.call(rbind,lapply(vars,function(v) data.frame(variable=v,Data="Treated",value=if(v%in%colnames(after)) after[[v]] else NA)))
+  )
+  long<-long[!is.na(long$value),,drop=FALSE]
+  long$variable<-factor(long$variable,levels=vars)
+  long$Data<-factor(long$Data,levels=c("Original","Treated"))
+  ggplot2::ggplot(long,ggplot2::aes(x=Data,y=value,fill=Data))+
+    ggplot2::geom_boxplot(width=0.55,outlier.size=1)+
+    ggplot2::scale_fill_manual(values=c(Original="gray85",Treated="#9ECAE1"),guide="none")+
+    ggplot2::facet_wrap(~variable,scales="free_y",ncol=ncol)+
+    ggplot2::labs(x=NULL,y="Value")+out_theme(base_size)
+}

@@ -119,6 +119,13 @@ desctools$ui<-function(id){
 
               uiOutput(ns("desc_tab11"))
 
+            ),
+            tabPanel(
+              '12. Histogram',
+              value="tab12",
+
+              uiOutput(ns("desc_tab12"))
+
             )
 
 
@@ -277,10 +284,21 @@ desctools$server<-function (id,vals ){
       NULL
     })
 
+    output$desc_tab12<-renderUI({
+      div(
+        desctools_tab12$ui(ns("histogram")),
+        uiOutput(ns('histogram_server'))
+      )
+    })
+    output$histogram_server<-renderUI({
+      desctools_tab12$server("histogram",vals)
+      NULL
+    })
+
 
 
     observe({
-      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8','tab10','tab11',"tab_omi",'tab2'))
+      shinyjs::toggle('box_data_descX',condition=!input$desc_options%in%c('tab9','tab8','tab10','tab11','tab12',"tab_omi",'tab2'))
     })
     getdata_descX<-reactive({
       req(input$data_descX)
@@ -364,8 +382,11 @@ points_color_source$ui<-function(id){
 points_color_source$server<-function(id,vals,data){
   moduleServer(id,function(input,output,session){
     observeEvent(list(vals$saved_data,data()),{
-      choices<-names(vals$saved_data)
+      # only Datalists containing every observation of the analysed data
+      ids<-rownames(data())
+      choices<-names(vals$saved_data)[vapply(vals$saved_data,function(d) all(ids%in%rownames(d)),logical(1))]
       selected<-get_selected_from_choices(isolate(input$datalist)%||%attr(data(),"datalist"),choices)
+      if(!length(selected)) selected<-get_selected_from_choices(attr(data(),"datalist"),choices)
       updatePickerInput(session,"datalist",choices=choices,selected=selected)
     })
     source_table<-reactive({
@@ -5704,7 +5725,7 @@ desctools_tab10$ui<-function(id){
             pickerInput_fromtop(
               ns("analysis"),
               help_label("analysis_help","Analysis"),
-              choices=c("Time series"="series","Period summary"="period","Autocorrelation"="acf","Trend"="trend","Change"="change"),
+              choices=c("Time series"="series","Period summary"="period","Autocorrelation"="acf","Trend"="trend","Decomposition"="decomp","Change"="change"),
               selected="series"
             ),
             conditionalPanel(
@@ -5722,6 +5743,16 @@ desctools_tab10$ui<-function(id){
             conditionalPanel(
               condition=sprintf("input['%s'] == 'period'", ns("analysis")),
               pickerInput(ns("period_unit"),tiphelp5("Period","Summarize observations by calendar period when possible."),choices=c("Month"="month","Year"="year","Season"="season"),selected="month",width="180px")
+            ),
+            conditionalPanel(
+              condition=sprintf("input['%s'] == 'trend'", ns("analysis")),
+              pickerInput_fromtop(ns("trend_season"),tiphelp5("Remove seasonal cycle","Fit the trend on anomalies (each value minus the mean of its phase, e.g. of its month). A seasonal cycle inflates the residual variance and their autocorrelation, and an incomplete first or last cycle can bias the slope. Only cycles covered at least twice are listed."),choices=c("None"="none"),selected="none"),
+              div(id=ns("trend_unit_box"),
+                  pickerInput_fromtop(ns("trend_unit"),tiphelp5("Slope per","Time unit of the reported slopes (dates only)."),choices=c("Day"="day","Month"="month","Year"="year"),selected="year"))
+            ),
+            conditionalPanel(
+              condition=sprintf("input['%s'] == 'decomp'", ns("analysis")),
+              pickerInput_fromtop(ns("decomp_cycle"),tiphelp5("Seasonal cycle","STL decomposition (Observed = Trend + Seasonal + Remainder) of the series of means per time step. It needs regularly spaced time steps without gaps, covering at least two cycles."),choices=NULL)
             ),
             conditionalPanel(
               condition=sprintf("input['%s'] == 'acf'", ns("analysis")),
@@ -5770,7 +5801,7 @@ desctools_tab10$ui<-function(id){
           ns("td_plot_box"),
           title="Plot",
           button_title=actionLink(ns("downp_temporal_desc"),span("Download plot",icon("fas fa-download"))),
-          div(uiOutput(ns("temporal_plot_ui")))
+          div(uiOutput(ns("td_note")),uiOutput(ns("temporal_plot_ui")))
         ),
         box_caret(
           ns("td_table_box"),
@@ -5807,7 +5838,8 @@ desctools_tab10$server<-function(id,vals){
             p(strong("Time series"), " shows the observed trajectory."),
             p(strong("Period summary"), " compares distributions by month, year, or season."),
             p(strong("Autocorrelation"), " checks whether values remain similar across time lags."),
-            p(strong("Trend"), " estimates a simple overall increase or decrease."),
+            p(strong("Trend"), " estimates the overall increase or decrease (linear fit and Mann-Kendall / Sen), optionally without the seasonal cycle."),
+            p(strong("Decomposition"), " separates a regular series into trend, seasonal cycle and remainder."),
             p(strong("Change"), " shows step-to-step differences.")
         )
       )
@@ -5818,7 +5850,8 @@ desctools_tab10$server<-function(id,vals){
         p(strong("Time series:"), " a direct plot of values through time. Use it to see peaks, dips, cycles, gaps, and broad changes."),
         p(strong("Period summary:"), " groups observations by calendar periods such as month, year, or season. It is useful for seasonal comparisons."),
         p(strong("Autocorrelation:"), " measures whether observations separated by a lag are similar. High positive autocorrelation means nearby time steps tend to have similar values."),
-        p(strong("Trend:"), " fits a simple straight line through time. It is a descriptive estimate of direction and strength, not a complete forecasting model."),
+        p(strong("Trend:"), " fits a straight line through time (OLS) and the non-parametric Mann-Kendall test with the Sen slope (median of all pairwise slopes, robust to outliers). Consecutive time steps are rarely independent: the table gives the lag-1 autocorrelation of the residuals and a p-value computed with the effective number of independent time steps (P_value_adj). With a seasonal cycle, choose Remove seasonal cycle to fit the trend on anomalies."),
+        p(strong("Decomposition:"), " STL (Seasonal-Trend decomposition by Loess) of the series of means per time step into Trend + Seasonal + Remainder. The strengths (0-1) compare the variance of the remainder with that of trend + remainder and seasonal + remainder. It needs regular time steps without gaps, covering at least two cycles."),
         p(strong("Change:"), " calculates the difference from one ordered time step to the next. It helps identify abrupt increases or decreases.")
       )
     })
@@ -5927,8 +5960,8 @@ desctools_tab10$server<-function(id,vals){
         if(unit=="year") return(as.character(tt$year+1900))
         if(unit=="season"){
           mm<-tt$mon+1
-          ss<-ifelse(mm%in%c(12,1,2),"Summer",ifelse(mm%in%c(3,4,5),"Autumn",ifelse(mm%in%c(6,7,8),"Winter","Spring")))
-          return(factor(ss,levels=c("Summer","Autumn","Winter","Spring")))
+          ss<-ifelse(mm%in%c(12,1,2),"DJF",ifelse(mm%in%c(3,4,5),"MAM",ifelse(mm%in%c(6,7,8),"JJA","SON")))
+          return(factor(ss,levels=c("DJF","MAM","JJA","SON")))
         }
         return(sprintf("%02d",tt$mon+1))
       }
@@ -5951,17 +5984,107 @@ desctools_tab10$server<-function(id,vals){
       out<-stats::aggregate(value~variable+group+time+time_num,df,mean,na.rm=TRUE)
       out[order(out$variable,out$group,out$time_num),,drop=FALSE]
     }
-    trend_table<-reactive({
+    # seasonal cycles covered at least twice by the time steps (dates only)
+    td_cycles<-reactive({
+      df<-temporal_df()
+      if(!isTRUE(df$is_date[1])) return(character(0))
+      desc_season_cycles(unique(df$time))
+    })
+    observeEvent(td_cycles(),{
+      ch<-td_cycles()
+      updatePickerInput(session,"trend_season",choices=c("None"="none",ch),selected=get_selected_from_choices(isolate(input$trend_season)%||%"none",c("none",ch)))
+      updatePickerInput(session,"decomp_cycle",choices=ch,selected=get_selected_from_choices(isolate(input$decomp_cycle),ch))
+    },ignoreNULL=FALSE)
+    observe({
+      df<-tryCatch(temporal_df(),error=function(e) NULL)
+      shinyjs::toggle("trend_unit_box",condition=isTRUE(df$is_date[1]))
+    })
+    trend_cycle<-reactive({
+      cy<-input$trend_season%||%"none"
+      if(isTRUE(cy%in%td_cycles())) cy else "none"
+    })
+    # numeric time used by the trend: days for dates, the variable itself otherwise
+    trend_days<-function(x){
+      if(inherits(x$time,"POSIXt")) x$time_num/86400 else x$time_num
+    }
+    trend_per<-reactive({
+      df<-temporal_df()
+      if(!isTRUE(df$is_date[1])) return(c(unit=1))
+      switch(input$trend_unit%||%"year",day=c(day=1),month=c(month=30.4375),c(year=365.25))
+    })
+    trend_series<-reactive({
+      df<-aggregate_series(temporal_df())
+      cy<-trend_cycle()
+      if(!identical(cy,"none")){
+        ph<-desc_season_phase(df$time,cy)$phase
+        key<-paste(df$variable,df$group)
+        df$value<-unsplit(lapply(split(data.frame(v=df$value,p=ph),key),function(s) desc_deseason(s$v,s$p)),key)
+      }
+      df
+    })
+    trend_results<-reactive({
+      df<-trend_series()
+      per<-trend_per()
+      keys<-split(df,list(df$variable,df$group),drop=TRUE)
+      res<-lapply(keys,function(x){
+        st<-desc_trend_stats(x$value,trend_days(x),per)
+        ln<-attr(st,"lines")
+        tab<-data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),st,check.names=FALSE)
+        lines<-NULL
+        if(!is.null(ln)){
+          tr<-range(trend_days(x))
+          tt<-x$time[match(tr,trend_days(x))]
+          lines<-data.frame(variable=x$variable[1],group=x$group[1],time=rep(tt,2),
+                            value=c(ln$intercept+ln$slope*tr,ln$sen_intercept+ln$sen*tr),
+                            method=rep(c("Linear (OLS)","Sen"),each=2))
+        }
+        list(tab=tab,lines=lines)
+      })
+      tab<-do.call(rbind,lapply(res,`[[`,"tab"))
+      rownames(tab)<-NULL
+      names(tab)[names(tab)=="Slope"]<-paste0("Slope_per_",names(per))
+      names(tab)[names(tab)=="Sen_slope"]<-paste0("Sen_slope_per_",names(per))
+      list(tab=tab,lines=do.call(rbind,lapply(res,`[[`,"lines")))
+    })
+    trend_table<-reactive(trend_results()$tab)
+    decomp_results<-reactive({
+      cy<-input$decomp_cycle
+      validate(need(length(td_cycles())>0,"Decomposition needs a date variable covering at least two seasonal cycles (e.g. two years for a monthly cycle)."))
+      validate(need(isTRUE(cy%in%td_cycles()),"Choose a seasonal cycle."))
       df<-aggregate_series(temporal_df())
       keys<-split(df,list(df$variable,df$group),drop=TRUE)
-      res<-lapply(names(keys),function(k){
-        x<-keys[[k]]
-        if(nrow(x)<3||length(unique(x$time_num))<2) return(data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),N=nrow(x),Slope=NA,Intercept=NA,R2=NA,P_value=NA))
-        fit<-stats::lm(value~time_num,data=x)
-        sm<-summary(fit)
-        data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),N=nrow(x),Slope=unname(stats::coef(fit)[2]),Intercept=unname(stats::coef(fit)[1]),R2=unname(sm$r.squared),P_value=unname(sm$coefficients[2,4]),check.names=FALSE)
+      res<-lapply(keys,function(x){
+        r<-desc_stl(x$time,x$value,cy)
+        lab<-paste0(x$variable[1],if(!identical(as.character(x$group[1]),"All")) paste0(" (",x$group[1],")") else "")
+        if(is.character(r)) return(list(note=paste0(lab,": ",r)))
+        r$df$variable<-x$variable[1]
+        r$df$group<-x$group[1]
+        list(df=r$df,stats=data.frame(Variable=as.character(x$variable[1]),Group=as.character(x$group[1]),r$stats))
       })
-      do.call(rbind,res)
+      notes<-unlist(lapply(res,`[[`,"note"))
+      ok<-Filter(function(r) is.null(r$note),res)
+      validate(need(length(ok)>0,paste0("Decomposition not possible. ",paste(notes,collapse=" "))))
+      tab<-do.call(rbind,lapply(ok,`[[`,"stats"))
+      rownames(tab)<-NULL
+      list(df=do.call(rbind,lapply(ok,`[[`,"df")),tab=tab,notes=notes)
+    })
+    output$td_note<-renderUI({
+      analysis<-input$analysis%||%"series"
+      notes<-character(0)
+      if(analysis=="trend"){
+        tab<-tryCatch(trend_table(),error=function(e) NULL)
+        if(!is.null(tab)&&any(tab$Resid_lag1_r>0.3,na.rm=TRUE)) notes<-c(notes,"Residuals are autocorrelated in time: P_value assumes independent time steps and is optimistic; use P_value_adj (effective n) or MK_p with caution.")
+        if(!identical(trend_cycle(),"none")) notes<-c(notes,"Trend fitted on anomalies (seasonal cycle removed).")
+        else if(length(td_cycles())) notes<-c(notes,"The data cover a seasonal cycle; if it is marked, consider Remove seasonal cycle.")
+        df<-tryCatch(temporal_df(),error=function(e) NULL)
+        if(!is.null(df)&&any(duplicated(df[,c("variable","group","time_num")]))) notes<-c(notes,"Repeated time steps are averaged: the trend uses one mean per time step.")
+      }
+      if(analysis=="decomp"){
+        r<-tryCatch(decomp_results(),error=function(e) NULL)
+        if(!is.null(r)&&length(r$notes)) notes<-c(notes,paste0("Not decomposed: ",paste(r$notes,collapse=" ")))
+      }
+      if(!length(notes)) return(NULL)
+      div(style="font-size: 11px; color: #8a6d3b; padding: 2px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
     })
     acf_table<-reactive({
       df<-aggregate_series(temporal_df())
@@ -5991,6 +6114,7 @@ desctools_tab10$server<-function(id,vals){
       analysis<-input$analysis%||%"series"
       if(analysis=="period") return(period_summary())
       if(analysis=="trend") return(trend_table())
+      if(analysis=="decomp") return(decomp_results()$tab)
       if(analysis=="acf") return(acf_table())
       if(analysis=="change") return(change_table())
       series_summary()
@@ -6047,12 +6171,26 @@ desctools_tab10$server<-function(id,vals){
 
       agg<-aggregate_series(df)
       if(analysis=="trend"){
-        p<-ggplot(agg,aes(x=time,y=value,color=group,group=interaction(variable,group)))+
+        ts_df<-trend_series()
+        ln<-trend_results()$lines
+        p<-ggplot(ts_df,aes(x=time,y=value,color=group,group=interaction(variable,group)))+
           geom_point(alpha=.78,size=input$point_size%||%2)+
-          geom_line(alpha=.7,linewidth=input$line_width%||%.7)+
-          geom_smooth(method="lm",se=TRUE,linewidth=max(.4,input$line_width%||%.7))+
-          labs(x=input$time_var,y="Value",title="Trend through time",color=color_lab)+color_scale
+          geom_line(alpha=.5,linewidth=input$line_width%||%.7)
+        if(!is.null(ln)) p<-p+geom_line(data=ln,aes(x=time,y=value,color=group,linetype=method,group=interaction(variable,group,method)),linewidth=max(.6,1.4*(input$line_width%||%.7)))+
+          scale_linetype_manual(values=c("Linear (OLS)"="solid","Sen"="dashed"),name="Trend")
+        p<-p+labs(x=input$time_var,y=if(identical(trend_cycle(),"none")) "Value" else "Anomaly",title="Trend through time",color=color_lab)+color_scale
         p<-finish_plot(p,vars)
+        vals$temporal_desc_plot<-p
+        return(p)
+      }
+      if(analysis=="decomp"){
+        r<-decomp_results()
+        p<-ggplot(r$df,aes(x=time,y=value,color=group,group=interaction(variable,group)))+
+          geom_line(linewidth=input$line_width%||%.7)+
+          facet_grid(component~variable,scales="free_y")+
+          labs(x=input$time_var,y=NULL,title="Seasonal decomposition (STL)",color=color_lab)+color_scale+plot_theme()
+        x_angle<-input$x_angle%||%0
+        if(!is.na(x_angle)&&x_angle>0) p<-p+theme(axis.text.x=element_text(angle=x_angle,hjust=1))
         vals$temporal_desc_plot<-p
         return(p)
       }
@@ -6100,6 +6238,7 @@ desctools_tab10$server<-function(id,vals){
       vars<-input$num_vars
       facet_ncol<-max(1,input$facet_ncol%||%2)
       plot_height<-input$plot_height%||%480
+      if(identical(input$analysis,"decomp")) plot_height<-max(plot_height,640)
       if(isTRUE(input$facet_vars)&&length(vars)>1){
         plot_height<-max(plot_height,260*ceiling(length(vars)/facet_ncol))
       }
@@ -6111,6 +6250,7 @@ desctools_tab10$server<-function(id,vals){
       vars<-input$num_vars
       facet_ncol<-max(1,input$facet_ncol%||%2)
       plot_height<-input$plot_height%||%480
+      if(identical(input$analysis,"decomp")) plot_height<-max(plot_height,640)
       if(isTRUE(input$facet_vars)&&length(vars)>1){
         plot_height<-max(plot_height,260*ceiling(length(vars)/facet_ncol))
       }
@@ -6131,6 +6271,225 @@ desctools_tab10$server<-function(id,vals){
   })
 }
 
+# Logic for tab 12 - Histogram
+desctools_tab12<-list()
+desctools_tab12$ui<-function(id){
+  ns<-NS(id)
+  div(
+    div(class="model_setup",
+        box_caret(ns("hist_setup"),inline=F,
+                  color="#374061ff",
+                  title="Setup",
+                  div(style="display: flex;gap: 10px;height: 50px",class="setup_box",
+                      div(class="picker-flex",
+                          pickerInput_fromtop(ns("data"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
+                      div(class="picker-flex",
+                          pickerInput_fromtop(ns("vars"),"Variables:",choices=NULL,multiple=TRUE,
+                                              options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,selectedTextFormat="count > 3",countSelectedText="{0} variables selected"))),
+                      div(class="picker-flex",
+                          pickerInput_fromtop(ns("group"),tiphelp5("Group by:","Optional Factor-Attribute: one histogram per level, overlaid, stacked, side by side or in panels."),choices=c("None"="none"))),
+                      div(class="picker-flex",
+                          pickerInput_fromtop(ns("transf"),tiphelp5("Transform:","Applied to the values before the histogram. log10 ignores values <= 0."),choices=c("None"="none","log10"="log10","Square root"="sqrt"),selected="none"))
+                  ))
+    ),
+    column(4,class="mp0",style="height: calc(100vh - 300px);overflow: auto",
+           box_caret(ns("hist_bins"),title="Bins",color="#c3cc74ff",
+                     div(
+                       pickerInput_fromtop(ns("method"),tiphelp5("Bins:","Sturges: log2(n)+1 bins, good for near-normal data. Freedman-Diaconis: bin width from the IQR, robust to outliers and skewness. Scott: bin width from the SD. Each variable gets its own breaks."),
+                                           choices=c("Sturges"="sturges","Freedman-Diaconis"="fd","Scott"="scott","Number of bins"="n","Bin width"="width"),selected="sturges"),
+                       div(id=ns("n_box"),numericInput(ns("nbins"),"Number of bins:",value=20,min=1,step=1)),
+                       div(id=ns("width_box"),numericInput(ns("width"),tiphelp5("Bin width:","Same width for every selected variable (in the units of the transformed values)."),value=1,min=0,step=0.1))
+                     )),
+           box_caret(ns("hist_display"),title="Display",color="#c3cc74ff",
+                     div(
+                       pickerInput_fromtop(ns("layout"),tiphelp5("Variables:","Single histogram: the values of all selected variables pooled into one distribution, to see the data as a whole. One panel per variable: each variable with its own axis and bins. Overlaid: one color per variable on the same axis."),
+                                           choices=c("Single histogram (pooled)"="pooled","One panel per variable"="facets","Overlaid (one color per variable)"="overlay"),selected="pooled"),
+                       pickerInput_fromtop(ns("ytype"),"Y axis:",choices=c("Count"="count","Density"="density","Percent"="percent"),selected="count"),
+                       div(id=ns("position_box"),
+                           pickerInput_fromtop(ns("position"),"Groups:",choices=c("Overlaid"="overlay","Stacked"="stack","Side by side"="dodge","Panels"="facet"),selected="overlay")),
+                       checkboxInput(ns("density"),tiphelp5("Density curve","Kernel density estimate, scaled to the Y axis."),value=FALSE),
+                       checkboxInput(ns("normal"),tiphelp5("Normal curve","Normal distribution with the mean and SD of the data (dashed), to compare with the histogram."),value=FALSE),
+                       div(style="display: flex; gap: 10px",
+                           checkboxInput(ns("mean_line"),"Mean",value=FALSE),
+                           checkboxInput(ns("median_line"),"Median (dotted)",value=FALSE)),
+                       checkboxInput(ns("rug"),"Rug (observations)",value=FALSE)
+                     )),
+           box_caret(ns("hist_style"),title="Plot options",color="#c3cc74ff",hide_content=TRUE,
+                     div(
+                       div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                           colourpicker::colourInput(ns("fill"),"Fill:",value="#77AADD",showColour="background",allowTransparent=TRUE,width="110px"),
+                           colourpicker::colourInput(ns("border"),"Border:",value="black",showColour="background",allowTransparent=TRUE,width="110px"),
+                           colourpicker::colourInput(ns("line_color"),"Lines:",value="#B2182B",showColour="background",width="110px")),
+                       pickerInput_fromtop_live(ns("palette"),"Palette (groups):",choices=NULL),
+                       numericInput(ns("alpha"),"Alpha:",value=0.8,min=0,max=1,step=0.1),
+                       pickerInput_fromtop(ns("theme"),"Theme:",choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),selected="theme_bw"),
+                       numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1),
+                       textInput(ns("title"),"Title:",value=""),
+                       textInput(ns("xlab"),"X label:",value="Value"),
+                       textInput(ns("ylab"),"Y label:",value=""),
+                       checkboxInput(ns("free_y"),"Free Y scales",value=TRUE),
+                       div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                           numericInput(ns("ncol"),tiphelp5("Columns:","Number of panel columns; empty = automatic."),value=NA,min=1,step=1,width="100px"),
+                           numericInput(ns("x_angle"),"X angle:",value=0,min=0,max=90,step=15,width="90px"),
+                           numericInput(ns("height"),tiphelp5("Height:","Minimum height; it grows with the number of panels."),value=450,min=200,step=20,width="100px")),
+                       pickerInput_fromtop(ns("legend"),"Legend:",choices=c("right","bottom","top","left","none"),selected="right")
+                     ))
+    ),
+    column(8,class="mp0",
+           box_caret(ns("hist_plot"),title="Histogram",
+                     button_title=actionLink(ns("down_plot"),span("Download plot",icon("fas fa-download"))),
+                     div(uiOutput(ns("note")),uiOutput(ns("plot_ui")))),
+           box_caret(ns("hist_table"),title="Summary",
+                     button_title=actionLink(ns("down_table"),span("Download table",icon("fas fa-table"))),
+                     div(style="overflow-x: auto; max-height: 300px; overflow-y: auto",tableOutput(ns("summary"))))
+    )
+  )
+}
+
+desctools_tab12$server<-function(id,vals){
+  moduleServer(id,function(input,output,session){
+    ns<-session$ns
+    for(b in c("hist_setup","hist_bins","hist_display","hist_plot","hist_table")) box_caret_server(b)
+    box_caret_server("hist_style",hide_content=TRUE)
+    first_or<-function(sel,choices) if(length(sel)==1&&sel%in%choices) sel else unname(choices[1])
+
+    observeEvent(vals$saved_data,{
+      ok<-vapply(vals$saved_data,function(d) any(vapply(d,is.numeric,logical(1))),logical(1))
+      ch<-names(vals$saved_data)[ok]
+      updatePickerInput(session,"data",choices=ch,selected=first_or(isolate(input$data)%||%vals$cur_data,ch))
+    })
+    data<-reactive({
+      req(input$data%in%names(vals$saved_data))
+      vals$saved_data[[input$data]]
+    })
+    num_vars<-reactive({
+      d<-data()
+      colnames(d)[vapply(d,is.numeric,logical(1))]
+    })
+    # every variable selected by default, also when the Datalist changes
+    observeEvent(num_vars(),{
+      ch<-num_vars()
+      old<-isolate(input$vars)
+      sel<-if(length(old)&&all(old%in%ch)) old else ch
+      updatePickerInput(session,"vars",choices=ch,selected=sel)
+    })
+    observeEvent(data(),{
+      fac<-attr(data(),"factors")
+      ch<-c("None"="none",if(!is.null(fac)) colnames(fac))
+      updatePickerInput(session,"group",choices=ch,selected=first_or(isolate(input$group),ch))
+    })
+    observeEvent(vals$newcolhabs,{
+      updatePickerInput(session,"palette",choices=vals$colors_img$val,choicesOpt=list(content=vals$colors_img$img),
+                        selected=first_or(isolate(input$palette)%||%"turbo",vals$colors_img$val))
+    })
+    observe({
+      shinyjs::toggle("n_box",condition=identical(input$method,"n"))
+      shinyjs::toggle("width_box",condition=identical(input$method,"width"))
+      shinyjs::toggle("position_box",condition=!identical(input$group%||%"none","none"))
+    })
+
+    long<-reactive({
+      d<-data()
+      vars<-input$vars[input$vars%in%num_vars()]
+      validate(need(length(vars)>0,"Select at least one numeric variable."))
+      g<-if(identical(input$group%||%"none","none")) factor(rep("All",nrow(d))) else{
+        fac<-attr(d,"factors")
+        req(input$group%in%colnames(fac))
+        factor(fac[rownames(d),input$group])
+      }
+      out<-do.call(rbind,lapply(vars,function(v) data.frame(variable=v,value=d[[v]],group=g,stringsAsFactors=FALSE)))
+      out$variable<-factor(out$variable,levels=vars)
+      n0<-sum(!is.na(out$value))
+      out$value<-switch(input$transf%||%"none",
+                        log10=suppressWarnings(ifelse(out$value>0,log10(out$value),NA)),
+                        sqrt=suppressWarnings(ifelse(out$value>=0,sqrt(out$value),NA)),
+                        out$value)
+      out<-out[is.finite(out$value)&!is.na(out$group),,drop=FALSE]
+      validate(need(nrow(out)>0,"No finite values to plot."))
+      out$group<-droplevels(out$group)
+      layout<-input$layout%||%"pooled"
+      if(identical(layout,"pooled")&&length(vars)>1){
+        out$variable<-factor(if(length(vars)==length(num_vars())) "All variables" else paste0(length(vars)," variables pooled"))
+      }
+      # overlaid: the variables become the colored groups (a grouping factor keeps the panels)
+      if(identical(layout,"overlay")&&identical(input$group%||%"none","none")&&length(vars)>1){
+        out$group<-out$variable
+        out$variable<-factor("Variables")
+        attr(out,"var_groups")<-TRUE
+      }
+      attr(out,"n_dropped")<-n0-nrow(out)
+      out
+    })
+    hist_plot<-reactive({
+      l<-long()
+      pal<-if(isTRUE(input$palette%in%names(vals$newcolhabs))) vals$newcolhabs[[input$palette]] else NULL
+      ncol<-input$ncol
+      if(is.null(ncol)||is.na(ncol)) ncol<-NULL
+      gg_desc_hist(l,method=input$method%||%"sturges",n=input$nbins%||%20,width=input$width,
+                   ytype=input$ytype%||%"count",position=input$position%||%"overlay",
+                   density=isTRUE(input$density),normal=isTRUE(input$normal),
+                   mean_line=isTRUE(input$mean_line),median_line=isTRUE(input$median_line),rug=isTRUE(input$rug),
+                   fill=input$fill%||%"#77AADD",border=input$border%||%"black",alpha=input$alpha%||%0.8,
+                   colors=pal,line_color=input$line_color%||%"#B2182B",
+                   theme=input$theme%||%"theme_bw",base_size=input$base_size%||%12,title=input$title,
+                   xlab=if(identical(input$transf%||%"none","none")) input$xlab else paste0(input$xlab," (",input$transf,")"),
+                   ylab=if(nzchar(input$ylab%||%"")) input$ylab else NULL,
+                   ncol=ncol,free_y=isTRUE(input$free_y),legend.position=input$legend%||%"right",
+                   x_angle=input$x_angle%||%0,group_name=if(isTRUE(attr(l,"var_groups"))) "Variable" else if(identical(input$group,"none")) "Group" else input$group)
+    })
+    plot_height<-reactive({
+      l<-tryCatch(long(),error=function(e) NULL)
+      h<-input$height%||%450
+      if(is.null(l)) return(h)
+      nv<-length(levels(l$variable))
+      ng<-length(levels(l$group))
+      rows<-if(identical(input$position,"facet")&&ng>1) ng else{
+        nc<-input$ncol
+        if(is.null(nc)||is.na(nc)) nc<-ceiling(sqrt(nv))
+        ceiling(nv/nc)
+      }
+      max(h,220*rows)
+    })
+    output$plot_ui<-renderUI({
+      plotOutput(ns("plot"),height=paste0(plot_height(),"px"))
+    })
+    output$plot<-renderPlot({
+      # evaluated before print() (an S4 generic in the app) so req()/validate() stay silent
+      p<-hist_plot()
+      suppressWarnings(suppressMessages(print(p)))
+    })
+    output$note<-renderUI({
+      l<-long()
+      notes<-character(0)
+      if(isTRUE(attr(l,"n_dropped")>0)) notes<-c(notes,paste0(attr(l,"n_dropped")," value(s) removed (missing",if(!identical(input$transf,"none")) ", or invalid for the transformation" else "",")."))
+      nv<-length(input$vars)
+      if(identical(input$layout%||%"pooled","pooled")&&nv>1) notes<-c(notes,paste0("The values of the ",nv," selected variables are pooled into a single distribution; variables with different units or scales dominate different parts of the axis (choose One panel per variable to see them separately)."))
+      if(identical(input$layout,"overlay")&&!identical(input$group%||%"none","none")) notes<-c(notes,"With Group by, the variables are shown in panels; choose Group by = None to overlay them.")
+      if(identical(input$method,"width")&&length(levels(l$variable))>1) notes<-c(notes,"The same bin width is used for every variable; choose a rule or a number of bins when the variables have different scales.")
+      if(!length(notes)) return(NULL)
+      div(style="font-size: 11px; color: #8a6d3b; padding: 0px 5px 4px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
+    })
+    hist_summary<-reactive({
+      p<-hist_plot()
+      desc_hist_summary(long(),attr(p,"breaks"))
+    })
+    output$summary<-renderTable({
+      hist_summary()
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
+
+    observeEvent(input$down_plot,ignoreInit=TRUE,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=hist_plot(),message="Histogram",name_c="histogram",datalist_name=input$data)
+    })
+    observeEvent(input$down_table,ignoreInit=TRUE,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download histogram summary",data=hist_summary(),name=paste0("histogram_summary_",input$data))
+    })
+  })
+}
+
 # Logic for tab 11 - Scatter plot
 # X and Y can come from different Datalists (matched by observation ID); X can be a
 # Numeric-Attribute variable or a Temporal-Attribute column. Points can be colored by a
@@ -6139,18 +6498,56 @@ desctools_tab11<-list()
 desctools_tab11$ui<-function(id){
   ns<-NS(id)
   div(
-    column(4,class="mp0",style="height: calc(100vh - 200px);overflow: auto",
-           box_caret(ns("sc_x"),title="X axis",color="#c3cc74ff",
+    div(class="model_setup",
+        box_caret(ns("sc_setup"),inline=F,
+                  color="#374061ff",
+                  title="Setup",
+                  div(
+                    div(style="display: flex;gap: 10px;height: 50px",class="setup_box",
+                        div(class="picker-flex picker-before-x",
+                            pickerInput_fromtop(ns("x_dl"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("x_attr"),"Attribute:",choices=NULL)),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("x_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
+                        div(style="padding-top: 22px",
+                            tiphelp_icon(actionLink(ns("swap"),icon("arrow-right-arrow-left")),"Swap X and Y","right"))
+                    ),
+                    div(style="display: flex;gap: 10px;height: 50px",class="setup_box",
+                        div(class="picker-flex picker-before-y",
+                            pickerInput_fromtop(ns("y_dl"),tiphelp5("Datalist:","Only Datalists sharing observations (IDs) with the X Datalist are listed; observations are matched by their IDs."),choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("y_attr"),"Attribute:",choices=NULL)),
+                        div(class="picker-flex",
+                            pickerInput_fromtop(ns("y_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)))
+                    ),
+                    uiOutput(ns("xy_check"))
+                  ))
+    ),
+    column(4,class="mp0",style="height: calc(100vh - 300px);overflow: auto",
+           box_caret(ns("sc_model"),title="Regression",color="#c3cc74ff",
                      div(
-                       pickerInput_fromtop(ns("x_dl"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
-                       radioButtons(ns("x_attr"),NULL,c("Numeric-Attribute"="numeric","Temporal-Attribute"="time"),inline=TRUE),
-                       pickerInput_fromtop(ns("x_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+                       pickerInput_fromtop(ns("model"),tiphelp5("Model",desc_scatter_model_help),choices=desc_scatter_model_choices,selected="none"),
+                       div(id=ns("model_opts"),
+                           div(id=ns("extra_box"),
+                               virtualPicker_unique(ns("extra"),tiphelp5("Additional predictors","Multiple regression: other numeric variables of the X Datalist added to the model (linear and polynomial models)."),choices=NULL,multiple=TRUE)),
+                           div(style="display: flex; gap: 8px",
+                               pickerInput_fromtop(ns("band"),"Band:",choices=c("Confidence"="confidence","Prediction"="prediction","None"="none"),selected="confidence",width="130px"),
+                               numericInput(ns("level"),"Level:",value=0.95,min=0.5,max=0.999,step=0.01,width="90px")),
+                           colourpicker::colourInput(ns("fit_color"),"Line (no groups):",value="#B2182B",showColour="background"),
+                           checkboxInput(ns("show_eq"),"Show equation and R2 on the plot",value=FALSE)
+                       )
                      )),
-           box_caret(ns("sc_y"),title="Y axis",color="#c3cc74ff",
-                     div(
-                       pickerInput_fromtop(ns("y_dl"),tiphelp5("Datalist:","Can be a different Datalist from X; observations are matched by their IDs."),choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
-                       pickerInput_fromtop(ns("y_var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
-                     )),
+           div(id=ns("sc_time_wrap"),
+               box_caret(ns("sc_time"),title="Time",color="#c3cc74ff",
+                         div(
+                           uiOutput(ns("time_info")),
+                           div(id=ns("tc_var_box"),
+                               pickerInput_fromtop(ns("tc_var"),tiphelp5("Time column","Temporal-Attribute column used by the checks of this box."),choices=NULL)),
+                           pickerInput_fromtop(ns("season"),tiphelp5("Remove seasonal cycle","Replaces X, Y (and the additional predictors) by their anomalies: each value minus the mean of its phase of the cycle (e.g. of its month). Use it when a shared seasonal cycle could drive the relationship. Only cycles covered at least twice by the data are listed. A temporal X is not changed."),
+                                               choices=c("None"="none"),selected="none"),
+                           em(style="font-size: 11px; color: #555555","When there is time, the Model and Correlation tables also check the autocorrelation of the residuals and give p-values with the effective number of independent time steps.")
+                         ))),
            box_caret(ns("sc_color"),
                      title=span(style="display: inline-block",class="checktitle",
                                 checkboxInput(ns("use_color"),label=strong("Color points"),value=FALSE,width="150px")),
@@ -6158,28 +6555,38 @@ desctools_tab11$ui<-function(id){
                      div(id=ns("color_out"),
                          pickerInput_fromtop_live(ns("palette"),"Palette:",choices=NULL),
                          points_color_source$ui(ns("sc_col")),
-                         checkboxInput(ns("facet"),tiphelp5("One panel per group","Available when the points are colored by a factor."),value=FALSE)
+                         div(id=ns("facet_box"),checkboxInput(ns("facet"),"One panel per group",value=FALSE)),
+                         em(style="font-size: 11px; color: #555555","With a Factor-Attribute, the regression and the statistics are computed for each group.")
                      )),
-           box_caret(ns("sc_summary"),title="Summary and trend",color="#c3cc74ff",
+           box_caret(ns("sc_summary"),title="Summary",color="#c3cc74ff",
                      div(
-                       pickerInput_fromtop(ns("agg"),tiphelp5("Aggregate Y","Mean of Y at each X value (and color group), with error bars. Useful when X is time or has repeated values."),
+                       pickerInput_fromtop(ns("agg"),tiphelp5("Aggregate Y","Mean of Y at each X value or X class (and color group), with error bars."),
                                            choices=c("None (all points)"="none","Mean +/- SE"="se","Mean +/- SD"="sd"),selected="none"),
-                       checkboxInput(ns("show_raw"),"Show raw points behind the means",value=TRUE),
-                       pickerInput_fromtop(ns("trend"),tiphelp5("Trend","Fitted on the raw observations, one line per color group."),
-                                           choices=c("None"="none","Linear (lm)"="lm","Smooth (loess)"="loess"),selected="none"),
-                       checkboxInput(ns("trend_se"),"Confidence band",value=TRUE),
-                       checkboxInput(ns("one_to_one"),"1:1 line",value=FALSE),
+                       div(id=ns("agg_opts"),
+                           div(style="display: flex; gap: 8px",
+                               pickerInput_fromtop(ns("x_group"),tiphelp5("X classes","Temporal X: calendar periods. Numeric X: equal-width bins. The means are computed in each class."),choices=c("Each X value"="none"),width="150px"),
+                               div(id=ns("x_bins_box"),numericInput(ns("x_bins"),"Bins:",value=10,min=2,step=1,width="80px"))),
+                           checkboxInput(ns("show_raw"),"Show raw points behind the means",value=TRUE),
+                           pickerInput_fromtop(ns("fit_on"),tiphelp5("Fit model on","Class means: the regression and the correlation use the means shown on the plot (n = number of classes); the R2 is usually higher because the variability within each class is removed. Raw observations: all observations are used, but observations of the same class (e.g. the same month) are often not independent, which makes the p-values optimistic."),
+                                               choices=c("Class means (shown)"="means","Raw observations"="raw"),selected="means"),
+                           div(id=ns("weight_n_box"),checkboxInput(ns("weight_n"),tiphelp5("Weight means by n","Weighted least squares: classes with more observations have more weight in the model."),value=FALSE))),
+                       div(id=ns("one_to_one_box"),checkboxInput(ns("one_to_one"),tiphelp5("1:1 line","Adds the identity line and agreement metrics (bias, MAE, RMSE) to the statistics. Useful when X and Y are in the same units."),value=FALSE)),
                        div(style="display: flex; gap: 10px",
-                           checkboxInput(ns("log_x"),"log10 X",value=FALSE),
-                           checkboxInput(ns("log_y"),"log10 Y",value=FALSE))
+                           div(id=ns("log_x_box"),checkboxInput(ns("log_x"),"log10 X",value=FALSE)),
+                           div(id=ns("log_y_box"),checkboxInput(ns("log_y"),"log10 Y",value=FALSE))),
+                       checkboxInput(ns("rug"),"Marginal rugs",value=FALSE),
+                       div(style="display: flex; gap: 8px",
+                           pickerInput_fromtop(ns("labels"),tiphelp5("Labels","Observation IDs. Largest residuals: the observations farthest from the model (or from a linear fit)."),
+                                               choices=c("None"="none","Largest residuals"="residuals","All points"="all"),selected="none",width="160px"),
+                           div(id=ns("label_n_box"),numericInput(ns("label_n"),"N:",value=5,min=1,step=1,width="70px")))
                      )),
            box_caret(ns("sc_style"),title="Plot options",color="#c3cc74ff",hide_content=TRUE,
                      div(
                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
                            numericInput(ns("point_size"),"Point:",value=2,min=0,step=0.2,width="90px"),
                            numericInput(ns("alpha"),"Alpha:",value=0.7,min=0,max=1,step=0.1,width="90px"),
-                           numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1,width="90px")),
-                       colourpicker::colourInput(ns("line_color"),"Points/lines (no groups):",value="#05668D",showColour="background"),
+                           numericInput(ns("base_size"),"Base size:",value=12,min=6,step=1,width="100px")),
+                       colourpicker::colourInput(ns("line_color"),"Points (no groups):",value="#05668D",showColour="background"),
                        pickerInput_fromtop(ns("theme"),"Theme:",choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),selected="theme_bw"),
                        textInput(ns("title"),"Title:",value=""),
                        textInput(ns("xlab"),"X label:",value=""),
@@ -6193,8 +6600,16 @@ desctools_tab11$ui<-function(id){
     column(8,class="mp0",
            box_caret(ns("sc_plot"),title="Plot",
                      button_title=actionLink(ns("down_plot"),span("Download plot",icon("fas fa-download"))),
+                     button_title2=radioGroupButtons(ns("view"),NULL,c("Y vs X"="scatter","Observed vs fitted"="obs_fit","Residuals"="resid","Q-Q"="qq")),
                      div(uiOutput(ns("note")),uiOutput(ns("plot_ui")))),
-           box_caret(ns("sc_table"),title="Statistics",
+           box_caret(ns("sc_fit"),title="Model",
+                     button_title=span(actionLink(ns("down_metrics"),span("Download fit",icon("fas fa-table"))),
+                                       actionLink(ns("down_coefs"),span("Download coefficients",icon("fas fa-table")),style="margin-left: 10px")),
+                     div(style="overflow-x: auto",
+                         uiOutput(ns("fit_notes")),
+                         tableOutput(ns("fit_metrics")),
+                         tableOutput(ns("fit_coefs")))),
+           box_caret(ns("sc_table"),title="Correlation",
                      button_title=actionLink(ns("down_table"),span("Download table",icon("fas fa-table"))),
                      div(style="overflow-x: auto",tableOutput(ns("stats")),uiOutput(ns("stats_note"))))
     )
@@ -6204,24 +6619,56 @@ desctools_tab11$ui<-function(id){
 desctools_tab11$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     ns<-session$ns
-    for(b in c("sc_x","sc_y","sc_color","sc_summary","sc_plot","sc_table")) box_caret_server(b)
+    for(b in c("sc_setup","sc_model","sc_time","sc_color","sc_summary","sc_plot","sc_fit","sc_table")) box_caret_server(b)
     box_caret_server("sc_style",hide_content=TRUE)
 
-    observeEvent(vals$saved_data,{
-      choices<-names(vals$saved_data)
-      updatePickerInput(session,"x_dl",choices=choices,selected=get_selected_from_choices(isolate(input$x_dl)%||%vals$cur_data,choices))
-      updatePickerInput(session,"y_dl",choices=choices,selected=get_selected_from_choices(isolate(input$y_dl)%||%vals$cur_data,choices))
+    first_or<-function(sel,choices) if(length(sel)==1&&sel%in%choices) sel else unname(choices[1])
+    # Datalists usable on X: at least one attribute with variables
+    x_dl_choices<-reactive({
+      req(length(vals$saved_data)>0)
+      ok<-vapply(vals$saved_data,function(d) length(desc_scatter_attrs(d,"x"))>0,logical(1))
+      names(vals$saved_data)[ok]
     })
-    observeEvent(vals$newcolhabs,{
-      updatePickerInput(session,"palette",choices=vals$colors_img$val,choicesOpt=list(content=vals$colors_img$img),
-                        selected=get_selected_from_choices(isolate(input$palette)%||%"turbo",vals$colors_img$val))
-    })
-    observe({
-      shinyjs::toggle("color_out",condition=isTRUE(input$use_color))
-      shinyjs::toggle("show_raw",condition=!identical(input$agg,"none"))
-      shinyjs::toggle("trend_se",condition=!identical(input$trend,"none"))
-    })
+    # Datalists usable on Y: share >= 2 observation IDs with X
+    y_dl_info<-function(xd){
+      n<-desc_scatter_partners(vals$saved_data,rownames(xd))
+      ok<-n>=2&vapply(vals$saved_data,function(d) length(desc_scatter_attrs(d,"y"))>0,logical(1))
+      list(choices=names(vals$saved_data)[ok],sub=paste0(n[ok],"/",nrow(xd)," IDs"))
+    }
+    var_choices<-function(d,attr_name){
+      tab<-desc_scatter_table(d,attr_name)
+      if(is.null(tab)) character(0) else colnames(tab)
+    }
+    # full update of one axis (also used by Swap, so that every picker is set at once)
+    set_axis<-function(axis,dl,attr_name=NULL,var=NULL){
+      if(identical(axis,"x")){
+        ch<-x_dl_choices()
+      } else{
+        req(input$x_dl%in%names(vals$saved_data))
+        info<-y_dl_info(vals$saved_data[[input$x_dl]])
+        ch<-info$choices
+      }
+      dl<-first_or(dl,ch)
+      if(identical(axis,"x")){
+        updatePickerInput(session,"x_dl",choices=ch,selected=dl)
+      } else{
+        updatePickerInput(session,"y_dl",choices=ch,selected=dl,choicesOpt=list(subtext=info$sub))
+      }
+      if(is.null(dl)||is.na(dl)) return(invisible())
+      d<-vals$saved_data[[dl]]
+      attrs<-desc_scatter_attrs(d,axis)
+      attr_name<-first_or(attr_name,attrs)
+      updatePickerInput(session,paste0(axis,"_attr"),choices=attrs,selected=attr_name)
+      vars<-var_choices(d,attr_name)
+      if(identical(axis,"y")&&is.null(var)&&identical(dl,isolate(input$x_dl))&&identical(attr_name,isolate(input$x_attr)))
+        var<-setdiff(vars,isolate(input$x_var))[1]
+      updatePickerInput(session,paste0(axis,"_var"),choices=vars,selected=first_or(var,vars))
+    }
 
+    observeEvent(x_dl_choices(),{
+      ch<-x_dl_choices()
+      updatePickerInput(session,"x_dl",choices=ch,selected=first_or(isolate(input$x_dl)%||%vals$cur_data,ch))
+    })
     x_data<-reactive({
       req(input$x_dl%in%names(vals$saved_data))
       vals$saved_data[[input$x_dl]]
@@ -6230,69 +6677,267 @@ desctools_tab11$server<-function(id,vals){
       req(input$y_dl%in%names(vals$saved_data))
       vals$saved_data[[input$y_dl]]
     })
-    x_table<-reactive({
-      d<-x_data()
-      if(identical(input$x_attr,"time")){
-        tt<-attr(d,"time")
-        validate(need(!is.null(tt)&&ncol(tt)>0,paste0("Datalist '",input$x_dl,"' has no Temporal-Attribute.")))
-        return(tt)
-      }
-      d[,vapply(d,is.numeric,logical(1)),drop=FALSE]
+    observeEvent(x_data(),{
+      attrs<-desc_scatter_attrs(x_data(),"x")
+      updatePickerInput(session,"x_attr",choices=attrs,selected=first_or(isolate(input$x_attr),attrs))
     })
-    observeEvent(x_table(),{
-      choices<-colnames(x_table())
-      updatePickerInput(session,"x_var",choices=choices,selected=get_selected_from_choices(isolate(input$x_var),choices))
+    observeEvent(list(x_data(),vals$saved_data),{
+      info<-y_dl_info(x_data())
+      updatePickerInput(session,"y_dl",choices=info$choices,choicesOpt=list(subtext=info$sub),
+                        selected=first_or(isolate(input$y_dl)%||%isolate(input$x_dl),info$choices))
     })
     observeEvent(y_data(),{
-      choices<-colnames(y_data())[vapply(y_data(),is.numeric,logical(1))]
-      updatePickerInput(session,"y_var",choices=choices,selected=get_selected_from_choices(isolate(input$y_var),choices))
+      attrs<-desc_scatter_attrs(y_data(),"y")
+      updatePickerInput(session,"y_attr",choices=attrs,selected=first_or(isolate(input$y_attr),attrs))
+    })
+    x_table<-reactive({
+      req(input$x_attr%in%desc_scatter_attrs(x_data(),"x"))
+      desc_scatter_table(x_data(),input$x_attr)
+    })
+    y_table<-reactive({
+      req(input$y_attr%in%desc_scatter_attrs(y_data(),"y"))
+      desc_scatter_table(y_data(),input$y_attr)
+    })
+    observeEvent(x_table(),{
+      ch<-colnames(x_table())
+      updatePickerInput(session,"x_var",choices=ch,selected=first_or(isolate(input$x_var),ch))
+    })
+    observeEvent(y_table(),{
+      ch<-colnames(y_table())
+      sel<-isolate(input$y_var)
+      if(!length(sel)||!sel%in%ch){
+        sel<-if(identical(input$y_dl,isolate(input$x_dl))&&identical(input$y_attr,isolate(input$x_attr))) setdiff(ch,isolate(input$x_var))[1] else ch[1]
+      }
+      updatePickerInput(session,"y_var",choices=ch,selected=first_or(sel,ch))
+    })
+    observeEvent(input$swap,ignoreInit=TRUE,{
+      if(identical(input$x_attr,"time")){
+        showNotification("A Temporal-Attribute can only be used on the X axis.",type="warning")
+        return()
+      }
+      new_x<-list(dl=input$y_dl,attr=input$y_attr,var=input$y_var)
+      new_y<-list(dl=input$x_dl,attr=input$x_attr,var=input$x_var)
+      set_axis("x",new_x$dl,new_x$attr,new_x$var)
+      # the Y choices depend on the new X Datalist
+      xd<-vals$saved_data[[new_x$dl]]
+      info<-y_dl_info(xd)
+      updatePickerInput(session,"y_dl",choices=info$choices,choicesOpt=list(subtext=info$sub),selected=first_or(new_y$dl,info$choices))
+      attrs<-desc_scatter_attrs(vals$saved_data[[new_y$dl]],"y")
+      updatePickerInput(session,"y_attr",choices=attrs,selected=first_or(new_y$attr,attrs))
+      vars<-var_choices(vals$saved_data[[new_y$dl]],first_or(new_y$attr,attrs))
+      updatePickerInput(session,"y_var",choices=vars,selected=first_or(new_y$var,vars))
     })
 
-    color_df<-points_color_source$server("sc_col",vals,reactive(x_data()))
+    observeEvent(vals$newcolhabs,{
+      updatePickerInput(session,"palette",choices=vals$colors_img$val,choicesOpt=list(content=vals$colors_img$img),
+                        selected=first_or(isolate(input$palette)%||%"turbo",vals$colors_img$val))
+    })
 
     x_vec<-reactive({
       req(input$x_var%in%colnames(x_table()))
-      v<-x_table()[[input$x_var]]
-      if(identical(input$x_attr,"time")&&!inherits(v,c("Date","POSIXt"))&&!is.numeric(v)){
-        g<-guess_time_settings(v)
-        validate(need(g$type%in%c("date","datetime"),"The temporal column could not be read as dates. Format it in the Databank (Date)."))
-        v<-convert_time_column(v,g$type,g$format,g$custom)
-      }
-      setNames(v,rownames(x_table()))
+      desc_scatter_vector(x_table(),input$x_var,input$x_attr)
     })
     y_vec<-reactive({
-      req(input$y_var%in%colnames(y_data()))
-      setNames(y_data()[[input$y_var]],rownames(y_data()))
+      req(input$y_var%in%colnames(y_table()))
+      desc_scatter_vector(y_table(),input$y_var,input$y_attr)
     })
+    x_is_time<-reactive(inherits(x_vec(),c("Date","POSIXt")))
+
+    # time of the observations: the temporal X, or a column of the Temporal-Attribute
+    # of the X Datalist (or of the Y Datalist)
+    time_attr_table<-reactive({
+      tt<-attr(x_data(),"time")
+      if(is.null(tt)||!ncol(tt)) tt<-attr(y_data(),"time")
+      if(is.null(tt)||!ncol(tt)) return(NULL)
+      as.data.frame(tt)
+    })
+    observeEvent(time_attr_table(),{
+      ch<-colnames(time_attr_table())
+      updatePickerInput(session,"tc_var",choices=ch,selected=first_or(isolate(input$tc_var),ch))
+    })
+    time_vec<-reactive({
+      if(identical(input$x_attr,"time")) return(tryCatch(x_vec(),error=function(e) NULL))
+      tt<-time_attr_table()
+      if(is.null(tt)||!isTRUE(input$tc_var%in%colnames(tt))) return(NULL)
+      v<-tryCatch(desc_scatter_vector(tt,input$tc_var,"time"),error=function(e) NULL)
+      if(!inherits(v,c("Date","POSIXt"))) return(NULL)
+      v
+    })
+    time_struct<-reactive({
+      tv<-time_vec()
+      if(is.null(tv)) return(NULL)
+      ids<-tryCatch(xy_ids(),error=function(e) NULL)
+      desc_time_structure(tv[names(tv)%in%ids])
+    })
+    observeEvent(time_struct(),{
+      ch<-c("None"="none",time_struct()$cycles)
+      updatePickerInput(session,"season",choices=ch,selected=first_or(isolate(input$season),ch))
+    })
+    season_cycle<-reactive({
+      cy<-input$season%||%"none"
+      if(identical(cy,"none")||!isTRUE(cy%in%time_struct()$cycles)) "none" else cy
+    })
+    output$time_info<-renderUI({
+      st<-time_struct()
+      txt<-desc_time_structure_text(st)
+      if(is.null(txt)) return(div(style="font-size: 11px; color: #8a6d3b",em("The selected time column could not be read as dates.")))
+      if(!isTRUE(st$regular)) txt<-c(txt,"With irregular spacing, the lag-1 autocorrelation of residuals is approximate.")
+      div(style="font-size: 11px; color: #555555; padding-bottom: 4px",lapply(txt,function(t) div(icon("clock")," ",t)))
+    })
+    same_var<-reactive({
+      identical(input$x_dl,input$y_dl)&&identical(input$x_attr,input$y_attr)&&identical(input$x_var,input$y_var)
+    })
+
+    # additional predictors (multiple regression): numeric variables of the X Datalist
+    observeEvent(list(x_data(),input$x_var,input$x_attr,input$y_var,input$y_dl),{
+      ch<-colnames(desc_scatter_table(x_data(),"numeric"))
+      drop<-if(identical(input$x_attr,"numeric")) input$x_var else NULL
+      if(identical(input$y_dl,input$x_dl)&&identical(input$y_attr,"numeric")) drop<-c(drop,input$y_var)
+      ch<-setdiff(ch,drop)
+      shinyWidgets::updateVirtualSelect("extra",choices=ch,selected=base::intersect(isolate(input$extra),ch),session=session)
+    })
+    extra_df<-reactive({
+      if(!isTRUE(input$model%in%desc_scatter_multi)||!length(input$extra)) return(NULL)
+      tab<-desc_scatter_table(x_data(),"numeric")
+      v<-base::intersect(input$extra,colnames(tab))
+      if(!length(v)) return(NULL)
+      tab[,v,drop=FALSE]
+    })
+
+    # coloring: Datalists must contain every observation shared by X and Y
+    xy_ids<-reactive({
+      xd<-x_data()
+      yd<-y_data()
+      base::intersect(rownames(xd),rownames(yd))
+    })
+    color_base<-reactive({
+      ids<-xy_ids()
+      validate(need(length(ids)>0,"X and Y have no observation IDs in common."))
+      d<-data.frame(row.names=ids)
+      attr(d,"datalist")<-input$x_dl
+      d
+    })
+    color_df<-points_color_source$server("sc_col",vals,color_base)
+    color_is_factor<-reactive(isTRUE(input$use_color)&&identical(input[["sc_col-attr"]],"factor"))
+
+    observeEvent(x_vec(),{
+      ch<-if(x_is_time()) c("Each X value"="none","Day"="day","Week"="week","Month"="month","Quarter"="quarter","Year"="year") else c("Each X value"="none","Equal-width bins"="bins")
+      updatePickerInput(session,"x_group",choices=ch,selected=first_or(isolate(input$x_group),ch))
+    })
+    observe({
+      shinyjs::toggle("color_out",condition=isTRUE(input$use_color))
+      shinyjs::toggle("facet_box",condition=color_is_factor())
+      shinyjs::toggle("agg_opts",condition=!identical(input$agg,"none"))
+      shinyjs::toggle("x_bins_box",condition=identical(input$x_group,"bins"))
+      shinyjs::toggle("model_opts",condition=!identical(input$model,"none"))
+      shinyjs::toggle("extra_box",condition=isTRUE(input$model%in%desc_scatter_multi))
+      shinyjs::toggle("label_n_box",condition=identical(input$labels,"residuals"))
+      shinyjs::toggle("weight_n_box",condition=identical(input$fit_on%||%"means","means"))
+      shinyjs::toggle("sc_time_wrap",condition=!is.null(tryCatch(time_vec(),error=function(e) NULL)))
+      shinyjs::toggle("tc_var_box",condition=!identical(input$x_attr,"time"))
+    })
+    observe({
+      xv<-tryCatch(x_vec(),error=function(e) NULL)
+      yv<-tryCatch(y_vec(),error=function(e) NULL)
+      x_time<-!is.null(xv)&&inherits(xv,c("Date","POSIXt"))
+      shinyjs::toggle("one_to_one_box",condition=!x_time)
+      shinyjs::toggle("log_x_box",condition=!x_time&&isTRUE(all(xv>0,na.rm=TRUE)))
+      shinyjs::toggle("log_y_box",condition=isTRUE(all(yv>0,na.rm=TRUE)))
+    })
+
+    # setup check: what is matched, and what does not make sense
+    output$xy_check<-renderUI({
+      xd<-x_data()
+      yd<-y_data()
+      ids<-xy_ids()
+      block<-character(0)
+      info<-paste0("X: ",nrow(xd)," obs. | Y: ",nrow(yd)," obs. | ",length(ids)," matched by ID")
+      if(isTRUE(same_var())) block<-c(block,"X and Y are the same variable. Choose another variable for one of the axes.")
+      xv<-tryCatch(x_vec(),error=function(e) NULL)
+      yv<-tryCatch(y_vec(),error=function(e) NULL)
+      if(!is.null(xv)&&!is.null(yv)&&length(ids)){
+        xs<-xv[ids]
+        ys<-yv[ids]
+        ok<-!is.na(xs)&!is.na(ys)
+        if(sum(!ok)>0) info<-paste0(info," | ",sum(!ok)," with missing values")
+        if(length(unique(xs[ok]))<2) block<-c(block,paste0("'",input$x_var,"' is constant in the matched observations."))
+        if(length(unique(ys[ok]))<2) block<-c(block,paste0("'",input$y_var,"' is constant in the matched observations."))
+        if(!identical(input$x_dl,input$y_dl)&&!isTRUE(same_var())&&sum(ok)>1&&!inherits(xv,c("Date","POSIXt"))&&isTRUE(all(xs[ok]==ys[ok])))
+          block<-c(block,"X and Y have identical values (the same variable in both Datalists).")
+      }
+      div(
+        div(style="padding: 2px 10px; font-size: 11px; color: #555555;",icon("circle-info")," ",info),
+        if(length(block)) div(class="alert_warning",style="padding: 6px 10px; margin: 4px 0px; font-size: 12px;",
+                              strong(icon("triangle-exclamation")," Check the setup:"),
+                              tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 18px;",lapply(block,tags$li)))
+      )
+    })
+
     sc_data<-reactive({
-      # evaluated here (not lazily inside intersect(), an S4 generic in the app) so
-      # that req() stays silent while the variables are not chosen yet
+      # evaluated here (not lazily inside S4 generics of the app) so that req() stays silent
       xv<-x_vec()
       yv<-y_vec()
+      validate(need(!isTRUE(same_var()),"X and Y are the same variable."))
       col<-if(isTRUE(input$use_color)) color_df() else NULL
-      desc_scatter_data(xv,yv,col)
+      df<-desc_scatter_data(xv,yv,col,extra_df(),time=time_vec(),cycle=season_cycle())
+      if(!identical(input$agg,"none")) df<-desc_scatter_bin(df,input$x_group%||%"none",input$x_bins)
+      df
     })
+    # data used by the model and the correlation: the class means shown on the plot
+    # (when Y is aggregated and "Fit model on" = means) or the raw observations
+    fit_on_means<-reactive(!identical(input$agg,"none")&&identical(input$fit_on%||%"means","means"))
+    sc_model_data<-reactive({
+      df<-sc_data()
+      if(!fit_on_means()) return(df)
+      sm<-desc_scatter_aggregate(df,input$agg)
+      if(!isTRUE(input$weight_n)) sm$w<-NULL
+      validate(need(nrow(sm)>1,"At least two X classes are needed to fit the model on the means."))
+      sm
+    })
+    model_data_note<-reactive({
+      if(!fit_on_means()) return(NULL)
+      sm<-sc_model_data()
+      paste0("Computed on ",nrow(sm)," class means (from ",attr(sm,"n_raw")," observations)",if(isTRUE(input$weight_n)) ", weighted by the number of observations" else "",".")
+    })
+    sc_fit<-reactive({
+      df<-sc_model_data()
+      if(identical(input$model%||%"none","none")) return(NULL)
+      desc_scatter_fit(df,input$model,band=input$band%||%"confidence",level=input$level%||%0.95)
+    })
+    color_pal<-reactive({
+      if(isTRUE(input$use_color)&&isTRUE(input$palette%in%names(vals$newcolhabs))) vals$newcolhabs[[input$palette]] else NULL
+    })
+    anom<-function(v) if(identical(season_cycle(),"none")) v else paste0(v," (anomaly)")
+    xlab<-reactive(if(nzchar(input$xlab%||%"")) input$xlab else if(identical(input$x_attr,"time")) input$x_var else anom(input$x_var))
+    ylab<-reactive(if(nzchar(input$ylab%||%"")) input$ylab else anom(input$y_var))
 
     sc_plot<-reactive({
       df<-sc_data()
-      pal<-if(isTRUE(input$use_color)&&isTRUE(input$palette%in%names(vals$newcolhabs))) vals$newcolhabs[[input$palette]] else NULL
+      fr<-sc_fit()
+      view<-input$view%||%"scatter"
+      if(!identical(view,"scatter")){
+        validate(need(!is.null(fr),"Choose a model in Regression to see the diagnostics."))
+        return(gg_desc_scatter_diag(fr,view,colors=color_pal(),point_size=input$point_size%||%2,alpha=input$alpha%||%0.7,
+                                    line_color=input$line_color%||%"#05668D",theme=input$theme%||%"theme_bw",
+                                    base_size=input$base_size%||%12,title=input$title,legend.position=input$legend%||%"right",
+                                    color_title=attr(df,"color_name")))
+      }
       gg_desc_scatter(
-        df,
+        df,fitres=fr,
         agg=if(identical(input$agg,"none")) "none" else "mean",
         err=input$agg,
         show_raw=isTRUE(input$show_raw),
-        trend=input$trend%||%"none",
-        trend_se=isTRUE(input$trend_se),
         one_to_one=isTRUE(input$one_to_one),
         log_x=isTRUE(input$log_x),log_y=isTRUE(input$log_y),
-        facet=isTRUE(input$facet),
-        colors=pal,color_breaks=if(isTRUE(input$use_color)) attr(color_df(),"breaks") else NULL,
+        facet=isTRUE(input$facet)&&color_is_factor(),
+        rug=isTRUE(input$rug),
+        labels=input$labels%||%"none",label_n=input$label_n%||%5,
+        show_eq=isTRUE(input$show_eq),
+        colors=color_pal(),color_breaks=if(isTRUE(input$use_color)) attr(color_df(),"breaks") else NULL,
         point_size=input$point_size%||%2,alpha=input$alpha%||%0.7,
-        line_color=input$line_color%||%"#05668D",
+        line_color=input$line_color%||%"#05668D",fit_color=input$fit_color%||%"#B2182B",
         theme=input$theme%||%"theme_bw",base_size=input$base_size%||%12,
-        title=input$title,
-        xlab=if(nzchar(input$xlab%||%"")) input$xlab else input$x_var,
-        ylab=if(nzchar(input$ylab%||%"")) input$ylab else input$y_var,
+        title=input$title,xlab=xlab(),ylab=ylab(),
         legend.position=input$legend%||%"right",
         x_angle=input$x_angle%||%0
       )
@@ -6301,37 +6946,80 @@ desctools_tab11$server<-function(id,vals){
       plotOutput(ns("plot"),height=paste0(input$height%||%480,"px"))
     })
     output$plot<-renderPlot({
-      suppressMessages(print(sc_plot()))
+      # evaluated before print() (an S4 generic in the app) so req()/validate() stay silent
+      p<-sc_plot()
+      suppressWarnings(suppressMessages(print(p)))
     })
     output$note<-renderUI({
       df<-sc_data()
       notes<-character(0)
+      if(!identical(season_cycle(),"none")) notes<-c(notes,paste0("Anomalies: seasonal cycle (",names(time_struct()$cycles)[time_struct()$cycles==season_cycle()],") removed",if(identical(input$x_attr,"time")) " from Y." else " from X and Y."))
+      if(identical(input$agg,"none")&&length(unique(df$x))<0.8*nrow(df)) notes<-c(notes,paste0("X has repeated values (",length(unique(df$x))," distinct values for ",nrow(df)," observations), e.g. several observations per time step or site; observations sharing an X value may not be independent. Consider Aggregate Y with Fit model on class means."))
       if(isTRUE(attr(df,"n_left_out")>0)) notes<-c(notes,paste0(attr(df,"n_left_out")," observation(s) without a match in both Datalists (or with missing values) were left out; ",nrow(df)," plotted."))
-      if(!identical(input$agg,"none")&&isTRUE(input$use_color)&&is.numeric(df$color)) notes<-c(notes,"Means are not colored by a numeric variable; color by a factor to get one mean line per group.")
+      if(!identical(input$agg,"none")){
+        if(isTRUE(input$use_color)&&is.numeric(df$color)) notes<-c(notes,"Means are not colored by a numeric variable; color by a factor to get one mean line per group.")
+        if(is.null(df$xb)&&!anyDuplicated(df$x)) notes<-c(notes,"Each X value has a single observation, so the means equal the raw values. Use X classes to summarise Y.")
+      }
+      if(isTRUE(input$log_x)&&(x_is_time()||any(df$x<=0))) notes<-c(notes,"log10 X ignored: X has values <= 0 or is temporal.")
+      if(isTRUE(input$log_y)&&any(df$y<=0)) notes<-c(notes,"log10 Y ignored: Y has values <= 0.")
       if(!length(notes)) return(NULL)
       div(style="font-size: 11px; color: #8a6d3b; padding: 0px 5px 4px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
     })
-    sc_stats<-reactive(desc_scatter_stats(sc_data()))
+
+    output$fit_notes<-renderUI({
+      fr<-sc_fit()
+      if(is.null(fr)) return(div(style="font-size: 11px; color: #555555; padding: 5px",em("Choose a model in Regression to fit it to the data. The line drawn on the plot is the fitted model.")))
+      notes<-c(model_data_note(),fr$notes)
+      if(!length(notes)) return(NULL)
+      div(style="font-size: 11px; color: #8a6d3b; padding: 2px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
+    })
+    output$fit_metrics<-renderTable({
+      fr<-sc_fit()
+      req(!is.null(fr$metrics))
+      fr$metrics
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
+    output$fit_coefs<-renderTable({
+      fr<-sc_fit()
+      req(!is.null(fr$coefs))
+      fr$coefs
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
+
+    sc_stats<-reactive(desc_scatter_stats(sc_model_data(),agreement=isTRUE(input$one_to_one)))
     output$stats<-renderTable({
       sc_stats()
-    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs")
+    },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
     output$stats_note<-renderUI({
-      note<-attr(sc_stats(),"note")
-      if(is.null(note)) return(NULL)
-      div(style="font-size: 11px; color: #555555",em(note))
+      notes<-c("Correlation tests of X and Y (by color group, when colored by a factor).",model_data_note())
+      if(isTRUE(input$one_to_one)&&!x_is_time()) notes<-c(notes,"Bias, MAE and RMSE compare Y with X (Y - X).")
+      div(style="font-size: 11px; color: #555555",em(paste(notes,collapse=" ")))
     })
 
+    out_name<-reactive(paste0(input$y_var,"_vs_",input$x_var))
     observeEvent(input$down_plot,ignoreInit=TRUE,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       callModule(module_server_figs,"downfigs",vals=vals,generic=sc_plot(),message="Scatter plot",
-                 name_c=paste0("scatter_",input$y_var,"_vs_",input$x_var),datalist_name=input$y_dl)
+                 name_c=paste0("scatter_",out_name()),datalist_name=input$y_dl)
     })
     observeEvent(input$down_table,ignoreInit=TRUE,{
       vals$hand_down<-"generic"
       module_ui_downcenter("downcenter")
-      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download scatter statistics",
-                 data=sc_stats(),name=paste0("scatter_stats_",input$y_var,"_vs_",input$x_var))
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download correlation table",
+                 data=sc_stats(),name=paste0("scatter_correlation_",out_name()))
+    })
+    observeEvent(input$down_metrics,ignoreInit=TRUE,{
+      req(!is.null(sc_fit()$metrics))
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download model fit",
+                 data=sc_fit()$metrics,name=paste0("scatter_fit_",input$model,"_",out_name()))
+    })
+    observeEvent(input$down_coefs,ignoreInit=TRUE,{
+      req(!is.null(sc_fit()$coefs))
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download model coefficients",
+                 data=sc_fit()$coefs,name=paste0("scatter_coefficients_",input$model,"_",out_name()))
     })
   })
 }

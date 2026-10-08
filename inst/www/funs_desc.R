@@ -787,60 +787,584 @@ desc_xy_issues_ui<-function(res){
   )
 }
 
-# ---- Scatter plot (Descriptive tools, tab 11) ------------------------------------------
-# x, y: named vectors (names = observation IDs), possibly from different Datalists;
-# color: optional one-column data.frame (factor or numeric) with IDs as rownames.
+# ---- Temporal structure helpers (Scatter plot and Temporal Descriptives) ---------------
+# phase of a seasonal cycle and the cycle each observation belongs to
 #' @export
-desc_scatter_data<-function(x,y,color=NULL){
-  force(x)
-  force(y)
-  ids<-intersect(names(x),names(y))
-  validate(need(length(ids)>0,"X and Y have no observation IDs in common. Choose Datalists that share the same observations."))
-  if(!is.null(color)) ids<-intersect(ids,rownames(color))
-  validate(need(length(ids)>0,"The coloring Datalist has none of the observations of X and Y."))
-  df<-data.frame(id=ids,x=x[ids],y=y[ids],stringsAsFactors=FALSE)
-  if(!is.null(color)){
-    df$color<-color[ids,1]
-    attr(df,"color_name")<-colnames(color)
+desc_season_phase<-function(t,cycle){
+  switch(cycle,
+         hour=list(phase=format(t,"%H"),cycle_id=format(t,"%Y-%m-%d")),
+         doy=list(phase=format(t,"%j"),cycle_id=format(t,"%Y")),
+         month=list(phase=format(t,"%m"),cycle_id=format(t,"%Y")),
+         season={
+           m<-as.integer(format(t,"%m"))
+           s<-c("DJF","DJF","MAM","MAM","MAM","JJA","JJA","JJA","SON","SON","SON","DJF")[m]
+           # December belongs to the DJF of the following year
+           list(phase=s,cycle_id=as.character(as.integer(format(t,"%Y"))+(m==12)))
+         },
+         stop("unknown cycle"))
+}
+
+# seasonal cycles that can be removed: the data must cover at least two cycles, with
+# most phases (e.g. months) observed in two or more cycles (e.g. years)
+#' @export
+desc_season_cycles<-function(t){
+  t<-t[!is.na(t)]
+  opts<-c("Hour of day"="hour","Day of year"="doy","Month"="month","Season (DJF/MAM/JJA/SON)"="season")
+  if(!length(t)||!inherits(t,c("Date","POSIXt"))) return(opts[0])
+  if(!inherits(t,"POSIXt")) opts<-opts[opts!="hour"]
+  ok<-vapply(opts,function(cy){
+    ph<-desc_season_phase(t,cy)
+    n_phase<-length(unique(ph$phase))
+    if(n_phase<2||length(unique(ph$cycle_id))<2) return(FALSE)
+    if(identical(cy,"doy")&&n_phase<=52) return(FALSE)
+    ncyc<-tapply(ph$cycle_id,ph$phase,function(v) length(unique(v)))
+    mean(ncyc>=2)>=0.8
+  },logical(1))
+  opts[ok]
+}
+
+# what the time axis looks like: steps, repetitions, spacing and removable cycles
+#' @export
+desc_time_structure<-function(t){
+  t<-t[!is.na(t)]
+  if(!length(t)||!inherits(t,c("Date","POSIXt"))) return(NULL)
+  ut<-sort(unique(t))
+  days<-if(inherits(t,"POSIXt")) as.numeric(difftime(ut,ut[1],units="days")) else as.numeric(ut-ut[1])
+  dif<-diff(days)
+  step<-if(length(dif)) stats::median(dif) else NA_real_
+  regular<-length(dif)>1&&isTRUE(step>0)&&isTRUE(stats::sd(dif)/mean(dif)<0.2)
+  reps<-as.vector(table(as.numeric(t)))
+  list(n=length(t),n_steps=length(ut),reps_median=stats::median(reps),reps_max=max(reps),
+       step_days=step,regular=regular,span_days=max(days),from=min(t),to=max(t),cycles=desc_season_cycles(t))
+}
+
+#' @export
+desc_time_structure_text<-function(st){
+  if(is.null(st)) return(NULL)
+  step<-st$step_days
+  step_txt<-if(is.na(step)) "-" else if(step<1) paste0(signif(step*24,3)," h") else if(step<60) paste0(signif(step,3)," days") else paste0(signif(step/30.44,3)," months")
+  c(paste0(st$n_steps," time steps from ",format(st$from)," to ",format(st$to),"; ",if(st$regular) "regular" else "irregular"," spacing (median step ",step_txt,")."),
+    if(st$reps_max>1) paste0("Repeated time steps: up to ",st$reps_max," observations per step (median ",st$reps_median,")."),
+    if(length(st$cycles)) paste0("Removable seasonal cycles: ",paste(names(st$cycles),collapse=", "),".") else "No seasonal cycle is covered at least twice.")
+}
+
+# anomalies: value minus the mean of its phase (e.g. of its month)
+#' @export
+desc_deseason<-function(v,phase){
+  v-stats::ave(v,phase,FUN=function(z) mean(z,na.rm=TRUE))
+}
+
+# lag-1 autocorrelation of residuals in time order (mean per time step when repeated)
+# and the effective number of independent time steps
+#' @export
+desc_resid_acf<-function(res,time){
+  ok<-!is.na(res)&!is.na(time)
+  if(sum(ok)<3) return(list(r1=NA_real_,n_steps=sum(ok),n_eff=NA_real_))
+  m<-tapply(res[ok],as.numeric(time[ok]),mean)
+  n<-length(m)
+  if(n<10) return(list(r1=NA_real_,n_steps=n,n_eff=NA_real_))
+  r1<-stats::cor(m[-1],m[-n])
+  n_eff<-if(is.na(r1)||r1<=0) n else max(3,n*(1-r1)/(1+r1))
+  list(r1=r1,n_steps=n,n_eff=n_eff)
+}
+
+# ---- Trend and decomposition helpers (Temporal Descriptives) ---------------------------
+# Mann-Kendall test (variance corrected for ties) and Sen's slope; t in time units
+#' @export
+desc_mann_kendall<-function(y,t){
+  ok<-!is.na(y)&!is.na(t)
+  y<-y[ok]
+  t<-t[ok]
+  o<-order(t)
+  y<-y[o]
+  t<-t[o]
+  n<-length(y)
+  na<-list(n=n,S=NA_real_,tau=NA_real_,p=NA_real_,sen=NA_real_,sen_intercept=NA_real_)
+  if(n<4||n>3000) return(na)
+  ij<-which(upper.tri(matrix(FALSE,n,n)),arr.ind=TRUE)
+  i<-ij[,1]
+  j<-ij[,2]
+  S<-sum(sign(y[j]-y[i]))
+  tp<-as.vector(table(y))
+  varS<-(n*(n-1)*(2*n+5)-sum(tp*(tp-1)*(2*tp+5)))/18
+  Z<-if(varS>0) (S-sign(S))/sqrt(varS) else 0
+  dt<-t[j]-t[i]
+  slopes<-(y[j]-y[i])[dt!=0]/dt[dt!=0]
+  sen<-if(length(slopes)) stats::median(slopes) else NA_real_
+  list(n=n,S=S,tau=S/(n*(n-1)/2),p=2*stats::pnorm(-abs(Z)),sen=sen,sen_intercept=stats::median(y-sen*t))
+}
+
+# OLS trend with the p-value corrected by the effective n (lag-1 autocorrelation of the
+# residuals), plus Mann-Kendall / Sen. t: numeric time (days for dates); per: multiplier
+# that converts the slope to the reported unit (e.g. 365.25 for per year)
+#' @export
+desc_trend_stats<-function(y,t,per=1){
+  ok<-!is.na(y)&!is.na(t)
+  y<-y[ok]
+  t<-t[ok]
+  n<-length(y)
+  out<-data.frame(N=n,Slope=NA_real_,R2=NA_real_,P_value=NA_real_,Resid_lag1_r=NA_real_,n_eff=NA_real_,P_value_adj=NA_real_,
+                  Sen_slope=NA_real_,MK_tau=NA_real_,MK_p=NA_real_)
+  if(n<3||length(unique(t))<2) return(out)
+  fit<-stats::lm(y~t)
+  sm<-summary(fit)
+  b<-unname(stats::coef(fit)[2])
+  out$Slope<-b*per
+  out$R2<-sm$r.squared
+  out$P_value<-sm$coefficients[2,4]
+  ac<-desc_resid_acf(stats::residuals(fit),t)
+  out$Resid_lag1_r<-ac$r1
+  out$n_eff<-ac$n_eff
+  if(!is.na(ac$n_eff)&&ac$n_eff>2){
+    se<-sm$coefficients[2,2]*sqrt((n-2)/(ac$n_eff-2))
+    out$P_value_adj<-2*stats::pt(-abs(b/se),ac$n_eff-2)
   }
-  df<-df[!is.na(df$x)&!is.na(df$y),,drop=FALSE]
-  validate(need(nrow(df)>1,"At least two observations with X and Y values are needed."))
-  attr(df,"n_left_out")<-length(union(names(x),names(y)))-nrow(df)
-  attr(df,"color_name")<-if(!is.null(color)) colnames(color) else NULL
-  df
+  mk<-desc_mann_kendall(y,t)
+  out$Sen_slope<-mk$sen*per
+  out$MK_tau<-mk$tau
+  out$MK_p<-mk$p
+  attr(out,"lines")<-list(intercept=unname(stats::coef(fit)[1]),slope=b,sen=mk$sen,sen_intercept=mk$sen_intercept)
+  out
 }
 
-# groups used by trends, aggregation and statistics: the color factor, if any
-desc_scatter_group<-function(df){
-  if(!is.null(df$color)&&is.factor(df$color)) df$color else factor(rep("All",nrow(df)))
-}
-
+# STL decomposition of a regular series (one value per time step) for a seasonal cycle
 #' @export
-desc_scatter_stats<-function(df){
-  df$group<-desc_scatter_group(df)
-  is_time<-inherits(df$x,c("Date","POSIXt"))
-  out<-do.call(rbind,lapply(split(df,df$group,drop=TRUE),function(s){
-    xn<-as.numeric(s$x)
-    if(nrow(s)<3||stats::sd(xn)==0||stats::sd(s$y)==0){
-      return(data.frame(Group=as.character(s$group[1]),n=nrow(s),Pearson_r=NA,Spearman_rho=NA,R2=NA,Slope=NA,Intercept=NA,P_value=NA))
-    }
-    fit<-stats::lm(s$y~xn)
-    sm<-suppressWarnings(summary(fit))
-    data.frame(Group=as.character(s$group[1]),n=nrow(s),
-               Pearson_r=stats::cor(xn,s$y),
-               Spearman_rho=suppressWarnings(stats::cor(xn,s$y,method="spearman")),
-               R2=sm$r.squared,Slope=unname(stats::coef(fit)[2]),Intercept=unname(stats::coef(fit)[1]),
-               P_value=sm$coefficients[2,4])
-  }))
-  rownames(out)<-NULL
-  if(is_time) attr(out,"note")<-"With time on X, the slope is the change in Y per day (Date) or per second (date-time)."
+desc_stl<-function(time,y,cycle){
+  o<-order(time)
+  time<-time[o]
+  y<-y[o]
+  st<-desc_time_structure(time)
+  if(is.null(st)) return("needs a date or date-time variable.")
+  if(!isTRUE(st$regular)) return("needs regularly spaced time steps.")
+  if(st$reps_max>1) return("needs one value per time step.")
+  ut<-as.numeric(time)
+  if(inherits(time,"POSIXt")) ut<-ut/86400
+  if(max(diff(ut))>1.5*st$step_days) return("the series has gaps (missing time steps).")
+  if(any(is.na(y))) return("the series has missing values.")
+  ph<-desc_season_phase(time,cycle)
+  cnt<-as.vector(table(ph$cycle_id))
+  f<-if(length(cnt)>2) stats::median(cnt[-c(1,length(cnt))]) else max(cnt)
+  f<-round(f)
+  if(f<2) return("the cycle has less than two time steps.")
+  if(length(y)<2*f+1) return("the series must cover at least two complete cycles.")
+  dec<-tryCatch(stats::stl(stats::ts(y,frequency=f),s.window="periodic",robust=TRUE),error=function(e) conditionMessage(e))
+  if(is.character(dec)) return(dec)
+  comp<-dec$time.series
+  tr<-as.numeric(comp[,"trend"])
+  se<-as.numeric(comp[,"seasonal"])
+  re<-as.numeric(comp[,"remainder"])
+  strength<-function(a) max(0,1-stats::var(re)/stats::var(a+re))
+  list(df=data.frame(time=rep(time,4),component=factor(rep(c("Observed","Trend","Seasonal","Remainder"),each=length(y)),levels=c("Observed","Trend","Seasonal","Remainder")),
+                     value=c(y,tr,se,re)),
+       stats=data.frame(N=length(y),Steps_per_cycle=f,Seasonal_amplitude=diff(range(se)),Trend_strength=strength(tr),Seasonal_strength=strength(se)))
+}
+
+# ---- Scatter plot (Descriptive tools, tab 11) ------------------------------------------
+
+# attributes of a Datalist that can be used on an axis (time only on X)
+#' @export
+desc_scatter_attrs<-function(d,axis="x"){
+  out<-character(0)
+  if(is.null(d)) return(out)
+  if(any(vapply(d,is.numeric,logical(1)))) out<-c(out,"Numeric-Attribute"="numeric")
+  tt<-attr(d,"time")
+  if(identical(axis,"x")&&!is.null(tt)&&ncol(tt)>0) out<-c(out,"Temporal-Attribute"="time")
+  co<-attr(d,"coords")
+  if(!is.null(co)&&ncol(co)>0&&any(vapply(as.data.frame(co),is.numeric,logical(1)))) out<-c(out,"Coords-Attribute"="coords")
   out
 }
 
 #' @export
-gg_desc_scatter<-function(df,agg="none",err="se",show_raw=TRUE,trend="none",trend_se=TRUE,
-                          one_to_one=FALSE,log_x=FALSE,log_y=FALSE,facet=FALSE,
-                          colors=NULL,color_breaks=NULL,point_size=2,alpha=0.7,line_color="#05668D",
+desc_scatter_table<-function(d,attr_name){
+  tab<-switch(attr_name,time=attr(d,"time"),coords=attr(d,"coords"),d)
+  if(is.null(tab)) return(NULL)
+  tab<-as.data.frame(tab)
+  if(!identical(attr_name,"time")) tab<-tab[,vapply(tab,is.numeric,logical(1)),drop=FALSE]
+  tab
+}
+
+# named vector (names = observation IDs); temporal columns are read as dates
+#' @export
+desc_scatter_vector<-function(tab,var,attr_name){
+  v<-tab[[var]]
+  if(identical(attr_name,"time")&&!inherits(v,c("Date","POSIXt"))&&!is.numeric(v)){
+    g<-guess_time_settings(v)
+    validate(need(g$type%in%c("date","datetime"),"The temporal column could not be read as dates. Format it in the Databank (Date)."))
+    v<-convert_time_column(v,g$type,g$format,g$custom)
+  }
+  stats::setNames(v,rownames(tab))
+}
+
+# number of observation IDs each Datalist shares with ids
+#' @export
+desc_scatter_partners<-function(saved_data,ids){
+  vapply(saved_data,function(d) sum(rownames(d)%in%ids),integer(1))
+}
+
+# x, y: named vectors (names = observation IDs), possibly from different Datalists;
+# color: optional one-column data.frame (factor or numeric) with IDs as rownames;
+# extra: optional data.frame of additional predictors (multiple regression), IDs as rownames;
+# time: optional named vector of dates (IDs as names), used to remove a seasonal cycle
+# (anomalies from the mean of each phase) and to check the autocorrelation of residuals.
+#' @export
+desc_scatter_data<-function(x,y,color=NULL,extra=NULL,time=NULL,cycle="none"){
+  force(x)
+  force(y)
+  ids<-base::intersect(names(x),names(y))
+  validate(need(length(ids)>0,"X and Y have no observation IDs in common. Choose Datalists that share the same observations."))
+  if(!is.null(color)) ids<-base::intersect(ids,rownames(color))
+  validate(need(length(ids)>0,"The coloring Datalist has none of the observations of X and Y."))
+  df<-data.frame(id=ids,x=x[ids],y=y[ids],stringsAsFactors=FALSE)
+  if(!is.null(color)) df$color<-color[ids,1]
+  extra_names<-character(0)
+  if(!is.null(extra)&&ncol(extra)>0){
+    ids_e<-base::intersect(df$id,rownames(extra))
+    df<-df[df$id%in%ids_e,,drop=FALSE]
+    extra_names<-paste0("e",seq_len(ncol(extra)))
+    for(i in seq_along(extra_names)) df[[extra_names[i]]]<-extra[df$id,i]
+  }
+  keep<-!is.na(df$x)&!is.na(df$y)
+  for(e in extra_names) keep<-keep&!is.na(df[[e]])
+  df<-df[keep,,drop=FALSE]
+  validate(need(nrow(df)>1,"At least two observations with X and Y values are needed."))
+  rownames(df)<-df$id
+  x_time<-inherits(df$x,c("Date","POSIXt"))
+  if(x_time) time<-df$x
+  else if(!is.null(time)) time<-time[df$id]
+  if(!is.null(time)) df$time<-time
+  if(!is.null(cycle)&&!identical(cycle,"none")){
+    validate(need(!is.null(df$time),"Removing a seasonal cycle needs a Temporal-Attribute."))
+    df<-df[!is.na(df$time),,drop=FALSE]
+    ph<-desc_season_phase(df$time,cycle)$phase
+    # anomalies of every numeric variable (not of a temporal X)
+    if(!x_time) df$x<-desc_deseason(df$x,ph)
+    df$y<-desc_deseason(df$y,ph)
+    for(e in extra_names) df[[e]]<-desc_deseason(df[[e]],ph)
+  }
+  # numeric version of X used by the models: days since the first date for temporal X
+  if(inherits(df$x,"Date")){
+    origin<-min(df$x)
+    df$xn<-as.numeric(df$x-origin)
+  } else if(inherits(df$x,"POSIXt")){
+    origin<-min(df$x)
+    df$xn<-as.numeric(difftime(df$x,origin,units="days"))
+  } else{
+    origin<-NULL
+    df$xn<-as.numeric(df$x)
+  }
+  attr(df,"time_origin")<-origin
+  attr(df,"n_left_out")<-length(union(names(x),names(y)))-nrow(df)
+  attr(df,"color_name")<-if(!is.null(color)) colnames(color) else NULL
+  attr(df,"extra_names")<-extra_names
+  attr(df,"extra_labels")<-if(length(extra_names)) colnames(extra) else character(0)
+  attr(df,"cycle")<-if(is.null(cycle)) "none" else cycle
+  df
+}
+
+# groups used by models, aggregation and statistics: the color factor, if any
+desc_scatter_group<-function(df){
+  if(!is.null(df$color)&&is.factor(df$color)) droplevels(df$color) else factor(rep("All",nrow(df)))
+}
+
+# X classes used to summarise Y: calendar periods (temporal X) or equal-width bins
+#' @export
+desc_scatter_bin<-function(df,by="none",bins=10){
+  if(identical(by,"none")||is.null(by)) return(df)
+  if(inherits(df$x,"Date")){
+    df$xb<-as.Date(cut(df$x,by))
+  } else if(inherits(df$x,"POSIXt")){
+    df$xb<-as.POSIXct(cut(df$x,by),tz=attr(df$x,"tzone")%||%"")
+  } else{
+    bins<-max(2,round(bins%||%10))
+    br<-seq(min(df$x),max(df$x),length.out=bins+1)
+    if(length(unique(br))<2) return(df)
+    mid<-(br[-1]+br[-length(br)])/2
+    df$xb<-mid[as.integer(cut(df$x,br,include.lowest=TRUE))]
+  }
+  df
+}
+
+# one row per X value/class and color group: mean of Y (and of the additional predictors);
+# used to draw the means and, when the model is fitted on the means, as the model data
+#' @export
+desc_scatter_aggregate<-function(df,err="se"){
+  df$group<-desc_scatter_group(df)
+  df$xa<-if(!is.null(df$xb)) df$xb else df$x
+  extra<-attr(df,"extra_names")
+  if(is.null(extra)) extra<-character(0)
+  origin<-attr(df,"time_origin")
+  sm<-do.call(rbind,lapply(split(df,list(df$group,as.character(df$xa)),drop=TRUE),function(s){
+    n<-nrow(s)
+    sdv<-if(n>1) stats::sd(s$y) else NA_real_
+    r<-data.frame(x=s$xa[1],group=as.character(s$group[1]),y=mean(s$y),n=n,sd=sdv,se=sdv/sqrt(n),stringsAsFactors=FALSE)
+    for(e in extra) r[[e]]<-mean(s[[e]])
+    r
+  }))
+  sm$group<-factor(sm$group,levels=levels(df$group))
+  sm<-sm[order(sm$group,sm$x),,drop=FALSE]
+  sm$err<-if(identical(err,"sd")) sm$sd else sm$se
+  sm$mean<-sm$y
+  xlab<-if(is.numeric(sm$x)) as.character(signif(sm$x,4)) else format(sm$x)
+  sm$id<-if(nlevels(df$group)>1) paste0(sm$group," | ",xlab) else xlab
+  if(!is.null(df$color)&&is.factor(df$color)) sm$color<-sm$group
+  sm$xn<-if(inherits(sm$x,"Date")) as.numeric(sm$x-origin) else if(inherits(sm$x,"POSIXt")) as.numeric(difftime(sm$x,origin,units="days")) else as.numeric(sm$x)
+  sm$w<-sm$n
+  if(inherits(sm$x,c("Date","POSIXt"))) sm$time<-sm$x
+  rownames(sm)<-NULL
+  for(a in c("time_origin","color_name","extra_names","extra_labels","cycle")) attr(sm,a)<-attr(df,a)
+  attr(sm,"n_raw")<-nrow(df)
+  sm
+}
+
+#' @export
+desc_scatter_model_choices<-c(
+  "None"="none",
+  "Linear"="lm",
+  "Polynomial (2nd degree)"="poly2",
+  "Polynomial (3rd degree)"="poly3",
+  "Logarithmic"="log",
+  "Exponential"="exp",
+  "Power"="power",
+  "Logistic"="logistic",
+  "Gompertz"="gompertz",
+  "Michaelis-Menten"="mm",
+  "Asymptotic (exp. rise)"="asymp",
+  "Smooth (loess)"="loess"
+)
+desc_scatter_model_help<-paste(
+  "Linear: y = a + b x (+ c X2 + ... with additional predictors, multiple regression)",
+  "Polynomial: y = a + b x + c x^2 (+ d x^3)",
+  "Logarithmic: y = a + b ln(x), x > 0",
+  "Exponential: y = a exp(b x)",
+  "Power: y = a x^b, x > 0",
+  "Logistic: y = Asym / (1 + exp((xmid - x)/scal))",
+  "Gompertz: y = Asym exp(-b2 b3^x)",
+  "Michaelis-Menten: y = Vm x / (K + x)",
+  "Asymptotic: y = Asym + (R0 - Asym) exp(-exp(lrc) x)",
+  "Loess: local smoother, no equation",
+  "Linear and polynomial models are fitted by least squares (lm); the others by nonlinear least squares (nls). With temporal X, x is the number of days since the first date.",
+  sep="<br>"
+)
+# models that accept additional predictors (multiple regression)
+desc_scatter_multi<-c("lm","poly2","poly3")
+
+desc_scatter_fit_one<-function(s,type,extra=character(0)){
+  # w: weights (number of observations behind each mean); 1 for raw observations
+  if(is.null(s$w)) s$w<-rep(1,nrow(s))
+  ex<-if(length(extra)) paste0("+",paste(extra,collapse="+")) else ""
+  f<-switch(type,
+            lm=paste0("y~xn",ex),
+            poly2=paste0("y~xn+I(xn^2)",ex),
+            poly3=paste0("y~xn+I(xn^2)+I(xn^3)",ex),
+            log="y~log(xn)",
+            NULL)
+  if(type%in%c("log","power")&&any(s$xn<=0)) stop("this model requires X > 0")
+  if(!is.null(f)) return(stats::lm(stats::as.formula(f),data=s,weights=w))
+  if(identical(type,"loess")){
+    if(nrow(s)<6) stop("loess needs at least 6 observations")
+    return(stats::loess(y~xn,data=s,weights=w))
+  }
+  ctrl<-stats::nls.control(maxiter=500,warnOnly=FALSE)
+  switch(type,
+         exp={
+           st<-if(all(s$y>0)){
+             cf<-stats::coef(stats::lm(log(y)~xn,data=s))
+             list(a=exp(cf[[1]]),b=cf[[2]])
+           } else list(a=mean(s$y),b=0)
+           stats::nls(y~a*exp(b*xn),data=s,start=st,weights=w,control=ctrl)
+         },
+         power={
+           st<-if(all(s$y>0)){
+             cf<-stats::coef(stats::lm(log(y)~log(xn),data=s))
+             list(a=exp(cf[[1]]),b=cf[[2]])
+           } else list(a=mean(s$y),b=1)
+           stats::nls(y~a*xn^b,data=s,start=st,weights=w,control=ctrl)
+         },
+         logistic=stats::nls(y~stats::SSlogis(xn,Asym,xmid,scal),data=s,weights=w,control=ctrl),
+         gompertz=stats::nls(y~stats::SSgompertz(xn,Asym,b2,b3),data=s,weights=w,control=ctrl),
+         mm=stats::nls(y~stats::SSmicmen(xn,Vm,K),data=s,weights=w,control=ctrl),
+         asymp=stats::nls(y~stats::SSasymp(xn,Asym,R0,lrc),data=s,weights=w,control=ctrl),
+         stop("unknown model"))
+}
+
+desc_scatter_equation<-function(fit,type,xlab="x",extra_labels=character(0)){
+  if(identical(type,"loess")) return("loess smoother (no equation)")
+  cf<-stats::coef(fit)
+  f<-function(v) trimws(formatC(unname(v),digits=4,format="g"))
+  term<-function(v,txt) paste0(if(v<0) " - " else " + ",f(abs(v)),txt)
+  switch(type,
+         lm=,poly2=,poly3={
+           txt<-paste0("y = ",f(cf[1]))
+           nm<-names(cf)[-1]
+           lab<-nm
+           lab[nm=="xn"]<-xlab
+           lab[nm=="I(xn^2)"]<-paste0(xlab,"^2")
+           lab[nm=="I(xn^3)"]<-paste0(xlab,"^3")
+           for(i in seq_along(extra_labels)) lab[nm==paste0("e",i)]<-extra_labels[i]
+           for(i in seq_along(nm)) txt<-paste0(txt,term(cf[i+1],paste0(" ",lab[i])))
+           txt
+         },
+         log=paste0("y = ",f(cf[1]),term(cf[2],paste0(" ln(",xlab,")"))),
+         exp=paste0("y = ",f(cf["a"])," exp(",f(cf["b"])," ",xlab,")"),
+         power=paste0("y = ",f(cf["a"])," ",xlab,"^",f(cf["b"])),
+         logistic=paste0("y = ",f(cf["Asym"])," / (1 + exp((",f(cf["xmid"])," - ",xlab,") / ",f(cf["scal"]),"))"),
+         gompertz=paste0("y = ",f(cf["Asym"])," exp(-",f(cf["b2"])," ",f(cf["b3"]),"^",xlab,")"),
+         mm=paste0("y = ",f(cf["Vm"])," ",xlab," / (",f(cf["K"])," + ",xlab,")"),
+         asymp=paste0("y = ",f(cf["Asym"])," + (",f(cf["R0"])," - ",f(cf["Asym"]),") exp(-exp(",f(cf["lrc"]),") ",xlab,")"),
+         "")
+}
+
+# fits the model in each color group; returns fits, curves, metrics and coefficients
+#' @export
+desc_scatter_fit<-function(df,type="none",band="confidence",level=0.95,xlab="x"){
+  if(is.null(type)||identical(type,"none")) return(NULL)
+  df$group<-desc_scatter_group(df)
+  extra<-if(type%in%desc_scatter_multi) attr(df,"extra_names") else character(0)
+  extra_labels<-if(length(extra)) attr(df,"extra_labels") else character(0)
+  origin<-attr(df,"time_origin")
+  eq_x<-if(is.null(origin)) "x" else "t"
+  to_x<-function(xn){
+    if(is.null(origin)) return(xn)
+    if(inherits(origin,"Date")) origin+xn else origin+xn*86400
+  }
+  out<-lapply(split(df,df$group,drop=TRUE),function(s){
+    s<-s[order(s$xn),,drop=FALSE]
+    g<-as.character(s$group[1])
+    fit<-tryCatch(suppressWarnings(desc_scatter_fit_one(s,type,extra)),error=function(e){
+      msg<-conditionMessage(e)
+      if(type%in%c("exp","power","logistic","gompertz","mm","asymp")&&!grepl("X > 0",msg,fixed=TRUE)) paste0("did not converge: ",msg) else msg
+    })
+    if(is.character(fit)) return(list(group=g,error=fit))
+    fitted_v<-as.numeric(stats::fitted(fit))
+    res<-s$y-fitted_v
+    n<-nrow(s)
+    p<-if(identical(type,"loess")) NA else length(stats::coef(fit))
+    w<-if(is.null(s$w)) rep(1,n) else s$w
+    r2<-1-sum(w*res^2)/sum(w*(s$y-stats::weighted.mean(s$y,w))^2)
+    adj<-if(is.na(p)||n-p<=0) NA else 1-(1-r2)*(n-1)/(n-p)
+    p_model<-NA
+    if(inherits(fit,"lm")){
+      fs<-summary(fit)$fstatistic
+      if(!is.null(fs)) p_model<-stats::pf(fs[1],fs[2],fs[3],lower.tail=FALSE)
+    }
+    metrics<-data.frame(Group=g,n=n,Parameters=p,R2=r2,Adj_R2=adj,RMSE=sqrt(mean(res^2)),MAE=mean(abs(res)),
+                        AIC=if(identical(type,"loess")) NA else stats::AIC(fit),
+                        BIC=if(identical(type,"loess")) NA else stats::BIC(fit),
+                        P_model=p_model,
+                        stringsAsFactors=FALSE)
+    if(!is.null(s$time)){
+      ac<-desc_resid_acf(res,s$time)
+      metrics$Time_steps<-ac$n_steps
+      metrics$Resid_lag1_r<-ac$r1
+      metrics$n_eff<-ac$n_eff
+      # overall test with the effective number of independent time steps
+      p_adj<-NA
+      if(!is.na(p)&&p>1&&!is.na(ac$n_eff)&&ac$n_eff>p&&r2<1){
+        Fs<-(r2/(p-1))/((1-r2)/(ac$n_eff-p))
+        p_adj<-stats::pf(Fs,p-1,ac$n_eff-p,lower.tail=FALSE)
+      }
+      metrics$P_model_adj<-p_adj
+    }
+    metrics$Equation<-desc_scatter_equation(fit,type,eq_x,extra_labels)
+    coefs<-NULL
+    if(!identical(type,"loess")){
+      cm<-suppressWarnings(summary(fit))$coefficients
+      term<-rownames(cm)
+      term[term=="xn"]<-eq_x
+      term[term=="I(xn^2)"]<-paste0(eq_x,"^2")
+      term[term=="I(xn^3)"]<-paste0(eq_x,"^3")
+      for(i in seq_along(extra_labels)) term[term==paste0("e",i)]<-extra_labels[i]
+      coefs<-data.frame(Group=g,Term=term,Estimate=cm[,1],Std_Error=cm[,2],Statistic=cm[,3],P_value=cm[,4],stringsAsFactors=FALSE)
+    }
+    # curve over the observed X range (other predictors at their mean)
+    grid<-data.frame(xn=seq(min(s$xn),max(s$xn),length.out=200))
+    for(e in extra) grid[[e]]<-mean(s[[e]])
+    curve<-data.frame(xn=grid$xn,fit=NA_real_,lwr=NA_real_,upr=NA_real_)
+    if(inherits(fit,"lm")){
+      int<-if(identical(band,"prediction")) "prediction" else "confidence"
+      pr<-suppressWarnings(stats::predict(fit,newdata=grid,interval=int,level=level))
+      curve$fit<-pr[,"fit"]
+      if(!identical(band,"none")){
+        curve$lwr<-pr[,"lwr"]
+        curve$upr<-pr[,"upr"]
+      }
+    } else if(inherits(fit,"loess")){
+      pr<-stats::predict(fit,newdata=grid,se=TRUE)
+      curve$fit<-as.numeric(pr$fit)
+      if(!identical(band,"none")){
+        q<-stats::qt((1+level)/2,pr$df)
+        curve$lwr<-as.numeric(pr$fit-q*pr$se.fit)
+        curve$upr<-as.numeric(pr$fit+q*pr$se.fit)
+      }
+    } else{
+      curve$fit<-as.numeric(stats::predict(fit,newdata=grid))
+    }
+    curve$x<-to_x(curve$xn)
+    curve$group<-g
+    list(group=g,fit=fit,metrics=metrics,coefs=coefs,curve=curve,
+         resid=data.frame(id=s$id,group=g,x=s$x,y=s$y,fitted=fitted_v,residual=res,stringsAsFactors=FALSE))
+  })
+  ok<-Filter(function(r) is.null(r$error),out)
+  bad<-Filter(function(r) !is.null(r$error),out)
+  notes<-character(0)
+  if(length(bad)) notes<-c(notes,paste0("Model not fitted for ",paste0("'",vapply(bad,`[[`,"",'group'),"' (",vapply(bad,`[[`,"",'error'),")",collapse="; "),"."))
+  if(length(extra)) notes<-c(notes,"Multiple regression: the curve on the scatter is drawn with the additional predictors at their mean; use Observed vs fitted to see the full model.")
+  if(!identical(band,"none")&&!type%in%c("lm","poly2","poly3","log","loess")) notes<-c(notes,"Bands are only available for linear, polynomial, logarithmic and loess models.")
+  if(identical(band,"prediction")&&identical(type,"loess")) notes<-c(notes,"Loess shows a confidence band.")
+  if(!is.null(origin)) notes<-c(notes,paste0("t = days since ",format(origin),"."))
+  r1<-unlist(lapply(ok,function(r) r$metrics$Resid_lag1_r))
+  if(length(r1)&&any(r1>0.3,na.rm=TRUE)) notes<-c(notes,paste0("Residuals are autocorrelated in time (lag-1 r up to ",round(max(r1,na.rm=TRUE),2),"): P_model assumes independent observations and is optimistic; P_model_adj uses the effective number of independent time steps (n_eff)."))
+  rb<-function(k) {v<-lapply(ok,`[[`,k); v<-Filter(Negate(is.null),v); if(length(v)) do.call(rbind,v) else NULL}
+  res<-list(type=type,metrics=rb("metrics"),coefs=rb("coefs"),curve=rb("curve"),resid=rb("resid"),notes=notes,n_ok=length(ok))
+  if(!is.null(res$coefs)) rownames(res$coefs)<-NULL
+  if(!is.null(res$metrics)) rownames(res$metrics)<-NULL
+  res
+}
+
+# correlation (and agreement, for the 1:1 comparison) of X and Y in each group
+#' @export
+desc_scatter_stats<-function(df,agreement=FALSE){
+  df$group<-desc_scatter_group(df)
+  is_num<-!inherits(df$x,c("Date","POSIXt"))
+  out<-do.call(rbind,lapply(split(df,df$group,drop=TRUE),function(s){
+    xn<-as.numeric(s$x)
+    ok<-nrow(s)>=3&&stats::sd(xn)>0&&stats::sd(s$y)>0
+    ct<-function(m) if(ok) suppressWarnings(stats::cor.test(xn,s$y,method=m,exact=FALSE)) else NULL
+    pe<-ct("pearson")
+    sp<-ct("spearman")
+    ke<-ct("kendall")
+    r<-data.frame(Group=as.character(s$group[1]),n=nrow(s),
+                  Pearson_r=if(ok) unname(pe$estimate) else NA,Pearson_p=if(ok) pe$p.value else NA,
+                  Spearman_rho=if(ok) unname(sp$estimate) else NA,Spearman_p=if(ok) sp$p.value else NA,
+                  Kendall_tau=if(ok) unname(ke$estimate) else NA,Kendall_p=if(ok) ke$p.value else NA,
+                  stringsAsFactors=FALSE)
+    if(!is.null(s$time)&&ok){
+      ac<-desc_resid_acf(stats::residuals(stats::lm(s$y~xn)),s$time)
+      r$Resid_lag1_r<-ac$r1
+      r$n_eff<-ac$n_eff
+      r$Pearson_p_adj<-NA
+      if(!is.na(ac$n_eff)&&ac$n_eff>2&&abs(r$Pearson_r)<1){
+        tt<-r$Pearson_r*sqrt((ac$n_eff-2)/(1-r$Pearson_r^2))
+        r$Pearson_p_adj<-2*stats::pt(-abs(tt),ac$n_eff-2)
+      }
+    }
+    if(isTRUE(agreement)&&is_num){
+      d<-s$y-s$x
+      r$Bias_YminusX<-mean(d)
+      r$MAE<-mean(abs(d))
+      r$RMSE<-sqrt(mean(d^2))
+    }
+    r
+  }))
+  rownames(out)<-NULL
+  out
+}
+
+#' @export
+gg_desc_scatter<-function(df,fitres=NULL,agg="none",err="se",show_raw=TRUE,
+                          one_to_one=FALSE,log_x=FALSE,log_y=FALSE,facet=FALSE,rug=FALSE,
+                          labels="none",label_n=5,label_size=3.5,show_eq=FALSE,
+                          colors=NULL,color_breaks=NULL,point_size=2,alpha=0.7,line_color="#05668D",fit_color="#B2182B",
                           theme="theme_bw",base_size=12,title="",xlab="X",ylab="Y",
                           legend.position="right",x_angle=0){
   has_color<-!is.null(df$color)
@@ -850,9 +1374,12 @@ gg_desc_scatter<-function(df,agg="none",err="se",show_raw=TRUE,trend="none",tren
   color_title<-attr(df,"color_name")
   theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
   pal_n<-function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n)
+  is_time<-inherits(df$x,c("Date","POSIXt"))
+  log_x<-isTRUE(log_x)&&!is_time&&all(df$x>0)
+  log_y<-isTRUE(log_y)&&all(df$y>0)
 
   p<-ggplot2::ggplot(df,ggplot2::aes(x=x,y=y))
-  if(isTRUE(one_to_one)) p<-p+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")
+  if(isTRUE(one_to_one)&&!is_time) p<-p+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")
 
   # raw points
   if(identical(agg,"none")||isTRUE(show_raw)){
@@ -868,16 +1395,11 @@ gg_desc_scatter<-function(df,agg="none",err="se",show_raw=TRUE,trend="none",tren
       p<-p+ggplot2::geom_point(color=line_color,size=point_size,alpha=a)
     }
   }
+  if(isTRUE(rug)) p<-p+ggplot2::geom_rug(alpha=0.3,color="gray40",length=ggplot2::unit(0.015,"npc"))
 
-  # mean +/- SE or SD of Y at each X value (per group)
+  # mean +/- SE or SD of Y at each X value or X class (per group)
   if(!identical(agg,"none")){
-    sm<-do.call(rbind,lapply(split(df,list(df$group,df$x),drop=TRUE),function(s){
-      n<-sum(!is.na(s$y))
-      sdv<-if(n>1) stats::sd(s$y,na.rm=TRUE) else NA_real_
-      data.frame(x=s$x[1],group=s$group[1],mean=mean(s$y,na.rm=TRUE),n=n,
-                 err=if(identical(err,"sd")) sdv else sdv/sqrt(n))
-    }))
-    sm<-sm[order(sm$group,sm$x),,drop=FALSE]
+    sm<-desc_scatter_aggregate(df,err)
     if(grouped&&!color_num){
       p<-p+ggplot2::geom_errorbar(data=sm,ggplot2::aes(x=x,ymin=mean-err,ymax=mean+err,color=group),inherit.aes=FALSE,width=0,na.rm=TRUE)+
         ggplot2::geom_line(data=sm,ggplot2::aes(x=x,y=mean,color=group,group=group),inherit.aes=FALSE)+
@@ -890,24 +1412,246 @@ gg_desc_scatter<-function(df,agg="none",err="se",show_raw=TRUE,trend="none",tren
     attr(p,"aggregated")<-sm
   }
 
-  # trend lines fitted on the raw data (per group)
-  if(!identical(trend,"none")){
+  # fitted model (per group), with its confidence/prediction band
+  cv<-if(!is.null(fitres)) fitres$curve else NULL
+  if(!is.null(cv)&&nrow(cv)){
+    cv$group<-factor(cv$group,levels=levels(df$group))
+    if(log_y) cv<-cv[!is.na(cv$fit)&cv$fit>0,,drop=FALSE]
+    has_band<-any(!is.na(cv$lwr))
     if(grouped&&!color_num){
-      p<-p+ggplot2::geom_smooth(ggplot2::aes(color=group,fill=group,group=group),method=trend,formula=y~x,se=isTRUE(trend_se),alpha=0.15,linewidth=0.9)
+      if(has_band) p<-p+ggplot2::geom_ribbon(data=cv,ggplot2::aes(x=x,ymin=lwr,ymax=upr,fill=group,group=group),inherit.aes=FALSE,alpha=0.15,na.rm=TRUE)
+      p<-p+ggplot2::geom_line(data=cv,ggplot2::aes(x=x,y=fit,color=group,group=group),inherit.aes=FALSE,linewidth=0.9,na.rm=TRUE)
     } else{
-      p<-p+ggplot2::geom_smooth(method=trend,formula=y~x,se=isTRUE(trend_se),color="#B2182B",fill="#B2182B",alpha=0.15,linewidth=0.9)
+      if(has_band) p<-p+ggplot2::geom_ribbon(data=cv,ggplot2::aes(x=x,ymin=lwr,ymax=upr),inherit.aes=FALSE,fill=fit_color,alpha=0.15,na.rm=TRUE)
+      p<-p+ggplot2::geom_line(data=cv,ggplot2::aes(x=x,y=fit),inherit.aes=FALSE,color=fit_color,linewidth=0.9,na.rm=TRUE)
+    }
+    if(isTRUE(show_eq)&&!is.null(fitres$metrics)){
+      m<-fitres$metrics
+      txt<-paste0(if(grouped) paste0(m$Group,": ") else "",m$Equation,"   R2 = ",formatC(m$R2,digits=3,format="f"))
+      p<-p+ggplot2::annotate("text",x=-Inf,y=Inf,hjust=-0.03,vjust=1.3,label=paste(txt,collapse="\n"),size=base_size/3.6,lineheight=1.1)
     }
   }
 
+  # labels: all points, or the observations farthest from the model (or from a linear fit)
+  if(!identical(labels,"none")){
+    # with aggregation, the labels go to the means
+    lab<-if(identical(agg,"none")) df else data.frame(id=sm$id,x=sm$x,y=sm$mean,stringsAsFactors=FALSE)
+    if(identical(labels,"residuals")){
+      rs<-fitres$resid
+      if(is.null(rs)||!any(rs$id%in%lab$id)) rs<-data.frame(id=lab$id,residual=stats::residuals(stats::lm(y~as.numeric(x),data=lab)))
+      top<-rs$id[order(-abs(rs$residual))][seq_len(min(label_n,nrow(rs)))]
+      lab<-lab[lab$id%in%top,,drop=FALSE]
+    }
+    p<-p+ggrepel::geom_text_repel(data=lab,ggplot2::aes(x=x,y=y,label=id),inherit.aes=FALSE,size=label_size,max.overlaps=Inf,show.legend=FALSE,seed=1)
+  }
+
   if(grouped&&!color_num){
-    p<-p+ggplot2::scale_color_manual(values=pal_n(nlevels(df$group)),name=color_title)+
-      ggplot2::scale_fill_manual(values=pal_n(nlevels(df$group)),name=color_title)
+    p<-p+ggplot2::scale_color_manual(values=pal_n(nlevels(df$group)),name=color_title,drop=FALSE)+
+      ggplot2::scale_fill_manual(values=pal_n(nlevels(df$group)),name=color_title,drop=FALSE)
   }
   if(isTRUE(facet)&&grouped) p<-p+ggplot2::facet_wrap(~group)
-  if(isTRUE(log_x)&&!inherits(df$x,c("Date","POSIXt"))) p<-p+ggplot2::scale_x_log10()
-  if(isTRUE(log_y)) p<-p+ggplot2::scale_y_log10()
+  if(log_x) p<-p+ggplot2::scale_x_log10()
+  if(log_y) p<-p+ggplot2::scale_y_log10()
   p<-p+ggplot2::labs(x=xlab,y=ylab,title=title)+theme_fun(base_size=base_size)+
     ggplot2::theme(legend.position=legend.position)
   if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  p
+}
+
+# model diagnostics: observed vs fitted, residuals vs fitted, normal Q-Q
+#' @export
+gg_desc_scatter_diag<-function(fitres,view="obs_fit",colors=NULL,point_size=2,alpha=0.7,line_color="#05668D",
+                               theme="theme_bw",base_size=12,title="",legend.position="right",color_title=NULL){
+  r<-fitres$resid
+  validate(need(!is.null(r)&&nrow(r)>0,"The model could not be fitted."))
+  theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
+  r$group<-factor(r$group)
+  grouped<-nlevels(r$group)>1
+  pal_n<-function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n)
+  pts<-function(p,mapping){
+    if(grouped) p+ggplot2::geom_point(mapping,size=point_size,alpha=alpha)+ggplot2::scale_color_manual(values=pal_n(nlevels(r$group)),name=color_title)
+    else p+ggplot2::geom_point(mapping,color=line_color,size=point_size,alpha=alpha)
+  }
+  if(identical(view,"resid")){
+    p<-ggplot2::ggplot(r)+ggplot2::geom_hline(yintercept=0,linetype=2,color="gray50")
+    p<-pts(p,if(grouped) ggplot2::aes(x=fitted,y=residual,color=group) else ggplot2::aes(x=fitted,y=residual))
+    p<-p+ggplot2::labs(x="Fitted",y="Residual")
+  } else if(identical(view,"qq")){
+    r<-do.call(rbind,lapply(split(r,r$group,drop=TRUE),function(s){
+      s<-s[order(s$residual),,drop=FALSE]
+      s$theoretical<-stats::qnorm(stats::ppoints(nrow(s)))
+      s$std<-(s$residual-mean(s$residual))/stats::sd(s$residual)
+      s
+    }))
+    p<-ggplot2::ggplot(r)+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")
+    p<-pts(p,if(grouped) ggplot2::aes(x=theoretical,y=std,color=group) else ggplot2::aes(x=theoretical,y=std))
+    p<-p+ggplot2::labs(x="Theoretical quantiles",y="Standardized residuals")
+  } else{
+    p<-ggplot2::ggplot(r)+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray50")
+    p<-pts(p,if(grouped) ggplot2::aes(x=fitted,y=y,color=group) else ggplot2::aes(x=fitted,y=y))
+    p<-p+ggplot2::labs(x="Fitted",y="Observed")
+  }
+  p+ggplot2::labs(title=title)+theme_fun(base_size=base_size)+ggplot2::theme(legend.position=legend.position)
+}
+
+# ---- Histogram (Descriptive tools, tab 12) -----------------------------------------------
+# breaks of one variable: a rule for the number of bins, a fixed number or a fixed width
+#' @export
+desc_hist_breaks<-function(x,method="sturges",n=20,width=NULL){
+  x<-x[is.finite(x)]
+  r<-range(x)
+  if(diff(r)==0) return(c(r[1]-0.5,r[1]+0.5))
+  if(identical(method,"width")&&isTRUE(width>0)){
+    br<-seq(floor(r[1]/width)*width,ceiling(r[2]/width)*width,by=width)
+    if(max(br)<r[2]) br<-c(br,max(br)+width)
+    if(length(br)<2) br<-c(br[1],br[1]+width)
+    return(br)
+  }
+  if(identical(method,"n")){
+    n<-max(1,round(n%||%20))
+    return(seq(r[1],r[2],length.out=n+1))
+  }
+  k<-switch(method,fd=grDevices::nclass.FD(x),scott=grDevices::nclass.scott(x),grDevices::nclass.Sturges(x))
+  br<-pretty(r,n=max(1,k))
+  br
+}
+
+# rectangles of the histogram: one row per variable x group x bin; y in counts,
+# density (each group integrates to 1) or percent (of each group)
+#' @export
+desc_hist_data<-function(long,method="sturges",n=20,width=NULL,ytype="count",position="overlay"){
+  out<-lapply(split(long,long$variable,drop=TRUE),function(d){
+    br<-desc_hist_breaks(d$value,method,n,width)
+    groups<-levels(d$group)
+    groups<-groups[groups%in%d$group]
+    ng<-length(groups)
+    r<-do.call(rbind,lapply(seq_along(groups),function(gi){
+      v<-d$value[d$group==groups[gi]]
+      h<-graphics::hist(v,breaks=br,plot=FALSE,include.lowest=TRUE,right=TRUE)
+      w<-diff(br)
+      y<-switch(ytype,density=h$counts/(length(v)*w),percent=100*h$counts/length(v),h$counts)
+      data.frame(variable=d$variable[1],group=groups[gi],gi=gi,xmin=br[-length(br)],xmax=br[-1],count=h$counts,y=y,stringsAsFactors=FALSE)
+    }))
+    r$ymin<-0
+    r$ymax<-r$y
+    if(identical(position,"stack")&&ng>1){
+      r<-r[order(r$xmin,r$gi),]
+      r$ymax<-stats::ave(r$y,r$xmin,FUN=cumsum)
+      r$ymin<-r$ymax-r$y
+    }
+    if(identical(position,"dodge")&&ng>1){
+      w<-(r$xmax-r$xmin)/ng
+      r$xmin<-r$xmin+(r$gi-1)*w
+      r$xmax<-r$xmin+w
+    }
+    attr(r,"breaks")<-br
+    r
+  })
+  res<-do.call(rbind,out)
+  rownames(res)<-NULL
+  attr(res,"breaks")<-lapply(out,attr,"breaks")
+  res
+}
+
+# density / normal curves in the units of the y axis
+#' @export
+desc_hist_curves<-function(long,breaks,ytype="count",kind="density"){
+  out<-lapply(split(long,list(long$variable,long$group),drop=TRUE),function(d){
+    v<-d$value
+    if(length(v)<2||stats::sd(v)==0) return(NULL)
+    br<-breaks[[as.character(d$variable[1])]]
+    w<-stats::median(diff(br))
+    if(identical(kind,"normal")){
+      xs<-seq(min(br),max(br),length.out=200)
+      ys<-stats::dnorm(xs,mean(v),stats::sd(v))
+    } else{
+      dd<-stats::density(v)
+      xs<-dd$x
+      ys<-dd$y
+    }
+    k<-switch(ytype,density=1,percent=100*w,length(v)*w)
+    data.frame(variable=d$variable[1],group=d$group[1],x=xs,y=ys*k,stringsAsFactors=FALSE)
+  })
+  out<-do.call(rbind,out)
+  if(!is.null(out)) rownames(out)<-NULL
+  out
+}
+
+# summary of each variable (and group)
+#' @export
+desc_hist_summary<-function(long,breaks){
+  out<-lapply(split(long,list(long$variable,long$group),drop=TRUE),function(d){
+    v<-d$value
+    n<-length(v)
+    m<-mean(v)
+    s<-if(n>1) stats::sd(v) else NA_real_
+    br<-breaks[[as.character(d$variable[1])]]
+    sk<-if(isTRUE(s>0)) mean((v-m)^3)/s^3 else NA_real_
+    ku<-if(isTRUE(s>0)) mean((v-m)^4)/s^4-3 else NA_real_
+    sh<-if(n>=3&&n<=5000&&isTRUE(s>0)) stats::shapiro.test(v)$p.value else NA_real_
+    data.frame(Variable=as.character(d$variable[1]),Group=as.character(d$group[1]),n=n,Mean=m,SD=s,Median=stats::median(v),
+               IQR=stats::IQR(v),Min=min(v),Max=max(v),Skewness=sk,Excess_kurtosis=ku,Shapiro_p=sh,
+               Bins=length(br)-1,Bin_width=stats::median(diff(br)),stringsAsFactors=FALSE)
+  })
+  out<-do.call(rbind,out)
+  rownames(out)<-NULL
+  out
+}
+
+#' @export
+gg_desc_hist<-function(long,method="sturges",n=20,width=NULL,ytype="count",position="overlay",
+                       density=FALSE,normal=FALSE,mean_line=FALSE,median_line=FALSE,rug=FALSE,
+                       fill="#77AADD",border="black",alpha=0.8,colors=NULL,line_color="#B2182B",
+                       theme="theme_bw",base_size=12,title="",xlab="Value",ylab=NULL,
+                       ncol=NULL,free_y=TRUE,legend.position="right",x_angle=0,group_name="Group"){
+  hd<-desc_hist_data(long,method,n,width,ytype,position)
+  br<-attr(hd,"breaks")
+  groups<-levels(long$group)
+  grouped<-length(groups)>1
+  theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
+  pal<-if(grouped) (if(is.null(colors)) grDevices::hcl.colors(length(groups),"Dark 3") else colors(length(groups))) else fill
+  hd$group<-factor(hd$group,levels=groups)
+  a<-if(grouped&&identical(position,"overlay")) min(alpha,0.5) else alpha
+  p<-ggplot2::ggplot()
+  if(grouped){
+    p<-p+ggplot2::geom_rect(data=hd,ggplot2::aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax,fill=group),color=border,alpha=a,linewidth=0.2)+
+      ggplot2::scale_fill_manual(values=pal,name=group_name,drop=FALSE)+
+      ggplot2::scale_color_manual(values=pal,name=group_name,drop=FALSE,guide="none")
+  } else{
+    p<-p+ggplot2::geom_rect(data=hd,ggplot2::aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),fill=fill,color=border,alpha=a,linewidth=0.2)
+  }
+  # curves are drawn per group (not stacked)
+  add_curve<-function(p,cv,lt){
+    if(is.null(cv)||!nrow(cv)) return(p)
+    cv$group<-factor(cv$group,levels=groups)
+    if(grouped) p+ggplot2::geom_line(data=cv,ggplot2::aes(x=x,y=y,color=group),linetype=lt,linewidth=0.8)
+    else p+ggplot2::geom_line(data=cv,ggplot2::aes(x=x,y=y),color=line_color,linetype=lt,linewidth=0.8)
+  }
+  if(isTRUE(density)) p<-add_curve(p,desc_hist_curves(long,br,ytype,"density"),"solid")
+  if(isTRUE(normal)) p<-add_curve(p,desc_hist_curves(long,br,ytype,"normal"),"dashed")
+  stat_lines<-function(p,fun,lt){
+    st<-stats::aggregate(value~variable+group,long,fun)
+    st$group<-factor(st$group,levels=groups)
+    if(grouped) p+ggplot2::geom_vline(data=st,ggplot2::aes(xintercept=value,color=group),linetype=lt,linewidth=0.7)
+    else p+ggplot2::geom_vline(data=st,ggplot2::aes(xintercept=value),color=line_color,linetype=lt,linewidth=0.7)
+  }
+  if(isTRUE(mean_line)) p<-stat_lines(p,mean,"solid")
+  if(isTRUE(median_line)) p<-stat_lines(p,stats::median,"dotted")
+  if(isTRUE(rug)){
+    if(grouped) p<-p+ggplot2::geom_rug(data=long,ggplot2::aes(x=value,color=group),alpha=0.4,sides="b",inherit.aes=FALSE)
+    else p<-p+ggplot2::geom_rug(data=long,ggplot2::aes(x=value),alpha=0.4,sides="b",inherit.aes=FALSE,color="gray30")
+  }
+  nvar<-length(unique(long$variable))
+  scales<-if(isTRUE(free_y)) "free" else "free_x"
+  if(identical(position,"facet")&&grouped){
+    p<-p+ggplot2::facet_grid(group~variable,scales=scales)
+  } else if(nvar>1){
+    p<-p+ggplot2::facet_wrap(~variable,scales=scales,ncol=ncol)
+  }
+  ylab<-ylab%||%switch(ytype,density="Density",percent="Percent",
+                       "Count")
+  p<-p+ggplot2::labs(x=xlab,y=ylab,title=title)+theme_fun(base_size=base_size)+ggplot2::theme(legend.position=legend.position)
+  if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  attr(p,"breaks")<-br
   p
 }

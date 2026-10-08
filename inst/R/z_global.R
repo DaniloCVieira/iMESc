@@ -22,8 +22,28 @@ SL_models<-readRDS("inst/www/SL_models.rds")
 sl_tips<-readRDS("inst/www/sl_tips.rds")
 sl_formals<-readRDS("inst/www/sl_formals.rds")
 sl_ctl_formals<-readRDS("inst/www/sl_ctl_formals.rds")
-last_update<-readRDS('inst/www/last_update.rds')
 #sl_tips<-sl_tips2
+
+# Date of the last commit on GitHub, shown in the footer.
+# inst/www/last_update.txt holds "$Format:%ci$", which git fills with the commit date
+# in GitHub archives (export-subst in .gitattributes), i.e. when the app is run with
+# shiny::runGitHub or from the downloaded ZIP. In a local clone the placeholder is not
+# filled, so the date comes from git itself, or from the newest code file as a last resort.
+get_last_update<-function(){
+  x<-try(readLines("inst/www/last_update.txt",n=1,warn=FALSE),silent=TRUE)
+  if(!inherits(x,"try-error")&&length(x)&&grepl("^\\d{4}-\\d{2}-\\d{2}",trimws(x))){
+    return(substr(trimws(x),1,10))
+  }
+  if(dir.exists(".git")){
+    d<-try(suppressWarnings(system2("git",c("log","-1","--format=%ci"),stdout=TRUE,stderr=FALSE)),silent=TRUE)
+    if(!inherits(d,"try-error")&&length(d)&&grepl("^\\d{4}-\\d{2}-\\d{2}",d[1])){
+      return(substr(d[1],1,10))
+    }
+  }
+  code_files<-list.files(c("inst/R","inst/www"),pattern="\\.R$",full.names=TRUE)
+  format(max(file.mtime(code_files)),"%Y-%m-%d")
+}
+last_update<-get_last_update()
 
 model_fits=SL_models$model_fits
 model_grid=SL_models$model_grid
@@ -53,9 +73,6 @@ jscode_screen<-'var dimension = [0, 0];
 
 #last_update<-"2022-11-08"
 if(getwd()=="C:/R4/iMESc-Dev/imesc_2025"){
-  print("saving last update...")
-  last_update<-Sys.Date()
-  saveRDS(last_update,"inst/www/last_update.rds")
   qsave=T
 
 

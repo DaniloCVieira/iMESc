@@ -328,6 +328,73 @@ transform_module$server<-function(id,data){
   })
 }
 
+## Variable used to color the points of the ordination plots (PCA, RDA, segRDA).
+## Any Datalist holding all analysed observations can be the source, from its
+## Factor-Attribute (categorical colors) or Numeric-Attribute (continuous gradient
+## with editable breaks). Values are matched by observation ID.
+points_color_source<-list()
+points_color_source$ui<-function(id){
+  ns<-NS(id)
+  div(
+    pickerInput_fromtop(ns("datalist"),tiphelp5("Color by Datalist","Datalist with the variable used to color the points. It must contain all observations of the analysed Datalist."),choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
+    radioButtons(ns("attr"),NULL,c("Factor-Attribute"="factor","Numeric-Attribute"="numeric"),selected="factor",inline=TRUE),
+    pickerInput_fromtop(ns("var"),"Variable:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE)),
+    div(id=ns("breaks_box"),
+        textInput(ns("breaks"),tiphelp5("Breaks","Values shown in the color legend of the continuous gradient, separated by commas. Edit them to change the legend."),value=""))
+  )
+}
+points_color_source$server<-function(id,vals,data){
+  moduleServer(id,function(input,output,session){
+    observeEvent(list(vals$saved_data,data()),{
+      choices<-names(vals$saved_data)
+      selected<-get_selected_from_choices(isolate(input$datalist)%||%attr(data(),"datalist"),choices)
+      updatePickerInput(session,"datalist",choices=choices,selected=selected)
+    })
+    source_table<-reactive({
+      req(input$datalist%in%names(vals$saved_data))
+      d<-vals$saved_data[[input$datalist]]
+      if(identical(input$attr,"numeric")){
+        d<-d[,vapply(d,is.numeric,logical(1)),drop=FALSE]
+      } else{
+        d<-attr(d,"factors")
+      }
+      validate(need(!is.null(d)&&ncol(d)>0,"The selected attribute has no columns."))
+      d
+    })
+    observeEvent(source_table(),{
+      choices<-colnames(source_table())
+      updatePickerInput(session,"var",choices=choices,selected=get_selected_from_choices(isolate(input$var),choices))
+    })
+    observe({
+      shinyjs::toggle("breaks_box",condition=identical(input$attr,"numeric"))
+    })
+    # automatic breaks whenever a new numeric variable is chosen
+    observeEvent(list(input$var,input$attr,input$datalist),{
+      req(identical(input$attr,"numeric"),input$var%in%colnames(source_table()))
+      v<-source_table()[[input$var]]
+      br<-pretty(range(v,na.rm=TRUE),n=5)
+      br<-br[br>=min(v,na.rm=TRUE)&br<=max(v,na.rm=TRUE)]
+      updateTextInput(session,"breaks",value=paste(br,collapse=", "))
+    })
+    reactive({
+      req(input$var)
+      tab<-source_table()
+      req(input$var%in%colnames(tab))
+      ids<-rownames(data())
+      validate(need(all(ids%in%rownames(tab)),paste0("Datalist '",input$datalist,"' does not contain all observations of the analysed Datalist.")))
+      out<-tab[ids,input$var,drop=FALSE]
+      if(identical(input$attr,"numeric")){
+        b<-suppressWarnings(as.numeric(trimws(unlist(strsplit(input$breaks%||%"",",")))))
+        b<-sort(unique(b[!is.na(b)]))
+        attr(out,"breaks")<-if(length(b)>=2) b else NULL
+      } else{
+        out[,1]<-factor(out[,1])
+      }
+      out
+    })
+  })
+}
+
 ## Logic for tab 1 - Summaries
 desctools_timeattr<-list()
 desctools_timeattr$ui<-function(id){
@@ -2760,7 +2827,7 @@ desctools_tab7$ui<-function(id){
                          id=ns("pca_points_out"),
 
                          pickerInput_fromtop_live(ns('pca_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
-                         pickerInput_fromtop(ns('pca_points_factor')  ,"Factor:",choices=NULL),
+                         div(id=ns("pca_points_factor"),points_color_source$ui(ns("pca_pcol"))),
                          pickerInput_fromtop(inputId = ns("pca_points_shape"),
                                              label = "Shape:",
                                              choices = df_symbol$val,
@@ -2963,14 +3030,11 @@ desctools_tab7$server<-function(id,vals){
     })
 
 
+    pca_points_color<-points_color_source$server("pca_pcol",vals,reactive(getdata_descX()))
     pca_points_factor<-reactive({
       req(length(input$pca_points)>0)
       if(isTRUE(input$pca_points)){
-        req(input$pca_points_factor)
-        data<-getdata_descX()
-        factors<-attr(data,"factors")
-        req(input$pca_points_factor%in%colnames(factors))
-        factors[rownames(data),input$pca_points_factor, drop=F]
+        pca_points_color()
       } else{NULL}
 
     })
@@ -3184,6 +3248,7 @@ desctools_tab8$ui<-function(id){
                           )
 
                       ),
+                      uiOutput(ns("rda_xy_check")),
                       div(
                         style="",
                         checkboxInput(ns("rda_scale"),span("Scale variables",tiphelp("Scale variables to unit variance (like correlations)")), value=F))
@@ -3235,7 +3300,7 @@ desctools_tab8$ui<-function(id){
                id=ns('rda_points_out'),
 
                pickerInput_fromtop_live(ns('rda_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),NULL),
-               pickerInput_fromtop(ns('rda_points_factor')  ,"Factor:",choices="turbo"),
+               div(id=ns("rda_points_factor"),points_color_source$ui(ns("rda_pcol"))),
                pickerInput_fromtop(inputId = ns("rda_points_shape"),
                                    label = "Shape:",
                                    choices = df_symbol$val,
@@ -3441,14 +3506,11 @@ desctools_tab8$server<-function(id,vals){
       shinyjs::toggle("rda_species_out",condition = isTRUE(input$rda_species))
 
     })
+    rda_points_color<-points_color_source$server("rda_pcol",vals,reactive(get_rdaX()))
     rda_points_factor<-reactive({
       req(length(input$rda_points)>0)
       if(isTRUE(input$rda_points)){
-        req(input$rda_points_factor)
-        data<-get_rdaX()
-        factors<-attr(data,"factors")
-        req(input$rda_points_factor%in%colnames(factors))
-        factors[rownames(data),input$rda_points_factor, drop=F]
+        rda_points_color()
       } else{NULL}
 
     })
@@ -3657,7 +3719,19 @@ desctools_tab8$server<-function(id,vals){
     observeEvent(input$rda_X,{
       vals$rda_X<-input$rda_X
     })
+    # response (rda_X) and explanatory (rda_Y) Datalists must be compatible
+    rda_xy<-reactive({
+      req(input$rda_X%in%names(vals$saved_data),input$rda_Y%in%names(vals$saved_data))
+      desc_xy_issues(vals$saved_data[[input$rda_X]],vals$saved_data[[input$rda_Y]],input$rda_X,input$rda_Y)
+    })
+    output$rda_xy_check<-renderUI({
+      desc_xy_issues_ui(rda_xy())
+    })
     observeEvent(input$run_rda,{
+      if(length(rda_xy()$block)){
+        showNotification(paste("RDA was not run.",paste(rda_xy()$block,collapse=" ")),type="error",duration=10)
+        return(NULL)
+      }
       validate(need(length(vals$saved_data)>1, "This functionality requires at least two datalist as explanatory and response data."))
       validate(need(!anyNA(vals$saved_data[[input$rda_X]]), "Missing values (Datalist Y) not allowed"))
 
@@ -3703,7 +3777,8 @@ desctools_tab9$ui<-function(id){
             ),
             uiOutput(ns('segrda_btn'))
 
-        )
+        ),
+        uiOutput(ns("segrda_xy_check"))
 
       )
 
@@ -3941,7 +4016,7 @@ desctools_tab9$ui<-function(id){
                      id=ns('segrda_points_out'),
 
                      pickerInput_fromtop_live(ns('segrda_points_palette') ,tiphelp5("Palette","Choose a gradient to represent colors based on the selected factor"),"turbo"),
-                     pickerInput_fromtop(ns('segrda_points_factor')  ,"Factor:",choices=NULL),
+                     div(id=ns("segrda_points_factor"),points_color_source$ui(ns("segrda_pcol"))),
                      pickerInput_fromtop(inputId = ns("segrda_points_shape"),
                                          label = "Shape:",
                                          choices = df_symbol$val,
@@ -4246,13 +4321,11 @@ desctools_tab9$server<-function(id,vals){
 
 
 
+    segrda_points_color<-points_color_source$server("segrda_pcol",vals,reactive(get_segrdaX()))
     segrda_points_factor<-reactive({
       req(length(input$segrda_points)>0)
       if(isTRUE(input$segrda_points)){
-        req(input$segrda_points_factor)
-        data<-vals$saved_data[[input$segrda_X]]
-        factors<-attr(data,"factors")
-        factors[rownames(data),input$segrda_points_factor, drop=F]
+        segrda_points_color()
       } else{NULL}
 
     })
@@ -4633,7 +4706,21 @@ desctools_tab9$server<-function(id,vals){
     observe({
       shinyjs::toggle('ord_out',condition=length(names(getord()))>0)
     })
+    # response (segrda_X) and explanatory (segrda_Y) Datalists must be compatible
+    segrda_xy<-reactive({
+      req(input$segrda_X%in%names(vals$saved_data),input$segrda_Y%in%names(vals$saved_data))
+      desc_xy_issues(vals$saved_data[[input$segrda_X]],vals$saved_data[[input$segrda_Y]],input$segrda_X,input$segrda_Y)
+    })
+    output$segrda_xy_check<-renderUI({
+      desc_xy_issues_ui(segrda_xy())
+    })
+    segrda_xy_blocked<-function(step){
+      if(!length(segrda_xy()$block)) return(FALSE)
+      showNotification(paste(step,"was not run.",paste(segrda_xy()$block,collapse=" ")),type="error",duration=10)
+      TRUE
+    }
     getord<-eventReactive(input$segrda_ord_run,ignoreInit = T,{
+      validate(need(!length(segrda_xy()$block),paste(segrda_xy()$block,collapse=" ")))
       shinyjs::removeClass('segrda_ord_run_btn',"save_changes")
       req(input$segrda_Y)
       req(input$segrda_X)
@@ -4897,6 +4984,7 @@ desctools_tab9$server<-function(id,vals){
     observeEvent(ignoreInit = T,input$bp_column,
                  vals$bp_column<-input$bp_column)
     observeEvent(input$run_pwRDA,{
+      if(segrda_xy_blocked("pwRDA")) return(NULL)
       validate(need(!anyNA(vals$saved_data[[input$segrda_X]]), "Missing values (Datalist Y) not allowed"))
 
       validate(need(!anyNA(vals$saved_data[[input$segrda_Y]]), "Missing values (Datalist X) not allowed"))
@@ -5128,6 +5216,7 @@ desctools_tab9$server<-function(id,vals){
       mod_downcenter<-callModule(module_server_figs, "downfigs",  vals=vals,  datalist_name=attr(getdata_descX(),"datalist"))
     })
     observeEvent(input$run_pwRDA,{
+      if(length(segrda_xy()$block)) return(NULL)
       validate(need(length(vals$saved_data)>1, "This functionality requires at least two datalist as explanatory and response data."))
       vals$bag_pw<-T
       pw_in<-get_breaks_from_factor()
@@ -5569,7 +5658,7 @@ desctools_tab10$ui<-function(id){
       "});"
     ))),
 
-    fluidRow(
+    div(
       column(
         4,class="mp0",
         box_caret(

@@ -245,6 +245,18 @@ biplot_chull<-function(biplot_coords,center=c(0,0),biplot_n=10){
 
 }
 #' @export
+# Continuous color scale for points colored by a numeric variable (breaks in attr "breaks")
+ord_gradient_scale<-function(points_factor,points_palette,name=colnames(points_factor)){
+  v<-points_factor[,1]
+  br<-attr(points_factor,"breaks")
+  ggplot2::scale_color_gradientn(
+    name=name,
+    colours=points_palette(256),
+    limits=range(c(v,br),na.rm=TRUE),
+    breaks=if(is.null(br)) ggplot2::waiver() else br
+  )
+}
+
 ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal component analysis", show_intercept=T, constr=F, points=T, points_factor=NULL, points_palette=colorRampPalette("black"), points_shape=16, points_size=4, text=F, text_factor=NULL, text_palette=colorRampPalette("gray"), text_size=4, biplot=T, biplot_n=5,  biplot_size=4, biplot_color="blue", biplot_arrow_color="blue", loading_axis=T, lo_x.text="PC1 loadings",lo_y.text="PC2 loadings", lo_axis_color=T,expandX =0.1, expandY=0.1,scale_shape=T,points_legend=T,xlab="PC I",ylab="PC II",show_axis_explain=T){
   {
 
@@ -306,7 +318,13 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
           expand=expansion(expandX))
     }
 
-    if(isTRUE(points)){
+    if(isTRUE(points)&&!is.null(points_factor)&&is.numeric(points_factor[,1])){
+      # numeric variable: continuous gradient with the chosen breaks
+      df1$points_value<-points_factor[,1]
+      p<-p+ggnewscale::new_scale_color()+
+        geom_point(aes(x,y,color=points_value),shape=points_shape,data=df1,size=points_size)+
+        ord_gradient_scale(points_factor,points_palette)
+    } else if(isTRUE(points)){
       df1$points_factor<-factor("")
       show.legend=F
       if(!is.null(points_factor)){
@@ -518,7 +536,23 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
 
   col_points <- NA
 
-  if (isTRUE(points)) {
+  if (isTRUE(points) && !is.null(points_factor) && is.numeric(points_factor[, 1])) {
+
+    # numeric variable: continuous gradient with the chosen breaks
+    df1$points_value <- points_factor[, 1]
+    col_points <- points_palette(256)
+    p <- p +
+      ggplot2::geom_point(
+        data = df1,
+        ggplot2::aes(x = x, y = y, color = points_value),
+        size = points_size,
+        shape = points_shape,
+        show.legend = isTRUE(show_points_legend)
+      ) +
+      ord_gradient_scale(points_factor, points_palette,
+                         name = if (nzchar(legend_points)) legend_points else colnames(points_factor))
+
+  } else if (isTRUE(points)) {
 
     df1$points_factor <- factor("")
     show.legend <- FALSE
@@ -699,7 +733,13 @@ ggmds<-function(model, base_size=12, theme='theme_bw', title="Multidimensional s
         expand=expansion(expandX))
 
 
-    if(isTRUE(points)){
+    if(isTRUE(points)&&!is.null(points_factor)&&is.numeric(points_factor[,1])){
+      # numeric variable: continuous gradient with the chosen breaks
+      df1$points_value<-points_factor[,1]
+      p<-p+ggnewscale::new_scale_color()+
+        geom_point(aes(x,y,color=points_value),shape=points_shape,data=df1,size=points_size)+
+        ord_gradient_scale(points_factor,points_palette)
+    } else if(isTRUE(points)){
       df1$points_factor<-factor("")
       show.legend=F
       if(!is.null(points_factor)){

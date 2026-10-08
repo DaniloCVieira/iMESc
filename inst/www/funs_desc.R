@@ -742,3 +742,47 @@ psummary<-function(data){
   ppsummary(c)
   ppsummary("-------------------")
 }
+
+# ---- Compatibility of two Datalists used together (RDA, segRDA) ---------------------
+# block: problems that stop the analysis; warn: information (e.g. observations left out).
+#' @export
+desc_xy_issues<-function(resp,expl,resp_name="Y",expl_name="X"){
+  block<-character(0)
+  warn<-character(0)
+  if(is.null(resp)||is.null(expl)) return(list(block=block,warn=warn))
+  if(identical(resp_name,expl_name)){
+    block<-c(block,paste0("The same Datalist ('",resp_name,"') was chosen for both sides. Choose different Datalists for the response and the explanatory variables."))
+    return(list(block=block,warn=warn))
+  }
+  common<-intersect(rownames(resp),rownames(expl))
+  if(!length(common)){
+    block<-c(block,paste0("'",resp_name,"' and '",expl_name,"' have no observation IDs in common. Choose Datalists that share the same observations."))
+    return(list(block=block,warn=warn))
+  }
+  n_out<-length(union(setdiff(rownames(resp),common),setdiff(rownames(expl),common)))
+  if(n_out>0){
+    warn<-c(warn,paste0(n_out," observation(s) are present in only one of the Datalists and will be left out; the analysis uses the ",length(common)," observations in common."))
+  }
+  r<-resp[common,vapply(resp,is.numeric,logical(1)),drop=FALSE]
+  e<-expl[common,vapply(expl,is.numeric,logical(1)),drop=FALSE]
+  dup<-unlist(lapply(colnames(r),function(v){
+    hits<-colnames(e)[vapply(e,function(col) isTRUE(all(col==r[[v]]|(is.na(col)&is.na(r[[v]])))),logical(1))]
+    if(length(hits)) paste0("'",v,"'",if(!identical(hits,v)) paste0(" (= '",paste(hits,collapse="', '"),"')") else "")
+  }))
+  if(length(dup)){
+    block<-c(block,paste0("Variables with identical values on both sides: ",paste(dup,collapse=", "),". A variable cannot explain itself; remove it from one of the Datalists."))
+  }
+  list(block=block,warn=warn)
+}
+
+#' @export
+desc_xy_issues_ui<-function(res){
+  if(is.null(res)||(!length(res$block)&&!length(res$warn))) return(NULL)
+  div(
+    if(length(res$block)) div(class="alert_warning",style="padding: 6px 10px; margin: 4px 0px; font-size: 12px;",
+                              strong(icon("triangle-exclamation")," Check the setup:"),
+                              tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 18px;",lapply(res$block,tags$li))),
+    if(length(res$warn)) div(style="padding: 4px 10px; font-size: 11px; color: #8a6d3b;",
+                             icon("circle-info")," ",paste(res$warn,collapse=" "))
+  )
+}

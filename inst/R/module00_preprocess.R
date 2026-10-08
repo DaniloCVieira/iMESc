@@ -12699,6 +12699,7 @@ tool6$ui<-function(id){
               "Imputes according to a Factor-Attribute column, typically the one created by Data partition (levels training and test). This avoids data leakage: without it, values of the test observations help to fill the training data (and vice versa), which makes model evaluation optimistic. 'Learn from one level' fits the imputation only on the reference level (e.g. training) and applies it to all observations, as a fitted model is applied to new data. 'Each level separately' imputes every level using only its own observations."
             ),value=FALSE),
             div(id=ns("na_group_opts"),
+                uiOutput(ns("na_group_dl_ui")),
                 uiOutput(ns("na_group_var_ui")),
                 radioButtons(ns("na_group_mode"),NULL,
                              choices=c("Learn from one level, apply to all"="reference","Each level separately"="separate"),
@@ -12740,8 +12741,32 @@ tool6$server<-function(id,vals){
     observe({
       shinyjs::toggle("na_group_opts",condition=isTRUE(input$na_by_group))
     })
+    # Datalists whose Factor-Attribute covers every observation being imputed
+    group_datalists<-reactive({
+      ids<-rownames(data())
+      ok<-vapply(vals$saved_data,function(d){
+        fac<-attr(d,"factors")
+        !is.null(fac)&&ncol(fac)>0&&all(ids%in%rownames(fac))
+      },logical(1))
+      names(vals$saved_data)[ok]
+    })
+    output$na_group_dl_ui<-renderUI({
+      choices<-group_datalists()
+      req(length(choices))
+      current<-attr(data(),"datalist")
+      selected<-get_selected_from_choices(isolate(input$na_group_dl)%||%current,choices)
+      pickerInput_fromtop(session$ns("na_group_dl"),tiphelp5("Factor from:","Datalist that holds the grouping factor. It must contain all observations of the Datalist being imputed; values are matched by observation ID."),choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+    })
+    # grouping factors aligned to the rows being imputed
+    group_factors<-reactive({
+      dl<-input$na_group_dl
+      src<-if(!is.null(dl)&&dl%in%names(vals$saved_data)) vals$saved_data[[dl]] else data()
+      fac<-attr(src,"factors")
+      if(is.null(fac)||!ncol(fac)||!all(rownames(data())%in%rownames(fac))) return(NULL)
+      fac[rownames(data()),,drop=FALSE]
+    })
     group_choices<-reactive({
-      fac<-attr(data(),"factors")
+      fac<-group_factors()
       if(is.null(fac)||!ncol(fac)) return(character(0))
       # complete factors with a few levels (groups need several observations each)
       ok<-vapply(fac,function(x){
@@ -12762,12 +12787,12 @@ tool6$server<-function(id,vals){
     output$na_ref_level_ui<-renderUI({
       req(identical(input$na_group_mode,"reference"))
       req(input$na_group_var%in%group_choices())
-      levs<-levels(factor(attr(data(),"factors")[[input$na_group_var]]))
+      levs<-levels(factor(group_factors()[[input$na_group_var]]))
       train<-levs[grepl("train",levs,ignore.case=TRUE)]
       selected<-if(length(train)) train[1] else levs[1]
       pickerInput_fromtop(session$ns("na_ref_level"),tiphelp5("Learn from:","Level used to fit the imputation (usually the training data)."),choices=levs,selected=selected)
     })
-    observeEvent(list(input$na_by_group,input$na_group_var,input$na_group_mode,input$na_ref_level),ignoreInit=TRUE,{
+    observeEvent(list(input$na_by_group,input$na_group_dl,input$na_group_var,input$na_group_mode,input$na_ref_level),ignoreInit=TRUE,{
       shinyjs::addClass("run_na_btn","save_changes")
     })
 
@@ -12790,7 +12815,7 @@ tool6$server<-function(id,vals){
         if(isTRUE(input$na_by_group)){
           validate(need(isTRUE(input$na_group_var%in%group_choices()),"Choose the Factor-Attribute column used to group the imputation."))
           group_args<-list(
-            group=attr(data(),"factors")[rownames(data()),input$na_group_var],
+            group=group_factors()[[input$na_group_var]],
             group_mode=input$na_group_mode,
             ref_level=input$na_ref_level,
             group_name=input$na_group_var

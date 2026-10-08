@@ -9,6 +9,16 @@
   invisible(TRUE)
 }
 
+.stcv_gap_blocks <- function(gap_blocks) {
+  if (is.null(gap_blocks) || length(gap_blocks) == 0 || is.na(gap_blocks[1])) {
+    return(0L)
+  }
+  if (!is.numeric(gap_blocks) || gap_blocks[1] < 0) {
+    stop("gap_blocks must be a single number >= 0.")
+  }
+  as.integer(gap_blocks[1])
+}
+
 .stcv_require_cv_spatial2 <- function() {
   if (!exists("cv_spatial2", mode = "function", inherits = TRUE)) {
     stop("cv_spatial2() was not found. Source inst/www/funs_spatial_validation.R before using these functions.")
@@ -1528,11 +1538,12 @@ make_time_block_prequential <- function(df, time_var = NULL, space_names = NULL,
                                         window = c("expanding", "rolling"),
                                         rolling_train_blocks = NULL,
                                         response = NULL, drop_na_test = TRUE,
-                                        verbose = TRUE) {
+                                        verbose = TRUE, gap_blocks = 0) {
   stcv_names <- attr(df, "stcv_names")
   stcv_info <- attr(df, "stcv_info")
   df <- data.frame(df)
   window <- match.arg(window)
+  gap_blocks <- .stcv_gap_blocks(gap_blocks)
 
   if (is.null(time_var)) {
     if (is.null(stcv_names) || is.null(stcv_names$time)) {
@@ -1560,8 +1571,8 @@ make_time_block_prequential <- function(df, time_var = NULL, space_names = NULL,
   tb_space <- .stcv_time_block_space_summary(df, "fold_time", space_names)
   time_folds <- levels(tb$block_ids)
   n_blocks <- length(time_folds)
-  if (n_blocks < initial_train_blocks + horizon_blocks) {
-    stop("Not enough temporal blocks for initial_train_blocks + horizon_blocks.")
+  if (n_blocks < initial_train_blocks + gap_blocks + horizon_blocks) {
+    stop("Not enough temporal blocks for initial_train_blocks + gap_blocks + horizon_blocks.")
   }
 
   if (window == "rolling" && is.null(rolling_train_blocks)) {
@@ -1571,7 +1582,7 @@ make_time_block_prequential <- function(df, time_var = NULL, space_names = NULL,
   splits <- list()
   split_id <- 1L
   train_end_seq <- seq(from = initial_train_blocks,
-                       to = n_blocks - horizon_blocks,
+                       to = n_blocks - horizon_blocks - gap_blocks,
                        by = step_blocks)
 
   for (train_end in train_end_seq) {
@@ -1584,7 +1595,8 @@ make_time_block_prequential <- function(df, time_var = NULL, space_names = NULL,
       }
       train_blocks <- time_folds[train_start:train_end]
     }
-    test_blocks <- time_folds[(train_end + 1L):(train_end + horizon_blocks)]
+    # gap_blocks blocks after the origin are left out between train and test
+    test_blocks <- time_folds[(train_end + gap_blocks + 1L):(train_end + gap_blocks + horizon_blocks)]
 
     train_idx <- which(as.character(df$fold_time) %in% train_blocks)
     test_idx <- which(as.character(df$fold_time) %in% test_blocks)
@@ -1640,7 +1652,8 @@ make_st_contiguous_block_prequential <- function(df, time_var = NULL,
                                                  spatial_mode = c("forecast_known_space", "forecast_new_space"),
                                                  response = NULL,
                                                  drop_na_test = TRUE,
-                                                 verbose = TRUE) {
+                                                 verbose = TRUE,
+                                                 gap_blocks = 0) {
   stcv_names <- attr(df, "stcv_names")
   stcv_info <- attr(df, "stcv_info")
   spatial_folds_info <- attr(df, "spatial_folds_info")
@@ -1648,6 +1661,7 @@ make_st_contiguous_block_prequential <- function(df, time_var = NULL,
   df <- data.frame(df)
   window <- match.arg(window)
   spatial_mode <- match.arg(spatial_mode)
+  gap_blocks <- .stcv_gap_blocks(gap_blocks)
   if (identical(spatial_mode, "forecast_new_space") && verbose) {
     warning(
       "spatial_mode = 'forecast_new_space' removes the spatial test fold from ",
@@ -1692,8 +1706,8 @@ make_st_contiguous_block_prequential <- function(df, time_var = NULL,
   tb_space <- .stcv_time_block_space_summary(df, "fold_time", space_names)
   time_folds <- levels(tb$block_ids)
   n_blocks <- length(time_folds)
-  if (n_blocks < initial_train_blocks + horizon_blocks) {
-    stop("Not enough temporal blocks for initial_train_blocks + horizon_blocks.")
+  if (n_blocks < initial_train_blocks + gap_blocks + horizon_blocks) {
+    stop("Not enough temporal blocks for initial_train_blocks + gap_blocks + horizon_blocks.")
   }
   sp_folds <- sort(unique(as.character(df[[fold_sp_var]])))
   sp_folds <- sp_folds[!is.na(sp_folds)]
@@ -1705,7 +1719,7 @@ make_st_contiguous_block_prequential <- function(df, time_var = NULL,
   splits <- list()
   split_id <- 1L
   train_end_seq <- seq(from = initial_train_blocks,
-                       to = n_blocks - horizon_blocks,
+                       to = n_blocks - horizon_blocks - gap_blocks,
                        by = step_blocks)
 
   for (train_end in train_end_seq) {
@@ -1718,7 +1732,8 @@ make_st_contiguous_block_prequential <- function(df, time_var = NULL,
       }
       train_blocks <- time_folds[train_start:train_end]
     }
-    test_blocks <- time_folds[(train_end + 1L):(train_end + horizon_blocks)]
+    # gap_blocks blocks after the origin are left out between train and test
+    test_blocks <- time_folds[(train_end + gap_blocks + 1L):(train_end + gap_blocks + horizon_blocks)]
 
     for (sp_i in sp_folds) {
       test_idx <- which(as.character(df$fold_time) %in% test_blocks &
@@ -1916,6 +1931,7 @@ make_st_validation <- function(df, spattime_names = c("Lon", "Lat", "Tempo"),
                                initial_train_blocks = 1,
                                horizon_blocks = 1,
                                step_blocks = 1,
+                               gap_blocks = 0,
                                initial_window = NULL,
                                horizon = 1,
                                step = 1,
@@ -1968,7 +1984,8 @@ make_st_validation <- function(df, spattime_names = c("Lon", "Lat", "Tempo"),
       rolling_train_blocks = rolling_train_blocks,
       response = response,
       drop_na_test = drop_na_test,
-      verbose = verbose
+      verbose = verbose,
+      gap_blocks = gap_blocks
     ))
   }
 
@@ -2010,7 +2027,8 @@ make_st_validation <- function(df, spattime_names = c("Lon", "Lat", "Tempo"),
       spatial_mode = spatial_mode,
       response = response,
       drop_na_test = drop_na_test,
-      verbose = verbose
+      verbose = verbose,
+      gap_blocks = gap_blocks
     ))
   }
 

@@ -96,6 +96,9 @@ sl_model_setup$ui<-function(id){
       )
 
     ),
+    div(id=ns("setup_check_panel"),
+        uiOutput(ns("setup_check"))
+    ),
     div(style="position: absolute; top: 0px;right: 0px; padding: 20px",
         uiOutput(ns('print_train')),
         uiOutput(ns('print_results'))
@@ -785,6 +788,37 @@ sl_model_setup$server<-function(id,vals=NULL){
     observeEvent(vals$cur_caret_tab,{
       shinyjs::toggle("model_type_panel",condition=vals$cur_caret_tab=="tab1")
       shinyjs::toggle("model_y_panel",condition=vals$cur_caret_tab=="tab1")
+      shinyjs::toggle("setup_check_panel",condition=vals$cur_caret_tab=="tab1")
+    })
+
+    # Incompatible X/Y (IDs), response inside X and NAs are reported as soon as
+    # they are selected; training is blocked with the same messages.
+    setup_issues<-reactive({
+      req(input$var_y)
+      x<-data_x()
+      filter<-colnames(x)
+      if(length(input$filter)>0){
+        filter<-intersect(input$filter,colnames(x))
+      }
+      x<-x[,filter,drop=FALSE]
+      part<-get_partition()
+      y<-get_data_y()
+      req(input$var_y%in%colnames(y))
+      sl_setup_issues(
+        x_data=x,
+        train_ids=part$train,
+        test_ids=part$test,
+        y=y[part$train,input$var_y],
+        var_y=input$var_y,
+        x_name=input$data_x,
+        y_name=input$data_y
+      )
+    })
+    observe({
+      vals$sl_setup_issues<-tryCatch(setup_issues(),error=function(e) character(0))
+    })
+    output$setup_check<-renderUI({
+      sl_setup_issues_ui(vals$sl_setup_issues)
     })
     observeEvent(data_x(),{
       choices<-colnames(data_x())
@@ -3631,7 +3665,7 @@ sl_custom_grid$server<-function(id,vals){
 }
 sl_validation<-list()
 temporal_validation<-list()
-temporal_validation$ui<-function(id){
+temporal_validation$ui<-function(id,time_source="numeric"){
   ns<-NS(id)
   tabsetPanel(
     tabPanel(
@@ -3650,7 +3684,7 @@ temporal_validation$ui<-function(id){
                        "Numeric-Attribute" = "numeric",
                        "Temporal-Attribute" = "time"
                      ),
-                     selected = "numeric"
+                     selected = time_source
                    ),
                    uiOutput(ns("time_var_out")),
                    uiOutput(ns("time_block_mode_out")),
@@ -3668,7 +3702,8 @@ temporal_validation$ui<-function(id){
                    div(
                      id = ns("prequential_args"),
                      numericInput(ns("initial_train_blocks"), span("Initial train blocks",tipright("Number of temporal blocks used in the first training window. For expanding windows, training starts with these blocks and then grows. For rolling windows, this is the default window length when rolling train blocks is empty.")), value = 1, min = 1, step = 1),
-                     numericInput(ns("horizon_blocks"), span("Horizon blocks",tipright("Number of future temporal blocks included in each test set. A value of 1 means each split tests the next temporal block.")), value = 1, min = 1, step = 1),
+                     textInput(ns("horizon_blocks"), span("Horizon blocks",tipright("Number of future temporal blocks included in each test set. A value of 1 means each split tests the next temporal block. Several horizons can be given separated by commas (e.g. 1, 3, 7): the folds use the largest one and, after training, Performance > By Horizon shows the metrics for each cumulative test window t+1...t+h, using the same origins.")), value = "1"),
+                     numericInput(ns("gap_blocks"), span("Gap blocks",tipright("Number of temporal blocks skipped between the end of the training window and the start of the test window. With gap = g, each split trains up to t and tests t+g+1...t+g+h. Use it when predictions are made some time ahead or to reduce temporal autocorrelation between train and test. 0 = no gap.")), value = 0, min = 0, step = 1),
                      numericInput(ns("step_blocks"), span("Step blocks",tipright("Number of temporal blocks by which the validation origin moves after each split. Larger values generate fewer splits.")), value = 1, min = 1, step = 1),
                      pickerInput_fromtop(
                        ns("temporal_window"),
@@ -3746,6 +3781,18 @@ temporal_validation$server<-function(id,vals){
       }
       as.integer(x[1])
     }
+
+    # "1, 3, 7" -> c(1,3,7); the scheme is built with the largest horizon
+    horizons<-reactive({
+      h<-parse_horizon_blocks(input$horizon_blocks)
+      validate(need(length(h)>0,"Horizon blocks must contain one or more positive integers separated by commas (e.g. 1, 3, 7)."))
+      h
+    })
+    max_horizon<-reactive(max(horizons()))
+    gap_blocks<-reactive({
+      g<-suppressWarnings(as.integer(input$gap_blocks))
+      if(!length(g)||is.na(g[1])||g[1]<0) 0L else g[1]
+    })
 
     get_temporal_vector<-function(){
       args<-vals$trainSL_args
@@ -3885,13 +3932,13 @@ temporal_validation$server<-function(id,vals){
       req(effective_k_time(),input$initial_train_blocks,input$horizon_blocks,input$step_blocks)
       k_time<-scalar_int_or(effective_k_time(),2L)
       initial_train_blocks<-scalar_int_or(input$initial_train_blocks,1L)
-      horizon_blocks<-scalar_int_or(input$horizon_blocks,1L)
+      horizon_blocks<-max_horizon()
       step_blocks<-scalar_int_or(input$step_blocks,1L)
       if(any(is.na(c(k_time,initial_train_blocks,horizon_blocks,step_blocks))) ||
          any(c(k_time,initial_train_blocks,horizon_blocks,step_blocks)<1)){
         return(NULL)
       }
-      n_splits<-floor((k_time - initial_train_blocks - horizon_blocks) / step_blocks) + 1L
+      n_splits<-floor((k_time - initial_train_blocks - gap_blocks() - horizon_blocks) / step_blocks) + 1L
       if(n_splits<1){
         div(style="padding: 6px; background: #ffdede; font-size: 11px",
             em("These settings do not generate any prequential split. Increase temporal resolution or reduce initial train/horizon.")
@@ -3899,7 +3946,8 @@ temporal_validation$server<-function(id,vals){
       } else{
         div(style="padding: 6px; background: #f0f7ffff; font-size: 11px",
             div(strong("Estimated generated splits: "),n_splits),
-            div(em("Formula: floor((temporal blocks - initial train - horizon) / step) + 1."))
+            div(em("Formula: floor((temporal blocks - initial train - gap - horizon) / step) + 1.")),
+            if(length(horizons())>1) div(em(paste0("Horizons ",paste(horizons(),collapse=", ")," share these splits (largest horizon = ",horizon_blocks,").")))
         )
       }
     })
@@ -3923,9 +3971,10 @@ temporal_validation$server<-function(id,vals){
       }
 
       initial_train_blocks<-max(1L,scalar_int_or(input$initial_train_blocks,1L))
-      horizon_blocks<-max(1L,scalar_int_or(input$horizon_blocks,1L))
+      horizon_blocks<-max_horizon()
+      gap<-gap_blocks()
       step_blocks<-max(1L,scalar_int_or(input$step_blocks,1L))
-      if(initial_train_blocks+horizon_blocks>k_time){
+      if(initial_train_blocks+gap+horizon_blocks>k_time){
         return(list(
           title="Prequential temporal CV",
           subtitle="Current settings do not generate any split.",
@@ -3934,7 +3983,7 @@ temporal_validation$server<-function(id,vals){
         ))
       }
 
-      train_end_seq<-seq(from=initial_train_blocks,to=k_time-horizon_blocks,by=step_blocks)
+      train_end_seq<-seq(from=initial_train_blocks,to=k_time-horizon_blocks-gap,by=step_blocks)
       rolling_train_blocks<-scalar_int_or(input$rolling_train_blocks,NA_integer_)
       if(identical(input$temporal_window,"rolling") && (is.null(rolling_train_blocks) || is.na(rolling_train_blocks) || rolling_train_blocks<1)){
         rolling_train_blocks<-initial_train_blocks
@@ -3948,7 +3997,7 @@ temporal_validation$server<-function(id,vals){
         } else{
           train_blocks<-seq_len(train_end)
         }
-        test_blocks<-(train_end+1L):(train_end+horizon_blocks)
+        test_blocks<-(train_end+gap+1L):(train_end+gap+horizon_blocks)
         row[train_blocks]<-"train"
         row[test_blocks]<-"test"
         row
@@ -3958,7 +4007,8 @@ temporal_validation$server<-function(id,vals){
         subtitle=paste0(
           "Temporal blocks = ",k_time,
           ", initial train = ",initial_train_blocks,
-          ", horizon = ",horizon_blocks,
+          ", horizon = ",paste(horizons(),collapse=", "),
+          if(gap>0) paste0(", gap = ",gap) else "",
           ", step = ",step_blocks,
           if(identical(input$temporal_window,"rolling")) paste0(", rolling train = ",rolling_train_blocks) else ""
         ),
@@ -4210,6 +4260,12 @@ temporal_validation$server<-function(id,vals){
     output$cvt_result<-renderUI({
       empty_temporal_result()
     })
+    # scheme cleared elsewhere (training setup changed): ask for a new one
+    observeEvent(vals$cvt,ignoreNULL=FALSE,ignoreInit=TRUE,{
+      if(is.null(vals$cvt)){
+        shinyjs::addClass("run_temporal_cv_btn","save_changes")
+      }
+    })
 
     observeEvent(list(
       input$time_source,
@@ -4222,6 +4278,7 @@ temporal_validation$server<-function(id,vals){
       input$time_block_unit,
       input$initial_train_blocks,
       input$horizon_blocks,
+      input$gap_blocks,
       input$step_blocks,
       input$temporal_window,
       input$rolling_train_blocks
@@ -4257,7 +4314,8 @@ temporal_validation$server<-function(id,vals){
         )
         if(identical(input$validation_type,"time_block_prequential")){
           cv_args$initial_train_blocks<-input$initial_train_blocks
-          cv_args$horizon_blocks<-input$horizon_blocks
+          cv_args$horizon_blocks<-max_horizon()
+          cv_args$gap_blocks<-gap_blocks()
           cv_args$step_blocks<-input$step_blocks
           cv_args$temporal_window<-input$temporal_window
           cv_args$rolling_train_blocks<-rolling_blocks
@@ -4277,12 +4335,16 @@ temporal_validation$server<-function(id,vals){
           time_block_width = if(isTRUE(using_fixed_time_blocks())) input$time_block_width else NA,
           time_block_unit = if(isTRUE(using_fixed_time_blocks())) input$time_block_unit else NA,
           initial_train_blocks = if(identical(input$validation_type,"time_block_prequential")) input$initial_train_blocks else NA,
-          horizon_blocks = if(identical(input$validation_type,"time_block_prequential")) input$horizon_blocks else NA,
+          horizon_blocks = if(identical(input$validation_type,"time_block_prequential")) max_horizon() else NA,
+          horizons = if(identical(input$validation_type,"time_block_prequential")) horizons() else NULL,
+          horizon_map = if(identical(input$validation_type,"time_block_prequential")) make_horizon_map(caret_folds) else NULL,
+          gap_blocks = if(identical(input$validation_type,"time_block_prequential")) gap_blocks() else 0L,
           step_blocks = if(identical(input$validation_type,"time_block_prequential")) input$step_blocks else NA,
           temporal_window = if(identical(input$validation_type,"time_block_prequential")) input$temporal_window else NA,
           rolling_train_blocks = if(identical(input$validation_type,"time_block_prequential")) rolling_blocks else NA,
           stcv = cv_obj
         )
+        attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
         vals$cvt<-caret_folds
         cv_obj
       }, error=function(e)e)
@@ -4354,6 +4416,8 @@ temporal_validation$server<-function(id,vals){
               div(strong("Time variable:"),params$time_var),
               div(strong("Temporal blocks:"),stcv$meta$n_time_blocks),
               if(!is.null(params$time_block_mode)) div(strong("Block definition:"),if(identical(params$time_block_mode,"fixed")) paste(params$time_block_width,params$time_block_unit) else "observed time levels"),
+              if(length(params$horizons)) div(strong("Horizon blocks:"),paste(params$horizons,collapse=", ")),
+              if(isTRUE(params$gap_blocks>0)) div(strong("Gap blocks:"),params$gap_blocks),
               div(strong("Generated splits:"),length(vals$cvt$index))
           ),
           div(class="half-drop-inline",style="padding-top: 8px; overflow-x: auto",
@@ -4587,7 +4651,7 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
   })
 }
 spatiotemporal_validation<-list()
-spatiotemporal_validation$ui<-function(id,cvst_params){
+spatiotemporal_validation$ui<-function(id,cvst_params,time_source="numeric"){
   ns<-NS(id)
   tabsetPanel(
     id=ns("cvst_tabs"),
@@ -4598,7 +4662,7 @@ spatiotemporal_validation$ui<-function(id,cvst_params){
         column(5,class="mp0",
                box_caret(ns("cvst_parameters"),color="#c3cc74ff",title="Parameters",
                          div(
-                           pickerInput_fromtop(ns("time_source"),span("Time source:",tipright("Use Numeric-Attribute when the temporal column is also a predictor. Use Temporal-Attribute when the temporal column should only define validation folds.")),choices=c("Numeric-Attribute"="numeric","Temporal-Attribute"="time"),selected="numeric"),
+                           pickerInput_fromtop(ns("time_source"),span("Time source:",tipright("Use Numeric-Attribute when the temporal column is also a predictor. Use Temporal-Attribute when the temporal column should only define validation folds.")),choices=c("Numeric-Attribute"="numeric","Temporal-Attribute"="time"),selected=time_source),
                            uiOutput(ns("time_var_out")),
                            pickerInput_fromtop(ns("validation_type"),span("Scheme:",tipright("Spatiotemporal block CV tests combinations of temporal blocks and contiguous spatial folds. Prequential spatiotemporal block CV uses past time blocks for training and future blocks for testing.")),choices=c("Spatiotemporal block CV"="spatiotemporal_contiguous_block_cv","Prequential spatiotemporal block CV"="spatiotemporal_contiguous_block_prequential"),selected="spatiotemporal_contiguous_block_cv"),
                            numericInput(ns("k_spat"),span("Spatial folds",tipright("Number of contiguous spatial folds.")),value=cvst_params$k_spat,min=2,step=1),
@@ -4609,7 +4673,8 @@ spatiotemporal_validation$ui<-function(id,cvst_params){
                            numericInput(ns("seed"),span("Seed:",tipright("Random seed used to make the spatial fold creation reproducible.")),value=cvst_params$seed,step=1),
                            div(id=ns("prequential_args"),
                                numericInput(ns("initial_train_blocks"),span("Initial train blocks",tipright("Number of temporal blocks in the first training window.")),value=cvst_params$initial_train_blocks,min=1,step=1),
-                               numericInput(ns("horizon_blocks"),span("Horizon blocks",tipright("Number of future temporal blocks included in each test set.")),value=cvst_params$horizon_blocks,min=1,step=1),
+                               textInput(ns("horizon_blocks"),span("Horizon blocks",tipright("Number of future temporal blocks included in each test set. Several horizons can be given separated by commas (e.g. 1, 3, 7): the folds use the largest one and, after training, Performance > By Horizon shows the metrics for each cumulative test window t+1...t+h, using the same origins and spatial folds.")),value=as.character(cvst_params$horizon_blocks)),
+                               numericInput(ns("gap_blocks"),span("Gap blocks",tipright("Number of temporal blocks skipped between the end of the training window and the start of the test window (tests t+g+1...t+g+h). 0 = no gap.")),value=cvst_params$gap_blocks,min=0,step=1),
                                numericInput(ns("step_blocks"),span("Step blocks",tipright("Number of temporal blocks by which the validation origin moves.")),value=cvst_params$step_blocks,min=1,step=1),
                                pickerInput_fromtop(ns("temporal_window"),span("Temporal window",tipright("Expanding keeps all past blocks; rolling keeps a moving fixed-size training window.")),choices=c("Expanding"="expanding","Rolling"="rolling"),selected=cvst_params$temporal_window),
                                numericInput(ns("rolling_train_blocks"),span("Rolling train blocks",tipright("Training window length for rolling prequential validation. If empty, Initial train blocks is used.")),value=cvst_params$rolling_train_blocks,min=1,step=1)
@@ -4716,6 +4781,7 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
       if(!is.null(input$seed)) cvst_params$seed<-input$seed
       if(!is.null(input$initial_train_blocks)) cvst_params$initial_train_blocks<-input$initial_train_blocks
       if(!is.null(input$horizon_blocks)) cvst_params$horizon_blocks<-input$horizon_blocks
+      if(!is.null(input$gap_blocks)) cvst_params$gap_blocks<-input$gap_blocks
       if(!is.null(input$step_blocks)) cvst_params$step_blocks<-input$step_blocks
       if(!is.null(input$temporal_window)) cvst_params$temporal_window<-input$temporal_window
       if(!is.null(input$rolling_train_blocks)) cvst_params$rolling_train_blocks<-input$rolling_train_blocks
@@ -4756,9 +4822,24 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
       output$cvst_result<-renderUI({empty_cvst_result()})
       shinyjs::addClass("run_cvst_btn","save_changes")
     }
-    observeEvent(list(input$time_source,input$time_var,input$validation_type,input$k_spat,input$k_time,input$cellsize,input$grid_shape,input$contiguity,input$seed,input$initial_train_blocks,input$horizon_blocks,input$step_blocks,input$temporal_window,input$rolling_train_blocks),{
+    st_horizons<-reactive({
+      h<-parse_horizon_blocks(input$horizon_blocks)
+      validate(need(length(h)>0,"Horizon blocks must contain one or more positive integers separated by commas (e.g. 1, 3, 7)."))
+      h
+    })
+    st_gap_blocks<-reactive({
+      g<-suppressWarnings(as.integer(input$gap_blocks))
+      if(!length(g)||is.na(g[1])||g[1]<0) 0L else g[1]
+    })
+    observeEvent(list(input$time_source,input$time_var,input$validation_type,input$k_spat,input$k_time,input$cellsize,input$grid_shape,input$contiguity,input$seed,input$initial_train_blocks,input$horizon_blocks,input$gap_blocks,input$step_blocks,input$temporal_window,input$rolling_train_blocks),{
       reset_cvst()
     },ignoreInit=TRUE)
+    # scheme cleared elsewhere (training setup changed): ask for a new one
+    observeEvent(vals$cvst,ignoreNULL=FALSE,ignoreInit=TRUE,{
+      if(is.null(vals$cvst)){
+        reset_cvst()
+      }
+    })
 
     build_cvst_df<-reactive({
       args<-vals$trainSL_args
@@ -4820,7 +4901,8 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
         )
         if(identical(input$validation_type,"spatiotemporal_contiguous_block_prequential")){
           cv_args$initial_train_blocks<-input$initial_train_blocks
-          cv_args$horizon_blocks<-input$horizon_blocks
+          cv_args$horizon_blocks<-max(st_horizons())
+          cv_args$gap_blocks<-st_gap_blocks()
           cv_args$step_blocks<-input$step_blocks
           cv_args$temporal_window<-input$temporal_window
           cv_args$rolling_train_blocks<-if(is.na(input$rolling_train_blocks)) NULL else input$rolling_train_blocks
@@ -4828,6 +4910,7 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
         }
         cv_obj<-do.call(make_st_validation,cv_args)
         caret_folds<-stcv_to_caret(cv_obj)
+        is_preq<-identical(input$validation_type,"spatiotemporal_contiguous_block_prequential")
         attr(caret_folds,"params")<-list(
           validation_type=input$validation_type,
           time_source=input$time_source,
@@ -4838,8 +4921,13 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
           grid_shape=input$grid_shape,
           contiguity=input$contiguity,
           seed=input$seed,
+          horizon_blocks=if(is_preq) max(st_horizons()) else NA,
+          horizons=if(is_preq) st_horizons() else NULL,
+          horizon_map=if(is_preq) make_horizon_map(caret_folds) else NULL,
+          gap_blocks=if(is_preq) st_gap_blocks() else 0L,
           stcv=cv_obj
         )
+        attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
         vals$cvst<-caret_folds
         cv_obj
       },error=function(e)e)
@@ -4866,6 +4954,8 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
               div(strong("Spatial folds: "),params$k_spat),
               div(strong("Temporal blocks: "),params$k_time),
               div(strong("Cell size: "),params$cellsize," meters"),
+              if(length(params$horizons)) div(strong("Horizon blocks: "),paste(params$horizons,collapse=", ")),
+              if(isTRUE(params$gap_blocks>0)) div(strong("Gap blocks: "),params$gap_blocks),
               div(strong("Generated splits: "),length(vals$cvst$index))
           ),
           div(class="half-drop-inline",style="padding-top: 8px; overflow-x: auto",
@@ -5049,6 +5139,7 @@ sl_validation$server<-function(id,vals){
       seed = NA,
       initial_train_blocks = 1,
       horizon_blocks = 1,
+      gap_blocks = 0,
       step_blocks = 1,
       temporal_window = "expanding",
       rolling_train_blocks = NA,
@@ -5354,6 +5445,13 @@ sl_validation$server<-function(id,vals){
       showModal(modal_cvsp())
     })
 
+    # Temporal-Attribute is the default time source when the X Datalist has one
+    default_time_source<-function(){
+      data_x<-vals$trainSL_args$data_x
+      if(is.null(data_x)||!data_x%in%names(vals$saved_data)) return("numeric")
+      time_attr<-attr(vals$saved_data[[data_x]],"time")
+      if(!is.null(time_attr)&&ncol(as.data.frame(time_attr))>0) "time" else "numeric"
+    }
     observeEvent(input$temporalValidation_module,{
       start_temporal_validation()
       showModal(
@@ -5361,7 +5459,7 @@ sl_validation$server<-function(id,vals){
           title = "Temporal Cross-Validation",
           easyClose = TRUE,
           size = "l",
-          temporal_validation$ui(ns("temporal_validation")),
+          temporal_validation$ui(ns("temporal_validation"),time_source=default_time_source()),
           footer = tagList(
             modalButton("Cancel")
           )
@@ -5376,7 +5474,7 @@ sl_validation$server<-function(id,vals){
           easyClose = TRUE,
           size = "l",
 
-          spatiotemporal_validation$ui(ns("spatiotemporal_validation"),cvst_params),
+          spatiotemporal_validation$ui(ns("spatiotemporal_validation"),cvst_params,time_source=default_time_source()),
           footer = tagList(
             modalButton("Cancel")
           )
@@ -5774,21 +5872,45 @@ sl_validation$server<-function(id,vals){
         )
       )
     })
+    # Validation schemes store row positions of the training data. They are cleared
+    # when the training setup changes (X Datalist, training IDs, Y or partition);
+    # column filters and tuning settings keep them.
+    last_setup<-reactiveVal(NULL)
     observeEvent(vals$trainSL_args,{
-      cvsp_scheme(NULL)
-      cvsp_scheme_cache(list(key=NULL,result=NULL))
-      cvsp_plot_cache(new.env(parent=emptyenv()))
-      vals$cvsp<-NULL
-      result_cvsp_sizeeval(NULL)
-      result_cvst_sizeeval(NULL)
-      vals$cur_cvsp_size<-NA
+      sig<-sl_setup_signature(vals$trainSL_args)
+      changed<-!is.null(last_setup())&&!identical(last_setup(),sig)
+      last_setup(sig)
+      stale<-function(scheme) !is.null(scheme)&&!identical(attr(scheme,"setup"),sig)
+      cleared<-character(0)
+      if(stale(vals$cvsp)||(changed&&!is.null(cvsp_scheme()))){
+        cleared<-c(cleared,"spatial")
+      }
+      if(changed||stale(vals$cvsp)){
+        cvsp_scheme(NULL)
+        cvsp_scheme_cache(list(key=NULL,result=NULL))
+        cvsp_plot_cache(new.env(parent=emptyenv()))
+        vals$cvsp<-NULL
+        result_cvsp_sizeeval(NULL)
+        result_cvst_sizeeval(NULL)
+        vals$cur_cvsp_size<-NA
+      }
+      if(stale(vals$cvt)){
+        vals$cvt<-NULL
+        vals$cvt_temporal_splits<-NULL
+        cleared<-c(cleared,"temporal")
+      }
+      if(stale(vals$cvst)){
+        vals$cvst<-NULL
+        vals$cvst_splits<-NULL
+        cleared<-c(cleared,"spatiotemporal")
+      }
+      if(length(cleared)){
+        showNotification(
+          paste0("The ",paste(cleared,collapse=", ")," CV scheme was cleared because the training data changed (X Datalist, observations, Y or partition). Create it again for the current setup."),
+          type="warning",duration=10
+        )
+      }
     })
-    observeEvent(vals$box_caret1_args,{
-      vals$cvt<-NULL
-      vals$cvt_temporal_splits<-NULL
-      vals$cvst<-NULL
-      vals$cvst_splits<-NULL
-    },ignoreInit = TRUE)
     output$label_cv<-renderUI({
       req(input$method)
       if(input$method=='boot'){
@@ -5936,6 +6058,7 @@ sl_validation$server<-function(id,vals){
                                        repeats=length(cvsp_scheme()),
                                        spcv=cvsp_scheme(),
                                        sf_dat=get_sfdata())
+      attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
       vals$cvsp<-caret_folds
     })
 
@@ -7643,6 +7766,38 @@ model_results$ui<-function(id){
               "By Fold",
               value="fold",
               uiOutput(ns('fold_metrics'))
+            ),
+            tabPanel(
+              "By Horizon",
+              value="horizon",
+              div(
+                column(4,class="mp0",
+                       box_caret(ns("box_hz_opts"),
+                                 title="Options",
+                                 color="#c3cc74ff",
+                                 div(
+                                   pickerInput_fromtop(ns("hz_metric"),"Metric:",choices=NULL),
+                                   checkboxInput(ns("hz_show_sd"),"Show +/- SD across folds",value=TRUE),
+                                   checkboxInput(ns("hz_show_pooled"),tiphelp5("Show pooled","Metric computed with all test predictions of the window together (x marks)."),value=FALSE),
+                                   colourpicker::colourInput(ns("hz_color"),"Color:",value="#05668D",showColour="background"),
+                                   numericInput(ns("hz_base_size"),"Base size:",value=12,min=6,step=1),
+                                   textInput(ns("hz_title"),"Title:",value="Performance by forecast horizon")
+                                 ))
+                ),
+                column(8,class="mp0",
+                       box_caret(ns("box_hz_plot"),
+                                 title="Horizon curve",
+                                 button_title=actionLink(ns("down_hz_plot"),"Download",icon("download")),
+                                 div(uiOutput(ns("hz_note")),
+                                     plotOutput(ns("hz_plot"),height="360px"))
+                       ),
+                       box_caret(ns("box_hz_table"),
+                                 title="Table",
+                                 button_title=actionLink(ns("down_hz_table"),"Download",icon("fas fa-table")),
+                                 div(style="overflow-x: auto",uiOutput(ns("hz_table")))
+                       )
+                )
+              )
             )
           )
         )
@@ -7832,6 +7987,80 @@ model_results$server<-function(id,vals){
     box_caret_server("15")
     box_caret_server("16")
     box_caret_server("17")
+    box_caret_server("box_hz_opts")
+    box_caret_server("box_hz_plot")
+    box_caret_server("box_hz_table")
+
+    # Performance > By Horizon: metrics for the cumulative test windows t+1...t+h
+    hz_data<-reactive({
+      req(identical(input$tab2,"t2"))
+      req(identical(input$performance_nav,"horizon"))
+      validate(need(inherits(model(),"train"),"No trained  models found"))
+      m<-model()
+      validate(need(!is.null(attr(m,"cvt")$horizon_map)||!is.null(attr(m,"cvst")$horizon_map),"Horizon curves are available for models trained with Prequential temporal CV or Prequential spatiotemporal block CV. In the validation scheme, set Horizon blocks to one or more values (e.g. 1, 3, 7), create the scheme and train the model."))
+      hz<-horizon_curve_data(m)
+      validate(need(!is.null(hz),"No test predictions could be matched to the forecast horizons."))
+      hz
+    })
+    observeEvent(hz_data(),{
+      choices<-hz_data()$metrics
+      updatePickerInput(session,"hz_metric",choices=choices,selected=get_selected_from_choices(input$hz_metric,choices))
+    })
+    hz_plot<-reactive({
+      hz<-hz_data()
+      req(input$hz_metric%in%hz$metrics)
+      gg_horizon_curve(
+        hz,input$hz_metric,
+        show_sd=isTRUE(input$hz_show_sd),
+        show_pooled=isTRUE(input$hz_show_pooled),
+        color=input$hz_color%||%"#05668D",
+        base_size=input$hz_base_size%||%12,
+        title=input$hz_title
+      )
+    })
+    output$hz_plot<-renderPlot({
+      hz_plot()
+    })
+    output$hz_note<-renderUI({
+      hz<-hz_data()
+      m<-model()
+      y<-attr(m,"supervisor")
+      xnames<-setdiff(colnames(m$trainingData),".outcome")
+      lag_like<-character(0)
+      if(length(y)==1&&!is.na(y)&&length(xnames)){
+        from_target<-Reduce(`|`,lapply(c("_lag","_roll","_diff","_pct_change","_anom_","_led","_cum_"),function(s) grepl(paste0(y,s),xnames,fixed=TRUE)))
+        lag_like<-xnames[from_target]
+      }
+      div(style="font-size: 11px; color: #555555; padding: 0px 5px 5px 5px",
+          em(paste0(
+            "Each point summarises the test window t+",hz$gap+1,"...t+",if(hz$gap>0) paste0(hz$gap,"+h") else "h"," over ",max(hz$summary$Folds),
+            if(is.null(attr(m,"cvt")$horizon_map)) " validation splits (origins x spatial folds)" else " origins",
+            if(hz$gap>0) paste0(", with a gap of ",hz$gap," blocks after each origin") else "",
+            ". All horizons use the same splits and models (defined by the largest horizon), so they are directly comparable."
+          )),
+          if(length(lag_like)&&max(hz$horizons)>1){
+            div(style="color: brown; margin-top: 4px",
+                icon("triangle-exclamation"),
+                paste0("Predictors derived from the target (",paste(head(lag_like,3),collapse=", "),if(length(lag_like)>3) ", ..." else "",") use observed values inside the test window, so horizons beyond t+1 are optimistic. For a direct h-step forecast, use a Lead target (Temporal Features) with predictors known at the origin."))
+          }
+      )
+    })
+    output$hz_table<-renderUI({
+      tab<-hz_data()$summary
+      num<-vapply(tab,is.numeric,logical(1))
+      tab[num]<-lapply(tab[num],round,4)
+      fixed_dt(tab,round=NULL,dom="t",scrollY="200px",rownames=FALSE)
+    })
+    observeEvent(input$down_hz_plot,ignoreInit=TRUE,{
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=hz_plot(),message="Horizon curve",name_c=paste0("horizon_curve_",input$hz_metric),datalist_name=attr(model(),"Datalist"))
+    })
+    observeEvent(input$down_hz_table,ignoreInit=TRUE,{
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message="Download horizon metrics",data=hz_data()$summary,name="horizon_metrics")
+    })
 
     plot_train<-reactiveVal()
 
@@ -11560,6 +11789,10 @@ sl_module$server<-function(id,vals){
       shinyjs::toggle('wei_var',condition=isTRUE(input$wei_use))
     })
     observeEvent(input$run_train,ignoreInit = T,{
+      if(length(vals$sl_setup_issues)){
+        showNotification(paste("Training was not started.",paste(vals$sl_setup_issues,collapse=" ")),type="error",duration=12)
+        return(NULL)
+      }
       vals$model_error0<-try({
         req(vals$cmodel)
 
@@ -11677,8 +11910,6 @@ sl_module$server<-function(id,vals){
           args_train$keep.inbag=T
         }
 
-        saveRDS(args_train,'args_train_blockcv.rds')
-        print("done")
         withProgress(
           message = paste("Running",vals$cmodel),
           min = NA,
@@ -11737,6 +11968,23 @@ sl_module$server<-function(id,vals){
     observeEvent(vals$train_loop,ignoreInit = T,{
       req(isTRUE(vals$train_loop))
       vals$train_loop<-FALSE
+      loop_issues<-unique(unlist(lapply(seq_along(vals$partition_df),function(i){
+        part<-vals$partition_df[[i]]
+        var_i<-names(vals$partition_df)[i]
+        sl_setup_issues(
+          x_data=vals$cur_datax,
+          train_ids=part$train_ids,
+          test_ids=part$test_ids,
+          y=vals$y_loop[part$train_ids,var_i],
+          var_y=var_i,
+          x_name=vals$trainSL_args$data_x,
+          y_name=vals$trainSL_args$data_y
+        )
+      })))
+      if(length(loop_issues)){
+        showNotification(paste("Training was not started.",paste(loop_issues,collapse=" ")),type="error",duration=12)
+        return(NULL)
+      }
       #m_rsq<-c()
       vals$model_error0<-try({
         var_y_df<-vals$y_loop

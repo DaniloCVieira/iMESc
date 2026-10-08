@@ -1049,3 +1049,170 @@ get_datalist_model_metrics<-function(saved_data,data_x){
     result[pic]}
 
 }
+
+# ---- Forecast horizon curves (Prequential temporal / spatiotemporal CV) ---------
+# The folds are built with the largest horizon H. Each test row gets its lead
+# (blocks after the fold's last training block), so the metrics for the cumulative
+# window t+1...t+h (h <= H) come from the same origins and models. With a gap of g
+# blocks the windows are t+g+1...t+g+h.
+
+#' @export
+parse_horizon_blocks<-function(x){
+  if(is.null(x)) return(integer(0))
+  h<-suppressWarnings(as.numeric(trimws(unlist(strsplit(as.character(x),"[,; ]+")))))
+  h<-h[!is.na(h)&h>=1&h==round(h)]
+  sort(unique(as.integer(h)))
+}
+
+# list (one data.frame per caret fold) with rowIndex and lead of each test row
+#' @export
+make_horizon_map<-function(caret_folds){
+  dat<-caret_folds$data
+  if(is.null(dat)||!"fold_time"%in%names(dat)) return(NULL)
+  block<-as.integer(dat$fold_time)
+  rows<-if(".rowid_original"%in%names(dat)) dat$.rowid_original else seq_len(nrow(dat))
+  block_of<-rep(NA_integer_,max(rows))
+  block_of[rows]<-block
+  maps<-mapply(function(tr,te){
+    data.frame(rowIndex=te,lead=block_of[te]-max(block_of[tr],na.rm=TRUE))
+  },caret_folds$index,caret_folds$indexOut,SIMPLIFY=FALSE)
+  names(maps)<-names(caret_folds$index)
+  maps
+}
+
+#' @export
+horizon_curve_data<-function(m){
+  cvt<-attr(m,"cvt")
+  if(is.null(cvt$horizon_map)) cvt<-attr(m,"cvst")
+  hmap<-cvt$horizon_map
+  horizons<-cvt$horizons
+  gap<-suppressWarnings(as.integer(cvt$gap_blocks))
+  if(!length(gap)||is.na(gap[1])) gap<-0L
+  gap<-gap[1]
+  if(is.null(hmap)||!length(horizons)||is.null(m$pred)) return(NULL)
+  pred<-m$pred
+  tune_names<-intersect(colnames(m$bestTune),colnames(pred))
+  for(nm in tune_names){
+    pred<-pred[pred[[nm]]==m$bestTune[[nm]],,drop=FALSE]
+  }
+  leads<-do.call(rbind,lapply(names(hmap),function(f) data.frame(Resample=f,hmap[[f]],stringsAsFactors=FALSE)))
+  pred<-merge(pred,leads,by=c("Resample","rowIndex"))
+  if(!nrow(pred)) return(NULL)
+  # position inside the test window (1 = first block after the gap)
+  pred$lead<-pred$lead-gap
+  metrics<-function(p,o) suppressWarnings(caret::postResample(p,o))
+
+  by_fold<-do.call(rbind,lapply(horizons,function(h){
+    do.call(rbind,lapply(sort(unique(pred$Resample)),function(f){
+      sub<-pred[pred$Resample==f&pred$lead<=h,,drop=FALSE]
+      if(!nrow(sub)) return(NULL)
+      data.frame(Horizon=h,Fold=f,n=nrow(sub),t(metrics(sub$pred,sub$obs)),check.names=FALSE)
+    }))
+  }))
+  metric_names<-setdiff(colnames(by_fold),c("Horizon","Fold","n"))
+
+  summary<-do.call(rbind,lapply(horizons,function(h){
+    bf<-by_fold[by_fold$Horizon==h,,drop=FALSE]
+    pooled_rows<-pred[pred$lead<=h,,drop=FALSE]
+    pooled<-metrics(pooled_rows$pred,pooled_rows$obs)
+    out<-data.frame(Horizon=h,Window=paste0("t+",gap+1,"...t+",gap+h),Folds=nrow(bf),Predictions=nrow(pooled_rows),check.names=FALSE)
+    for(mt in metric_names){
+      out[[paste0(mt,"_mean")]]<-mean(bf[[mt]],na.rm=TRUE)
+      out[[paste0(mt,"_sd")]]<-stats::sd(bf[[mt]],na.rm=TRUE)
+      out[[paste0(mt,"_pooled")]]<-unname(pooled[mt])
+    }
+    out
+  }))
+  list(summary=summary,by_fold=by_fold,metrics=metric_names,horizons=horizons,gap=gap)
+}
+
+#' @export
+gg_horizon_curve<-function(hz,metric,show_sd=TRUE,show_pooled=FALSE,color="#05668D",base_size=12,title="Performance by forecast horizon"){
+  df<-hz$summary
+  df$mean<-df[[paste0(metric,"_mean")]]
+  df$sd<-df[[paste0(metric,"_sd")]]
+  df$pooled<-df[[paste0(metric,"_pooled")]]
+  p<-ggplot2::ggplot(df,ggplot2::aes(x=Horizon,y=mean))
+  if(isTRUE(show_sd)){
+    p<-p+ggplot2::geom_errorbar(ggplot2::aes(ymin=mean-sd,ymax=mean+sd),width=0.15,color=color,na.rm=TRUE)
+  }
+  p<-p+ggplot2::geom_line(color=color)+ggplot2::geom_point(color=color,size=2.5)
+  if(isTRUE(show_pooled)){
+    p<-p+ggplot2::geom_point(ggplot2::aes(y=pooled),shape=4,size=3,color="gray30",na.rm=TRUE)
+  }
+  gap<-if(is.null(hz$gap)) 0L else hz$gap
+  p+ggplot2::scale_x_continuous(breaks=df$Horizon,labels=paste0("t+",gap+df$Horizon))+
+    ggplot2::labs(
+      x=if(gap>0) paste0("Forecast horizon (cumulative test window t+",gap+1,"...t+h; gap = ",gap," blocks)") else "Forecast horizon (cumulative test window t+1...t+h)",
+      y=paste0(metric,if(isTRUE(show_sd)) " (mean +/- SD across folds)" else " (mean across folds)"),
+      title=title,
+      caption=if(isTRUE(show_pooled)) "x = pooled over all test predictions" else NULL
+    )+
+    ggplot2::theme_bw(base_size=base_size)
+}
+
+# ---- Model setup checks ------------------------------------------------------------
+# What a validation scheme depends on: the X Datalist, the training rows (in order),
+# the response and the partition. Schemes store this at creation and are cleared when
+# the current setup no longer matches (column filters and tuning do not matter).
+#' @export
+sl_setup_signature<-function(args){
+  if(is.null(args)||is.null(args$x_train)) return(NULL)
+  list(
+    data_x=args$data_x,
+    ids=rownames(args$x_train),
+    y=if(!is.null(args$y_train)) as.vector(args$y_train[,1]) else NULL,
+    partition=args$partition,
+    partition_ref=if(identical(args$partition,"None")) NULL else args$partition_ref
+  )
+}
+
+# Problems that would make training fail or leak the response, in plain words.
+# x_data: X Datalist (already column-filtered); train_ids/test_ids: IDs from the Y
+# Datalist; y: response for train_ids.
+#' @export
+sl_setup_issues<-function(x_data,train_ids,test_ids=NULL,y=NULL,var_y=NULL,x_name="X",y_name="Y"){
+  ids<-c(train_ids,test_ids)
+  x_ids<-rownames(x_data)
+  if(!length(intersect(ids,x_ids))){
+    return(paste0("X (",x_name,") and Y (",y_name,") have no observation IDs in common. Choose Datalists that share the same observation IDs."))
+  }
+  miss<-setdiff(ids,x_ids)
+  if(length(miss)){
+    return(paste0(
+      length(miss)," of ",length(ids)," observations of Y (",y_name,") are not in X (",x_name,"): ",
+      paste(head(miss,3),collapse=", "),if(length(miss)>3) " and others" else "",
+      ". Choose Datalists with matching observation IDs."
+    ))
+  }
+  issues<-character(0)
+  x_train<-x_data[train_ids,,drop=FALSE]
+  if(!is.null(y)&&is.numeric(y)){
+    same<-vapply(x_train,function(col){
+      is.numeric(col)&&isTRUE(all(col==y|(is.na(col)&is.na(y))))
+    },logical(1))
+    leak<-names(same)[same]
+    if(length(leak)){
+      issues<-c(issues,paste0(
+        "The response '",var_y,"' is also among the predictors in X (",paste0("'",leak,"'",collapse=", "),
+        "). Remove it with '+ select columns' or choose another X Datalist."
+      ))
+    }
+  }
+  n_na_x<-sum(is.na(x_train))
+  if(n_na_x>0){
+    issues<-c(issues,paste0("X has ",n_na_x," missing value(s) in the training observations. Use Pre-processing (e.g. Data imputation) or remove the affected observations or columns."))
+  }
+  if(!is.null(y)&&anyNA(y)){
+    issues<-c(issues,paste0("Y has ",sum(is.na(y))," missing value(s) in the training observations."))
+  }
+  issues
+}
+
+#' @export
+sl_setup_issues_ui<-function(issues){
+  if(!length(issues)) return(NULL)
+  div(class="alert_warning",style="padding: 6px 10px; margin: 4px 0px; font-size: 12px;",
+      strong(icon("triangle-exclamation")," Check the model setup:"),
+      tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 18px;",lapply(issues,tags$li)))
+}

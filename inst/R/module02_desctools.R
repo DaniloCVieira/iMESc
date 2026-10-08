@@ -6284,7 +6284,7 @@ desctools_tab12$ui<-function(id){
                       div(class="picker-flex",
                           pickerInput_fromtop(ns("data"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
                       div(class="picker-flex",
-                          pickerInput_fromtop(ns("vars"),"Variables:",choices=NULL,multiple=TRUE,
+                          pickerInput_fromtop(ns("vars"),tiphelp5("Variables:","Up to 15 variables are pre-selected; use Select All to include every numeric variable."),choices=NULL,multiple=TRUE,
                                               options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,selectedTextFormat="count > 3",countSelectedText="{0} variables selected"))),
                       div(class="picker-flex",
                           pickerInput_fromtop(ns("group"),tiphelp5("Group by:","Optional Factor-Attribute: one histogram per level, overlaid, stacked, side by side or in panels."),choices=c("None"="none"))),
@@ -6366,11 +6366,11 @@ desctools_tab12$server<-function(id,vals){
       d<-data()
       colnames(d)[vapply(d,is.numeric,logical(1))]
     })
-    # every variable selected by default, also when the Datalist changes
+    # the first 15 variables are selected by default (Select All for every variable)
     observeEvent(num_vars(),{
       ch<-num_vars()
       old<-isolate(input$vars)
-      sel<-if(length(old)&&all(old%in%ch)) old else ch
+      sel<-if(length(old)&&all(old%in%ch)) old else ch[seq_len(min(15,length(ch)))]
       updatePickerInput(session,"vars",choices=ch,selected=sel)
     })
     observeEvent(data(),{

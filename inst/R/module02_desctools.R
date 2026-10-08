@@ -6284,7 +6284,7 @@ desctools_tab12$ui<-function(id){
                       div(class="picker-flex",
                           pickerInput_fromtop(ns("data"),"Datalist:",choices=NULL,options=shinyWidgets::pickerOptions(liveSearch=TRUE))),
                       div(class="picker-flex",
-                          pickerInput_fromtop(ns("vars"),tiphelp5("Variables:","Up to 15 variables are pre-selected; use Select All to include every numeric variable."),choices=NULL,multiple=TRUE,
+                          pickerInput_fromtop(ns("vars"),tiphelp5("Variables:","Single histogram: every numeric variable is pre-selected. Panels or overlaid variables: up to 15 are pre-selected; use Select All to include every variable."),choices=NULL,multiple=TRUE,
                                               options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,selectedTextFormat="count > 3",countSelectedText="{0} variables selected"))),
                       div(class="picker-flex",
                           pickerInput_fromtop(ns("group"),tiphelp5("Group by:","Optional Factor-Attribute: one histogram per level, overlaid, stacked, side by side or in panels."),choices=c("None"="none"))),
@@ -6366,12 +6366,25 @@ desctools_tab12$server<-function(id,vals){
       d<-data()
       colnames(d)[vapply(d,is.numeric,logical(1))]
     })
-    # the first 15 variables are selected by default (Select All for every variable)
+    # default selection: every variable for the single (pooled) histogram, the first 15
+    # for panels / overlaid variables; a selection changed by the user is kept
+    auto_vars<-reactiveVal(NULL)
+    default_vars<-function(ch){
+      if(identical(isolate(input$layout)%||%"pooled","pooled")) ch else ch[seq_len(min(15,length(ch)))]
+    }
     observeEvent(num_vars(),{
       ch<-num_vars()
       old<-isolate(input$vars)
-      sel<-if(length(old)&&all(old%in%ch)) old else ch[seq_len(min(15,length(ch)))]
+      user_sel<-length(old)&&all(old%in%ch)&&!setequal(old,isolate(auto_vars())%||%character(0))
+      sel<-if(user_sel) old else default_vars(ch)
+      auto_vars(sel)
       updatePickerInput(session,"vars",choices=ch,selected=sel)
+    })
+    observeEvent(input$layout,ignoreInit=TRUE,{
+      if(!setequal(input$vars%||%character(0),auto_vars()%||%character(0))) return()
+      sel<-default_vars(num_vars())
+      auto_vars(sel)
+      updatePickerInput(session,"vars",selected=sel)
     })
     observeEvent(data(),{
       fac<-attr(data(),"factors")

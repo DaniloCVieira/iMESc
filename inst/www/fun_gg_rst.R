@@ -58,7 +58,7 @@ get_data_map<-function(saved_data,name,attr,var,filter,filter_level){
 #' @export
 breaks_interval<-function(z,nbreaks=5){
   nbreaks=nbreaks-1
-  need(nbreaks!=0,"Breaks should be higher than 2") |> validate()
+  validate(need(nbreaks!=0,"Breaks should be higher than 2"))
   if(nbreaks==1){
     return(range(z))
   }
@@ -1215,7 +1215,8 @@ add_pie_chart<-function(map,data,factor_chart,buffer_zize,fun, min_radius,max_ra
     width = scales::rescale(rowSums(facddf),c(min_radius,max_radius))
   }
   colnames(facddf)<-gsub("_split_",".",colnames(facddf))
-  map |> leaflet.minicharts::addMinicharts(
+  leaflet.minicharts::addMinicharts(
+    map,
     lng = df[,1],
     lat = df[,2] ,
     type="pie",
@@ -1289,7 +1290,8 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   #map<-add_extraLL(map,data,args_extra_shape)
 
   if(isTRUE(addCircles)){
-    map <- map |> leaflet::addCircleMarkers(
+    map <- leaflet::addCircleMarkers(
+      map,
       lng = ~x,
       lat = ~y ,
       fillOpacity = fillOpacity,
@@ -1305,8 +1307,8 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   if(isTRUE(addMinicharts)){
     map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light)
   }
-  map <- map |> leaflet::addTiles() |>
-    leaflet::addProviderTiles(providers)
+  map <- leaflet::addTiles(map)
+  map <- leaflet::addProviderTiles(map, providers)
 
 
   map0<-map
@@ -1324,7 +1326,7 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
     }
 
 
-    map <- map |> leaflet::addRasterImage(rst, colors = pal, opacity = fillOpacity, group="raster")
+    map <- leaflet::addRasterImage(map, rst, colors = pal, opacity = fillOpacity, group="raster")
   }
 
 
@@ -1333,8 +1335,8 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
     if(isTRUE(args_labels$show_labels)){
       if(!is.null(args_labels$labels)){
         labels<-attr(data,"factors")[,args_labels$labels]
-        map<- map |>
-          leaflet::addLabelOnlyMarkers(
+        map<- leaflet::addLabelOnlyMarkers(
+            map,
             lng = df$x,
             lat = df$y, label =  ~as.character(labels),
             group="labels",
@@ -1351,14 +1353,14 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
 
 
   if(!isTRUE(addMinicharts)){
-    map <- map |> leaflet::addLegend("bottomright",
+    map <- leaflet::addLegend(map, "bottomright",
                                      pal = palette,
                                      values = ~z,
                                      title = var,
                                      opacity = 1)
   }
   overlayGroups<-control_layers(addCircles,addMinicharts,rst,base_shape_args,layer_shape_args,args_labels)
-  map <- map |> leaflet::addLayersControl(overlayGroups = overlayGroups)
+  map <- leaflet::addLayersControl(map, overlayGroups = overlayGroups)
   map
 }
 gg_add_extra_shape<-function(p, rst,extra_shape_args  ){
@@ -2321,7 +2323,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,legend.text_size=13,layer_shape=
 
     if(class(rst)[1]=="RasterLayer"){
       crs.info<-raster::crs(rst)
-      rasterpoints <-  raster::rasterToPoints(rst) |> data.frame()
+      rasterpoints <-  data.frame(raster::rasterToPoints(rst))
 
       if(isTRUE(factor)){
         # labels=rst@data@attributes[[1]][,2][ rst@data@attributes[[1]][,2]%in%unique(rasterpoints[,3])]
@@ -2338,7 +2340,7 @@ gg_rst<-function(rst=NULL,data=NULL,limits=NULL,legend.text_size=13,layer_shape=
 
 
 
-      coords<-raster::coordinates(rst) |> data.frame()
+      coords<-data.frame(raster::coordinates(rst))
     } else{
       coords<-attr(data,"coords")
       rasterpoints<-data.frame(cbind(coords,z=data[,1]))

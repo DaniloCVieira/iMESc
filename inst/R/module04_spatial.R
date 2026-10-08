@@ -1106,7 +1106,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 
       args_for_map1<-reactive({
         # if(is.null(vals$data_map)) {return(NULL)}
-        n<-vals$data_map[, 1] |> unique() |> length()
+        n<-length(unique(vals$data_map[, 1]))
         req(color_args1())
         palette<-color_args1()$pal
         fillOpacity<-color_args1()$fillOpacity

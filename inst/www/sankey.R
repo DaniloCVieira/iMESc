@@ -8,35 +8,37 @@ utils::globalVariables(c(".", ".data", "x", "node", "next_node", "next_x", "..r"
 prepare_params <- function(...) {
   # Prepare aesthics for flow lines
   flow.aes <- list(...)
-  removes <- names(flow.aes) %>%
-    stringr::str_extract_all(., "(?<=flow.).*") %>% unlist()
-  removes2 <- names(flow.aes) %>%
-    stringr::str_subset(., "node") %>% unlist()
+  removes <- names(flow.aes)
+  removes <- stringr::str_extract_all(removes, "(?<=flow.).*")
+  removes <- unlist(removes)
+  removes2 <- names(flow.aes)
+  removes2 <- stringr::str_subset(removes2, "node")
+  removes2 <- unlist(removes2)
   flow.aes[c(removes, removes2)] <- NULL
-  names(flow.aes) <- names(flow.aes) %>%
-    stringr::str_replace_all("flow.", "")
+  names(flow.aes) <- stringr::str_replace_all(names(flow.aes), "flow.", "")
 
   # Prepare aesthics for node boxes
   node.aes <- list(...)
-  removes <- names(node.aes) %>%
-    stringr::str_extract_all(., "(?<=node.).*") %>% unlist()
-  removes2 <- names(node.aes) %>%
-    stringr::str_subset(., "flow") %>% unlist()
+  removes <- names(node.aes)
+  removes <- stringr::str_extract_all(removes, "(?<=node.).*")
+  removes <- unlist(removes)
+  removes2 <- names(node.aes)
+  removes2 <- stringr::str_subset(removes2, "flow")
+  removes2 <- unlist(removes2)
   node.aes[c(removes, removes2)] <- NULL
-  names(node.aes) <- names(node.aes) %>%
-    stringr::str_replace_all(., "node.", "")
+  names(node.aes) <- stringr::str_replace_all(names(node.aes), "node.", "")
 
   return(list(flow.aes, node.aes))
 }
 
 find_default_space <- function(.df) {
-  .df %>%
-    dplyr::group_by(.data$n_x) %>%
-    dplyr::summarise(n_groups = dplyr::n_distinct(.data$node),
-              freq = sum(.data$freq, na.rm = TRUE)) %>%
-    dplyr::mutate(v = .data$freq / .data$n_groups / 4) %>%
-    dplyr::pull(.data$v) %>%
-    max()
+  res <- .df
+  res <- dplyr::group_by(res, .data$n_x)
+  res <- dplyr::summarise(res, n_groups = dplyr::n_distinct(.data$node),
+              freq = sum(.data$freq, na.rm = TRUE))
+  res <- dplyr::mutate(res, v = .data$freq / .data$n_groups / 4)
+  res <- dplyr::pull(res, .data$v)
+  max(res)
 }
 
 sigmoid <- function(x_from, x_to, y_from, y_to, smooth = 5, n = 300) {
@@ -65,36 +67,35 @@ make_long <- function(.df, ..., value = NULL) {
 
   if(!missing(value)) {
     value_var <- dplyr::enquo(value)
-    out <- .df %>%
-      dplyr::select(!!!.vars, value = !!value_var) %>%
-      dplyr::mutate(..r = dplyr::row_number()) %>%
-      tidyr::gather(x, node, -..r, -value) %>%
-      dplyr::arrange(.data$..r) %>%
-      dplyr::group_by(.data$..r) %>%
-      dplyr::mutate(next_x = dplyr::lead(.data$x),
+    out <- .df
+    out <- dplyr::select(out, !!!.vars, value = !!value_var)
+    out <- dplyr::mutate(out, ..r = dplyr::row_number())
+    out <- tidyr::gather(out, x, node, -..r, -value)
+    out <- dplyr::arrange(out, .data$..r)
+    out <- dplyr::group_by(out, .data$..r)
+    out <- dplyr::mutate(out, next_x = dplyr::lead(.data$x),
                     next_node = dplyr::lead(.data$node)
-      ) %>%
-      dplyr::ungroup() %>%
-      dplyr::select(-..r) %>%
-      dplyr::relocate(value, .after = dplyr::last_col())
+      )
+    out <- dplyr::ungroup(out)
+    out <- dplyr::select(out, -..r)
+    out <- dplyr::relocate(out, value, .after = dplyr::last_col())
   } else {
-    out <- .df %>%
-      dplyr::select(!!!.vars) %>%
-      dplyr::mutate(..r = dplyr::row_number()) %>%
-      tidyr::gather(x, node, -..r) %>%
-      dplyr::arrange(.data$..r) %>%
-      dplyr::group_by(.data$..r) %>%
-      dplyr::mutate(next_x = dplyr::lead(.data$x),
+    out <- .df
+    out <- dplyr::select(out, !!!.vars)
+    out <- dplyr::mutate(out, ..r = dplyr::row_number())
+    out <- tidyr::gather(out, x, node, -..r)
+    out <- dplyr::arrange(out, .data$..r)
+    out <- dplyr::group_by(out, .data$..r)
+    out <- dplyr::mutate(out, next_x = dplyr::lead(.data$x),
                     next_node = dplyr::lead(.data$node)
-      ) %>%
-      dplyr::ungroup() %>%
-      dplyr::select(-..r)
+      )
+    out <- dplyr::ungroup(out)
+    out <- dplyr::select(out, -..r)
   }
 
   levels <- unique(out$x)
 
-  out %>%
-    dplyr::mutate(dplyr::across(c(x, next_x), ~factor(., levels = levels)))
+  dplyr::mutate(out, dplyr::across(c(x, next_x), ~factor(., levels = levels)))
 }
 
 
@@ -218,104 +219,91 @@ StatSankeyFlow <- ggplot2::ggproto("StatSankeyFlow", ggplot2::Stat,
                                    setup_data = function(data, params) {
                                      purrr::map_dfr(unique(data$PANEL),
                                              ~{
-                                               data <- data %>% dplyr::filter(PANEL == .x)
+                                               data <- dplyr::filter(data, PANEL == .x)
 
-                                               data <- data %>%
-                                                 dplyr::mutate(dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
+                                               data <- dplyr::mutate(data, dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
 
                                                if(!("value" %in% names(data))) {
-                                                 flow_data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::group_by(n_x, node, n_next_x, next_node) %>%
-                                                   dplyr::summarise(flow_freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 flow_data <- data
+                                                 flow_data <- dplyr::mutate(flow_data, group = 1)
+                                                 flow_data <- dplyr::group_by(flow_data, n_x, node, n_next_x, next_node)
+                                                 flow_data <- dplyr::summarise(flow_data, flow_freq = dplyr::n(), .groups = "keep")
+                                                 flow_data <- dplyr::ungroup(flow_data)
 
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node, -next_x) %>%
-                                                   dplyr::group_by_all() %>%
-                                                   dplyr::summarise(freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node, -next_x)
+                                                 data <- dplyr::group_by_all(data)
+                                                 data <- dplyr::summarise(data, freq = dplyr::n(), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                } else {
-                                                 flow_data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::group_by(n_x, node, n_next_x, next_node) %>%
-                                                   dplyr::summarise(flow_freq = sum(value, na.rm = TRUE), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 flow_data <- data
+                                                 flow_data <- dplyr::mutate(flow_data, group = 1)
+                                                 flow_data <- dplyr::group_by(flow_data, n_x, node, n_next_x, next_node)
+                                                 flow_data <- dplyr::summarise(flow_data, flow_freq = sum(value, na.rm = TRUE), .groups = "keep")
+                                                 flow_data <- dplyr::ungroup(flow_data)
 
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node, -next_x) %>%
-                                                   dplyr::group_by_at(dplyr::vars(dplyr::everything(), -value)) %>%
-                                                   dplyr::summarise(freq = sum(value, na.rm = TRUE),, .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node, -next_x)
+                                                 data <- dplyr::group_by_at(data, dplyr::vars(dplyr::everything(), -value))
+                                                 data <- dplyr::summarise(data, freq = sum(value, na.rm = TRUE),, .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                }
 
                                                if(is.null(params$space)) {
                                                  params$space <- find_default_space(data)
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::group_by(n_x) %>%
-                                                 dplyr::mutate(ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
-                                                        ymin = ymax - freq) %>%
-                                                 dplyr::ungroup()
+                                               data <- dplyr::group_by(data, n_x)
+                                               data <- dplyr::mutate(data, ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
+                                                        ymin = ymax - freq)
+                                               data <- dplyr::ungroup(data)
 
                                                if(params$type == "sankey") {
-                                                 data <- data %>%
-                                                   dplyr::group_by(n_x) %>%
-                                                   dplyr::mutate(ymin = ymin - max(ymax)/2,
-                                                          ymax = ymax - max(ymax)/2) %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::group_by(data, n_x)
+                                                 data <- dplyr::mutate(data, ymin = ymin - max(ymax)/2,
+                                                          ymax = ymax - max(ymax)/2)
+                                                 data <- dplyr::ungroup(data)
                                                } else if (params$type == "alluvial"){
                                                  data <- data
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::mutate(xmin = n_x - params$width/2,
+                                               data <- dplyr::mutate(data, xmin = n_x - params$width/2,
                                                         xmax = n_x + params$width/2)
 
                                                if("shift" %in% names(data)) {
-                                                 data <- data %>%
-                                                   dplyr::mutate(dplyr::across(dplyr::contains("y"), ~ . + shift))
+                                                 data <- dplyr::mutate(data, dplyr::across(dplyr::contains("y"), ~ . + shift))
                                                }
 
-                                               df <- data %>%
-                                                 dplyr::left_join(flow_data, by = c("n_x", "node"))
+                                               df <- data
+                                               df <- dplyr::left_join(df, flow_data, by = c("n_x", "node"))
 
 
 
-                                               flows <- df %>%
-                                                 dplyr::left_join(df %>%
-                                                             dplyr::select(n_x, node, ymin_end = ymin, ymax_end = ymax, xmin_end = xmin, xmax_end = xmax) %>%
-                                                             dplyr::distinct(),
-                                                           by = c("n_next_x" = "n_x", "next_node" = "node")) %>%
-                                                 tidyr::drop_na(n_x, node, next_node, n_next_x, ymax_end, ymin_end, xmax_end, xmin_end) %>%
-                                                 dplyr::mutate(r = dplyr::row_number()) %>%
-                                                 dplyr::arrange(n_x, -r) %>%
-                                                 dplyr::select(-r) %>%
-                                                 dplyr::group_by(n_x, node) %>%
-                                                 dplyr::mutate(cum_flow_freq = cumsum(flow_freq) - flow_freq) %>%
-                                                 dplyr::ungroup() %>%
-                                                 dplyr::group_by(n_x, n_next_x, node, next_node) %>%
-                                                 dplyr::mutate(flow_start_ymax = ymax - cum_flow_freq,
+                                               flows <- df
+                                               flows <- dplyr::left_join(flows, dplyr::distinct(dplyr::select(df, n_x, node, ymin_end = ymin, ymax_end = ymax, xmin_end = xmin, xmax_end = xmax)),
+                                                           by = c("n_next_x" = "n_x", "next_node" = "node"))
+                                               flows <- tidyr::drop_na(flows, n_x, node, next_node, n_next_x, ymax_end, ymin_end, xmax_end, xmin_end)
+                                               flows <- dplyr::mutate(flows, r = dplyr::row_number())
+                                               flows <- dplyr::arrange(flows, n_x, -r)
+                                               flows <- dplyr::select(flows, -r)
+                                               flows <- dplyr::group_by(flows, n_x, node)
+                                               flows <- dplyr::mutate(flows, cum_flow_freq = cumsum(flow_freq) - flow_freq)
+                                               flows <- dplyr::ungroup(flows)
+                                               flows <- dplyr::group_by(flows, n_x, n_next_x, node, next_node)
+                                               flows <- dplyr::mutate(flows, flow_start_ymax = ymax - cum_flow_freq,
                                                         flow_start_ymin = flow_start_ymax - flow_freq)
 
-                                               flows <- flows %>%
-                                                 dplyr::arrange(n_x, n_next_x, next_node) %>%
-                                                 dplyr::group_by(n_next_x, next_node) %>%
-                                                 dplyr::mutate(cum_flow_freq_end = cumsum(flow_freq) - flow_freq) %>%
-                                                 dplyr::mutate(flow_end_ymax = ymax_end - cum_flow_freq_end,
-                                                        flow_end_ymin = flow_end_ymax - flow_freq) %>%
-                                                 dplyr::ungroup()
+                                               flows <- dplyr::arrange(flows, n_x, n_next_x, next_node)
+                                               flows <- dplyr::group_by(flows, n_next_x, next_node)
+                                               flows <- dplyr::mutate(flows, cum_flow_freq_end = cumsum(flow_freq) - flow_freq)
+                                               flows <- dplyr::mutate(flows, flow_end_ymax = ymax_end - cum_flow_freq_end,
+                                                        flow_end_ymin = flow_end_ymax - flow_freq)
+                                               flows <- dplyr::ungroup(flows)
 
-                                               flows <- flows %>%
-                                                 dplyr::select(-n_x, -node, -freq, -ymax, -ymin, -xmin, -n_next_x, -next_node, -flow_freq, -ymin_end, -ymax_end, -xmax_end, -cum_flow_freq, -cum_flow_freq_end) %>%
-                                                 dplyr::mutate(group = dplyr::row_number())
+                                               flows <- dplyr::select(flows, -n_x, -node, -freq, -ymax, -ymin, -xmin, -n_next_x, -next_node, -flow_freq, -ymin_end, -ymax_end, -xmax_end, -cum_flow_freq, -cum_flow_freq_end)
+                                               flows <- dplyr::mutate(flows, group = dplyr::row_number())
 
-                                               flows %>%
-                                                 dplyr::mutate(smooth = params$smooth) %>%
-                                                 as.data.frame()
+                                               as.data.frame(dplyr::mutate(flows, smooth = params$smooth))
                                              })
 
 
@@ -341,136 +329,127 @@ StatSankeyBumpFlow <- ggplot2::ggproto("StatSankeyBumpFlow", ggplot2::Stat,
 
                                      purrr::map_dfr(unique(data$PANEL),
                                              ~{
-                                               data <- data %>% dplyr::filter(PANEL == .x)
+                                               data <- dplyr::filter(data, PANEL == .x)
 
-                                               data <- data %>%
-                                                 dplyr::mutate(nodes = paste(node, x)) %>%
-                                                 dplyr::arrange(x, -value) %>%
-                                                 dplyr::mutate(bbb = dplyr::row_number()) %>%
-                                                 dplyr::arrange(bbb) %>%
-                                                 dplyr::mutate(nodes = forcats::fct_reorder(nodes, value, mean)) %>%
-                                                 dplyr::arrange(node, x) %>%
-                                                 dplyr::group_by(node) %>%
-                                                 dplyr::mutate(next_x = dplyr::lead(x),
+                                               data <- dplyr::mutate(data, nodes = paste(node, x))
+                                               data <- dplyr::arrange(data, x, -value)
+                                               data <- dplyr::mutate(data, bbb = dplyr::row_number())
+                                               data <- dplyr::arrange(data, bbb)
+                                               data <- dplyr::mutate(data, nodes = forcats::fct_reorder(nodes, value, mean))
+                                               data <- dplyr::arrange(data, node, x)
+                                               data <- dplyr::group_by(data, node)
+                                               data <- dplyr::mutate(data, next_x = dplyr::lead(x),
                                                         node = nodes,
-                                                        next_node = dplyr::lead(nodes)) %>%
-                                                 dplyr::ungroup() %>%
-                                                 dplyr::arrange(x, node)
+                                                        next_node = dplyr::lead(nodes))
+                                               data <- dplyr::ungroup(data)
+                                               data <- dplyr::arrange(data, x, node)
 
-                                               data <- data %>%
-                                                 dplyr::mutate(dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
+                                               data <- dplyr::mutate(data, dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
 
                                                if(!("value" %in% names(data))) {
-                                                 flow_data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::group_by(n_x, node, n_next_x, next_node) %>%
-                                                   dplyr::summarise(flow_freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 flow_data <- data
+                                                 flow_data <- dplyr::mutate(flow_data, group = 1)
+                                                 flow_data <- dplyr::group_by(flow_data, n_x, node, n_next_x, next_node)
+                                                 flow_data <- dplyr::summarise(flow_data, flow_freq = dplyr::n(), .groups = "keep")
+                                                 flow_data <- dplyr::ungroup(flow_data)
 
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node) %>%
-                                                   dplyr::group_by_all() %>%
-                                                   dplyr::summarise(freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node)
+                                                 data <- dplyr::group_by_all(data)
+                                                 data <- dplyr::summarise(data, freq = dplyr::n(), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                } else {
-                                                 flow_data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::group_by(n_x, node, n_next_x, next_node) %>%
-                                                   dplyr::summarise(flow_freq = sum(value, na.rm = TRUE), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 flow_data <- data
+                                                 flow_data <- dplyr::mutate(flow_data, group = 1)
+                                                 flow_data <- dplyr::group_by(flow_data, n_x, node, n_next_x, next_node)
+                                                 flow_data <- dplyr::summarise(flow_data, flow_freq = sum(value, na.rm = TRUE), .groups = "keep")
+                                                 flow_data <- dplyr::ungroup(flow_data)
 
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node) %>%
-                                                   dplyr::group_by_at(dplyr::vars(dplyr::everything(), -value)) %>%
-                                                   dplyr::summarise(freq = sum(value, na.rm = TRUE), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node)
+                                                 data <- dplyr::group_by_at(data, dplyr::vars(dplyr::everything(), -value))
+                                                 data <- dplyr::summarise(data, freq = sum(value, na.rm = TRUE), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                }
 
                                                if(is.null(params$space)) {
                                                  params$space <- find_default_space(data)
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::group_by(n_x) %>%
-                                                 dplyr::arrange(node) %>%
-                                                 dplyr::mutate(ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
-                                                        ymin = ymax - freq) %>%
-                                                 dplyr::ungroup()
+                                               data <- dplyr::group_by(data, n_x)
+                                               data <- dplyr::arrange(data, node)
+                                               data <- dplyr::mutate(data, ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
+                                                        ymin = ymax - freq)
+                                               data <- dplyr::ungroup(data)
 
                                                if(params$type == "sankey") {
-                                                 data <- data %>%
-                                                   dplyr::group_by(n_x) %>%
-                                                   dplyr::mutate(ymin = ymin - max(ymax)/2,
-                                                          ymax = ymax - max(ymax)/2) %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::group_by(data, n_x)
+                                                 data <- dplyr::mutate(data, ymin = ymin - max(ymax)/2,
+                                                          ymax = ymax - max(ymax)/2)
+                                                 data <- dplyr::ungroup(data)
                                                } else if (params$type == "alluvial"){
                                                  data <- data
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::mutate(xmin = n_x,
+                                               data <- dplyr::mutate(data, xmin = n_x,
                                                         xmax = n_x)
 
-                                               df <- data %>%
-                                                 dplyr::left_join(flow_data, by = c("n_x", "node"))
+                                               df <- data
+                                               df <- dplyr::left_join(df, flow_data, by = c("n_x", "node"))
 
-                                               flows <- df %>%
-                                                 dplyr::left_join(df %>%
-                                                             dplyr::select(n_x, node, ymin_end = ymin, ymax_end = ymax, xmin_end = xmin, xmax_end = xmax, flow_freq_end = flow_freq) %>%
-                                                             dplyr::distinct(),
-                                                           by = c("n_next_x" = "n_x", "next_node" = "node")) %>%
-                                                 tidyr::drop_na(n_x, node, next_node, n_next_x, ymax_end, ymin_end, xmax_end, xmin_end) %>%
-                                                 dplyr::mutate(r = dplyr::row_number()) %>%
-                                                 dplyr::arrange(n_x, -r) %>%
-                                                 dplyr::select(-r) %>%
-                                                 dplyr::group_by(n_x, node) %>%
-                                                 dplyr::mutate(cum_flow_freq = cumsum(flow_freq) - flow_freq) %>%
-                                                 dplyr::ungroup() %>%
-                                                 dplyr::group_by(n_x, n_next_x, node, next_node) %>%
-                                                 dplyr::mutate(flow_start_ymax = ymax - cum_flow_freq,
+                                               flows <- df
+                                               flows <- dplyr::left_join(flows, dplyr::distinct(dplyr::select(df, n_x, node, ymin_end = ymin, ymax_end = ymax, xmin_end = xmin, xmax_end = xmax, flow_freq_end = flow_freq)),
+                                                           by = c("n_next_x" = "n_x", "next_node" = "node"))
+                                               flows <- tidyr::drop_na(flows, n_x, node, next_node, n_next_x, ymax_end, ymin_end, xmax_end, xmin_end)
+                                               flows <- dplyr::mutate(flows, r = dplyr::row_number())
+                                               flows <- dplyr::arrange(flows, n_x, -r)
+                                               flows <- dplyr::select(flows, -r)
+                                               flows <- dplyr::group_by(flows, n_x, node)
+                                               flows <- dplyr::mutate(flows, cum_flow_freq = cumsum(flow_freq) - flow_freq)
+                                               flows <- dplyr::ungroup(flows)
+                                               flows <- dplyr::group_by(flows, n_x, n_next_x, node, next_node)
+                                               flows <- dplyr::mutate(flows, flow_start_ymax = ymax - cum_flow_freq,
                                                         flow_start_ymin = flow_start_ymax - flow_freq)
 
-                                               flows <- flows %>%
-                                                 dplyr::arrange(n_x, n_next_x, next_node) %>%
-                                                 dplyr::group_by(n_next_x, next_node) %>%
-                                                 dplyr::mutate(cum_flow_freq_end = cumsum(flow_freq_end) - flow_freq_end) %>%
-                                                 dplyr::mutate(flow_end_ymax = ymax_end - cum_flow_freq_end,
-                                                        flow_end_ymin = flow_end_ymax - flow_freq_end) %>%
-                                                 dplyr::ungroup()
+                                               flows <- dplyr::arrange(flows, n_x, n_next_x, next_node)
+                                               flows <- dplyr::group_by(flows, n_next_x, next_node)
+                                               flows <- dplyr::mutate(flows, cum_flow_freq_end = cumsum(flow_freq_end) - flow_freq_end)
+                                               flows <- dplyr::mutate(flows, flow_end_ymax = ymax_end - cum_flow_freq_end,
+                                                        flow_end_ymin = flow_end_ymax - flow_freq_end)
+                                               flows <- dplyr::ungroup(flows)
 
-                                               flows <- flows %>%
-                                                 dplyr::select(-n_x, -node, -freq, -ymax, -ymin, -xmin, -n_next_x, -next_node, -flow_freq, -ymin_end, -ymax_end, -xmax_end, -cum_flow_freq, -cum_flow_freq_end) %>%
-                                                 dplyr::mutate(group = dplyr::row_number())
+                                               flows <- dplyr::select(flows, -n_x, -node, -freq, -ymax, -ymin, -xmin, -n_next_x, -next_node, -flow_freq, -ymin_end, -ymax_end, -xmax_end, -cum_flow_freq, -cum_flow_freq_end)
+                                               flows <- dplyr::mutate(flows, group = dplyr::row_number())
 
-                                               flows %>%
-                                                 rowwise() %>%
-                                                 dplyr::mutate(..groupqq = stringr::str_remove(nodes, as.character(x))) %>%
-                                                 dplyr::ungroup() %>%
-                                                 dplyr::group_by(..groupqq) %>%
-                                                 dplyr::mutate(group = dplyr::cur_group_id()) %>%
-                                                 dplyr::ungroup() %>%
-                                                 dplyr::select(-..groupqq) %>%
-                                                 dplyr::mutate(smooth = params$smooth) %>%
-                                                 as.data.frame()
+                                               res <- flows
+                                               res <- dplyr::rowwise(res)
+                                               res <- dplyr::mutate(res, ..groupqq = stringr::str_remove(nodes, as.character(x)))
+                                               res <- dplyr::ungroup(res)
+                                               res <- dplyr::group_by(res, ..groupqq)
+                                               res <- dplyr::mutate(res, group = dplyr::cur_group_id())
+                                               res <- dplyr::ungroup(res)
+                                               res <- dplyr::select(res, -..groupqq)
+                                               res <- dplyr::mutate(res, smooth = params$smooth)
+                                               as.data.frame(res)
                                              })
                                    },
 
                                    compute_group = function(data, scales) {
 
                                      out1 <- purrr::map_dfr(1:nrow(data), ~{
-                                       datat <- data %>% dplyr::slice(.x)
+                                       datat <- data
+                                       datat <- dplyr::slice(datat, .x)
                                        sigmoid(datat$xmax, datat$xmin_end, datat$flow_start_ymax, datat$flow_end_ymax,
                                                smooth = datat$smooth)
-                                     }) %>%
-                                       dplyr::arrange(x)
+                                     })
+                                     out1 <- dplyr::arrange(out1, x)
                                      out2 <- purrr::map_dfr(1:nrow(data), ~{
-                                       datat <- data %>% dplyr::slice(.x)
+                                       datat <- data
+                                       datat <- dplyr::slice(datat, .x)
                                        sigmoid(datat$xmin_end, datat$xmax, datat$flow_end_ymin, datat$flow_start_ymin,
                                                smooth = datat$smooth)
-                                     }) %>%
-                                       dplyr::arrange(-x)
+                                     })
+                                     out2 <- dplyr::arrange(out2, -x)
 
                                      dplyr::bind_rows(out1, out2)
                                    }
@@ -484,58 +463,50 @@ StatSankeyText <- ggplot2::ggproto("StatSankeyText", ggplot2::Stat,
 
                                      purrr::map_dfr(unique(data$PANEL),
                                              ~{
-                                               data <- data %>% dplyr::filter(PANEL == .x)
+                                               data <- dplyr::filter(data, PANEL == .x)
 
-                                               data <- data %>%
-                                                 dplyr::mutate(dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
+                                               data <- dplyr::mutate(data, dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
 
                                                if(!("value" %in% names(data))) {
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node, -next_x) %>%
-                                                   dplyr::group_by_all() %>%
-                                                   dplyr::summarise(freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node, -next_x)
+                                                 data <- dplyr::group_by_all(data)
+                                                 data <- dplyr::summarise(data, freq = dplyr::n(), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                } else {
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node) %>%
-                                                   dplyr::group_by_at(dplyr::vars(dplyr::everything(), -value)) %>%
-                                                   dplyr::summarise(freq = sum(value, na.rm = TRUE), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node)
+                                                 data <- dplyr::group_by_at(data, dplyr::vars(dplyr::everything(), -value))
+                                                 data <- dplyr::summarise(data, freq = sum(value, na.rm = TRUE), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                }
 
                                                if(is.null(params$space)) {
                                                  params$space <- find_default_space(data)
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::group_by(n_x) %>%
-                                                 dplyr::mutate(ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
-                                                        ymin = ymax - freq) %>%
-                                                 dplyr::ungroup()
+                                               data <- dplyr::group_by(data, n_x)
+                                               data <- dplyr::mutate(data, ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
+                                                        ymin = ymax - freq)
+                                               data <- dplyr::ungroup(data)
 
                                                if(params$type == "sankey") {
-                                                 data <- data %>%
-                                                   dplyr::group_by(n_x) %>%
-                                                   dplyr::mutate(ymin = ymin - max(ymax)/2,
-                                                          ymax = ymax - max(ymax)/2) %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::group_by(data, n_x)
+                                                 data <- dplyr::mutate(data, ymin = ymin - max(ymax)/2,
+                                                          ymax = ymax - max(ymax)/2)
+                                                 data <- dplyr::ungroup(data)
                                                } else if (params$type == "alluvial"){
                                                  data <- data
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::mutate(xmin = n_x - params$width/2,
+                                               data <- dplyr::mutate(data, xmin = n_x - params$width/2,
                                                         xmax = n_x + params$width/2)
 
-                                               data <- data %>%
-                                                 dplyr::mutate(x = n_x,
+                                               data <- dplyr::mutate(data, x = n_x,
                                                         y = ymin + (ymax - ymin)/2)
 
                                                if("shift" %in% names(data)) {
-                                                 data <- data %>%
-                                                   dplyr::mutate(dplyr::across(dplyr::contains("y"), ~ . + shift))
+                                                 data <- dplyr::mutate(data, dplyr::across(dplyr::contains("y"), ~ . + shift))
                                                }
 
 
@@ -558,53 +529,46 @@ StatSankeyNode <- ggplot2::ggproto("StatSankeyNode", ggplot2::Stat,
                                      purrr::map_dfr(unique(data$PANEL),
                                              ~{
 
-                                               data <- data %>% dplyr::filter(PANEL == .x)
-                                               data <- data %>%
-                                                 dplyr::mutate(dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
+                                               data <- dplyr::filter(data, PANEL == .x)
+                                               data <- dplyr::mutate(data, dplyr::across(c(x, next_x), ~as.numeric(.), .names = ("n_{.col}")))
 
                                                if(!("value" %in% names(data))) {
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node, -next_x) %>%
-                                                   dplyr::group_by_all() %>%
-                                                   dplyr::summarise(freq = dplyr::n(), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node, -next_x)
+                                                 data <- dplyr::group_by_all(data)
+                                                 data <- dplyr::summarise(data, freq = dplyr::n(), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                } else {
-                                                 data <- data %>%
-                                                   dplyr::mutate(group = 1) %>%
-                                                   dplyr::select(-n_next_x, -next_node, -next_x) %>%
-                                                   dplyr::group_by_at(dplyr::vars(dplyr::everything(), -value)) %>%
-                                                   dplyr::summarise(freq = sum(value, na.rm = TRUE), .groups = "keep") %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::mutate(data, group = 1)
+                                                 data <- dplyr::select(data, -n_next_x, -next_node, -next_x)
+                                                 data <- dplyr::group_by_at(data, dplyr::vars(dplyr::everything(), -value))
+                                                 data <- dplyr::summarise(data, freq = sum(value, na.rm = TRUE), .groups = "keep")
+                                                 data <- dplyr::ungroup(data)
                                                }
 
                                                if(is.null(params$space)) {
                                                  params$space <- find_default_space(data)
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::group_by(n_x) %>%
-                                                 dplyr::mutate(ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
-                                                        ymin = ymax - freq) %>%
-                                                 dplyr::ungroup()
+                                               data <- dplyr::group_by(data, n_x)
+                                               data <- dplyr::mutate(data, ymax = cumsum(freq) + (dplyr::row_number() - 1)*params$space,
+                                                        ymin = ymax - freq)
+                                               data <- dplyr::ungroup(data)
 
                                                if(params$type == "sankey") {
-                                                 data <- data %>%
-                                                   dplyr::group_by(n_x) %>%
-                                                   dplyr::mutate(ymin = ymin - max(ymax)/2,
-                                                          ymax = ymax - max(ymax)/2) %>%
-                                                   dplyr::ungroup()
+                                                 data <- dplyr::group_by(data, n_x)
+                                                 data <- dplyr::mutate(data, ymin = ymin - max(ymax)/2,
+                                                          ymax = ymax - max(ymax)/2)
+                                                 data <- dplyr::ungroup(data)
                                                } else if (params$type == "alluvial"){
                                                  data <- data
                                                }
 
-                                               data <- data %>%
-                                                 dplyr::mutate(xmin = n_x - params$width/2,
+                                               data <- dplyr::mutate(data, xmin = n_x - params$width/2,
                                                         xmax = n_x + params$width/2)
 
                                                if("shift" %in% names(data)) {
-                                                 data <- data %>%
-                                                   dplyr::mutate(dplyr::across(dplyr::contains("y"), ~ . + shift))
+                                                 data <- dplyr::mutate(data, dplyr::across(dplyr::contains("y"), ~ . + shift))
                                                }
 
                                                return(as.data.frame(data))

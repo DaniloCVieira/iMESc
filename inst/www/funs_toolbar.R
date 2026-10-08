@@ -81,7 +81,7 @@ option_tips <- {
   list(
     "Rename a Datalist",
     "Combine two or more Datalists, either by rows or columns",
-    "Convert variables between numeric and factor types",
+    "Move, copy or convert columns between the Numeric, Factor, Coords and Temporal Attributes",
     "Replace Attributes with those from a new file",
     "Remove columns, rename them, or concatenate factor levels into new columns",
     "Modify the names of models in a Datalist",
@@ -98,7 +98,7 @@ option_names<-{
   list(
     "Rename Datalist",
     "Merge Datalists",
-    "Exchange Factor/Variables",
+    "Exchange Attributes",
     "Replace Attributes",
     "Edit Datalist columns",
     "Edit model names",

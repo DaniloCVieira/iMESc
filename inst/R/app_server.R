@@ -633,7 +633,7 @@ app_server<-server<-function(input, output, session) {
                     "K-Means"="video8",
                     "Supervised Algorithms"="video9",
                     "Compare Models"="video10",
-                    "Exchange Factor/Variables"="video11",
+                    "Exchange Attributes"="video11",
                     "SHP toolbox"="video12"
                   )
                 )),

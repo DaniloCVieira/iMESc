@@ -77,13 +77,11 @@ get_chart_data <- function(data,factor_chart=2, distance = 50, fun="sum") {
     dfk<-fill_z_chart(dfk,df)
   }
   if(fun=="sum"){
-    resultado <- dfk  |>
-      dplyr::group_by(x, y) |>
-      dplyr::summarise( dplyr::across( dplyr::everything(), sum, na.rm = TRUE), .groups = 'drop')
+    resultado <- dplyr::group_by(dfk, x, y)
+    resultado <- dplyr::summarise(resultado, dplyr::across( dplyr::everything(), sum, na.rm = TRUE), .groups = 'drop')
   } else if(fun=="mean"){
-    resultado <- dfk |>
-      dplyr::group_by(x, y) |>
-      dplyr::summarise( dplyr::across( dplyr::everything(), mean, na.rm = TRUE), .groups = 'drop')}
+    resultado <- dplyr::group_by(dfk, x, y)
+    resultado <- dplyr::summarise(resultado, dplyr::across( dplyr::everything(), mean, na.rm = TRUE), .groups = 'drop')}
 
 
   #colnames(resultado)<-gsub("_split_",".",colnames(resultado))
@@ -234,7 +232,7 @@ add_extraLL<-function(map,data,args_extra_shape){
             base_temp<-st_cast(extra[i,],"LINESTRING")
             for(j in 1:nrow(base_temp)){
               co<-st_coordinates(base_temp[j,])[,1:2]
-              map2<-map2 |> leaflet::addPolylines(co[,1],co[,2],color =ei$colors ,opacity=1,weight =ei$sizes,group="extra_shape")
+              map2<-leaflet::addPolylines(map2,co[,1],co[,2],color =ei$colors ,opacity=1,weight =ei$sizes,group="extra_shape")
             }
           }
         }
@@ -485,7 +483,7 @@ add_base_shape<-function(map,data,shape_attr="base_shape",color="blue",fillOpaci
           base_temp<-st_cast(base_shape[i,],"POLYGON")
           for(j in 1:nrow(base_temp)){
             co<-st_coordinates(base_temp[j,])[,1:2]
-            map<-map |> leaflet::addPolygons(co[,1],co[,2],fill=fill,color=color,opacity=1,fillOpacity =fillOpacity,stroke=stroke,weight =weight,group="base_shape")
+            map<-leaflet::addPolygons(map,co[,1],co[,2],fill=fill,color=color,opacity=1,fillOpacity =fillOpacity,stroke=stroke,weight =weight,group="base_shape")
           }
         }
 

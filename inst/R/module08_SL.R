@@ -5511,7 +5511,8 @@ sl_validation$server<-function(id,vals){
       coords<-attr(data_x,"coords")[rownames(x),]
 
       grid_coord<-data.frame(coords,y)
-      sf_dat <- sf::st_as_sf(grid_coord, coords = colnames(coords), crs = 4326) |> sf::st_transform(3857)
+      sf_dat <- sf::st_as_sf(grid_coord, coords = colnames(coords), crs = 4326)
+      sf_dat <- sf::st_transform(sf_dat, 3857)
       sf_dat
     })
     observeEvent(input$run_size_eval,{
@@ -7809,8 +7810,8 @@ model_results$server<-function(id,vals){
 
 
     observe({
-      req(vals$cmodel)
-      if(!is.null(model_varImp[[vals$cmodel]])){
+      req(model()$method)
+      if(!is.null(model_varImp[[model()$method]])){
         updateRadioGroupButtons(session,"useModel",choices=c(TRUE,FALSE))
       } else{
         updateRadioGroupButtons(session,"useModel",choices=c(FALSE))
@@ -9816,9 +9817,9 @@ model_results$server<-function(id,vals){
 
       imp<-caret::varImp(model(),useModel=as.logical(input$useModel))
       m<-model()
-      req(vals$cmodel)
+      req(m$method)
 
-      if(vals$cmodel=="rf"){
+      if(m$method=="rf" && inherits(m$finalModel,"randomForest")){
         if(isTRUE(as.logical(input$useModel))){
           mimp<-randomForest::importance(model()$finalModel)
           imp<-data.frame(mimp)

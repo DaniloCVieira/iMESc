@@ -1630,7 +1630,7 @@ gg_sankey_plot<-function(gdf,sy,sankey_values,sankey_values2,sankey_palette,sank
     metric_node<-gdf[,c(sankey_values)]
     names(metric_node)<-unique(factor(paste0(gdf$Y,"_",gdf$variable)))
 
-    # df <- md %>%make_long(c(colnames))
+    # df <- make_long(md, c(colnames))
     {
 
 
@@ -1660,10 +1660,8 @@ gg_sankey_plot<-function(gdf,sy,sankey_values,sankey_values2,sankey_palette,sank
       gdf4$model_name<-paste0(gdf4$Y,"-",gdf4$variable)
       gdf4$model_rev<-paste0(gdf4$variable,"-",gdf4$Y)
 
-      ggdf3 <- ggdf2 %>%
-        make_long(colnames(ggdf2))
-      ggdf5 <- gdf4 %>%
-        make_long(colnames(gdf4)[c(3:4)])
+      ggdf3 <- make_long(ggdf2, colnames(ggdf2))
+      ggdf5 <- make_long(gdf4, colnames(gdf4)[c(3:4)])
       ggdf3$model_name<-ggdf5$node
       df<-ggdf3
 

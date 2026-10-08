@@ -2417,11 +2417,9 @@ plot_folds <- function(result, fold_sp = NULL, fold_time = NULL, split_id = NULL
   fig <- add_status_trace(fig, "Not used", col_unused, opacity_unused)
   fig <- add_status_trace(fig, "Train", col_train, opacity_train)
   fig <- add_status_trace(fig, "Test", col_test, opacity_test)
-  fig <- fig |>
-    plotly::layout(title = list(text = title))
+  fig <- plotly::layout(fig, title = list(text = title))
   if (plot_2d) {
-    fig <- fig |>
-      plotly::layout(xaxis = list(title = x_title), yaxis = list(title = y_title))
+    fig <- plotly::layout(fig, xaxis = list(title = x_title), yaxis = list(title = y_title))
   }
 
   if (!is.null(file)) {

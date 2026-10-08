@@ -123,7 +123,7 @@ supersom_df2_df6<-function(m){
   normalizeDataLayers=attr(m,'normalizeDataLayers')
 
 
-  c(neu.uti,n.units,xdim,ydim,topo,toroidal,neighbourhood.fct,mode,alpha0,alpha1,radius0,radius1,maxNA.fraction,normalizeDataLayers) |>  length()
+  length(c(neu.uti,n.units,xdim,ydim,topo,toroidal,neighbourhood.fct,mode,alpha0,alpha1,radius0,radius1,maxNA.fraction,normalizeDataLayers))
   df5<-rbind(neu.uti,n.units,xdim,ydim,topo,toroidal,neighbourhood.fct,mode,alpha0,alpha1,radius0,radius1,maxNA.fraction,normalizeDataLayers)
   df6<-matrix(NA, nrow(df5),ncol(df2))
   for(i in 1:nrow(df6)){

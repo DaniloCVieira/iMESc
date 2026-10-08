@@ -381,9 +381,10 @@ plot_rf_tree <- function(final_model, tree_num, digits_split = 2, digits_pred = 
     final_model,
     k = tree_num,
     labelVar = TRUE
-  ) |>
-    tibble::rownames_to_column("node") |>
-    dplyr::mutate(
+  )
+  tree <- tibble::rownames_to_column(tree, "node")
+  tree <- dplyr::mutate(
+      tree,
       node = as.character(node),
       is_leaf = status == -1,
       split_label = dplyr::if_else(
@@ -402,22 +403,20 @@ plot_rf_tree <- function(final_model, tree_num, digits_split = 2, digits_pred = 
     )
 
   edges <- dplyr::bind_rows(
-    tree |>
-      dplyr::filter(`left daughter` != 0) |>
-      dplyr::transmute(
-        from = node,
-        to = as.character(`left daughter`)
-      ),
-    tree |>
-      dplyr::filter(`right daughter` != 0) |>
-      dplyr::transmute(
-        from = node,
-        to = as.character(`right daughter`)
-      )
+    dplyr::transmute(
+      dplyr::filter(tree, `left daughter` != 0),
+      from = node,
+      to = as.character(`left daughter`)
+    ),
+    dplyr::transmute(
+      dplyr::filter(tree, `right daughter` != 0),
+      from = node,
+      to = as.character(`right daughter`)
+    )
   )
 
-  vertices <- tree |>
-    dplyr::transmute(
+  vertices <- dplyr::transmute(
+      tree,
       name = node,
       split_label,
       leaf_label,
@@ -460,18 +459,18 @@ tree_func <- function(final_model,acc="",base_size=11,predall=predict(final_mode
 
   tree <- randomForest::getTree(final_model,
                                 k = tree_num,
-                                labelVar = TRUE) %>%
-    tibble::rownames_to_column() %>%
-    # make leaf split points to NA, so the 0s won't get plotted
-    dplyr::mutate(`split point` = ifelse(is.na(prediction), `split point`, NA))
+                                labelVar = TRUE)
+  tree <- tibble::rownames_to_column(tree)
+  # make leaf split points to NA, so the 0s won't get plotted
+  tree <- dplyr::mutate(tree, `split point` = ifelse(is.na(prediction), `split point`, NA))
 
   # prepare data frame for graph
   graph_frame <- data.frame(from = rep(tree$rowname, 2),
                             to = c(tree$`left daughter`, tree$`right daughter`))
 
   # convert to graph and delete the last node that we don't want to plot
-  graph <- igraph::graph_from_data_frame(graph_frame) %>%
-    igraph::delete_vertices("0")
+  graph <- igraph::graph_from_data_frame(graph_frame)
+  graph <- igraph::delete_vertices(graph, "0")
 
   # set node labels
   igraph::V(graph)$node_label <- gsub("_", " ", as.character(tree$`split var`))

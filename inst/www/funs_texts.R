@@ -407,7 +407,11 @@ data_migrate<-function(data,newdata, newname=NULL){
     attr(newdata, "coords")= attr(data,"coords")[rownames(newdata), , drop=FALSE]
 
     reshape_colnames(data)
-    attr(newdata, "time")= attr(data,"time")
+    time<-attr(data,"time")
+    if(!is.null(time)&&all(rownames(newdata)%in%rownames(time))){
+      time<-time[rownames(newdata), , drop=FALSE]
+    }
+    attr(newdata, "time")= time
     attr(newdata, "base_shape")= attr(data,"base_shape")
     attr(newdata, "layer_shape")=attr(data,"layer_shape")
     attr(newdata, "extra_shape")=attr(data,"extra_shape")

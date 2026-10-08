@@ -1961,108 +1961,6 @@ tool1$server <- function(id, vals) {
       paste(as.character(x), collapse = ", ")
     }
 
-    convert_time_column <- function(x, type, format, custom_format = NULL) {
-
-      if (is.null(type) || type == "keep") {
-        return(x)
-      }
-
-      if (!is.null(format) && format == "custom") {
-        if (!is.null(custom_format) && nzchar(custom_format)) {
-          format <- custom_format
-        } else {
-          format <- NULL
-        }
-      }
-
-      if (is.null(format) || format == "auto") {
-        format <- NULL
-      }
-
-      x_chr <- trimws(as.character(x))
-
-      if (type == "date") {
-
-        if (is.null(format)) {
-
-          if (inherits(x, "Date")) {
-            return(as.Date(x))
-          }
-
-          out <- suppressWarnings(as.Date(x_chr))
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%d/%m/%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%d-%m-%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%m/%d/%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%Y/%m/%d"))
-          }
-
-          return(out)
-        }
-
-        return(suppressWarnings(as.Date(x_chr, format = format)))
-      }
-
-      if (type == "datetime") {
-
-        if (is.null(format)) {
-
-          if (inherits(x, c("POSIXct", "POSIXlt"))) {
-            return(as.POSIXct(x, tz = "UTC"))
-          }
-
-          out <- suppressWarnings(as.POSIXct(x_chr, tz = "UTC"))
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.POSIXct(x_chr, format = "%Y-%m-%d %H:%M:%S", tz = "UTC"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.POSIXct(x_chr, format = "%d/%m/%Y %H:%M:%S", tz = "UTC"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.POSIXct(x_chr, format = "%d-%m-%Y %H:%M:%S", tz = "UTC"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.POSIXct(x_chr, format = "%Y/%m/%d %H:%M:%S", tz = "UTC"))
-          }
-
-          return(out)
-        }
-
-        return(suppressWarnings(as.POSIXct(x_chr, format = format, tz = "UTC")))
-      }
-
-      if (type == "time") {
-
-        if (is.null(format)) {
-          format <- "%H:%M:%S"
-        }
-
-        out <- suppressWarnings(strptime(x_chr, format = format, tz = "UTC"))
-
-        return(format(out, "%H:%M:%S"))
-      }
-
-      if (type %in% c("year", "month", "day")) {
-        return(suppressWarnings(as.integer(x_chr)))
-      }
-
-      x
-    }
-
     formatted_time <- reactive({
 
       d1 <- getdatalist()
@@ -2137,15 +2035,8 @@ tool1$server <- function(id, vals) {
 
           col_name <- colnames(time)[i]
 
-          selected_type <- "keep"
-
-          if (inherits(time[[i]], "Date")) {
-            selected_type <- "date"
-          }
-
-          if (inherits(time[[i]], c("POSIXct", "POSIXlt"))) {
-            selected_type <- "datetime"
-          }
+          guess <- guess_time_settings(time[[i]])
+          selected_type <- guess$type
 
           div(
             class = "time_format_card",
@@ -2217,7 +2108,7 @@ tool1$server <- function(id, vals) {
                   "HH:MM" = "%H:%M",
                   "Custom" = "custom"
                 ),
-                selected = "auto",
+                selected = guess$format,
                 width = "240px"
               ),
 
@@ -2227,7 +2118,7 @@ tool1$server <- function(id, vals) {
                 textInput(
                   session$ns(paste0("time_custom_", i)),
                   "Custom format:",
-                  value = "",
+                  value = guess$custom,
                   placeholder = "e.g. %d/%m/%Y",
                   width = "180px"
                 )
@@ -2256,7 +2147,11 @@ tool1$server <- function(id, vals) {
 
       for (i in seq_len(ncol(time))) {
 
-        type_i <- input[[paste0("time_type_", i)]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", i)]],
+          input[[paste0("time_format_", i)]],
+          input[[paste0("time_custom_", i)]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -2309,7 +2204,11 @@ tool1$server <- function(id, vals) {
 
       for (i in seq_len(ncol(time))) {
 
-        type_i <- input[[paste0("time_type_", i)]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", i)]],
+          input[[paste0("time_format_", i)]],
+          input[[paste0("time_custom_", i)]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -2671,32 +2570,45 @@ tool2$server<-function(id,vals){
       shinyjs::show(selector='.tool2-tabs')
     })
 
+    # Each tool's server is created only the first time the tool is opened, so the
+    # Options menu opens without starting all tools (and their observers) at once.
+    # Order follows tool2_tabs / tool_kit_i / tab i.
+    tool_servers<-list(
+      function() tool2_tab1$server("rename", vals),
+      function() tool2_tab2$server("merge", vals),
+      function() {
+        tool2_tab3$update_server("exchange", vals)
+        tool2_tab3$server("exchange", vals)
+      },
+      function() tool2_tab4$server("replace", vals),
+      function() tool2_tab5$server("editcol", vals),
+      function() tool2_tab6$server("editmod", vals),
+      function() tool2_tab7$server("transpose", vals),
+      function() tool2_tab8$server("shp", vals),
+      function() tool2_tab9$server("time", vals),
+      function() tool2_tab10$server("time_lag", vals),
+      function() tool2_tab11$server("space_time", vals),
+      function() tool2_tab12$server("smote", vals),
+      function() tool2_tab13$server("code", vals),
+      function() tool2_tab14$server("gen", vals),
+      function() tool2_tab15$server("deldatalist", vals)
+    )
+    tool_started<-rep(FALSE, length(tool_servers))
+    start_tool<-function(i){
+      if(i>length(tool_servers)||isTRUE(tool_started[i])) return(invisible(NULL))
+      tool_started[i]<<-TRUE
+      tool_servers[[i]]()
+      invisible(NULL)
+    }
+
     lapply(seq_along(tool2_tabs), function(i) {
       observeEvent(input[[paste0("tool_kit_", i)]], {
+        start_tool(i)
         updateTabsetPanel(session, "tabs_tool2", selected = paste0("tab", i))
         shinyjs::hide(selector = paste0("#", ns("toolkit")))
         shinyjs::show(selector = paste0("#", ns("tool2_tabs_container")))
       })
     })
-
-    tool2_tab3$update_server("exchange",vals)
-
-
-    tool2_tab1$server("rename", vals)
-    tool2_tab2$server("merge", vals)
-    tool2_tab3$server("exchange", vals)
-    tool2_tab4$server("replace", vals)
-    tool2_tab5$server("editcol", vals)
-    tool2_tab6$server("editmod", vals)
-    tool2_tab7$server("transpose", vals)
-    tool2_tab8$server("shp", vals)
-    tool2_tab9$server("time", vals)
-    tool2_tab10$server("time_lag", vals)
-    tool2_tab11$server("space_time", vals)
-    tool2_tab12$server("smote", vals)
-    tool2_tab13$server("code", vals)
-    tool2_tab14$server("gen", vals)
-    tool2_tab15$server("deldatalist", vals)
 
 
 
@@ -3053,8 +2965,8 @@ tool2_tab2$server <- function(id, vals) {
   })
 }
 
-# Exchange Factors/Variables
-# Exchange Factors/Variables
+# Exchange Attributes
+# Exchange Attributes
 tool2_tab3 <- list()
 
 tool2_tab3$ui <- function(id) {
@@ -3081,7 +2993,7 @@ tool2_tab3$ui <- function(id) {
 
     hidden(bsButton(ns("cancel_import"), "Cancel")),
 
-    div(strong("Exchange Factors/Variables")),
+    div(strong("Exchange Attributes")),
 
     div(
       id = ns("step1"),
@@ -3960,75 +3872,6 @@ tool2_tab3$server <- function(id, vals) {
       paste(as.character(x), collapse = ", ")
     }
 
-    convert_time_column <- function(x, type, format, custom_format = NULL) {
-      if (is.null(type) || type == "keep") {
-        return(x)
-      }
-
-      if (!is.null(format) && format == "custom") {
-        if (!is.null(custom_format) && nzchar(custom_format)) {
-          format <- custom_format
-        } else {
-          format <- NULL
-        }
-      }
-
-      if (is.null(format) || format == "auto") {
-        format <- NULL
-      }
-
-      x_chr <- trimws(as.character(x))
-
-      if (type == "date") {
-        if (is.null(format)) {
-          if (inherits(x, "Date")) return(as.Date(x))
-
-          out <- suppressWarnings(as.Date(x_chr))
-
-          if (all(is.na(out))) out <- suppressWarnings(as.Date(x_chr, format = "%d/%m/%Y"))
-          if (all(is.na(out))) out <- suppressWarnings(as.Date(x_chr, format = "%d-%m-%Y"))
-          if (all(is.na(out))) out <- suppressWarnings(as.Date(x_chr, format = "%m/%d/%Y"))
-          if (all(is.na(out))) out <- suppressWarnings(as.Date(x_chr, format = "%Y/%m/%d"))
-
-          return(out)
-        }
-
-        return(suppressWarnings(as.Date(x_chr, format = format)))
-      }
-
-      if (type == "datetime") {
-        if (is.null(format)) {
-          if (inherits(x, c("POSIXct", "POSIXlt"))) return(as.POSIXct(x, tz = "UTC"))
-
-          out <- suppressWarnings(as.POSIXct(x_chr, tz = "UTC"))
-
-          if (all(is.na(out))) out <- suppressWarnings(as.POSIXct(x_chr, format = "%Y-%m-%d %H:%M:%S", tz = "UTC"))
-          if (all(is.na(out))) out <- suppressWarnings(as.POSIXct(x_chr, format = "%d/%m/%Y %H:%M:%S", tz = "UTC"))
-          if (all(is.na(out))) out <- suppressWarnings(as.POSIXct(x_chr, format = "%d-%m-%Y %H:%M:%S", tz = "UTC"))
-          if (all(is.na(out))) out <- suppressWarnings(as.POSIXct(x_chr, format = "%Y/%m/%d %H:%M:%S", tz = "UTC"))
-
-          return(out)
-        }
-
-        return(suppressWarnings(as.POSIXct(x_chr, format = format, tz = "UTC")))
-      }
-
-      if (type == "time") {
-        if (is.null(format)) {
-          format <- "%H:%M:%S"
-        }
-
-        out <- suppressWarnings(strptime(x_chr, format = format, tz = "UTC"))
-        return(format(out, "%H:%M:%S"))
-      }
-
-      if (type %in% c("year", "month", "day")) {
-        return(suppressWarnings(as.integer(x_chr)))
-      }
-
-      x
-    }
-
     output$time_format_page <- renderUI({
       req(is_convert("numeric", "time"))
 
@@ -4050,6 +3893,7 @@ tool2_tab3$server <- function(id, vals) {
         ),
         lapply(seq_len(ncol(data)), function(i) {
           col_name <- colnames(data)[i]
+          guess <- guess_time_settings(data[[i]])
 
           div(
             class = "time_format_card",
@@ -4073,7 +3917,7 @@ tool2_tab3$server <- function(id, vals) {
                   "Month" = "month",
                   "Day" = "day"
                 ),
-                selected = "keep",
+                selected = if (identical(guess$type, "keep")) "date" else guess$type,
                 width = "180px"
               ),
               pickerInput(
@@ -4094,7 +3938,7 @@ tool2_tab3$server <- function(id, vals) {
                   "HH:MM" = "%H:%M",
                   "Custom" = "custom"
                 ),
-                selected = "auto",
+                selected = guess$format,
                 width = "240px"
               ),
               conditionalPanel(
@@ -4103,7 +3947,7 @@ tool2_tab3$server <- function(id, vals) {
                 textInput(
                   ns(paste0("time_custom_", safe_id(col_name))),
                   "Custom format:",
-                  value = "",
+                  value = guess$custom,
                   placeholder = "e.g. %d/%m/%Y",
                   width = "180px"
                 )
@@ -4144,7 +3988,11 @@ tool2_tab3$server <- function(id, vals) {
       warnings <- list()
 
       for (var in colnames(original)) {
-        type_i <- input[[paste0("time_type_", safe_id(var))]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", safe_id(var))]],
+          input[[paste0("time_format_", safe_id(var))]],
+          input[[paste0("time_custom_", safe_id(var))]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -4191,7 +4039,11 @@ tool2_tab3$server <- function(id, vals) {
       converted <- formatted_time()
 
       for (var in colnames(original)) {
-        type_i <- input[[paste0("time_type_", safe_id(var))]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", safe_id(var))]],
+          input[[paste0("time_format_", safe_id(var))]],
+          input[[paste0("time_custom_", safe_id(var))]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -4237,21 +4089,75 @@ tool2_tab3$server <- function(id, vals) {
       data
     }
 
+    # Date -> days since 1970-01-01; Date-time -> seconds since 1970-01-01 (UTC);
+    # HH:MM(:SS) -> decimal hours. Text/factor columns are parsed only from
+    # unambiguous formats (YYYY-MM-DD[ HH:MM[:SS]], YYYY-MM, numbers).
+    time_value_to_numeric <- function(x) {
+      if (inherits(x, "Date")) return(as.numeric(x))
+      if (inherits(x, c("POSIXct", "POSIXlt"))) return(as.numeric(as.POSIXct(x)))
+      if (is.numeric(x)) return(as.numeric(x))
+
+      x_chr <- trimws(as.character(x))
+      out <- suppressWarnings(as.numeric(x_chr))
+
+      todo <- is.na(out) & !is.na(x_chr)
+      dt <- todo & grepl("^\\d{4}-\\d{1,2}-\\d{1,2}[ T]\\d{1,2}:\\d{2}(:\\d{2})?$", x_chr)
+      if (any(dt)) {
+        dt_chr <- sub("T", " ", x_chr[dt])
+        dt_val <- as.POSIXct(dt_chr, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+        no_sec <- is.na(dt_val)
+        dt_val[no_sec] <- as.POSIXct(dt_chr[no_sec], format = "%Y-%m-%d %H:%M", tz = "UTC")
+        out[dt] <- as.numeric(dt_val)
+      }
+
+      todo <- is.na(out) & !is.na(x_chr)
+      d <- todo & grepl("^\\d{4}-\\d{1,2}-\\d{1,2}$", x_chr)
+      out[d] <- as.numeric(as.Date(x_chr[d], format = "%Y-%m-%d"))
+
+      todo <- is.na(out) & !is.na(x_chr)
+      ym <- todo & grepl("^\\d{4}-\\d{1,2}$", x_chr)
+      out[ym] <- as.numeric(as.Date(paste0(x_chr[ym], "-01"), format = "%Y-%m-%d"))
+
+      todo <- is.na(out) & !is.na(x_chr)
+      hm <- todo & grepl("^\\d{1,2}:\\d{2}(:\\d{2})?$", x_chr)
+      if (any(hm)) {
+        parts <- strsplit(x_chr[hm], ":")
+        out[hm] <- vapply(parts, function(p) {
+          p <- as.numeric(p)
+          if (p[1] > 23 || p[2] > 59 || (length(p) == 3 && p[3] > 59)) return(NA_real_)
+          p[1] + p[2] / 60 + (if (length(p) == 3) p[3] / 3600 else 0)
+        }, numeric(1))
+      }
+
+      out
+    }
+
     time_to_numeric <- function() {
       data <- get_data_from()
 
       data <- data.frame(
-        lapply(data, function(x) {
-          if (inherits(x, c("Date", "POSIXct", "POSIXlt"))) {
-            return(as.numeric(x))
-          }
-
-          suppressWarnings(as.numeric(as.character(x)))
-        }),
+        lapply(data, time_value_to_numeric),
         check.names = FALSE
       )
 
       rownames(data) <- rownames(get_data_from())
+
+      source_data <- get_data_from()
+      failed <- vapply(colnames(data), function(var) {
+        x <- source_data[[var]]
+        sum(is.na(data[[var]]) & !is.na(x) & nzchar(trimws(as.character(x))))
+      }, numeric(1))
+      if (any(failed > 0)) {
+        showNotification(
+          paste0(
+            "Some temporal values could not be converted and were set to NA (",
+            paste0(names(failed)[failed > 0], ": ", failed[failed > 0], collapse = "; "),
+            "). Use an unambiguous format (YYYY-MM-DD) or format the column as Date in the Databank."
+          ),
+          type = "warning",
+          duration = 12
+        )
+      }
 
       new_names <- vapply(colnames(data), function(var) {
         input[[paste("newbin", safe_id(var), sep = "_")]] %or% var
@@ -4421,7 +4327,7 @@ tool2_tab3$server <- function(id, vals) {
       if (is_convert("numeric", "coords")) suffix <- span("(replace destination coordinates)", style = "color:#B36B00;")
       if (is_convert("numeric", "time")) suffix <- span("(as temporal columns)", style = "color:#05668D;")
       if (is_convert("coords", "numeric")) suffix <- span("(coordinates as numeric columns)", style = "color:#05668D;")
-      if (is_convert("time", "numeric")) suffix <- span("(temporal columns as numeric values)", style = "color:#05668D;")
+      if (is_convert("time", "numeric")) suffix <- span("(dates as days since 1970-01-01, date-times as seconds, HH:MM as decimal hours)", style = "color:#05668D;")
 
       div(
         h4(
@@ -4771,146 +4677,6 @@ tool2_tab4$server <- function(id, vals) {
       paste(as.character(x), collapse = ", ")
     }
 
-    convert_time_column <- function(x, type, format, custom_format = NULL) {
-
-      if (is.null(type) || type == "keep") {
-        return(x)
-      }
-
-      if (!is.null(format) && format == "custom") {
-        if (!is.null(custom_format) && nzchar(custom_format)) {
-          format <- custom_format
-        } else {
-          format <- NULL
-        }
-      }
-
-      if (is.null(format) || format == "auto") {
-        format <- NULL
-      }
-
-      x_chr <- trimws(as.character(x))
-
-      if (type == "date") {
-
-        if (is.null(format)) {
-
-          if (inherits(x, "Date")) {
-            return(as.Date(x))
-          }
-
-          out <- suppressWarnings(as.Date(x_chr))
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%d/%m/%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%d-%m-%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%m/%d/%Y"))
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(as.Date(x_chr, format = "%Y/%m/%d"))
-          }
-
-          return(out)
-        }
-
-        return(suppressWarnings(as.Date(x_chr, format = format)))
-      }
-
-      if (type == "datetime") {
-
-        if (is.null(format)) {
-
-          if (inherits(x, c("POSIXct", "POSIXlt"))) {
-            return(as.POSIXct(x, tz = "UTC"))
-          }
-
-          out <- suppressWarnings(as.POSIXct(x_chr, tz = "UTC"))
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(
-              as.POSIXct(
-                x_chr,
-                format = "%Y-%m-%d %H:%M:%S",
-                tz = "UTC"
-              )
-            )
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(
-              as.POSIXct(
-                x_chr,
-                format = "%d/%m/%Y %H:%M:%S",
-                tz = "UTC"
-              )
-            )
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(
-              as.POSIXct(
-                x_chr,
-                format = "%d-%m-%Y %H:%M:%S",
-                tz = "UTC"
-              )
-            )
-          }
-
-          if (all(is.na(out))) {
-            out <- suppressWarnings(
-              as.POSIXct(
-                x_chr,
-                format = "%Y/%m/%d %H:%M:%S",
-                tz = "UTC"
-              )
-            )
-          }
-
-          return(out)
-        }
-
-        return(
-          suppressWarnings(
-            as.POSIXct(
-              x_chr,
-              format = format,
-              tz = "UTC"
-            )
-          )
-        )
-      }
-
-      if (type == "time") {
-
-        if (is.null(format)) {
-          format <- "%H:%M:%S"
-        }
-
-        out <- suppressWarnings(
-          strptime(
-            x_chr,
-            format = format,
-            tz = "UTC"
-          )
-        )
-
-        return(format(out, "%H:%M:%S"))
-      }
-
-      if (type %in% c("year", "month", "day")) {
-        return(suppressWarnings(as.integer(x_chr)))
-      }
-
-      x
-    }
-
     formatted_time <- reactive({
 
       req(input$replace_attr == "Temporal")
@@ -4973,15 +4739,8 @@ tool2_tab4$server <- function(id, vals) {
 
           col_name <- colnames(time)[i]
 
-          selected_type <- "keep"
-
-          if (inherits(time[[i]], "Date")) {
-            selected_type <- "date"
-          }
-
-          if (inherits(time[[i]], c("POSIXct", "POSIXlt"))) {
-            selected_type <- "datetime"
-          }
+          guess <- guess_time_settings(time[[i]])
+          selected_type <- guess$type
 
           div(
             style = "
@@ -5059,7 +4818,7 @@ tool2_tab4$server <- function(id, vals) {
                   "HH:MM" = "%H:%M",
                   "Custom" = "custom"
                 ),
-                selected = "auto",
+                selected = guess$format,
                 width = "240px"
               ),
 
@@ -5069,7 +4828,7 @@ tool2_tab4$server <- function(id, vals) {
                 textInput(
                   session$ns(paste0("time_custom_", i)),
                   "Custom format:",
-                  value = "",
+                  value = guess$custom,
                   placeholder = "e.g. %d/%m/%Y",
                   width = "180px"
                 )
@@ -5098,7 +4857,11 @@ tool2_tab4$server <- function(id, vals) {
 
       for (i in seq_len(ncol(time))) {
 
-        type_i <- input[[paste0("time_type_", i)]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", i)]],
+          input[[paste0("time_format_", i)]],
+          input[[paste0("time_custom_", i)]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -5152,7 +4915,11 @@ tool2_tab4$server <- function(id, vals) {
 
       for (i in seq_len(ncol(time))) {
 
-        type_i <- input[[paste0("time_type_", i)]]
+        type_i <- effective_time_type(
+          input[[paste0("time_type_", i)]],
+          input[[paste0("time_format_", i)]],
+          input[[paste0("time_custom_", i)]]
+        )
 
         if (is.null(type_i) || type_i == "keep") {
           next
@@ -7368,9 +7135,9 @@ tool2_tab8$server<-function(id,vals){
       req(p)
       p<-simplity_sf_gg(p)
 
-      p<-plotly::ggplotly( p, source = "A") %>%
-        plotly::layout(legend = list(x = 0, y = 0))%>%
-        plotly::config(scrollZoom = TRUE)
+      p<-plotly::ggplotly( p, source = "A")
+      p<-plotly::layout(p, legend = list(x = 0, y = 0))
+      p<-plotly::config(p, scrollZoom = TRUE)
       p<-plotly::event_register(p,'plotly_relayout')
       plot_ready(T)
       p <- plotly::style(p, hoverinfo = "skip", traces = seq_along(p$x$data))
@@ -7407,8 +7174,8 @@ tool2_tab8$server<-function(id,vals){
 
       rect_coords(list(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax))
 
-      plotly::plotlyProxy("full_shape_plot", session = session) %>%
-        plotly::plotlyProxyInvoke("relayout", list(
+      proxy<-plotly::plotlyProxy("full_shape_plot", session = session)
+      plotly::plotlyProxyInvoke(proxy, "relayout", list(
           shapes = list(
             list(
               type = "rect",
@@ -8587,6 +8354,9 @@ tool2_tab10$server<-function(id,vals){
       out
     }
 
+    # Calendar parts from a temporal column. Text dates are read with the format detected
+    # by guess_time_settings() (same rules as the Databank import; DD/MM is preferred over
+    # MM/DD when both fit); values that match no format stay NA and are counted in 'unparsed'.
     parse_time_parts<-function(tt){
       n<-length(tt)
       res<-list(
@@ -8594,61 +8364,87 @@ tool2_tab10$server<-function(id,vals){
         month=rep(NA_real_,n),
         doy=rep(NA_real_,n),
         week=rep(NA_real_,n),
-        year=rep(NA_real_,n)
+        year=rep(NA_real_,n),
+        unparsed=0
       )
+      fill_dates<-function(res,date_val){
+        res$date<-date_val
+        ok<-!is.na(date_val)
+        res$month[ok]<-as.numeric(format(date_val[ok],"%m"))
+        res$doy[ok]<-as.numeric(format(date_val[ok],"%j"))
+        res$week[ok]<-as.numeric(format(date_val[ok],"%U"))
+        res$year[ok]<-as.numeric(format(date_val[ok],"%Y"))
+        res
+      }
       if(inherits(tt,"Date")){
-        date_val<-tt
-      }else if(inherits(tt,"POSIXt")){
-        date_val<-as.Date(tt)
-      }else if(is.numeric(tt)){
+        return(fill_dates(res,tt))
+      }
+      if(inherits(tt,"POSIXt")){
+        # format() keeps the column's own time zone (as.Date would convert to UTC)
+        return(fill_dates(res,as.Date(format(tt,"%Y-%m-%d"))))
+      }
+      if(is.numeric(tt)){
         tt_num<-as.numeric(tt)
-        if(all(is.na(tt_num)|(tt_num>=1000&tt_num<=9999&tt_num==round(tt_num)))){
+        is_int<-is.na(tt_num)|tt_num==round(tt_num)
+        if(all(is_int&(is.na(tt_num)|(tt_num>=1000&tt_num<=9999)))){
           res$year<-tt_num
-        }else if(all(is.na(tt_num)|(tt_num>=1&tt_num<=12&tt_num==round(tt_num)))){
+        }else if(all(is_int&(is.na(tt_num)|(tt_num>=1&tt_num<=12)))){
           res$month<-tt_num
-        }else if(all(is.na(tt_num)|(tt_num>=1&tt_num<=366&tt_num==round(tt_num)))){
+        }else if(all(is_int&(is.na(tt_num)|(tt_num>=1&tt_num<=366)))){
           res$doy<-tt_num
           res$week<-floor((tt_num-1)/7)
+        }else if(all(is_int&(is.na(tt_num)|(tt_num>=100001&tt_num<=999912&(tt_num%%100)%in%1:12)))){
+          res$year<-floor(tt_num/100)
+          res$month<-tt_num%%100
+        }else if(all(is_int&(is.na(tt_num)|(tt_num>=10000101&tt_num<=99991231)))){
+          res<-fill_dates(res,as.Date(as.character(tt_num),format="%Y%m%d"))
         }
+        res$unparsed<-sum(!is.na(tt_num)&is.na(res$year)&is.na(res$month)&is.na(res$doy))
         return(res)
-      }else{
-        tt_chr<-as.character(tt)
-        date_val<-suppressWarnings(as.Date(tt_chr))
-        if(all(is.na(date_val))){
-          date_val<-suppressWarnings(as.Date(as.POSIXct(tt_chr)))
-        }
       }
-      res$date<-date_val
-      ok<-!is.na(date_val)
-      res$month[ok]<-as.numeric(format(date_val[ok],"%m"))
-      res$doy[ok]<-as.numeric(format(date_val[ok],"%j"))
-      res$week[ok]<-as.numeric(format(date_val[ok],"%U"))
-      res$year[ok]<-as.numeric(format(date_val[ok],"%Y"))
+      tt_chr<-trimws(as.character(tt))
+      date_val<-convert_time_column(tt,"date","auto")
+      res<-fill_dates(res,date_val)
+      ym<-grepl("^\\d{4}[-/_]\\d{1,2}$",tt_chr)
+      if(any(ym)){
+        ym_parts<-strsplit(tt_chr[ym],"[-/_]")
+        ym_month<-as.numeric(vapply(ym_parts,`[`,character(1),2))
+        ym_month[!ym_month%in%1:12]<-NA
+        res$year[ym]<-ifelse(is.na(ym_month),NA,as.numeric(vapply(ym_parts,`[`,character(1),1)))
+        res$month[ym]<-ym_month
+      }
+      res$unparsed<-sum(!is.na(tt)&nzchar(tt_chr)&is.na(res$year)&is.na(res$month)&is.na(res$doy))
       res
     }
 
-    get_time_order<-function(dat){
+    # Temporal column aligned to the rows of 'dat' (matched by row names when available)
+    get_time_values<-function(dat,time_col){
       time_attr<-attr(dat,"time")
-      time_col<-input$time_col
-      if(is.null(time_attr)||!length(time_col)||!time_col%in%colnames(time_attr)){
+      if(is.null(time_attr)||length(time_col)!=1||!time_col%in%colnames(time_attr)){
+        return(NULL)
+      }
+      ids<-rownames(dat)
+      if(!is.null(ids)&&all(ids%in%rownames(time_attr))){
+        return(time_attr[ids,time_col,drop=TRUE])
+      }
+      if(nrow(time_attr)==nrow(dat)){
+        return(time_attr[[time_col]])
+      }
+      NULL
+    }
+
+    get_time_order<-function(dat){
+      tt<-get_time_values(dat,input$time_col)
+      if(is.null(tt)){
         return(seq_len(nrow(dat)))
       }
-      tt<-time_attr[[time_col]]
-      if(length(tt)!=nrow(dat)){
-        return(seq_len(nrow(dat)))
-      }
-      tt_date<-try(suppressWarnings(as.POSIXct(tt)),silent=TRUE)
-      if(inherits(tt_date,"try-error")){
-        tt_date<-rep(NA,nrow(dat))
-      }
-      if(all(is.na(tt_date))){
-        tt_date<-try(suppressWarnings(as.POSIXct(as.Date(tt))),silent=TRUE)
-        if(inherits(tt_date,"try-error")){
-          tt_date<-rep(NA,nrow(dat))
+      tt_date<-tt
+      if(!inherits(tt,c("Date","POSIXt"))&&!is.numeric(tt)){
+        # text dates are parsed with an explicit format (never as.Date/as.POSIXct guessing)
+        guess<-guess_time_settings(tt)
+        if(guess$type%in%c("date","datetime")){
+          tt_date<-convert_time_column(tt,guess$type,guess$format,guess$custom)
         }
-      }
-      if(all(is.na(tt_date))){
-        tt_date<-tt
       }
       order(tt_date,seq_along(tt_date),na.last=TRUE)
     }
@@ -8703,6 +8499,7 @@ tool2_tab10$server<-function(id,vals){
       if(!length(steps)){
         return(out)
       }
+      notes<-character(0)
 
       for(step in steps){
         vars<-intersect(step$vars,colnames(out))
@@ -8855,12 +8652,17 @@ tool2_tab10$server<-function(id,vals){
         }
 
         if(step$type=="seasonality"){
-          time_attr<-attr(dat,"time")
           time_col<-step$settings$time_col
-          if(!is.null(time_attr)&&length(time_col)==1&&time_col%in%colnames(time_attr)){
-            tt<-time_attr[[time_col]]
+          tt<-get_time_values(dat,time_col)
+          if(is.null(tt)){
+            notes<-c(notes,paste0("Seasonality skipped: the Temporal-Attribute column '",paste(time_col,collapse=", "),"' was not found for all observations of this Datalist."))
+          }
+          if(!is.null(tt)){
             if(length(tt)==nrow(out)){
               time_parts<-parse_time_parts(tt)
+              if(time_parts$unparsed>0){
+                notes<-c(notes,paste0("Seasonality: ",time_parts$unparsed," value(s) of '",time_col,"' could not be read as a date and were set to NA. Use an unambiguous format (YYYY-MM-DD) or format the column as Date in the Databank."))
+              }
               terms<-step$settings$terms
               if("month_cyclic"%in%terms){
                 month_i<-time_parts$month
@@ -8868,9 +8670,13 @@ tool2_tab10$server<-function(id,vals){
                 out[[feature_name(prefix,time_col,"month_cos",colnames(out))]]<-cos(2*pi*month_i/12)
               }
               if("doy_cyclic"%in%terms){
+                # (doy-1)/days-in-year keeps Dec 31 -> Jan 1 one day apart in leap and non-leap years
+                year_i<-time_parts$year
+                leap<-!is.na(year_i)&((year_i%%4==0&year_i%%100!=0)|year_i%%400==0)
+                days_in_year<-ifelse(is.na(year_i),365.25,ifelse(leap,366,365))
                 doy_i<-time_parts$doy
-                out[[feature_name(prefix,time_col,"doy_sin",colnames(out))]]<-sin(2*pi*doy_i/366)
-                out[[feature_name(prefix,time_col,"doy_cos",colnames(out))]]<-cos(2*pi*doy_i/366)
+                out[[feature_name(prefix,time_col,"doy_sin",colnames(out))]]<-sin(2*pi*(doy_i-1)/days_in_year)
+                out[[feature_name(prefix,time_col,"doy_cos",colnames(out))]]<-cos(2*pi*(doy_i-1)/days_in_year)
               }
               if("week"%in%terms){
                 out[[feature_name(prefix,time_col,"week",colnames(out))]]<-time_parts$week
@@ -8904,6 +8710,7 @@ tool2_tab10$server<-function(id,vals){
       attrs$class<-class(out)
       attrs$derived_feature_names<-generated_names
       attributes(out)<-attrs
+      attr(out,"feature_notes")<-unique(notes)
       out
     }
 
@@ -8928,11 +8735,15 @@ tool2_tab10$server<-function(id,vals){
         showNotification("Add at least one derived feature step before creating the result.",type="warning",duration=6)
         return(NULL)
       }
+      for(note_i in attr(dat,"feature_notes")){
+        showNotification(note_i,type="warning",duration=10)
+      }
       generated_names<-attr(dat,"derived_feature_names")
       if(is.null(generated_names)||!length(generated_names)){
         showNotification("No derived variable was generated. Check the selected variables and recipe settings.",type="warning",duration=6)
         return(NULL)
       }
+      attr(dat,"feature_notes")<-NULL
 
       attr(dat,"bag")<-if(nzchar(input$new_name))input$new_name else paste0(input$data_x,"_derived_features")
       attr(dat,"action")<-"datalist"
@@ -9051,7 +8862,10 @@ tool2_tab10$server<-function(id,vals){
       }
       div(
         div(em("selected variables:"),length(feature_vars())),
-        div(em("recipe steps:"),length(steps))
+        div(em("recipe steps:"),length(steps)),
+        lapply(attr(preview,"feature_notes"),function(note_i){
+          div(style="color:brown; font-size:11px; line-height:1.2; margin-top:4px",icon("triangle-exclamation"),note_i)
+        })
       )
     })
 
@@ -9373,10 +9187,11 @@ tool2_tab11$server<-function(id,vals){
     time_vector<-function(dat){
       time_attr<-attr(dat,"time")
       time_col<-input$time_col
-      if(is.null(time_attr)||!length(time_col)||!time_col%in%colnames(time_attr)) return(NULL)
-      tt<-time_attr[[time_col]]
-      if(length(tt)!=nrow(dat)) return(NULL)
-      tt
+      if(is.null(time_attr)||length(time_col)!=1||!time_col%in%colnames(time_attr)) return(NULL)
+      ids<-rownames(dat)
+      if(!is.null(ids)&&all(ids%in%rownames(time_attr))) return(time_attr[ids,time_col,drop=TRUE])
+      if(nrow(time_attr)!=nrow(dat)) return(NULL)
+      time_attr[[time_col]]
     }
 
     time_numeric<-function(tt){
@@ -9389,7 +9204,11 @@ tool2_tab11$server<-function(id,vals){
       if(any(non_missing)&&all(!is.na(tt_num[non_missing]))){
         return(tt_num)
       }
-      tt_date<-suppressWarnings(as.Date(tt_chr))
+      guess<-guess_time_settings(tt)
+      if(!guess$type%in%c("date","datetime")){
+        return(NULL)
+      }
+      tt_date<-convert_time_column(tt,guess$type,guess$format,guess$custom)
       if(any(non_missing)&&all(!is.na(tt_date[non_missing]))){
         return(as.numeric(tt_date))
       }

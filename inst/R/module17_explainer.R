@@ -141,7 +141,7 @@ rf_explainer$ui<-function(id){
                                       style="position: absolute; top: 27px;right: 0px;padding: 5px;background:white;padding-top:0px",
                                       tiphelp_icon(
                                         actionLink(ns('create_rf'),span("Create Datalist"),icon("fas fa-file-signature")),
-                                        "Create a datalist with the variables selected in the Random Forest Explainer.","right"
+                                        "Create a datalist with the variables shown in the plot (e.g. only the significant ones when Display = significant).","left"
                                       )
                                     ),
                                     uiOutput(ns("feature_plot"))

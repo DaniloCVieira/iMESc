@@ -807,8 +807,36 @@ imesc_supersom$server<-function (id,vals ){
 
     })
     observeEvent(input$som_model_delete,ignoreInit = T,{
-      attr(vals$saved_data[[input$data_som]],"som")[[input$som_models]]<-NULL
-
+      choices<-names(attr(vals$saved_data[[input$data_som]],"som"))
+      req(length(choices)>0)
+      showModal(modalDialog(
+        easyClose = T,
+        title="Remove models",
+        div(
+          shinyWidgets::virtualSelectInput(
+            inputId = ns("som_trash_picker"),
+            label = "Select the models",
+            optionHeight='24px',
+            choices = choices,
+            selected=input$som_models,
+            search = TRUE,
+            keepAlwaysOpen = TRUE,
+            multiple =T,
+            hideClearButton=T,
+            alwaysShowSelectedOptionsCount=T,
+            searchPlaceholderText="Select all",
+            optionselectedText="Models selected",
+            optionSelectedText="Models selected"
+          ),
+          actionButton(ns("som_trash_confirm"),"Remove Models",icon("trash"))
+        ),
+        footer=div(modalButton("Close"))
+      ))
+    })
+    observeEvent(input$som_trash_confirm,ignoreInit = T,{
+      req(length(input$som_trash_picker)>0)
+      attr(vals$saved_data[[input$data_som]],"som")[input$som_trash_picker]<-NULL
+      removeModal()
     })
 
 

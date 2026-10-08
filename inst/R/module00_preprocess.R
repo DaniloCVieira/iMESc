@@ -12689,7 +12689,7 @@ tool6$ui<-function(id){
   div(
     div(style="height: 430px; ;display: flex;",class="half-drop-inline",
 
-        div(style="width: 50%;padding: 15px; overflow-y: auto; overflow-x: hidden;",class="half-drop",
+        div(style="width: 50%;padding: 15px; overflow-y: auto; overflow-x: auto;",class="half-drop",
             selectInput(ns("na_targ"),"Target:", c("Numeric-Attribute","Factor-Attribute")),
             selectInput(ns("na_method"), div("Method:",tipify_ui(actionLink(ns("na_help"),icon("fas fa-question-circle"), type="toggle"),"Click for details","right")),choices=c("knn","bagImpute","medianImpute","pmm","rf","cart")),
             uiOutput(ns('bag_warning')),
@@ -12755,7 +12755,7 @@ tool6$server<-function(id,vals){
       req(length(choices))
       current<-attr(data(),"datalist")
       selected<-get_selected_from_choices(isolate(input$na_group_dl)%||%current,choices)
-      pickerInput_fromtop(session$ns("na_group_dl"),tiphelp5("Factor from:","Datalist that holds the grouping factor. It must contain all observations of the Datalist being imputed; values are matched by observation ID."),choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+      pickerInput_fromtop(session$ns("na_group_dl"),tiphelp5("Factor from:","Datalist that holds the grouping factor. It must contain all observations of the Datalist being imputed; values are matched by observation ID."),choices=choices,selected=selected,width="180px",options=shinyWidgets::pickerOptions(liveSearch=TRUE))
     })
     # grouping factors aligned to the rows being imputed
     group_factors<-reactive({
@@ -12782,7 +12782,7 @@ tool6$server<-function(id,vals){
       }
       part<-choices[grepl("^Partition",choices)]
       selected<-get_selected_from_choices(isolate(input$na_group_var)%||%(if(length(part)) part[1] else NULL),choices)
-      pickerInput_fromtop(session$ns("na_group_var"),"Group by:",choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+      pickerInput_fromtop(session$ns("na_group_var"),"Group by:",choices=choices,selected=selected,width="180px",options=shinyWidgets::pickerOptions(liveSearch=TRUE))
     })
     output$na_ref_level_ui<-renderUI({
       req(identical(input$na_group_mode,"reference"))
@@ -12790,7 +12790,7 @@ tool6$server<-function(id,vals){
       levs<-levels(factor(group_factors()[[input$na_group_var]]))
       train<-levs[grepl("train",levs,ignore.case=TRUE)]
       selected<-if(length(train)) train[1] else levs[1]
-      pickerInput_fromtop(session$ns("na_ref_level"),tiphelp5("Learn from:","Level used to fit the imputation (usually the training data)."),choices=levs,selected=selected)
+      pickerInput_fromtop(session$ns("na_ref_level"),tiphelp5("Learn from:","Level used to fit the imputation (usually the training data)."),choices=levs,selected=selected,width="180px")
     })
     observeEvent(list(input$na_by_group,input$na_group_dl,input$na_group_var,input$na_group_mode,input$na_ref_level),ignoreInit=TRUE,{
       shinyjs::addClass("run_na_btn","save_changes")

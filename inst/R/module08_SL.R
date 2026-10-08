@@ -7991,6 +7991,19 @@ model_results$server<-function(id,vals){
     box_caret_server("box_hz_plot")
     box_caret_server("box_hz_table")
 
+    # By Horizon only exists for models trained with forecast horizons (prequential CV)
+    observeEvent(list(model(),input$tab2),{
+      m<-model()
+      has_hz<-!is.null(attr(m,"cvt")$horizon_map)||!is.null(attr(m,"cvst")$horizon_map)
+      if(has_hz){
+        showTab("performance_nav","horizon")
+      } else{
+        hideTab("performance_nav","horizon")
+        if(identical(input$performance_nav,"horizon"))
+          updateTabsetPanel(session,"performance_nav",selected="metrics")
+      }
+    })
+
     # Performance > By Horizon: metrics for the cumulative test windows t+1...t+h
     hz_data<-reactive({
       req(identical(input$tab2,"t2"))

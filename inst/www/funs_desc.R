@@ -792,6 +792,8 @@ desc_xy_issues_ui<-function(res){
 # color: optional one-column data.frame (factor or numeric) with IDs as rownames.
 #' @export
 desc_scatter_data<-function(x,y,color=NULL){
+  force(x)
+  force(y)
   ids<-intersect(names(x),names(y))
   validate(need(length(ids)>0,"X and Y have no observation IDs in common. Choose Datalists that share the same observations."))
   if(!is.null(color)) ids<-intersect(ids,rownames(color))
@@ -823,7 +825,7 @@ desc_scatter_stats<-function(df){
       return(data.frame(Group=as.character(s$group[1]),n=nrow(s),Pearson_r=NA,Spearman_rho=NA,R2=NA,Slope=NA,Intercept=NA,P_value=NA))
     }
     fit<-stats::lm(s$y~xn)
-    sm<-summary(fit)
+    sm<-suppressWarnings(summary(fit))
     data.frame(Group=as.character(s$group[1]),n=nrow(s),
                Pearson_r=stats::cor(xn,s$y),
                Spearman_rho=suppressWarnings(stats::cor(xn,s$y,method="spearman")),

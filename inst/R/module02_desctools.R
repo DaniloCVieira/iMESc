@@ -6265,8 +6265,12 @@ desctools_tab11$server<-function(id,vals){
       setNames(y_data()[[input$y_var]],rownames(y_data()))
     })
     sc_data<-reactive({
+      # evaluated here (not lazily inside intersect(), an S4 generic in the app) so
+      # that req() stays silent while the variables are not chosen yet
+      xv<-x_vec()
+      yv<-y_vec()
       col<-if(isTRUE(input$use_color)) color_df() else NULL
-      desc_scatter_data(x_vec(),y_vec(),col)
+      desc_scatter_data(xv,yv,col)
     })
 
     sc_plot<-reactive({

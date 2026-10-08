@@ -617,7 +617,7 @@ module_server_somplot<-function(input, output, session,vals,data_target,som_mode
     )
   })
   output$vfm_check<-renderUI({
-    if(is.null(somplot_args$pclus_varfacmap_action)){somplot_args$pclus_varfacmap_action<-T}
+    if(is.null(somplot_args$pclus_varfacmap_action)){somplot_args$pclus_varfacmap_action<-F}
     div(style='border-bottom: 1px solid gray',
         span("+ ",
              inline(checkboxInput(ns("varfacmap_action"), span("Variable factor map",actionLink(ns("varfacmap"), tipify_ui(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value =somplot_args$pclus_varfacmap_action, width="100px"))),

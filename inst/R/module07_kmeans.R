@@ -179,7 +179,7 @@ k_means_module$ui<-function(id){
                   title=span(style="display: inline-block",
                              class="checktitle",
                              tip=actionLink(ns("varfacmap"), tipright("Click for more details")),
-                             checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="150px")
+                             checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =F,width="150px")
                   ),
                   div(id=ns('varfac_out'),
                       pickerInput(ns("vfm_type"),"Show correlation:",choices =list("Highest"='var', "Clockwise"="cor","Cluster"="cor_hc")),

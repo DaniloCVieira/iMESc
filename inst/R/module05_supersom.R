@@ -1809,7 +1809,7 @@ table_results_tab3$ui<-function(id){
         hide_content = T,
         title=span(style="display: inline-block",
                    class="checktitle2",
-                   checkboxInput(ns("codebook_addvfm"),strong("Variable factor map",actionLink(ns("codebook_varfacmap"), tiphelp_icon(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=T,width="210px")
+                   checkboxInput(ns("codebook_addvfm"),strong("Variable factor map",actionLink(ns("codebook_varfacmap"), tiphelp_icon(icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle"), "Click for more details"))),value=F,width="210px")
         ),
 
         div(id=ns('codebook_varfac_out'),

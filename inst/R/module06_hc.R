@@ -3433,7 +3433,7 @@ codebook_clusters_module$ui<-function(ns,
                    title=span(style="display: inline-block",
                               class="checktitle",
 
-                              checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =T,width="210px"),
+                              checkboxInput(ns("varfacmap_action"),span("Variable factor map"),value =F,width="210px"),
 
                    ),
                    div(id=ns('varfac_out'),

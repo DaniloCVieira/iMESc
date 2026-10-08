@@ -100,50 +100,104 @@ EBNB<-function(abund, envi, PC=1){
 
 
 #' @export
-mice_impute<-function(data,na_method=c("pmm","rf","cart")){
+mice_impute<-function(data,na_method=c("pmm","rf","cart"),ignore=NULL){
   emp<-data==""|data=="NA"|is.na(data)
   if(any(emp)){
     data[emp]<-NA
   }
   method<-match.arg(na_method,c("pmm","rf","cart"))
-  imputed_data <- suppressWarnings(mice::mice(data, method = method, m = 1,printFlag=T))
+  # ignore: rows imputed but not used to fit the imputation models
+  imputed_data <- suppressWarnings(mice::mice(data, method = method, m = 1,printFlag=T,ignore=ignore))
   res<-mice::complete(imputed_data, 1)
   rownames(res)<-rownames(data)
   res
 }
+
+# Imputation fitted on fit_rows (all rows when NULL) and applied to every row of data
+#' @export
+impute_core<-function(data,na_method,k=NULL,fit_rows=NULL){
+  if(na_method%in%c("pmm","rf","cart")){
+    if(is.null(fit_rows)){
+      pred<-mice_impute(data,na_method)
+    } else{
+      # 1) the fitting rows are imputed alone, so the other rows cannot change them
+      #    (not even through the order of the random draws);
+      # 2) the other rows are then imputed with models fitted only on the completed
+      #    fitting rows (mice 'ignore').
+      completed<-data
+      completed[fit_rows,]<-mice_impute(data[fit_rows,,drop=FALSE],na_method)
+      if(any(find_na(completed[!fit_rows,,drop=FALSE]))){
+        pred<-mice_impute(completed,na_method,ignore=!fit_rows)
+        pred[fit_rows,]<-completed[fit_rows,]
+      } else{
+        pred<-completed
+      }
+    }
+  } else{
+    fit<-if(is.null(fit_rows)) data else data[fit_rows,,drop=FALSE]
+    if(na_method=="knn"){
+      imp <- caret::preProcess(fit, method = "knnImpute", k = k)
+      pred <- predict(imp, data)
+      pred<-scale_back_imp(imp,pred)
+    } else if(na_method=="bagImpute"){
+      imp <- caret::preProcess(fit, method = "bagImpute")
+      pred <- predict(imp, data)
+    } else if(na_method=="medianImpute"){
+      imp <- caret::preProcess(fit, method = "medianImpute")
+      pred <- predict(imp, data)
+    }
+  }
+  pred<-data.frame(pred,check.names=FALSE)
+  rownames(pred)<-rownames(data)
+  pred
+}
 #' @export
 
-nadata<-function(data,na_method,k=NULL, data_old=NULL,data_name=NULL,attr="Numeric-Attribute"){
+# group: factor (one value per row) for imputation by group, e.g. a partition column.
+# group_mode "reference": fit only on rows of ref_level and apply to all rows (no test
+# information enters the imputation); "separate": impute each level with its own rows.
+nadata<-function(data,na_method,k=NULL, data_old=NULL,data_name=NULL,attr="Numeric-Attribute",
+                 group=NULL,group_mode=c("reference","separate"),ref_level=NULL,group_name="group"){
   if(attr!="Numeric-Attribute"){
     data<-attr(data,"factors")
   }
+  group_mode<-match.arg(group_mode)
 
-
-
-  fi<-find_na(data)
   fi<-find_na(data)
   y<-unique(names(which(colSums(fi)>0)))
   x<-unique(names(which(rowSums(fi)>0)))
 
-  if(na_method%in%c("pmm","rf","cart")){
-    pred<-mice_impute(data,na_method)
+  no_obs_cols<-function(rows){
+    names(which(colSums(!find_na(data[rows,,drop=FALSE]))==0))
+  }
+  run_core<-function(sub,level,fit_rows=NULL){
+    tryCatch(impute_core(sub,na_method,k,fit_rows=fit_rows),error=function(e){
+      stop(paste0("Imputation failed for ",group_name," = '",level,"': ",conditionMessage(e)),call.=FALSE)
+    })
+  }
+
+  if(is.null(group)){
+    pred<-impute_core(data,na_method,k)
   } else{
-    if(na_method=="knn"){
-      imp <- caret::preProcess(data, method = "knnImpute", k = k)
-      pred <- predict(imp, data)
-      pred<-scale_back_imp(imp,pred)
-
-
-    } else if(na_method=="bagImpute"){
-      imp <- caret::preProcess(data, method = "bagImpute")
-      pred <- predict(imp, data)
-
-
-    } else if(na_method=="medianImpute"){
-      imp <- caret::preProcess(data, method = "medianImpute")
-      pred <- predict(imp, data)
+    group<-as.character(group)
+    validate(need(length(group)==nrow(data)&&!anyNA(group),paste0("The grouping factor '",group_name,"' must have a value for every observation.")))
+    if(group_mode=="separate"){
+      pred<-data
+      for(g in unique(group)){
+        rows<-group==g
+        if(!any(fi[rows,])) next
+        empty<-no_obs_cols(rows)
+        validate(need(!length(empty),paste0("Level '",g,"' of '",group_name,"' has no observed values in: ",paste(empty,collapse=", "),".")))
+        pred[rows,]<-run_core(data[rows,,drop=FALSE],g)
+      }
+    } else{
+      validate(need(length(ref_level)==1&&ref_level%in%group,paste0("Choose the reference level of '",group_name,"'.")))
+      fit_rows<-group==ref_level
+      empty<-no_obs_cols(fit_rows)
+      validate(need(!length(empty),paste0("Level '",ref_level,"' of '",group_name,"' has no observed values in: ",paste(empty,collapse=", "),".")))
+      pred<-run_core(data,ref_level,fit_rows=fit_rows)
     }
-
+    attr(pred,"group_info")<-list(group=group_name,mode=group_mode,ref_level=ref_level)
   }
   rownames(pred)<-rownames(data)
   attr(pred,"xy")<-data.frame(cbind(x,y))

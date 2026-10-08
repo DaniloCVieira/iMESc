@@ -1283,17 +1283,17 @@ tool1$server <- function(id, vals) {
         layer_shape_path = "inst/www/layer_shape_araca.rds"
       ),
       fza = list(
-        name = "fza_satellite",
-        paired_name = NULL,
-        datalist_label = "fza_satellite",
-        numeric_label = "satellite environmental data from Foz do Amazonas, Brazil",
-        factor_label = "automatically generated from Numeric-Attribute IDs",
-        coords_label = "satellite pixel coordinates from Foz do Amazonas",
-        time_label = "temporal attribute for the satellite time series",
-        base_shape_label = "base shape of Foz do Amazonas",
-        layer_shape_label = "layer shape of Foz do Amazonas",
-        numeric_path = "inst/www/fza_numeric.csv",
-        paired_numeric_path = NULL,
+        name = "drivers_fza",
+        paired_name = "chl_fza",
+        datalist_label = "drivers_fza/chl_fza",
+        numeric_label = "environmental drivers and chlorophyll-a (CHL) from Foz do Amazonas, Brazil",
+        factor_label = "automatically generated from Numeric-Attribute IDs, for both Datalists",
+        coords_label = "satellite pixel coordinates from Foz do Amazonas, for both Datalists",
+        time_label = "temporal attribute for the satellite time series, for both Datalists",
+        base_shape_label = "base shape of Foz do Amazonas, for both Datalists",
+        layer_shape_label = "layer shape of Foz do Amazonas, for both Datalists",
+        numeric_path = "inst/www/drivers_fza.csv",
+        paired_numeric_path = "inst/www/chl_fza.csv",
         factor_path = NULL,
         coords_path = "inst/www/fza_coords.csv",
         time_path = "inst/www/fza_time.csv",
@@ -1351,18 +1351,23 @@ tool1$server <- function(id, vals) {
           div(
             p(
               strong("FZA satellite temporal data"),
-              " is an example Datalist from the Foz do Amazonas region, on the northern Brazilian continental margin. ",
+              " is an example from the Foz do Amazonas region, on the northern Brazilian continental margin. ",
               "It was prepared from a NetCDF file containing monthly gridded oceanographic, biogeochemical, optical, wind, and sea-surface temperature variables. ",
               "The original data were provided on a regular longitude-latitude grid."
+            ),
+            p("This example inserts two Datalists, ready to be used as Y and X in Supervised Algorithms:"),
+            tags$ul(
+              tags$li(strong("drivers_fza: "), "16 oceanographic, biogeochemical, wind, temperature and light variables that drive chlorophyll-a (the predictors, X)."),
+              tags$li(strong("chl_fza: "), "chlorophyll-a concentration (CHL), the response variable (Y).")
             ),
             tags$ul(
               tags$li(strong("Structure: "), "40 spatial points observed through 60 monthly time steps, totaling 2,400 space-time observations."),
               tags$li(strong("Spatial sampling: "), "the 40 points correspond to grid cells with complete data across all variables and months, selected using a spatially distributed sampling procedure."),
               tags$li(strong("Spatial resolution: "), "each sampled point represents the center of one original grid cell and inherits the original grid resolution of 0.0416667 degrees, approximately 4.6 km."),
               tags$li(strong("Temporal coverage: "), "monthly data from 2021-01-01 to 2025-12-31."),
-              tags$li(strong("Attributes included: "), "Numeric, Factor, Coords-Attribute, Temporal-Attribute, Base-Shape, and Layer-Shape."),
+              tags$li(strong("Attributes included: "), "Numeric, Factor, Coords-Attribute, Temporal-Attribute, Base-Shape, and Layer-Shape, in both Datalists."),
               tags$li(strong("Coordinates: "), "longitude and latitude in decimal degrees."),
-              tags$li(strong("Temporal attribute: "), "a date column named ", tags$code("data"), ".")
+              tags$li(strong("Temporal attribute: "), "a date column named ", tags$code("Date"), ".")
             ),
 
             tags$table(
@@ -1375,8 +1380,6 @@ tool1$server <- function(id, vals) {
               ),
               tags$tbody(
                 tags$tr(tags$td(tags$code("CHL")), tags$td("Chlorophyll-a concentration"), tags$td("mg m-3")),
-                tags$tr(tags$td(tags$code("PP")), tags$td("Primary productivity"), tags$td("mg m-2 day-1")),
-                tags$tr(tags$td(tags$code("CDM")), tags$td("Coloured dissolved and detrital organic materials"), tags$td("m-1")),
                 tags$tr(tags$td(tags$code("mlotst")), tags$td("Density ocean mixed layer thickness"), tags$td("m")),
                 tags$tr(tags$td(tags$code("fe")), tags$td("Dissolved iron"), tags$td("mmol m-3")),
                 tags$tr(tags$td(tags$code("no3")), tags$td("Nitrate"), tags$td("mmol m-3")),
@@ -1392,7 +1395,6 @@ tool1$server <- function(id, vals) {
                 tags$tr(tags$td(tags$code("rotwind")), tags$td("Wind vorticity"), tags$td("10^-5 s-1")),
                 tags$tr(tags$td(tags$code("divwind")), tags$td("Wind divergence"), tags$td("10^-5 s-1")),
                 tags$tr(tags$td(tags$code("analysed_sst")), tags$td("Analysed sea surface temperature"), tags$td(HTML("&deg;C"))),
-                tags$tr(tags$td(tags$code("ZEU_mean")), tags$td("Depth of the bottom of the euphotic layer"), tags$td("m")),
                 tags$tr(tags$td(tags$code("PAR_mean")), tags$td("Photosynthetically available radiation"), tags$td("einstein m-2 day-1"))
               )
             )
@@ -1912,9 +1914,15 @@ tool1$server <- function(id, vals) {
       d1
     })
 
+    # examples with a paired Datalist (e.g. nema/envi Araca, chl/envi FZA) insert two
+    # Datalists; the paired one receives the attributes of the first (data_migrate)
+    has_paired_example <- reactive({
+      identical(input$up_or_ex, "example") && !is.null(selected_example()[["paired_numeric_path"]])
+    })
+
     getdatalist_envi <- reactive({
 
-      req(selected_example_key() == "araca")
+      req(has_paired_example())
 
       path <- selected_example()[["paired_numeric_path"]]
 
@@ -2298,7 +2306,7 @@ tool1$server <- function(id, vals) {
 
         names(vals$saved_data)[length(vals$saved_data)] <- selected_example()[["name"]]
 
-        if (selected_example_key() == "araca") {
+        if (has_paired_example()) {
           envi <- getdatalist_envi()[[1]]
           envi <- data_migrate(datalist[[1]], envi, selected_example()[["paired_name"]])
 
@@ -2365,7 +2373,7 @@ tool1$server <- function(id, vals) {
         )
       }
 
-      if (input$up_or_ex == "example" && selected_example_key() == "araca") {
+      if (has_paired_example()) {
 
         div(
           style = "display: flex; gap: 10px",
@@ -3291,20 +3299,25 @@ tool2_tab3$server <- function(id, vals) {
         return("Only Numeric-Attribute columns can be transferred to Coords-Attribute.")
       }
 
-      if (from == "time" && !to %in% "numeric") {
-        return("Temporal-Attribute can only be transferred to Numeric-Attribute.")
+      if (from == "time" && !to %in% c("numeric", "factor")) {
+        return("Temporal-Attribute can be transferred to Numeric-Attribute or Factor-Attribute.")
       }
 
-      if (to == "time" && !from %in% "numeric") {
-        return("Only Numeric-Attribute columns can be transferred to Temporal-Attribute.")
+      if (to == "time" && !from %in% c("numeric", "factor")) {
+        return("Only Numeric-Attribute or Factor-Attribute columns can be transferred to Temporal-Attribute.")
       }
 
-      if (from == "factor" && to %in% c("coords", "time")) {
-        return("Factor-Attribute cannot be transferred to Coords-Attribute or Temporal-Attribute.")
+      if (from == "factor" && to %in% "coords") {
+        return("Factor-Attribute cannot be transferred to Coords-Attribute.")
       }
 
       TRUE
     })
+
+    # Numeric or Factor columns going to the Temporal-Attribute share the format page
+    is_to_time <- function() {
+      identical(convert()[["to"]], "time") && convert()[["from"]] %in% c("numeric", "factor")
+    }
 
     output$rule_message <- renderUI({
       rule <- valid_exchange()
@@ -3873,7 +3886,7 @@ tool2_tab3$server <- function(id, vals) {
     }
 
     output$time_format_page <- renderUI({
-      req(is_convert("numeric", "time"))
+      req(is_to_time())
 
       data <- get_data_from()
       req(ncol(data) > 0)
@@ -3884,7 +3897,7 @@ tool2_tab3$server <- function(id, vals) {
           "Format Temporal-Attribute",
           tiphelp_icon(
             icon("fas fa-question-circle"),
-            "Define how iMESc should interpret each selected numeric column before saving it as Temporal-Attribute."
+            "Define how iMESc should interpret each selected column before saving it as Temporal-Attribute."
           )
         ),
         p(
@@ -3960,7 +3973,7 @@ tool2_tab3$server <- function(id, vals) {
     })
 
     formatted_time <- reactive({
-      req(is_convert("numeric", "time"))
+      req(is_to_time())
 
       data <- get_data_from()
       out <- data
@@ -3980,7 +3993,7 @@ tool2_tab3$server <- function(id, vals) {
     })
 
     output$time_conversion_warning <- renderUI({
-      req(is_convert("numeric", "time"))
+      req(is_to_time())
 
       original <- get_data_from()
       converted <- formatted_time()
@@ -4031,7 +4044,7 @@ tool2_tab3$server <- function(id, vals) {
     })
 
     validate_time_conversion <- function() {
-      if (!is_convert("numeric", "time")) {
+      if (!is_to_time()) {
         return(TRUE)
       }
 
@@ -4289,8 +4302,9 @@ tool2_tab3$server <- function(id, vals) {
       if (is_convert("coords", "numeric")) return(coords_to_numeric())
       if (is_convert("time", "numeric")) return(time_to_numeric())
       if (is_convert("numeric", "coords")) return(numeric_to_coords())
-      if (is_convert("numeric", "time")) return(numeric_to_time())
+      if (is_to_time()) return(numeric_to_time())
       if (is_convert("numeric", "factor")) return(factor_to_factor())
+      if (is_convert("time", "factor")) return(factor_to_factor())
 
       if (is_convert("factor", "numeric")) {
         req(input$hand_facs)
@@ -4325,7 +4339,8 @@ tool2_tab3$server <- function(id, vals) {
         )
       }
       if (is_convert("numeric", "coords")) suffix <- span("(replace destination coordinates)", style = "color:#B36B00;")
-      if (is_convert("numeric", "time")) suffix <- span("(as temporal columns)", style = "color:#05668D;")
+      if (is_to_time()) suffix <- span("(as temporal columns)", style = "color:#05668D;")
+      if (is_convert("time", "factor")) suffix <- span("(dates as factor levels, in chronological order)", style = "color:#05668D;")
       if (is_convert("coords", "numeric")) suffix <- span("(coordinates as numeric columns)", style = "color:#05668D;")
       if (is_convert("time", "numeric")) suffix <- span("(dates as days since 1970-01-01, date-times as seconds, HH:MM as decimal hours)", style = "color:#05668D;")
 
@@ -12672,13 +12687,24 @@ tool6<-list()
 tool6$ui<-function(id){
   ns<-NS(id)
   div(
-    div(style="height: 300px; ;display: flex;",class="half-drop-inline",
+    div(style="height: 430px; ;display: flex;",class="half-drop-inline",
 
-        div(style="width: 50%;padding: 15px;",class="half-drop",
+        div(style="width: 50%;padding: 15px; overflow-y: auto; overflow-x: hidden;",class="half-drop",
             selectInput(ns("na_targ"),"Target:", c("Numeric-Attribute","Factor-Attribute")),
             selectInput(ns("na_method"), div("Method:",tipify_ui(actionLink(ns("na_help"),icon("fas fa-question-circle"), type="toggle"),"Click for details","right")),choices=c("knn","bagImpute","medianImpute","pmm","rf","cart")),
             uiOutput(ns('bag_warning')),
             hidden(numericInput(ns("na_knn"), span("K:",tiphelp("the number of nearest neighbors from the training set to use for imputation")),value=5)),
+            checkboxInput(ns("na_by_group"),tiphelp5(
+              "Impute by group",
+              "Imputes according to a Factor-Attribute column, typically the one created by Data partition (levels training and test). This avoids data leakage: without it, values of the test observations help to fill the training data (and vice versa), which makes model evaluation optimistic. 'Learn from one level' fits the imputation only on the reference level (e.g. training) and applies it to all observations, as a fitted model is applied to new data. 'Each level separately' imputes every level using only its own observations."
+            ),value=FALSE),
+            div(id=ns("na_group_opts"),
+                uiOutput(ns("na_group_var_ui")),
+                radioButtons(ns("na_group_mode"),NULL,
+                             choices=c("Learn from one level, apply to all"="reference","Each level separately"="separate"),
+                             selected="reference"),
+                uiOutput(ns("na_ref_level_ui"))
+            ),
             div(align="right",id=ns("run_na_btn"),
                 class="run_na_btn save_changes",
                 div(class="tools",
@@ -12691,10 +12717,6 @@ tool6$ui<-function(id){
                 uiOutput(ns('na_warning')),
                 uiOutput(ns('print_imputation_before')),
                 uiOutput(ns('print_imputation_after'))))
-    ),
-    div(
-      style="padding: 20px",
-      actionLink(ns("outlier_tool"), tiphelp5("Outlier Handling Tools", "Tools for detecting and replacing outliers with NA"))
     )
 
   )
@@ -12714,32 +12736,44 @@ tool6$server<-function(id,vals){
       vals$pp_data
     })
 
-    output$outlier_tool<-renderUI({
-      div()
-    })
-
-
-
-    observeEvent(input$outlier_tool,{
-      showModal(
-        tags$div(
-          class="modal-100",
-          modalDialog(
-            title="Outlier Handling Tools",
-            imesc_outliers$ui(session$ns("outlier"), vals),
-            size = "l",
-            easyClose = T
-          )
-        )
-      )
-    })
+    # Imputation by group (e.g. partition column) to avoid leakage between levels
     observe({
-      imesc_outliers$server("outlier",vals)
+      shinyjs::toggle("na_group_opts",condition=isTRUE(input$na_by_group))
+    })
+    group_choices<-reactive({
+      fac<-attr(data(),"factors")
+      if(is.null(fac)||!ncol(fac)) return(character(0))
+      # complete factors with a few levels (groups need several observations each)
+      ok<-vapply(fac,function(x){
+        n_lev<-length(unique(x))
+        !anyNA(x)&&n_lev>1&&n_lev<=length(x)/2
+      },logical(1))
+      colnames(fac)[ok]
+    })
+    output$na_group_var_ui<-renderUI({
+      choices<-group_choices()
+      if(!length(choices)){
+        return(div(em("No Factor-Attribute column without missing values. Create one with Data partition."),style="color: brown; font-size: 11px; white-space: normal"))
+      }
+      part<-choices[grepl("^Partition",choices)]
+      selected<-get_selected_from_choices(isolate(input$na_group_var)%||%(if(length(part)) part[1] else NULL),choices)
+      pickerInput_fromtop(session$ns("na_group_var"),"Group by:",choices=choices,selected=selected,options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+    })
+    output$na_ref_level_ui<-renderUI({
+      req(identical(input$na_group_mode,"reference"))
+      req(input$na_group_var%in%group_choices())
+      levs<-levels(factor(attr(data(),"factors")[[input$na_group_var]]))
+      train<-levs[grepl("train",levs,ignore.case=TRUE)]
+      selected<-if(length(train)) train[1] else levs[1]
+      pickerInput_fromtop(session$ns("na_ref_level"),tiphelp5("Learn from:","Level used to fit the imputation (usually the training data)."),choices=levs,selected=selected)
+    })
+    observeEvent(list(input$na_by_group,input$na_group_var,input$na_group_mode,input$na_ref_level),ignoreInit=TRUE,{
+      shinyjs::addClass("run_na_btn","save_changes")
     })
 
 
     observeEvent(input$run_na,ignoreInit = T,{
-      try({
+      run_res<-try({
 
 
 
@@ -12752,11 +12786,21 @@ tool6$server<-function(id,vals){
 
 
 
+        group_args<-list()
+        if(isTRUE(input$na_by_group)){
+          validate(need(isTRUE(input$na_group_var%in%group_choices()),"Choose the Factor-Attribute column used to group the imputation."))
+          group_args<-list(
+            group=attr(data(),"factors")[rownames(data()),input$na_group_var],
+            group_mode=input$na_group_mode,
+            ref_level=input$na_ref_level,
+            group_name=input$na_group_var
+          )
+        }
         withProgress(
           min=NA,
           max=NA,
           message="Imputing...",{
-            newdata0<-newdata<-nadata(data(),na_method,k,attr=attr)
+            newdata0<-newdata<-do.call(nadata,c(list(data(),na_method,k,attr=attr),group_args))
             attr(newdata,"bag")<-bag_name()
             newdata<-data_migrate(data(),newdata)
             if(input$na_targ=="Factor-Attribute"){
@@ -12765,6 +12809,7 @@ tool6$server<-function(id,vals){
               newdata<-data_o
             }
             #result_v6
+            attr(newdata,"group_info")<-attr(newdata0,"group_info")
             vals$r_imputed<-newdata
           })
         shinyjs::removeClass("run_na_btn","save_changes")
@@ -12773,7 +12818,10 @@ tool6$server<-function(id,vals){
         vals$r_impute<-NULL
 
 
-      })
+      },silent=TRUE)
+      if(inherits(run_res,"try-error")){
+        showNotification(paste("Imputation was not done:",attr(run_res,"condition")$message),type="error",duration=10)
+      }
     })
 
 
@@ -12833,8 +12881,12 @@ tool6$server<-function(id,vals){
       if(original_number_of_nas()==new_number_of_nas() ){
         return(NULL)
       } else{
+        gi<-attr(vals$r_imputed,"group_info")
         div(
           div( emgreen(span(original_number_of_nas(),'values were imputed'))),
+          if(!is.null(gi)) div(style="font-size: 11px",
+                               if(identical(gi$mode,"reference")) paste0("Fitted on ",gi$group," = ",gi$ref_level,", applied to all observations")
+                               else paste0("Each level of ",gi$group," imputed separately")),
           div("Save to make permanent")
         )
       }
@@ -12891,12 +12943,18 @@ tool6$server<-function(id,vals){
 
 
     )}
-    lapply(seq_along(titles),function(i){
-      p(
-        titles[[i]],
-        p_descs[[i]]
-      )
-    })
+    c(
+      lapply(seq_along(titles),function(i){
+        p(
+          titles[[i]],
+          p_descs[[i]]
+        )
+      }),
+      list(p(
+        strong("Impute by group:"),
+        "uses a Factor-Attribute column, usually the one created by Data partition, to avoid data leakage between training and test observations. 'Learn from one level, apply to all' fits the imputation only on the reference level (e.g. training) and applies it to every observation; for pmm, rf and cart the reference level is imputed first on its own, and the other levels are then imputed with models fitted on it. 'Each level separately' imputes every level using only its own observations."
+      ))
+    )
     })
     observeEvent(input$na_help,ignoreInit = T,{
 

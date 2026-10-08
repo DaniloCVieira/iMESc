@@ -736,6 +736,31 @@ app_server<-server<-function(input, output, session) {
 
                 div(
                   class = "news-date",
+                  "8 October 2026"
+                ),
+
+                h4(
+                  icon("chart-area"),
+                  " Temporal predictions in Supervised Algorithms"
+                ),
+
+                div(
+                  "A new ",
+                  strong("Temporal"),
+                  " tab was added to ",
+                  strong("Predict"),
+                  " for models trained with a Datalist that has a Temporal-Attribute."
+                ),
+
+                div(
+                  "Users can plot observed and predicted values through time, map predicted, observed, or error values (RMSE, MAE, bias or accuracy) with north arrow and scale bar, inspect residuals by location and time (Hovmoller diagram), follow error metrics through time, compare observed vs predicted values by season, month or year, and check the autocorrelation of the residuals. All plots and tables can be downloaded."
+                )
+              ),
+              div(
+                class = "news-card",
+
+                div(
+                  class = "news-date",
                   "3 September 2026"
                 ),
 

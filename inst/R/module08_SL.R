@@ -10155,15 +10155,18 @@ model_predic$ui<-function(id){
                           show_tittle=F,
                           title="Setup",
                           div(
-                            div(class="radio_search radio_yellow",
-                                #tags$labe(),
-                                radioGroupButtons(
-                                  ns("svmpred_which"), NULL,
-                                  choices = c("Partition"='Partition',
-                                              "Training"='Training',
-                                              "New Data"="Datalist")
-                                )
+                            div(style="display: flex; align-items: flex-start",
+                                div(class="radio_search radio_yellow",
+                                    #tags$labe(),
+                                    radioGroupButtons(
+                                      ns("svmpred_which"), NULL,
+                                      choices = c("Partition"='Partition',
+                                                  "Training"='Training',
+                                                  "New Data"="Datalist")
+                                    )
 
+                                ),
+                                uiOutput(ns("pred_dims"))
                             ),
 
                             div(class="inline_pickers",style=" margin-left: 10px",
@@ -10204,7 +10207,107 @@ model_predic$ui<-function(id){
 
                                 ),
                                 div(id=ns("metric_options"),
-                                    numericInput(ns("round_metric"),"+ Round",3,step=1),)
+                                    numericInput(ns("round_metric"),"+ Round",3,step=1),),
+                                div(id=ns("temporal_options"),
+                                    uiOutput(ns("temporal_time_col_ui")),
+                                    div(id=ns("ts_options"),
+                                        radioButtons(ns("ts_mode"),"Series:",c("Mean of all locations"="mean","Selected locations"="locations"),inline=TRUE),
+                                        uiOutput(ns("ts_locs_ui")),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            colourpicker::colourInput(ns("ts_col_obs"),"Observed:",value="#1B1B1B",showColour="background",width="110px"),
+                                            colourpicker::colourInput(ns("ts_col_pred"),"Predicted:",value="#D95F02",showColour="background",width="110px")
+                                        ),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("ts_linewidth"),"Line:",value=0.7,min=0,step=0.1,width="90px"),
+                                            numericInput(ns("ts_point_size"),"Point:",value=1.8,min=0,step=0.2,width="90px")
+                                        ),
+                                        checkboxInput(ns("ts_show_points"),"Show points",value=TRUE),
+                                        checkboxInput(ns("ts_show_ribbon"),tiphelp5("Show +/- SD","Band with the standard deviation across locations (Mean of all locations)."),value=TRUE),
+                                        pickerInput_fromtop(ns("ts_theme"),"Theme:",choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),selected="theme_bw"),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("ts_base_size"),"Base size:",value=12,min=6,step=1,width="100px"),
+                                            numericInput(ns("ts_facet_ncol"),"Columns:",value=2,min=1,step=1,width="100px"),
+                                            numericInput(ns("ts_x_angle"),"X angle:",value=0,min=0,max=90,step=15,width="100px")
+                                        ),
+                                        textInput(ns("ts_title"),"Title:",value="Observed and predicted through time"),
+                                        textInput(ns("ts_xlab"),"X label:",value="Time"),
+                                        textInput(ns("ts_ylab"),"Y label:",value=""),
+                                        pickerInput_fromtop(ns("ts_legend"),"Legend:",choices=c("bottom","right","top","left","none"),selected="bottom"),
+                                        numericInput(ns("ts_height"),"Plot height:",value=420,min=200,step=20)
+                                    ),
+                                    div(id=ns("map_options"),
+                                        uiOutput(ns("map_time_ui")),
+                                        pickerInput_fromtop(ns("map_what"),"Show:",choices=c("Predicted"="pred","Observed"="obs","Error"="error"),selected="pred"),
+                                        uiOutput(ns("map_error_ui")),
+                                        uiOutput(ns("map_pal_ui")),
+                                        checkboxInput(ns("map_reverse"),"Reverse palette",value=FALSE),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("map_nbreaks"),"Classes:",value=5,min=2,step=1,width="95px"),
+                                            numericInput(ns("map_max_radius"),"Point size:",value=3,min=0.5,step=0.5,width="95px")
+                                        ),
+                                        pickerInput_fromtop(ns("map_axis_style"),"Axes:",choices=c("B&W Blocks"="bw_blocks","Classic"="default"),selected="bw_blocks"),
+                                        pickerInput_fromtop(ns("map_north"),"North:",choices=c("top-left"="tl","top-right"="tr","bottom-left"="bl","bottom-right"="br","none"="none"),selected="tl"),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            pickerInput_fromtop(ns("map_scalebar"),"Scale bar:",choices=c("bottomright","bottomleft","topright","topleft","none"),selected="bottomright"),
+                                            numericInput(ns("map_bins_km"),"Bin (km):",value=100,min=1,step=10,width="95px")
+                                        ),
+                                        checkboxInput(ns("map_base_shape"),"Base shape",value=TRUE),
+                                        checkboxInput(ns("map_layer_shape"),"Layer shape",value=TRUE),
+                                        textInput(ns("map_title"),"Title:",value=""),
+                                        textInput(ns("map_leg_title"),"Legend title:",value=""),
+                                        numericInput(ns("map_height"),"Plot height:",value=480,min=200,step=20)
+                                    ),
+                                    div(id=ns("hov_options"),
+                                        pickerInput_fromtop(ns("hov_order"),tiphelp5("Order locations by","Rows are locations. Ordering by the y coordinate (latitude) shows how errors spread in space through time."),choices=c("y coordinate"="y","x coordinate"="x","Mean error"="error"),selected="y"),
+                                        uiOutput(ns("hov_fill_ui")),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            colourpicker::colourInput(ns("hov_low"),"Low:",value="#2166AC",showColour="background",width="95px"),
+                                            colourpicker::colourInput(ns("hov_mid"),"Mid:",value="white",showColour="background",width="95px"),
+                                            colourpicker::colourInput(ns("hov_high"),"High:",value="#B2182B",showColour="background",width="95px")
+                                        ),
+                                        checkboxInput(ns("hov_labels"),"Show location labels",value=FALSE),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("hov_base_size"),"Base size:",value=12,min=6,step=1,width="100px"),
+                                            numericInput(ns("hov_x_angle"),"X angle:",value=0,min=0,max=90,step=15,width="100px")
+                                        ),
+                                        textInput(ns("hov_title"),"Title:",value="Residuals by location and time"),
+                                        numericInput(ns("hov_height"),"Plot height:",value=480,min=200,step=20)
+                                    ),
+                                    div(id=ns("err_options"),
+                                        uiOutput(ns("err_metrics_ui")),
+                                        checkboxInput(ns("err_points"),"Show points",value=TRUE),
+                                        pickerInput_fromtop(ns("err_theme"),"Theme:",choices=c("theme_bw","theme_light","theme_minimal","theme_classic","theme_grey"),selected="theme_bw"),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("err_base_size"),"Base size:",value=12,min=6,step=1,width="100px"),
+                                            numericInput(ns("err_x_angle"),"X angle:",value=0,min=0,max=90,step=15,width="100px")
+                                        ),
+                                        textInput(ns("err_title"),"Title:",value="Error through time"),
+                                        pickerInput_fromtop(ns("err_legend"),"Legend:",choices=c("bottom","right","top","left","none"),selected="bottom"),
+                                        numericInput(ns("err_height"),"Plot height:",value=420,min=200,step=20)
+                                    ),
+                                    div(id=ns("ovp_options"),
+                                        pickerInput_fromtop(ns("ovp_group"),tiphelp5("Color by","Seasons follow the selected hemisphere (south: Summer = Dec-Feb). Needs a Date temporal column."),choices=c("Season (south)"="season_south","Season (north)"="season_north","Month"="month","Year"="year","None"="none"),selected="season_south"),
+                                        uiOutput(ns("ovp_pal_ui")),
+                                        checkboxInput(ns("ovp_1to1"),"1:1 line",value=TRUE),
+                                        checkboxInput(ns("ovp_fit"),"Linear fit by group",value=TRUE),
+                                        checkboxInput(ns("ovp_facet"),"One panel per group",value=FALSE),
+                                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
+                                            numericInput(ns("ovp_point_size"),"Point:",value=1.8,min=0,step=0.2,width="95px"),
+                                            numericInput(ns("ovp_alpha"),"Alpha:",value=0.6,min=0,max=1,step=0.1,width="95px"),
+                                            numericInput(ns("ovp_base_size"),"Base size:",value=12,min=6,step=1,width="95px")
+                                        ),
+                                        textInput(ns("ovp_title"),"Title:",value="Observed vs predicted"),
+                                        numericInput(ns("ovp_height"),"Plot height:",value=480,min=200,step=20)
+                                    ),
+                                    div(id=ns("acf_options"),
+                                        radioButtons(ns("acf_mode"),"Residuals:",c("Mean across locations"="mean","Each location (boxplot)"="locations"),selected="mean"),
+                                        numericInput(ns("acf_max_lag"),"Max lag:",value=12,min=1,step=1),
+                                        colourpicker::colourInput(ns("acf_color"),"Color:",value="#05668D",showColour="background"),
+                                        numericInput(ns("acf_base_size"),"Base size:",value=12,min=6,step=1),
+                                        textInput(ns("acf_title"),"Title:",value="Autocorrelation of the residuals"),
+                                        numericInput(ns("acf_height"),"Plot height:",value=400,min=200,step=20)
+                                    )
+                                )
                               )
 
                     )
@@ -10220,7 +10323,9 @@ model_predic$ui<-function(id){
              button_title=div(
                actionLink(ns("down_metrics"),"Download",icon('download')),
                actionLink(ns("down_svm_tab3_1"),"Download",icon('download')),
-               actionLink(ns("downp_cmsl_pred"),"Download",icon('download'))
+               actionLink(ns("downp_cmsl_pred"),"Download",icon('download')),
+               actionLink(ns("down_temporal_plot"),span("Download plot",icon("fas fa-download"))),
+               actionLink(ns("down_temporal_table"),span("Download table",icon("fas fa-table")))
              ),
              button_title2 =radioGroupButtons(
                ns("radio_pred"),
@@ -10247,6 +10352,24 @@ model_predic$ui<-function(id){
                    uiOutput(ns("confusion_sl_pred")),
                    verbatimTextOutput(ns("confusion_svm2_pred"))
 
+                 ),
+                 tabPanel(
+                   "Temporal",value="tab_temporal",
+                   tabsetPanel(
+                     id=ns("temporal_subtab"),
+                     tabPanel("Time series",value="ts",
+                              uiOutput(ns("temporal_ts_ui"))),
+                     tabPanel("Map",value="map",
+                              uiOutput(ns("temporal_map_ui"))),
+                     tabPanel("Residuals (Hovmoller)",value="hov",
+                              uiOutput(ns("temporal_hov_ui"))),
+                     tabPanel("Error through time",value="err",
+                              uiOutput(ns("temporal_err_ui"))),
+                     tabPanel("Obs vs Pred",value="ovp",
+                              uiOutput(ns("temporal_ovp_ui"))),
+                     tabPanel("Residual ACF",value="acf",
+                              uiOutput(ns("temporal_acf_ui")))
+                   )
                  )
 
                ),
@@ -10316,6 +10439,8 @@ model_predic$server<-function(id,vals){
       shinyjs::toggle("svm_create_predictions",condition=input$predSL_tab=="tab_pred")
       shinyjs::toggle("pred_loop_btn",condition=input$predSL_tab=="tab_pred")
       shinyjs::toggle("downp_cmsl_pred",condition=input$predSL_tab=="tab_cm")
+      shinyjs::toggle("down_temporal_plot",condition=identical(input$predSL_tab,"tab_temporal"))
+      shinyjs::toggle("down_temporal_table",condition=identical(input$predSL_tab,"tab_temporal"))
 
     })
     observeEvent(attr(model(),'test'),{
@@ -10336,6 +10461,13 @@ model_predic$server<-function(id,vals){
       shinyjs::toggle('cm_options',condition=input$predSL_tab=="tab_cm")
       shinyjs::toggle('metric_options',condition=input$predSL_tab=="tab_metric")
       shinyjs::toggle('pred_options',condition=input$predSL_tab!="tab_pred")
+      shinyjs::toggle('temporal_options',condition=identical(input$predSL_tab,"tab_temporal"))
+      shinyjs::toggle('ts_options',condition=identical(input$temporal_subtab,"ts"))
+      shinyjs::toggle('map_options',condition=identical(input$temporal_subtab,"map"))
+      shinyjs::toggle('hov_options',condition=identical(input$temporal_subtab,"hov"))
+      shinyjs::toggle('err_options',condition=identical(input$temporal_subtab,"err"))
+      shinyjs::toggle('ovp_options',condition=identical(input$temporal_subtab,"ovp"))
+      shinyjs::toggle('acf_options',condition=identical(input$temporal_subtab,"acf"))
 
 
 
@@ -10347,6 +10479,283 @@ model_predic$server<-function(id,vals){
     box_caret_server('26')
     box_caret_server('27')
     box_caret_server('28')
+
+    # number of observations used to train the model and to be predicted (same style as
+    # the Training dimensions shown in the model setup)
+    output$pred_dims<-renderUI({
+      m<-model()
+      req(inherits(m,"train"))
+      n_pred<-tryCatch(nrow(get_new_data()),error=function(e) NA)
+      div(style="display: flex; font-size: 11px; margin-top: 2px",
+          div(style="margin-left: 10px",
+              div(strong("Training:")),
+              div(emgreen(paste0(nrow(m$trainingData)," obs")))),
+          div(style="margin-left: 10px",
+              div(strong("Predict:")),
+              div(emgreen(if(length(n_pred)&&!is.na(n_pred)) paste0(n_pred," obs") else "-")))
+      )
+    })
+
+    # Result tabs follow the active model: Confusion Matrix only for classification and
+    # Temporal only when the training Datalist has a Temporal-Attribute. Numbers are
+    # recomputed so they stay sequential (3.1, 3.2, ...).
+    model_has_time<-reactive({
+      m<-model()
+      req(inherits(m,"train"))
+      d<-vals$saved_data[[attr(m,"Datalist")]]
+      time_attr<-attr(d,"time")
+      !is.null(time_attr)&&ncol(as.data.frame(time_attr))>0
+    })
+    pred_tabs<-reactive({
+      m<-model()
+      req(inherits(m,"train"))
+      tabs<-c("Metrics"="tab_metric","Predictions"="tab_pred")
+      if(identical(m$modelType,"Classification")) tabs<-c(tabs,"Confusion Matrix"="tab_cm")
+      if(isTRUE(model_has_time())) tabs<-c(tabs,"Temporal"="tab_temporal")
+      tabs
+    })
+    observeEvent(pred_tabs(),{
+      tabs<-pred_tabs()
+      selected<-if(isTRUE(input$radio_pred%in%tabs)) input$radio_pred else unname(tabs[1])
+      updateRadioGroupButtons(
+        session,"radio_pred",
+        choiceNames=paste0("3.",seq_along(tabs),". ",names(tabs)),
+        choiceValues=unname(tabs),
+        selected=selected
+      )
+      updateTabsetPanel(session,"predSL_tab",selected=selected)
+    })
+
+    # ---- Temporal tab ---------------------------------------------------------------
+    temporal_source<-reactive({
+      m<-model()
+      name<-if(identical(input$svmpred_which,"Datalist")) input$predSL_new else attr(m,"Datalist")
+      req(name%in%names(vals$saved_data))
+      vals$saved_data[[name]]
+    })
+    # observed values named by ID (NULL when not available)
+    temporal_obs<-reactive({
+      m<-model()
+      sup<-attr(m,"supervisor")
+      which<-input$svmpred_which
+      if(identical(which,"Partition")){
+        st<-attr(m,"sup_test")
+        if(!is.data.frame(st)) return(NULL)
+        return(setNames(st[,1],rownames(st)))
+      }
+      if(identical(which,"Training")){
+        td<-m$trainingData
+        return(setNames(td$.outcome,rownames(td)))
+      }
+      if(identical(which,"Datalist")){
+        ny<-input$predSL_newY
+        if(is.null(ny)||!ny%in%names(vals$saved_data)) return(NULL)
+        d<-vals$saved_data[[ny]]
+        if(identical(m$modelType,"Classification")) d<-attr(d,"factors")
+        if(is.null(d)||!sup%in%colnames(d)) return(NULL)
+        return(setNames(d[,sup],rownames(d)))
+      }
+      NULL
+    })
+    output$temporal_time_col_ui<-renderUI({
+      time_attr<-attr(temporal_source(),"time")
+      validate(need(!is.null(time_attr),"No Temporal-Attribute in the Datalist of the predictions."))
+      choices<-colnames(time_attr)
+      pickerInput_fromtop(ns("temporal_time_col"),"Time column:",choices=choices,selected=get_selected_from_choices(isolate(input$temporal_time_col),choices))
+    })
+    temporal_df<-reactive({
+      req(identical(input$predSL_tab,"tab_temporal"))
+      pred<-predictionSL()
+      validate(need(!is.null(pred),"Click RUN>> to compute the predictions."))
+      req(input$temporal_time_col)
+      sl_temporal_pred_data(pred,temporal_obs(),temporal_source(),input$temporal_time_col)
+    })
+
+    # time series
+    output$ts_locs_ui<-renderUI({
+      req(identical(input$ts_mode,"locations"))
+      locs<-unique(temporal_df()$loc)
+      selected<-intersect(isolate(input$ts_locs),locs)
+      if(!length(selected)) selected<-head(locs,4)
+      pickerInput_fromtop(ns("ts_locs"),tiphelp5("Locations","Locations are identified by their coordinates (x_y)."),choices=locs,selected=selected,multiple=TRUE,options=shinyWidgets::pickerOptions(liveSearch=TRUE,actionsBox=TRUE,selectedTextFormat="count > 2"))
+    })
+    temporal_ts_plot<-reactive({
+      df<-temporal_df()
+      gg_temporal_series(
+        df,
+        mode=input$ts_mode%||%"mean",
+        locs=input$ts_locs,
+        col_obs=input$ts_col_obs%||%"#1B1B1B",
+        col_pred=input$ts_col_pred%||%"#D95F02",
+        linewidth=input$ts_linewidth%||%0.7,
+        point_size=input$ts_point_size%||%1.8,
+        show_points=isTRUE(input$ts_show_points),
+        show_ribbon=isTRUE(input$ts_show_ribbon),
+        theme=input$ts_theme%||%"theme_bw",
+        base_size=input$ts_base_size%||%12,
+        title=input$ts_title,
+        xlab=input$ts_xlab,
+        ylab=input$ts_ylab,
+        legend.position=input$ts_legend%||%"bottom",
+        facet_ncol=max(1,input$ts_facet_ncol%||%2),
+        x_angle=input$ts_x_angle%||%0
+      )
+    })
+    output$temporal_ts_ui<-renderUI({
+      plotOutput(ns("temporal_ts_plot"),height=paste0(input$ts_height%||%420,"px"))
+    })
+    output$temporal_ts_plot<-renderPlot({
+      temporal_ts_plot()
+    })
+
+    # map
+    output$map_time_ui<-renderUI({
+      times<-sort(unique(temporal_df()$time))
+      choices<-c("All times (aggregate)"="__all__",setNames(as.character(times),as.character(times)))
+      pickerInput_fromtop(ns("map_time"),"Time:",choices=choices,selected=get_selected_from_choices(isolate(input$map_time),choices),options=shinyWidgets::pickerOptions(liveSearch=TRUE))
+    })
+    output$map_error_ui<-renderUI({
+      req(identical(input$map_what,"error"))
+      if(isTRUE(attr(temporal_df(),"is_class"))){
+        return(div(em("Error = accuracy (share of correct predictions) at each location.",style="font-size: 11px")))
+      }
+      pickerInput_fromtop(ns("map_error"),"Error metric:",choices=c("RMSE"="rmse","MAE"="mae","Bias (mean predicted - observed)"="bias"),selected="rmse")
+    })
+    output$map_pal_ui<-renderUI({
+      choices<-vals$colors_img$val
+      pickerInput_fromtop(ns("map_pal"),"Palette:",choices=choices,choicesOpt=list(content=vals$colors_img$img),selected=get_selected_from_choices(isolate(input$map_pal)%||%"turbo",choices))
+    })
+    temporal_map_data<-reactive({
+      req(input$map_time,input$map_what)
+      sl_temporal_map_data(
+        temporal_df(),temporal_source(),
+        time_value=input$map_time,
+        what=input$map_what,
+        error_metric=input$map_error%||%"rmse"
+      )
+    })
+    temporal_map_plot<-reactive({
+      md<-temporal_map_data()
+      req(input$map_pal%in%names(vals$newcolhabs))
+      what_label<-switch(input$map_what,
+                         pred="Predicted",obs="Observed",
+                         error=if(isTRUE(attr(temporal_df(),"is_class"))) "Accuracy" else toupper(input$map_error%||%"rmse"))
+      when<-if(identical(input$map_time,"__all__")) "all times" else input$map_time
+      gg_temporal_map(
+        md,newcolhabs=vals$newcolhabs,pal=input$map_pal,reverse_palette=isTRUE(input$map_reverse),
+        nbreaks=input$map_nbreaks%||%5,max_radius=input$map_max_radius%||%3,
+        main=if(nzchar(input$map_title%||%"")) input$map_title else paste0(what_label," - ",attr(model(),"supervisor")," (",when,")"),
+        leg_title=if(nzchar(input$map_leg_title%||%"")) input$map_leg_title else what_label,
+        axis_style=input$map_axis_style%||%"bw_blocks",
+        base_shape=isTRUE(input$map_base_shape),layer_shape=isTRUE(input$map_layer_shape),
+        bar_position=input$map_scalebar%||%"bottomright",bins_km=input$map_bins_km%||%100,
+        n_location=input$map_north%||%"tl"
+      )
+    })
+    output$temporal_map_ui<-renderUI({
+      plotOutput(ns("temporal_map_plot"),height=paste0(input$map_height%||%480,"px"))
+    })
+    output$temporal_map_plot<-renderPlot({
+      suppressMessages(print(temporal_map_plot()))
+    })
+
+    # diagnostics
+    temporal_is_class<-reactive(isTRUE(attr(temporal_df(),"is_class")))
+    output$hov_fill_ui<-renderUI({
+      req(!temporal_is_class())
+      pickerInput_fromtop(ns("hov_fill"),"Fill:",choices=c("Predicted - Observed"="diff","|Predicted - Observed|"="abs"),selected="diff")
+    })
+    temporal_hov_plot<-reactive({
+      gg_temporal_hovmoller(
+        temporal_df(),
+        order_by=input$hov_order%||%"y",
+        fill_type=input$hov_fill%||%"diff",
+        low=input$hov_low%||%"#2166AC",mid=input$hov_mid%||%"white",high=input$hov_high%||%"#B2182B",
+        base_size=input$hov_base_size%||%12,
+        title=input$hov_title,
+        show_loc_labels=isTRUE(input$hov_labels),
+        x_angle=input$hov_x_angle%||%0
+      )
+    })
+    output$err_metrics_ui<-renderUI({
+      if(temporal_is_class()){
+        return(checkboxGroupInput(ns("err_metrics"),"Metrics:",choices=c("Accuracy"="accuracy","Recall by class"="per_class"),selected=c("accuracy","per_class")))
+      }
+      checkboxGroupInput(ns("err_metrics"),"Metrics:",choices=c("RMSE"="rmse","MAE"="mae","Bias (pred - obs)"="bias"),selected=c("rmse","bias"))
+    })
+    temporal_err_plot<-reactive({
+      gg_temporal_error(
+        temporal_df(),
+        metrics=input$err_metrics,
+        show_points=isTRUE(input$err_points),
+        theme=input$err_theme%||%"theme_bw",
+        base_size=input$err_base_size%||%12,
+        title=input$err_title,
+        legend.position=input$err_legend%||%"bottom",
+        x_angle=input$err_x_angle%||%0
+      )
+    })
+    output$ovp_pal_ui<-renderUI({
+      choices<-vals$colors_img$val
+      pickerInput_fromtop(ns("ovp_pal"),"Palette:",choices=choices,choicesOpt=list(content=vals$colors_img$img),selected=get_selected_from_choices(isolate(input$ovp_pal)%||%"turbo",choices))
+    })
+    temporal_ovp_plot<-reactive({
+      gg_temporal_obs_pred(
+        temporal_df(),
+        group_by=input$ovp_group%||%"season_south",
+        colors=vals$newcolhabs[[input$ovp_pal%||%"turbo"]],
+        show_1to1=isTRUE(input$ovp_1to1),
+        show_fit=isTRUE(input$ovp_fit),
+        point_size=input$ovp_point_size%||%1.8,
+        alpha=input$ovp_alpha%||%0.6,
+        base_size=input$ovp_base_size%||%12,
+        title=input$ovp_title,
+        facet=isTRUE(input$ovp_facet)
+      )
+    })
+    temporal_acf_plot<-reactive({
+      gg_temporal_resid_acf(
+        temporal_df(),
+        mode=input$acf_mode%||%"mean",
+        max_lag=input$acf_max_lag%||%12,
+        color=input$acf_color%||%"#05668D",
+        base_size=input$acf_base_size%||%12,
+        title=input$acf_title
+      )
+    })
+    lapply(c("hov","err","ovp","acf"),function(k){
+      output[[paste0("temporal_",k,"_ui")]]<-renderUI({
+        plotOutput(ns(paste0("temporal_",k,"_plot")),height=paste0(input[[paste0(k,"_height")]]%||%440,"px"))
+      })
+      output[[paste0("temporal_",k,"_plot")]]<-renderPlot({
+        p<-switch(k,hov=temporal_hov_plot(),err=temporal_err_plot(),ovp=temporal_ovp_plot(),acf=temporal_acf_plot())
+        suppressMessages(print(p))
+      })
+    })
+
+    # plot and table of the active temporal sub-tab
+    temporal_current<-function(){
+      switch(input$temporal_subtab%||%"ts",
+             map=list(plot=temporal_map_plot(),table=cbind(attr(temporal_map_data(),"coords"),value=temporal_map_data()[,1]),
+                      message="Temporal prediction map",name=paste0("pred_map_",input$map_what)),
+             hov=list(plot=temporal_hov_plot(),table=attr(temporal_hov_plot(),"table"),message="Residuals by location and time",name="pred_residuals_hovmoller"),
+             err=list(plot=temporal_err_plot(),table=attr(temporal_err_plot(),"table"),message="Error through time",name="pred_error_through_time"),
+             ovp=list(plot=temporal_ovp_plot(),table=attr(temporal_ovp_plot(),"table"),message="Observed vs predicted",name="pred_obs_vs_pred"),
+             acf=list(plot=temporal_acf_plot(),table=attr(temporal_acf_plot(),"table"),message="Autocorrelation of the residuals",name="pred_residual_acf"),
+             list(plot=temporal_ts_plot(),table=temporal_df(),message="Observed and predicted through time",name="pred_time_series"))
+    }
+    observeEvent(input$down_temporal_plot,ignoreInit=TRUE,{
+      cur<-temporal_current()
+      vals$hand_plot<-"generic_gg"
+      module_ui_figs("downfigs")
+      callModule(module_server_figs,"downfigs",vals=vals,generic=cur$plot,message=cur$message,name_c=cur$name,datalist_name=attr(model(),"Datalist"))
+    })
+    observeEvent(input$down_temporal_table,ignoreInit=TRUE,{
+      cur<-temporal_current()
+      vals$hand_down<-"generic"
+      module_ui_downcenter("downcenter")
+      callModule(module_server_downcenter,"downcenter",vals=vals,message=paste("Download",tolower(cur$message)),data=cur$table,name=cur$name)
+    })
 
     observeEvent(ignoreInit = T,input$down_metrics,{
       vals$hand_down<-"generic"
@@ -10702,10 +11111,12 @@ model_predic$server<-function(id,vals){
       validate(need(inherits(model(),"train"),"No trained  models found"))
 
       table<-vals$svmtab_pred<-predictionSL()
+      # scrollX inside an inline-block container makes DataTables widen the table on
+      # every redraw; the predictions table has a single column, so no horizontal scroll
       div(class="half-drop-inline",
           inline(fixed_dt(
             table,pageLength = 20,dom="ltp",
-            round=NULL,scrollY = "200px",
+            round=NULL,scrollY = "200px",scrollX = FALSE,
             extensions = c("FixedHeader"))))
     })
 

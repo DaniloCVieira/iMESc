@@ -1216,3 +1216,380 @@ sl_setup_issues_ui<-function(issues){
       strong(icon("triangle-exclamation")," Check the model setup:"),
       tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 18px;",lapply(issues,tags$li)))
 }
+
+# ---- Temporal predictions (Predict > Temporal) ---------------------------------------
+# Predictions, observed values, time and coordinates are always matched by observation ID.
+
+# pred: data.frame with one column and IDs as rownames; obs: named vector (IDs) or NULL;
+# source: Datalist that holds the Temporal-Attribute (and coords) of the predicted IDs.
+#' @export
+sl_temporal_pred_data<-function(pred,obs,source,time_col){
+  time_attr<-attr(source,"time")
+  validate(need(!is.null(time_attr)&&time_col%in%colnames(time_attr),"The Datalist of the predictions has no Temporal-Attribute with the selected column."))
+  ids<-rownames(pred)
+  validate(need(all(ids%in%rownames(time_attr)),"The Temporal-Attribute does not contain all predicted observations."))
+  tt<-time_attr[ids,time_col,drop=TRUE]
+  if(!inherits(tt,c("Date","POSIXt"))&&!is.numeric(tt)){
+    guess<-guess_time_settings(tt)
+    if(guess$type%in%c("date","datetime")) tt<-convert_time_column(tt,guess$type,guess$format,guess$custom)
+  }
+  coords<-attr(source,"coords")
+  has_coords<-!is.null(coords)&&ncol(as.data.frame(coords))>=2&&all(ids%in%rownames(coords))
+  if(has_coords){
+    xy<-as.data.frame(coords)[ids,1:2,drop=FALSE]
+    loc<-paste0(round(xy[,1],6),"_",round(xy[,2],6))
+  } else{
+    xy<-data.frame(x=rep(NA_real_,length(ids)),y=rep(NA_real_,length(ids)))
+    loc<-rep("All",length(ids))
+  }
+  p<-pred[,1]
+  o<-if(is.null(obs)) rep(NA,length(ids)) else obs[ids]
+  if(is.factor(p)){
+    lev<-levels(p)
+    o<-factor(as.character(o),levels=union(lev,unique(as.character(o[!is.na(o)]))))
+  } else{
+    o<-suppressWarnings(as.numeric(as.character(o)))
+  }
+  df<-data.frame(id=ids,time=tt,loc=loc,x=xy[,1],y=xy[,2],stringsAsFactors=FALSE)
+  df$obs<-o
+  df$pred<-p
+  attr(df,"has_coords")<-has_coords
+  attr(df,"is_class")<-is.factor(p)
+  df[order(df$time,df$loc),,drop=FALSE]
+}
+
+# Observed vs predicted through time. mode="mean": mean (+/- SD) across locations at
+# each time (regression) or accuracy per time (classification); mode="locations": the
+# selected locations, one panel each.
+#' @export
+gg_temporal_series<-function(df,mode="mean",locs=NULL,col_obs="#1B1B1B",col_pred="#D95F02",linewidth=0.7,point_size=1.8,show_points=TRUE,show_ribbon=TRUE,theme="theme_bw",base_size=12,title="Observed and predicted through time",xlab="Time",ylab=NULL,legend.position="bottom",facet_ncol=2,x_angle=0){
+  is_class<-isTRUE(attr(df,"is_class"))
+  has_obs<-any(!is.na(df$obs))
+  theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
+  cols<-c(Observed=col_obs,Predicted=col_pred)
+
+  if(identical(mode,"mean")){
+    if(is_class){
+      validate(need(has_obs,"Observed values are needed to show the accuracy through time."))
+      acc<-stats::aggregate(list(value=as.character(df$obs)==as.character(df$pred)),list(time=df$time),mean,na.rm=TRUE)
+      p<-ggplot2::ggplot(acc,ggplot2::aes(x=time,y=value))+
+        ggplot2::geom_line(color=col_pred,linewidth=linewidth)
+      if(isTRUE(show_points)) p<-p+ggplot2::geom_point(color=col_pred,size=point_size)
+      p<-p+ggplot2::scale_y_continuous(limits=c(0,1))+ggplot2::labs(y=if(is.null(ylab)||!nzchar(ylab)) "Accuracy (all locations)" else ylab)
+    } else{
+      long<-rbind(
+        if(has_obs) data.frame(time=df$time,value=df$obs,series="Observed"),
+        data.frame(time=df$time,value=df$pred,series="Predicted")
+      )
+      agg<-stats::aggregate(value~time+series,long,function(v) c(mean=mean(v,na.rm=TRUE),sd=if(sum(!is.na(v))>1) stats::sd(v,na.rm=TRUE) else NA_real_))
+      agg<-do.call(data.frame,agg)
+      names(agg)<-c("time","series","mean","sd")
+      p<-ggplot2::ggplot(agg,ggplot2::aes(x=time,y=mean,color=series,fill=series,group=series))
+      if(isTRUE(show_ribbon)) p<-p+ggplot2::geom_ribbon(ggplot2::aes(ymin=mean-sd,ymax=mean+sd),alpha=0.18,color=NA,na.rm=TRUE)
+      p<-p+ggplot2::geom_line(linewidth=linewidth)
+      if(isTRUE(show_points)) p<-p+ggplot2::geom_point(size=point_size)
+      p<-p+ggplot2::scale_color_manual(values=cols,name=NULL)+ggplot2::scale_fill_manual(values=cols,name=NULL)+
+        ggplot2::labs(y=if(is.null(ylab)||!nzchar(ylab)) paste0("Mean",if(isTRUE(show_ribbon)) " +/- SD"," across locations") else ylab)
+    }
+  } else{
+    validate(need(length(locs)>0,"Select at least one location."))
+    sub<-df[df$loc%in%locs,,drop=FALSE]
+    validate(need(nrow(sub)>0,"No predictions for the selected locations."))
+    long<-rbind(
+      if(has_obs) data.frame(time=sub$time,loc=sub$loc,value=if(is_class) as.character(sub$obs) else sub$obs,series="Observed"),
+      data.frame(time=sub$time,loc=sub$loc,value=if(is_class) as.character(sub$pred) else sub$pred,series="Predicted")
+    )
+    if(is_class) long$value<-factor(long$value,levels=union(levels(df$pred),unique(long$value)))
+    p<-ggplot2::ggplot(long,ggplot2::aes(x=time,y=value,color=series,group=series))
+    if(!is_class) p<-p+ggplot2::geom_line(linewidth=linewidth)
+    if(isTRUE(show_points)||is_class) p<-p+ggplot2::geom_point(size=point_size,position=if(is_class) ggplot2::position_dodge(width=0) else "identity")
+    p<-p+ggplot2::scale_color_manual(values=cols,name=NULL)+
+      ggplot2::facet_wrap(~loc,ncol=facet_ncol,scales=if(is_class) "fixed" else "free_y")+
+      ggplot2::labs(y=if(is.null(ylab)||!nzchar(ylab)) (if(is_class) "Class" else "Value") else ylab)
+  }
+  p<-p+ggplot2::labs(x=xlab,title=title)+theme_fun(base_size=base_size)+ggplot2::theme(legend.position=legend.position)
+  if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  p
+}
+
+# One value per location for the map. time_value="__all__" aggregates all times.
+# what: "pred", "obs" or "error". Regression errors: "abs" (|pred-obs|), "diff" (pred-obs),
+# "rmse", "mae", "bias"; classification: "accuracy" (share of correct predictions).
+#' @export
+sl_temporal_map_data<-function(df,source,time_value="__all__",what="pred",error_metric="rmse"){
+  validate(need(isTRUE(attr(df,"has_coords")),"The Datalist of the predictions has no Coords-Attribute for all predicted observations."))
+  is_class<-isTRUE(attr(df,"is_class"))
+  if(!identical(time_value,"__all__")){
+    df<-df[as.character(df$time)==time_value,,drop=FALSE]
+    validate(need(nrow(df)>0,"No predictions at the selected time."))
+  }
+  if(what%in%c("obs","error")) validate(need(any(!is.na(df$obs)),"Observed values are not available for these predictions."))
+  mode_of<-function(v){v<-v[!is.na(v)]; if(!length(v)) return(NA_character_); names(sort(table(as.character(v)),decreasing=TRUE))[1]}
+  groups<-split(seq_len(nrow(df)),df$loc)
+  vals_loc<-lapply(groups,function(i){
+    o<-df$obs[i]; p<-df$pred[i]
+    if(what=="pred") return(if(is_class) mode_of(p) else mean(p,na.rm=TRUE))
+    if(what=="obs") return(if(is_class) mode_of(o) else mean(o,na.rm=TRUE))
+    ok<-!is.na(o)
+    if(!any(ok)) return(NA)
+    if(is_class) return(mean(as.character(o[ok])==as.character(p[ok])))
+    e<-p[ok]-o[ok]
+    switch(error_metric,abs=mean(abs(e)),diff=mean(e),bias=mean(e),mae=mean(abs(e)),sqrt(mean(e^2)))
+  })
+  first<-vapply(groups,`[`,integer(1),1)
+  z<-unlist(vals_loc)
+  if(is_class&&what%in%c("pred","obs")) z<-factor(z,levels=intersect(levels(df$pred),unique(z)))
+  out<-data.frame(z=z,row.names=df$id[first])
+  coords<-data.frame(x=df$x[first],y=df$y[first],row.names=df$id[first])
+  out<-out[!is.na(out$z),,drop=FALSE]
+  attr(out,"coords")<-coords[rownames(out),,drop=FALSE]
+  attr(out,"base_shape")<-attr(source,"base_shape")
+  attr(out,"layer_shape")<-attr(source,"layer_shape")
+  validate(need(nrow(out)>0,"No values to map."))
+  out
+}
+
+# Upper limits of n equal-width classes, rounded (breaks_label() adds the minimum)
+#' @export
+temporal_map_breaks<-function(z,n=5){
+  r<-range(z,na.rm=TRUE)
+  if(!is.finite(diff(r))||diff(r)==0) return(r[2])
+  dp<-max(0,2-floor(log10(diff(r))))
+  b<-round(seq(r[1],r[2],length.out=max(2,n)+1),dp)
+  b[length(b)]<-ceiling_decimal(r[2],dp)
+  unique(b[-1])
+}
+
+# Map with the same pipeline as Spatial Tools: gg_rst + titles + axes + scale bar + north
+#' @export
+gg_temporal_map<-function(mapdata,newcolhabs,pal="turbo",reverse_palette=FALSE,nbreaks=5,min_radius=1,max_radius=3,scale_radius=FALSE,
+                          main="",leg_title=NULL,legend.position="right",axis_style="bw_blocks",axis_width=0.1,
+                          xlab="Longitude",ylab="Latitude",axis.text_size=11,axis.title_size=11,
+                          base_shape=TRUE,base_color="gray95",layer_shape=TRUE,layer_color="gray80",shape_border="gray40",
+                          bar_position="bottomright",bins_km=100,n_bins=2,n_location="tl"){
+  shape_args<-function(on,color) list(shape=isTRUE(on),color=color,weight=1,border_col=shape_border,fillOpacity=1,stroke=TRUE,fill=TRUE)
+  base_args<-shape_args(base_shape&&!is.null(attr(mapdata,"base_shape")),base_color)
+  layer_args<-shape_args(layer_shape&&!is.null(attr(mapdata,"layer_shape")),layer_color)
+  z<-mapdata[,1]
+  breaks<-if(is.factor(z)) NULL else temporal_map_breaks(z,nbreaks)
+  p<-gg_rst(data=mapdata,newcolhabs=newcolhabs,pal=pal,reverse_palette=reverse_palette,custom_breaks=breaks,factor=is.factor(z),
+            min_radius=min_radius,max_radius=max_radius,scale_radius=scale_radius,addCircles=TRUE,addMinicharts=FALSE,
+            base_shape_args=base_args,layer_shape_args=layer_args,args_extra_shape=NULL,show_coords="None",
+            legend.position=legend.position,leg_title=leg_title)
+  p<-gg_add_titles(p,main=main)
+  p<-gg_style_axes(p,axis_style=axis_style,xlab=xlab,ylab=ylab,axis.text_size=axis.text_size,axis.title_size=axis.title_size,
+                   axis_width=axis_width,data=mapdata,base_shape_args=base_args,layer_shape_args=layer_args,args_extra_shape=NULL)
+  p<-add_bar_scale(p,data=mapdata,position=bar_position,unit="km",position_label="above",n_bins=n_bins,bins_km=bins_km,
+                   bar_height=0.2,pad_x=0.05,pad_y=0.025,size_scalebar_text=3)
+  gg_add_north(p,n_location=n_location,n_which_north="grid",n_width=40,n_height=40,n_pad_x=0.1,n_pad_y=0.15,n_cex.text=10)
+}
+
+# ---- Temporal prediction diagnostics (Predict > Temporal) ---------------------------
+# All take the data.frame from sl_temporal_pred_data() and return a ggplot with the
+# summarised values in attr(p,"table") (used by the table download).
+
+temporal_theme<-function(theme){
+  switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
+}
+
+temporal_need_obs<-function(df){
+  validate(need(any(!is.na(df$obs)),"Observed values are needed for this plot (use Partition, Training, or a New Data with the observed variable)."))
+}
+
+# residual (pred - obs) for regression; correct/incorrect for classification
+temporal_residuals<-function(df){
+  df<-df[!is.na(df$obs)&!is.na(df$pred),,drop=FALSE]
+  if(isTRUE(attr(df,"is_class"))){
+    df$correct<-as.character(df$obs)==as.character(df$pred)
+  } else{
+    df$resid<-df$pred-df$obs
+  }
+  df
+}
+
+# Hovmoller: locations (y) x time (x), filled by the residual
+#' @export
+gg_temporal_hovmoller<-function(df,order_by="y",fill_type="diff",low="#2166AC",mid="white",high="#B2182B",
+                                base_size=12,title="Residuals by location and time",xlab="Time",ylab="Location",
+                                show_loc_labels=FALSE,leg_title=NULL,x_angle=0){
+  temporal_need_obs(df)
+  is_class<-isTRUE(attr(df,"is_class"))
+  r<-temporal_residuals(df)
+  key<-switch(order_by,
+              x=tapply(r$x,r$loc,mean),
+              error=if(is_class) tapply(!r$correct,r$loc,mean) else tapply(abs(r$resid),r$loc,mean),
+              tapply(r$y,r$loc,mean))
+  r$loc<-factor(r$loc,levels=names(sort(key)))
+  if(is_class){
+    r$value<-factor(ifelse(r$correct,"Correct","Incorrect"),levels=c("Correct","Incorrect"))
+    p<-ggplot2::ggplot(r,ggplot2::aes(x=time,y=loc,fill=value))+ggplot2::geom_tile()+
+      ggplot2::scale_fill_manual(values=c(Correct=low,Incorrect=high),name=if(is.null(leg_title)||!nzchar(leg_title)) NULL else leg_title)
+  } else{
+    r$value<-if(identical(fill_type,"abs")) abs(r$resid) else r$resid
+    p<-ggplot2::ggplot(r,ggplot2::aes(x=time,y=loc,fill=value))+ggplot2::geom_tile()
+    lt<-if(is.null(leg_title)||!nzchar(leg_title)) (if(identical(fill_type,"abs")) "|Predicted - Observed|" else "Predicted - Observed") else leg_title
+    if(identical(fill_type,"abs")){
+      p<-p+ggplot2::scale_fill_gradient(low=mid,high=high,name=lt)
+    } else{
+      lim<-max(abs(r$value),na.rm=TRUE)
+      p<-p+ggplot2::scale_fill_gradient2(low=low,mid=mid,high=high,midpoint=0,limits=c(-lim,lim),name=lt)
+    }
+  }
+  ylab2<-if(order_by%in%c("x","y","error")) paste0(ylab," (ordered by ",switch(order_by,x="x coordinate",y="y coordinate",error="mean error"),")") else ylab
+  p<-p+ggplot2::labs(x=xlab,y=ylab2,title=title)+ggplot2::theme_bw(base_size=base_size)+
+    ggplot2::theme(panel.grid=ggplot2::element_blank())
+  if(!isTRUE(show_loc_labels)) p<-p+ggplot2::theme(axis.text.y=ggplot2::element_blank(),axis.ticks.y=ggplot2::element_blank())
+  if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  attr(p,"table")<-data.frame(id=r$id,time=r$time,loc=as.character(r$loc),value=r$value)
+  p
+}
+
+# Error metrics at each time step (across locations)
+#' @export
+gg_temporal_error<-function(df,metrics=c("rmse","bias"),show_points=TRUE,linewidth=0.8,point_size=2,
+                            theme="theme_bw",base_size=12,title="Error through time",xlab="Time",ylab=NULL,
+                            legend.position="bottom",x_angle=0){
+  temporal_need_obs(df)
+  is_class<-isTRUE(attr(df,"is_class"))
+  r<-temporal_residuals(df)
+  times<-sort(unique(r$time))
+  if(is_class){
+    tab<-do.call(rbind,lapply(times,function(t){
+      s<-r[r$time==t,,drop=FALSE]
+      out<-data.frame(time=t,metric="Accuracy",value=mean(s$correct))
+      per_class<-lapply(levels(df$pred),function(cl){
+        k<-as.character(s$obs)==cl
+        if(!any(k)) return(NULL)
+        data.frame(time=t,metric=paste0("Recall: ",cl),value=mean(s$correct[k]))
+      })
+      rbind(out,do.call(rbind,per_class))
+    }))
+    validate(need(length(metrics)>0,"Select at least one metric."))
+    keep<-if("per_class"%in%metrics) unique(tab$metric) else "Accuracy"
+    tab<-tab[tab$metric%in%keep,,drop=FALSE]
+    ylab<-if(is.null(ylab)||!nzchar(ylab)) "Proportion correct" else ylab
+  } else{
+    validate(need(length(metrics)>0,"Select at least one metric."))
+    labels<-c(rmse="RMSE",mae="MAE",bias="Bias (pred - obs)")
+    tab<-do.call(rbind,lapply(times,function(t){
+      e<-r$resid[r$time==t]
+      data.frame(time=t,metric=labels[metrics],value=c(rmse=sqrt(mean(e^2)),mae=mean(abs(e)),bias=mean(e))[metrics])
+    }))
+    tab$metric<-factor(tab$metric,levels=labels[metrics])
+    ylab<-if(is.null(ylab)||!nzchar(ylab)) "Error (across locations)" else ylab
+  }
+  p<-ggplot2::ggplot(tab,ggplot2::aes(x=time,y=value,color=metric,group=metric))
+  if(!is_class&&"bias"%in%metrics) p<-p+ggplot2::geom_hline(yintercept=0,linetype=2,color="gray50")
+  p<-p+ggplot2::geom_line(linewidth=linewidth)
+  if(isTRUE(show_points)) p<-p+ggplot2::geom_point(size=point_size)
+  p<-p+ggplot2::scale_color_brewer(palette="Dark2",name=NULL)+
+    ggplot2::labs(x=xlab,y=ylab,title=title)+temporal_theme(theme)(base_size=base_size)+
+    ggplot2::theme(legend.position=legend.position)
+  if(!is.na(x_angle)&&x_angle>0) p<-p+ggplot2::theme(axis.text.x=ggplot2::element_text(angle=x_angle,hjust=1))
+  rownames(tab)<-NULL
+  attr(p,"table")<-tab
+  p
+}
+
+# Season / month / year of each time value (seasons by hemisphere)
+temporal_group<-function(time,group_by="season_south"){
+  if(identical(group_by,"none")) return(rep("All",length(time)))
+  if(!inherits(time,c("Date","POSIXt"))) return(rep("All",length(time)))
+  mm<-as.integer(format(time,"%m"))
+  if(identical(group_by,"month")) return(factor(month.abb[mm],levels=month.abb))
+  if(identical(group_by,"year")) return(factor(format(time,"%Y")))
+  south<-c("Summer","Summer","Autumn","Autumn","Autumn","Winter","Winter","Winter","Spring","Spring","Spring","Summer")
+  north<-c("Winter","Winter","Spring","Spring","Spring","Summer","Summer","Summer","Autumn","Autumn","Autumn","Winter")
+  s<-if(identical(group_by,"season_north")) north[mm] else south[mm]
+  factor(s,levels=c("Summer","Autumn","Winter","Spring"))
+}
+
+# Observed vs predicted coloured by season / month / year (regression);
+# accuracy by group (classification)
+#' @export
+gg_temporal_obs_pred<-function(df,group_by="season_south",colors=NULL,show_1to1=TRUE,show_fit=TRUE,point_size=1.8,alpha=0.6,
+                               theme="theme_bw",base_size=12,title="Observed vs predicted",xlab="Observed",ylab="Predicted",
+                               legend.position="right",facet=FALSE){
+  temporal_need_obs(df)
+  is_class<-isTRUE(attr(df,"is_class"))
+  r<-temporal_residuals(df)
+  if(!inherits(r$time,c("Date","POSIXt"))&&!identical(group_by,"none")){
+    validate(need(FALSE,"Season, month and year need a Date or Date-time temporal column. Use 'None'."))
+  }
+  r$group<-temporal_group(r$time,group_by)
+  n_groups<-nlevels(factor(r$group))
+  pal<-if(is.null(colors)) NULL else colors(n_groups)
+  if(is_class){
+    tab<-stats::aggregate(list(Accuracy=r$correct),list(group=factor(r$group)),mean)
+    tab$n<-as.vector(table(factor(r$group)))
+    p<-ggplot2::ggplot(tab,ggplot2::aes(x=group,y=Accuracy,fill=group))+ggplot2::geom_col(width=0.7,show.legend=FALSE)+
+      ggplot2::geom_text(ggplot2::aes(label=paste0("n=",n)),vjust=-0.4,size=3.2)+
+      ggplot2::scale_y_continuous(limits=c(0,1.05))+
+      ggplot2::labs(x=NULL,y="Accuracy",title=if(identical(title,"Observed vs predicted")) "Accuracy by period" else title)
+    if(!is.null(pal)) p<-p+ggplot2::scale_fill_manual(values=pal)
+    p<-p+temporal_theme(theme)(base_size=base_size)
+    attr(p,"table")<-tab
+    return(p)
+  }
+  lim<-range(c(r$obs,r$pred),na.rm=TRUE)
+  p<-ggplot2::ggplot(r,ggplot2::aes(x=obs,y=pred,color=group))
+  if(isTRUE(show_1to1)) p<-p+ggplot2::geom_abline(slope=1,intercept=0,linetype=2,color="gray40")
+  p<-p+ggplot2::geom_point(size=point_size,alpha=alpha)
+  if(isTRUE(show_fit)) p<-p+ggplot2::geom_smooth(method="lm",formula=y~x,se=FALSE,linewidth=0.8)
+  if(!is.null(pal)) p<-p+ggplot2::scale_color_manual(values=pal,name=NULL)
+  if(isTRUE(facet)&&n_groups>1) p<-p+ggplot2::facet_wrap(~group)
+  p<-p+ggplot2::coord_equal(xlim=lim,ylim=lim)+ggplot2::labs(x=xlab,y=ylab,title=title,color=NULL)+
+    temporal_theme(theme)(base_size=base_size)+ggplot2::theme(legend.position=if(n_groups>1) legend.position else "none")
+  stats_g<-do.call(rbind,lapply(split(r,r$group),function(s){
+    if(!nrow(s)) return(NULL)
+    data.frame(group=as.character(s$group[1]),n=nrow(s),RMSE=sqrt(mean(s$resid^2)),Bias=mean(s$resid),
+               R2=if(nrow(s)>2) suppressWarnings(stats::cor(s$obs,s$pred)^2) else NA_real_)
+  }))
+  rownames(stats_g)<-NULL
+  attr(p,"table")<-stats_g
+  p
+}
+
+# Autocorrelation of the residuals through time
+#' @export
+gg_temporal_resid_acf<-function(df,mode="mean",max_lag=12,color="#05668D",base_size=12,
+                                title="Autocorrelation of the residuals",theme="theme_bw"){
+  temporal_need_obs(df)
+  is_class<-isTRUE(attr(df,"is_class"))
+  r<-temporal_residuals(df)
+  r$e<-if(is_class) as.numeric(!r$correct) else r$resid
+  times<-sort(unique(r$time))
+  validate(need(length(times)>=4,"At least four time steps are needed for the autocorrelation."))
+  max_lag<-max(1,min(as.integer(max_lag),length(times)-1))
+  ylab<-if(is_class) "ACF of the error rate" else "ACF of the residuals"
+  if(identical(mode,"mean")){
+    series<-tapply(r$e,factor(r$time,levels=times),mean,na.rm=TRUE)
+    ac<-stats::acf(as.numeric(series),lag.max=max_lag,plot=FALSE,na.action=stats::na.pass)
+    tab<-data.frame(lag=as.integer(ac$lag[,1,1]),acf=as.numeric(ac$acf[,1,1]))
+    ci<-1.96/sqrt(length(series))
+    p<-ggplot2::ggplot(tab,ggplot2::aes(x=lag,y=acf))+
+      ggplot2::geom_hline(yintercept=0,color="gray40")+
+      ggplot2::geom_hline(yintercept=c(-ci,ci),linetype=2,color="#B2182B")+
+      ggplot2::geom_segment(ggplot2::aes(xend=lag,y=0,yend=acf),color=color,linewidth=0.9)+
+      ggplot2::geom_point(color=color,size=2)+
+      ggplot2::labs(x="Lag (time steps)",y=paste0(ylab," (mean across locations)"),title=title,
+                    caption="Dashed lines: approximate 95% limits (+/- 1.96/sqrt(n))")
+  } else{
+    tab<-do.call(rbind,lapply(split(r,r$loc),function(s){
+      s<-s[order(s$time),,drop=FALSE]
+      if(nrow(s)<4||stats::sd(s$e)==0) return(NULL)
+      ac<-stats::acf(s$e,lag.max=min(max_lag,nrow(s)-1),plot=FALSE,na.action=stats::na.pass)
+      data.frame(loc=s$loc[1],lag=as.integer(ac$lag[,1,1]),acf=as.numeric(ac$acf[,1,1]))
+    }))
+    validate(need(!is.null(tab)&&nrow(tab)>0,"Not enough variation in the residuals of each location."))
+    tab<-tab[tab$lag>0,,drop=FALSE]
+    p<-ggplot2::ggplot(tab,ggplot2::aes(x=factor(lag),y=acf))+
+      ggplot2::geom_hline(yintercept=0,color="gray40")+
+      ggplot2::geom_boxplot(fill=grDevices::adjustcolor(color,0.35),color=color,outlier.size=0.8)+
+      ggplot2::labs(x="Lag (time steps)",y=paste0(ylab," (one value per location)"),title=title)
+  }
+  p<-p+temporal_theme(theme)(base_size=base_size)
+  rownames(tab)<-NULL
+  attr(p,"table")<-tab
+  p
+}

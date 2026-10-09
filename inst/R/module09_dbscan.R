@@ -1287,11 +1287,15 @@ dbscan_module$server<-function(id,vals){
         return(div(plotOutput(ns("kdist_plot"),height="400px"),
                    div(style="font-size: 11px; color: #555555",em(if(identical(input$method,"dbscan")) "The knee of the curve is a classic eps choice, but it often joins groups without a clear density gap. Suggest eps tests eps values along the curve and keeps the solution with the highest DBCV (density-based validity) with 2 or more clusters; the green band is the range of eps with the same number of clusters." else "For HDBSCAN the curve shows the core distances (distance to the (minPts - 1)-th neighbour): long flat parts indicate dense groups. See also the Condensed tree."))))
       }
-      div(
-        div(style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap",
-            if(use_axes()) radioButtons(ns("sens_vary"),"Vary:",choices=c("Parameters"="par","Number of axes"="axes"),selected=isolate(input$sens_vary)%||%"par",inline=TRUE),
-            actionButton(ns("run_sens"),"Run sensitivity",icon=icon("play"),style="margin-bottom: 15px"),
-            uiOutput(ns("apply_ui"))),
+      div(class="dbs_sens",
+        tags$style(HTML(".dbs_sens .form-group{margin-bottom: 0px} .dbs_sens .radio-inline{padding-top: 0px; margin-top: 0px} .dbs_sens .bootstrap-select .filter-option{overflow: hidden; text-overflow: ellipsis; white-space: nowrap}")),
+        # row 1: what varies and the run button; row 2: the combination to use
+        div(style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 2px 0px 8px 0px",
+            if(use_axes()) div(style="display: flex; align-items: center; gap: 8px",
+                               tags$label("Vary:",style="margin: 0px"),
+                               radioButtons(ns("sens_vary"),NULL,choices=c("Parameters"="par","Number of axes"="axes"),selected=isolate(input$sens_vary)%||%"par",inline=TRUE)),
+            actionButton(ns("run_sens"),"Run sensitivity",icon=icon("play"),style="height: 30px; padding: 3px 12px")),
+        uiOutput(ns("apply_ui")),
         uiOutput(ns("sens_note")),
         plotOutput(ns("sens_plot"),height="360px")
       )
@@ -1375,9 +1379,13 @@ dbscan_module$server<-function(id,vals){
       lab<-paste0(lab," | ",tab$clusters," clusters, ",round(tab$noise,1),"% noise",ifelse(is.na(tab$dbcv),"",paste0(", DBCV ",round(tab$dbcv,2))))
       ok<-which(tab$clusters>=2&!is.na(tab$dbcv))
       best<-if(identical(s$type,"axes")&&isTRUE(s$current%in%tab$axes)) which(tab$axes==s$current) else if(length(ok)) ok[which.max(tab$dbcv[ok])] else 1
-      div(style="display: flex; gap: 6px; align-items: center",
-          pickerInput_fromtop(ns("sens_pick"),"Combination:",choices=stats::setNames(seq_len(nrow(tab)),lab),selected=best,width="420px"),
-          actionButton(ns("sens_apply"),"Use",style="height: 30px"))
+      # the picker shrinks with long labels (ellipsis), so the Use button stays visible
+      div(style="display: flex; gap: 8px; align-items: center; padding-bottom: 8px; max-width: 760px",
+          tags$label("Combination:",style="margin: 0px; white-space: nowrap; flex-shrink: 0"),
+          div(style="flex: 1 1 auto; min-width: 0",
+              shinyWidgets::pickerInput(ns("sens_pick"),NULL,choices=stats::setNames(seq_len(nrow(tab)),lab),selected=best,width="100%",
+                                        options=shinyWidgets::pickerOptions(container="body"))),
+          actionButton(ns("sens_apply"),"Use",icon=icon("check"),style="height: 30px; padding: 3px 12px; white-space: nowrap; flex-shrink: 0"))
     })
     observeEvent(input$sens_apply,ignoreInit=TRUE,{
       s<-sens()

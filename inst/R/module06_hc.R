@@ -5054,7 +5054,7 @@ hc_module$server<-function(id, vals){
         som_model<-attr(vals$saved_data[[input$data_hc]],"som")[[input$som_model_name]]
         hc_models<-attr(som_model,"hc")
       } else{
-        hc_models<-attr(vals$saved_data[[input$data_hc]],"hc")
+        hc_models<-imesc_models_of(vals$saved_data[[input$data_hc]],"hc")
       }
       if(is.null(hc_models)){
         hc_models<-list()
@@ -5069,7 +5069,7 @@ hc_module$server<-function(id, vals){
         attr(som_model,"hc")<-hc_models
         attr(vals$saved_data[[input$data_hc]],"som")[[input$som_model_name]]<-som_model
       } else{
-        attr(vals$saved_data[[input$data_hc]],"hc")<-hc_models
+        vals$saved_data[[input$data_hc]]<-imesc_models_put(vals$saved_data[[input$data_hc]],"hc",hc_models)
       }
     }
     set_hc_record<-function(model_name,record){
@@ -5743,7 +5743,6 @@ hc_module$server<-function(id, vals){
 
   })
 }
-
 
 
 

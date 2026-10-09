@@ -5460,19 +5460,17 @@ datalist_overview<-function(data,available_models){
 
 
 
-  attrs<-c(as.character(available_models),"pwRDA","som","kmeans","hc","dbscan")
+  # model types of the registry (funs_models.R); unsaved placeholders are not counted
+  attrs<-imesc_models
   modelsl<-sapply(attrs,function(x){
 
-    models<-attr(data,x)
+    models<-imesc_models_of(data,x)
 
     m1<-NULL
     if(length(models)>0){
-      m1<-lapply(models,function(m){
+      m1<-lapply(names(models),function(nm){
         nclusters=NULL
-
-        if(!x%in%c("som","kmeans","hc","pwRDA","dbscan")){
-          m<-m$m
-        }
+        m<-imesc_model_get(data,x,nm,unwrap=TRUE)
         hc=attr(m,"hc.objec")
         if(x=="som"){
           class=if(length(m$data)>1){

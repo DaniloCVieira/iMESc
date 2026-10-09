@@ -785,25 +785,15 @@ imesc_supersom$server<-function (id,vals ){
       curtab<-vals$cursomtab
       data<-getdata_som()
       temp<-current_som_model()
-      if(input$hand_save=="create"){
-        temp<-list(temp)
-        names(temp)<-input$newdatalist
-        attr(vals$saved_data[[input$data_som]],"som")[input$newdatalist]<-c(temp,attr(vals$saved_data[[input$data_som]],"som")[[input$newdatalist]])
-        cur<-input$newdatalist
-      } else{
-        temp<-list(temp)
-        names(temp)<-input$over_datalist
-        attr(vals$saved_data[[input$data_som]],"som")[input$over_datalist]<-temp
-
-        cur<-input$over_datalist
-
-      }
+      # saved with the model functions of funs_models.R (replaces a model with the same name)
+      cur<-if(input$hand_save=="create") input$newdatalist else input$over_datalist
+      vals$saved_data[[input$data_som]]<-imesc_model_set(vals$saved_data[[input$data_som]],"som",cur,temp)
 
       vals$cur_som_models<-cur
       delay(500,{updateTabsetPanel(session, "som_tab", curtab)
         updateTabsetPanel(session, "som_res", vals$som_res)})
 
-      attr(vals$saved_data[[input$data_som]],"som")[['new som (unsaved)']]<-NULL
+      vals$saved_data[[input$data_som]]<-imesc_model_delete(vals$saved_data[[input$data_som]],"som","new som (unsaved)")
 
     })
     observeEvent(input$som_model_delete,ignoreInit = T,{
@@ -835,7 +825,7 @@ imesc_supersom$server<-function (id,vals ){
     })
     observeEvent(input$som_trash_confirm,ignoreInit = T,{
       req(length(input$som_trash_picker)>0)
-      attr(vals$saved_data[[input$data_som]],"som")[input$som_trash_picker]<-NULL
+      vals$saved_data[[input$data_som]]<-imesc_model_delete(vals$saved_data[[input$data_som]],"som",input$som_trash_picker)
       removeModal()
     })
 
@@ -1281,7 +1271,7 @@ imesc_supersom$server<-function (id,vals ){
 
         req(isTRUE(input$mysupersom))
         data_x_o<-names(get_training_list())[[1]]
-        attr(vals$saved_data[[data_x_o]],"som")[["new som (unsaved)"]]<-NULL
+        vals$saved_data[[data_x_o]]<-imesc_model_delete(vals$saved_data[[data_x_o]],"som","new som (unsaved)")
 
 
 
@@ -1366,9 +1356,7 @@ imesc_supersom$server<-function (id,vals ){
             attr(m,"test")<-test_list
             attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
 
-            newmodesl<-c(list(m),attr(vals$saved_data[[data_x_o]],"som"))
-            names(newmodesl)[1]<-"new som (unsaved)"
-            attr(vals$saved_data[[data_x_o]],"som")<-newmodesl
+            vals$saved_data[[data_x_o]]<-imesc_model_set(vals$saved_data[[data_x_o]],"som","new som (unsaved)",m,first=TRUE)
 
             updateTabsetPanel(session, "som_tab", "som_tab2")
             updateTabsetPanel(session, "som_tab", "train_tab2")
@@ -1387,7 +1375,7 @@ imesc_supersom$server<-function (id,vals ){
         req(isFALSE(input$mysupersom))
         vals$som_unsaved<-NULL
         req(input$data_som)
-        attr(vals$saved_data[[input$data_som]],"som")[["new som (unsaved)"]]<-NULL
+        vals$saved_data[[input$data_som]]<-imesc_model_delete(vals$saved_data[[input$data_som]],"som","new som (unsaved)")
 
 
         traindat=data=data_o<-data.frame(vals$saved_data[[input$data_som]])
@@ -1452,9 +1440,7 @@ imesc_supersom$server<-function (id,vals ){
             attr(m,"normalizeDataLayers")<-input$normalizeDataLayers
             attr(m,"coords")<-attr(data,"coords")[rownames(traindat),]
             vals$som_unsaved<-m
-            newmodesl<-c(list(m),attr(vals$saved_data[[input$data_som]],"som"))
-            names(newmodesl)[1]<-"new som (unsaved)"
-            attr(vals$saved_data[[input$data_som]],"som")<-newmodesl
+            vals$saved_data[[input$data_som]]<-imesc_model_set(vals$saved_data[[input$data_som]],"som","new som (unsaved)",m,first=TRUE)
 
 
 
@@ -4499,4 +4485,3 @@ plot_torus <- function(m, R = 4, r = 3) {
 
   }
 }
-

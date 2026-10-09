@@ -82,7 +82,7 @@ div2<-function(attrx,datalist_name,i,dlm_getsize,class_name,names_list,total_siz
               paste0("(",paste0(di, collapse="x"),")")}
 
         ),
-        div(if (i %in% c("som", "rf", "svm", "nb", "knn", "kmeans", "sgboost", "xyf")) div("Number of models:", em(length(names_list)))),
+        div(if (i %in% imesc_models) div("Number of models:", em(length(names_list)))),
 
         if(vals$data_dlmX!="Saved Ensembles"){
           if (class(attrx[[i]])[[1]] == "list") {

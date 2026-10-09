@@ -704,7 +704,7 @@ k_means_module$server<-function (id,vals){
 
 
     observeEvent(ignoreInit=T,input$trash_kmeans,{
-      attr(vals$saved_data[[input$data_kmeans]],"kmeans")[[input$kmeans_models]]<-NULL
+      vals$saved_data[[input$data_kmeans]]<-imesc_model_delete(vals$saved_data[[input$data_kmeans]],"kmeans",input$kmeans_models)
     })
     observeEvent(ignoreInit=T,input$kmeans_models,{
       vals$kmeans_models<-input$kmeans_models
@@ -757,15 +757,9 @@ k_means_module$server<-function (id,vals){
     })
 
     savekmeans_models<-reactive({
-      attr(vals$saved_data[[input$data_kmeans]],"kmeans")[["new kmeans (unsaved)"]]<-NULL
-
-      if(input$hand_save=="create"){
-        attr(vals$saved_data[[input$data_kmeans]],"kmeans")[[input$newdatalist]]<-vals$k_means_results
-        cur_kmeans_models<-input$newdatalist
-      } else{
-        attr(vals$saved_data[[input$data_kmeans]],"kmeans")[[input$over_datalist]]<-vals$k_means_results
-        cur_kmeans_models<-input$over_datalist
-      }
+      # saved with the model functions of funs_models.R (the unsaved placeholder is removed)
+      cur_kmeans_models<-if(input$hand_save=="create") input$newdatalist else input$over_datalist
+      vals$saved_data[[input$data_kmeans]]<-imesc_model_save_unsaved(vals$saved_data[[input$data_kmeans]],"kmeans",cur_kmeans_models,vals$k_means_results)
       vals$kmeans_models<-cur_kmeans_models
 
 
@@ -1287,7 +1281,7 @@ k_means_module$server<-function (id,vals){
           colnames(kmeans_result[[i]])<-i      }
         class(kmeans_result)<-"ikmeans"
         attr(kmeans_result,"target")<-input$model_or_data
-        attr(vals$saved_data[[input$data_kmeans]],"kmeans")[["new kmeans (unsaved)"]]<-kmeans_result
+        vals$saved_data[[input$data_kmeans]]<-imesc_model_set(vals$saved_data[[input$data_kmeans]],"kmeans","new kmeans (unsaved)",kmeans_result)
         vals$k_means_results<-kmeans_result
 
 
@@ -1541,4 +1535,3 @@ k_means_module$server<-function (id,vals){
 
   })
 }
-

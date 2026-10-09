@@ -1,5 +1,5 @@
 
-imesc_models<-c('som','kmeans','hc','dbscan','rf','nb','svm','knn','sgboost','xyf')
+# imesc_models (the model types) comes from the registry in funs_models.R
 imesc_attrs<-c("numeric","factors","coords","base_shape","layer_shape","extra_shape",'notes')
 
 list_models<-function(data,size=F,imesc_models){
@@ -132,11 +132,7 @@ get_attr_imesc<-function(datalist,attr, model_name=NA,vals,return_data=F,size=T,
       result<-attr(data,"numeric")<-data.frame(data)
     }
     if(attr%in% imesc_models){
-      result<-attr(data,attr)[[model_name]]
-      if(!attr%in%c('som','kmeans','hc','dbscan')){
-        result<-result[[1]]
-      }
-
+      result<-imesc_model_get(data,attr,model_name,unwrap=TRUE)
     } else{
       result<-attr(data,attr)
     }

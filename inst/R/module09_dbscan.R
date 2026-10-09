@@ -1599,7 +1599,7 @@ dbscan_module$server<-function(id,vals){
     sel_model<-reactiveVal(NULL)
     saved_models<-reactive({
       req(input$data_db%in%names(vals$saved_data))
-      attr(vals$saved_data[[input$data_db]],"dbscan")
+      imesc_models_of(vals$saved_data[[input$data_db]],"dbscan")
     })
     observeEvent(result(),ignoreNULL=FALSE,{
       if(!is.null(result())) sel_model(unsaved_label)
@@ -1630,11 +1630,11 @@ dbscan_module$server<-function(id,vals){
       req(r)
       k<-length(unique(r$cluster[r$cluster>0]))
       name0<-paste0(toupper(r$method),if(identical(r$target,"som")) "_som" else "","_",k,"cl")
-      nm<-make.unique(c(names(attr(vals$saved_data[[r$datalist]],"dbscan")),name0),sep="_")
+      nm<-imesc_model_unique_name(vals$saved_data[[r$datalist]],"dbscan",name0)
       showModal(modalDialog(
         title="Save model",easyClose=TRUE,
         div(p("Model saved in the Datalist ",strong(r$datalist),":"),
-            textInput(ns("model_name"),NULL,value=nm[length(nm)],width="300px"),
+            textInput(ns("model_name"),NULL,value=nm,width="300px"),
             em("A model with the same name is replaced.")),
         footer=div(modalButton("Cancel"),actionButton(ns("confirm_save_model"),"Save"))
       ))
@@ -1645,10 +1645,7 @@ dbscan_module$server<-function(id,vals){
       req(r,nzchar(name),r$datalist%in%names(vals$saved_data))
       attr(r,"model_name")<-name
       r$saved<-format(Sys.time(),"%Y-%m-%d %H:%M")
-      ms<-attr(vals$saved_data[[r$datalist]],"dbscan")
-      if(is.null(ms)) ms<-list()
-      ms[[name]]<-r
-      attr(vals$saved_data[[r$datalist]],"dbscan")<-ms
+      vals$saved_data[[r$datalist]]<-imesc_model_set(vals$saved_data[[r$datalist]],"dbscan",name,r)
       sel_model(name)
       result(NULL)
       removeModal()
@@ -1665,9 +1662,7 @@ dbscan_module$server<-function(id,vals){
     observeEvent(input$confirm_delete_model,ignoreInit=TRUE,{
       nm<-input$dbs_model
       req(nm%in%names(saved_models()))
-      ms<-attr(vals$saved_data[[input$data_db]],"dbscan")
-      ms[[nm]]<-NULL
-      attr(vals$saved_data[[input$data_db]],"dbscan")<-if(length(ms)) ms else NULL
+      vals$saved_data[[input$data_db]]<-imesc_model_delete(vals$saved_data[[input$data_db]],"dbscan",nm)
       sel_model(NULL)
       removeModal()
       showNotification(paste0("Model '",nm,"' deleted."),type="message")

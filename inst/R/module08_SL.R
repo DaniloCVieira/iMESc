@@ -634,7 +634,7 @@ sl_model_setup$server<-function(id,vals=NULL){
     observeEvent(input$trash_confirm,ignoreInit = T,{
       req(vals$cmodel)
       vals$update_tab_caret<-"tab1"
-      attr(vals$saved_data[[input$data_x]],vals$cmodel)[input$trash_picker]<-NULL
+      vals$saved_data[[input$data_x]]<-imesc_model_delete(vals$saved_data[[input$data_x]],vals$cmodel,input$trash_picker)
       removeModal()
     })
 
@@ -699,22 +699,15 @@ sl_model_setup$server<-function(id,vals=NULL){
 
       m<-vals$cur_caret_model
 
-      if(is.null( attr(vals$saved_data[[input$data_x]],model))){
-        attr(vals$saved_data[[data_x()]],model)<-list()
-      }
-
-      if(input$create_replace=="Create"){
-        attr(m,"model_name")<-input$newdatalit
-        attr(vals$saved_data[[input$data_x]],model)[[input$newdatalit]]<-list(m=m)
-        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
-        vals$cur_model_name<-input$newdatalit
-
-      } else{
-        attr(m,"model_name")<-input$overdatalist
-        attr(vals$saved_data[[input$data_x]],model)[[input$overdatalist]]<-list(m=m)
-        attr(vals$saved_data[[input$data_x]],model)[["new model"]]<-NULL
-        vals$cur_model_name<-input$overdatalist
-      }
+      # saved with the model functions of funs_models.R: the unsaved entry keeps the results
+      # computed for it (e.g. permutation importance); the placeholder is removed
+      name<-if(input$create_replace=="Create") input$newdatalit else input$overdatalist
+      attr(m,"model_name")<-name
+      entry<-imesc_model_get(vals$saved_data[[input$data_x]],model,"new model")
+      if(!is.list(entry)||is.null(entry$m)) entry<-list()
+      entry$m<-m
+      vals$saved_data[[input$data_x]]<-imesc_model_save_unsaved(vals$saved_data[[input$data_x]],model,name,entry)
+      vals$cur_model_name<-name
       vals$newmodel<-NULL
       removeModal()
 
@@ -12624,7 +12617,7 @@ sl_module$server<-function(id,vals){
         attr(m,"model_name")<-"new model"
         attr(m,"run_time")<-difftime(time1,time0, units='secs')
 
-        attr(vals$saved_data[[args$data_x]],vals$cmodel)[["new model"]]<-list(m=m)
+        vals$saved_data[[args$data_x]]<-imesc_model_set(vals$saved_data[[args$data_x]],vals$cmodel,"new model",list(m=m))
         vals$cur_model_name<-"new model"
         updateTabsetPanel(session,"tab",selected="tab2")
         updateTabsetPanel(session,"caret_results-tab2",selected="tab1")
@@ -12847,7 +12840,9 @@ sl_module$server<-function(id,vals){
         )
 
 
-        attr(vals$saved_data[[args$data_x]],vals$cmodel)[model_names]<-model_results
+        dl<-vals$saved_data[[args$data_x]]
+        for(k in seq_along(model_results)) dl<-imesc_model_set(dl,vals$cmodel,model_names[k],model_results[[k]])
+        vals$saved_data[[args$data_x]]<-dl
 
         vals$cur_model_name<-model_name
         updateTabsetPanel(session,"tab",selected="tab2")
@@ -13440,5 +13435,4 @@ size_evaluation <- function(sf_dat,column = "y",autocor_column = NULL,k = 5,n_si
 
   return(out)
 }
-
 

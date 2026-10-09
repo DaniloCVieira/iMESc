@@ -6040,10 +6040,11 @@ tool2_tab6$server<-function(id,vals){
 
 
 
+    # saved models of each Datalist (all the types of the model registry, funs_models.R)
     get_model_list<-reactive({
-      re1<-sapply(vals$saved_data, function(data){
+      re1<-lapply(vals$saved_data, function(data){
         res<-lapply(imesc_models,function(model){
-          model_names<-names(attr(data,model))
+          model_names<-imesc_model_names(data,model)
           if(length(model_names)>0){
             data.frame(model_names, model=model)}
         })
@@ -6062,37 +6063,8 @@ tool2_tab6$server<-function(id,vals){
     })
 
 
-    model_tip<-function(attr){
-      if(is.null(attr)){return(NULL)}
-      res<- switch(attr,
-                   "som"={span(tiphelp("Self-Organizing Maps","left"),span("SOM"))},
-                   "kmeans"={span(tiphelp("K-Means","left"),span("k-Means"))},
-                   "hc"={span(tiphelp("Hierarchical clustering","left"),span("HC"))},
-                   "dbscan"={span(tiphelp("Density-based clustering (DBSCAN / HDBSCAN)","left"),span("DBSCAN"))},
-                   "rf"={span(tiphelp("Random Forest","left"),span("RF"))},
-                   "nb"={span(tiphelp("Naive Bayes","left"),span("NB"))},
-                   "svm"={span(tiphelp("Support Vector Machine","left"),span("SVM"))},
-                   "knn"={span(tiphelp("K-Nearest Neighbors","left"),span("KNN"))},
-                   "sgboost"={span(tiphelp("Stochastic Gradient Boosting","left"),span("GBM"))},
-                   "xyf"={span(tiphelp("Supervised Self-Organizing Maps","left"),span("XYF"))}
-      )
-      return(res)
-    }
-    model_name<-function(attr){
-      res<- switch(attr,
-                   "som"={"SOM (usupervised)"},
-                   "kmeans"={"k-means"},
-                   "hc"={"Hierarchical clustering"},
-                   "dbscan"={"Density-based (DBSCAN/HDBSCAN)"},
-                   "rf"={"Random Forest"},
-                   "nb"={"Naive Bayes"},
-                   "svm"={"Support Machine Vector"},
-                   "knn"={"KNN"},
-                   "sgboost"={"Stochast. Gradient. Boosting"},
-                   "xyf"={"SOM (supervised)"}
-      )
-      return(res)
-    }
+    model_tip<-function(attr) imesc_model_tip_ui(attr)
+    model_name<-function(attr) imesc_model_info(attr)$label
     output$rename_page<-renderUI({
       # validate(need(input$datalist!="","No saved models found"))
       ns<-session$ns
@@ -6142,11 +6114,23 @@ tool2_tab6$server<-function(id,vals){
       newnames<-newnames()
       df1$new<-newnames
       df2<-split(df1,df1$model)
-      for(i in seq_along(df2)){
-        attr<-unique(df2[[i]]$model)
-        new<-df2[[i]]$new
-        names(attr(vals$saved_data[[input$datalist]],attr))<-new
+      # names checked for each type (non-empty, unique) before anything is renamed
+      data<-vals$saved_data[[input$datalist]]
+      res<-tryCatch({
+        for(i in seq_along(df2)){
+          # only saved models are listed: unsaved placeholders keep their names
+          tp<-unique(df2[[i]]$model)
+          full<-names(attr(data,tp))
+          full[match(df2[[i]]$model_names,full)]<-df2[[i]]$new
+          data<-imesc_model_rename(data,tp,full)
+        }
+        data
+      },error=function(e) e)
+      if(inherits(res,"error")){
+        showNotification(paste("Models were not renamed:",conditionMessage(res)),type="error",duration=8)
+        return()
       }
+      vals$saved_data[[input$datalist]]<-res
       shinyjs::removeClass('run_rename_btn',"save_changes")
       done_modal()
     })
@@ -10620,14 +10604,7 @@ tool2_tab14$server <- function(id, vals) {
         vals,
         FALSE,
         imesc_attrs = imesc_base_attrs,
-        imesc_models = c(
-          "pwRDA",
-          "som",
-          "kmeans",
-          "hc",
-          "dbscan",
-          as.character(available_models)
-        )
+        imesc_models = imesc_models
       )
 
       attrlist
@@ -10920,16 +10897,10 @@ tool2_tab14$server <- function(id, vals) {
 
         if (nrow(dfmodels) > 0) {
 
+          # each model removed from its own Datalist and type (an empty type is removed)
           for (i in seq_len(nrow(dfmodels))) {
-
             datalist <- dfmodels$datalist[i]
-            attr_name <- dfmodels$attr[i]
-
-            attr(vals$saved_data[[datalist]], attr_name)[[dfmodels$model_name[i]]] <- NULL
-          }
-
-          if (!length(attr(vals$saved_data[[datalist]], attr_name)) > 0) {
-            attr(vals$saved_data[[datalist]], attr_name) <- NULL
+            vals$saved_data[[datalist]] <- imesc_model_delete(vals$saved_data[[datalist]], dfmodels$attr[i], dfmodels$model_name[i])
           }
 
           df <- subset(

@@ -4299,7 +4299,6 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     res<-switch (vals$hand_save,
                  "create_codebook"=textInput(ns("codebook_newname"), NULL,paste0(input$data_hc,"Codebook")),
                  "Save Clusters"= textInput(ns("hc_newname"), NULL,bag_hc()),
-                 "Save HC model"= textInput(ns("hc_model_newname"), NULL,hc_model_bagname()),
                  "Create Datalist with new mapping"= textInput(ns("mc_newname"), NULL,bag_mp()),
 
     )
@@ -4379,8 +4378,7 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     res<-switch (vals$hand_save,
                  'Create Datalist with new mapping' = pickerInput(ns("mc_over"), NULL,choices=c(names(vals$saved_data)), options),
                  'create_codebook' = pickerInput(ns("codebook_over"), NULL,choices=c(names(vals$saved_data)),selected=input$data_upload),
-                 'Save Clusters' = pickerInput(ns("hc_over"), NULL,choices=c(colnames(attr(getdata_hc(),"factors")))),
-                 'Save HC model' = pickerInput(ns("hc_model_over"), NULL,choices=hc_model_names_saved()))
+                 'Save Clusters' = pickerInput(ns("hc_over"), NULL,choices=c(colnames(attr(getdata_hc(),"factors")))))
     res
   })
   save_hc_clusters_to_factor<-function(clusters,column_name){
@@ -4410,39 +4408,38 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     }
 
   })
-  save_hc_model<-reactive({
-    current<-phc()
-    req(current)
-    if(input$hand_save=="create"){
-      req(input$hc_model_newname)
-      model_name<-input$hc_model_newname
-      existing<-NULL
-    } else{
-      req(input$hc_model_over)
-      model_name<-input$hc_model_over
-      existing<-if(model_name%in%hc_model_names_saved()){
-        if(isTRUE(input$model_or_data=="som codebook")){
-          som_model<-attr(vals$saved_data[[input$data_hc]],"som")[[input$som_model_name]]
-          attr(som_model,"hc")[[model_name]]
-        } else{
-          attr(vals$saved_data[[input$data_hc]],"hc")[[model_name]]
-        }
-      } else{
-        NULL
-      }
-    }
-    record<-make_hc_record(current,existing=existing)
-    set_hc_record(model_name,record)
-    if(isTRUE(input$save_hc_factor)&&length(cluster_already())==0){
-      req(input$save_hc_factor_name)
-      save_hc_clusters_to_factor(current$somC,input$save_hc_factor_name)
-    }
-    saved_choices<-hc_model_names_saved()
-    phc(NULL)
-    updatePickerInput(session,"hc_models",
-                      choices=saved_choices,
-                      selected=model_name)
-  })
+  # save / edit windows shared by the modules (model_store, funs_models.R): HC models are in the
+  # Datalist (Numeric-Attribute) or in the SOM model (SOM codebook), read and written by
+  # get_hc_models() / set_hc_models()
+  store<-model_store$server("model_store",vals,type="hc",datalist=function() input$data_hc,
+                            entry=function(name) make_hc_record(phc(),existing=get_hc_models()[[name]]),
+                            default_name=function() hc_model_bagname(),
+                            get_models=function() get_hc_models(),
+                            put_models=function(models) set_hc_models(models),
+                            saved_names=function() hc_model_names_saved(),
+                            location=function(){
+                              if(isTRUE(input$model_or_data=="som codebook")) span("the SOM ",strong(input$som_model_name)," of the Datalist ",strong(input$data_hc)) else
+                                span("the Datalist ",strong(input$data_hc))
+                            },
+                            extra_ui=function(ns){
+                              already<-tryCatch(cluster_already(),error=function(e) character(0))
+                              div(style="border-top: 1px solid #eeeeee; padding-top: 6px",
+                                  if(length(already)) em(paste0("The clusters are already in the Factor-Attribute as: ",paste(already,collapse=", "))) else
+                                    div(style="display: flex; gap: 10px; align-items: flex-end",
+                                        checkboxInput(ns("save_factor"),"Include the clusters in the Factor-Attribute",value=TRUE,width="220px"),
+                                        textInput(ns("factor_name"),"Column name:",value=hc_factor_bagname(),width="160px")))
+                            },
+                            on_saved=function(name,inp){
+                              current<-phc()
+                              already<-tryCatch(cluster_already(),error=function(e) character(0))
+                              if(isTRUE(inp$save_factor)&&length(already)==0&&nzchar(trimws(inp$factor_name%||%""))){
+                                save_hc_clusters_to_factor(current$somC,inp$factor_name)
+                              }
+                              phc(NULL)
+                              refresh_hc_models_input(name)
+                            },
+                            on_deleted=function(del){ refresh_hc_models_input(if(isTRUE(input$hc_models%in%del)) NULL else input$hc_models) },
+                            on_renamed=function(old,new){ refresh_hc_models_input(new) })
   refresh_hc_models_input<-function(selected=NULL){
     choices<-c(if(!is.null(phc())){"new HC (unsaved)"}else{NULL},hc_model_names_saved())
     selected<-get_selected_from_choices(selected,choices)
@@ -4452,72 +4449,6 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     vals$cur_hc_models<-selected
     updatePickerInput(session,"hc_models",choices=choices,selected=selected)
   }
-  hc_model_edit_modal<-reactive({
-    saved_models<-hc_model_names_saved()
-    req(length(saved_models)>0)
-    selected<-get_selected_from_choices(input$hc_models,saved_models)
-    if(is.null(selected)){
-      selected<-saved_models[1]
-    }
-    modalDialog(
-      title=span(icon(verify_fa=FALSE,name=NULL,class="fas fa-edit"),"Edit HC models"),
-      easyClose=TRUE,
-      size="m",
-      fluidRow(
-        column(
-          12,
-          h4(strong("Rename")),
-          div(style="display: flex;gap: 10px",
-              pickerInput(ns("hc_model_rename_from"),"Model",choices=saved_models,selected=selected),
-              textInput(ns("hc_model_rename_to"),"New name",value=selected)
-          ),
-          actionButton(ns("hc_model_rename_confirm"),strong("Rename"))
-        ),
-        column(
-          12,
-          tags$hr(),
-          h4(strong("Delete")),
-          checkboxGroupInput(ns("hc_model_delete_names"),"Models",choices=saved_models),
-          actionButton(ns("hc_model_delete_confirm"),strong("Delete selected"))
-        )
-      ),
-      footer=modalButton("Close")
-    )
-  })
-  observeEvent(input$hc_model_rename_from,{
-    req(input$hc_model_rename_from)
-    updateTextInput(session,"hc_model_rename_to",value=input$hc_model_rename_from)
-  },ignoreInit=TRUE)
-  observeEvent(input$hc_model_rename_confirm,{
-    req(input$hc_model_rename_from)
-    req(input$hc_model_rename_to)
-    old_name<-input$hc_model_rename_from
-    new_name<-trimws(input$hc_model_rename_to)
-    req(nzchar(new_name))
-    hc_models<-get_hc_models()
-    req(old_name%in%names(hc_models))
-    if(!identical(old_name,new_name)){
-      new_name<-next_hc_model_name(new_name,setdiff(names(hc_models),old_name))
-      hc_models[[new_name]]<-hc_models[[old_name]]
-      hc_models[[old_name]]<-NULL
-      set_hc_models(hc_models)
-    }
-    removeModal()
-    refresh_hc_models_input(new_name)
-  },ignoreInit=TRUE)
-  observeEvent(input$hc_model_delete_confirm,{
-    delete_names<-input$hc_model_delete_names
-    req(length(delete_names)>0)
-    hc_models<-get_hc_models()
-    delete_names<-intersect(delete_names,names(hc_models))
-    req(length(delete_names)>0)
-    hc_models[delete_names]<-NULL
-    set_hc_models(hc_models)
-    selected<-if(input$hc_models%in%delete_names){NULL}else{input$hc_models}
-    removeModal()
-    refresh_hc_models_input(selected)
-  },ignoreInit=TRUE)
-
   savecodebook<-reactive({
     req(input$hand_save)
     data<-getdata_hc()
@@ -4555,8 +4486,7 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     switch(vals$hand_save,
            "Create Datalist with new mapping"= {savemapcode()},
            "create_codebook"=savecodebook(),
-           "Save Clusters"= {saveclusters()},
-           "Save HC model"= {save_hc_model()}
+           "Save Clusters"= {saveclusters()}
     )
 
   })
@@ -4683,47 +4613,10 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
   })
   observeEvent(ignoreInit = T,input$tools_savehc_model,{
     req(phc())
-    if(input$tools_savehc_model %% 2) {
-      saved_cluster_cols<-cluster_already()
-      save_factor_enabled<-length(saved_cluster_cols)==0
-      vals$hand_save<-"Save HC model"
-      vals$hand_save3<-'Save the current dendrogram and cluster cuts for later recovery'
-
-      vals$hand_save2<-p(
-        div(style="color: gray",
-            "Target:",em(input$data_hc),"->",em(if(isTRUE(input$model_or_data=="som codebook")){"SOM-Attribute HC models"}else{"HC-Attribute"})
-        )
-      )
-      vals$hand_save4<-div(
-
-
-        div(style="display: flex; gap: 10px",
-            div(checkboxInput(ns("save_hc_factor"),"Include clusters in Factor-Attribute",value=save_factor_enabled, width="120px")),
-            div(textInput(ns("save_hc_factor_name"),"Column name",value=hc_factor_bagname()))
-        ),
-
-
-        if(!save_factor_enabled){
-          div(
-            style="color: gray; font-size: 12px;",
-            em(paste0("Current clusters already exist in Factor-Attribute as: ",paste(saved_cluster_cols,collapse=", ")))
-          )
-        }
-      )
-      if(!save_factor_enabled){
-        vals$hand_save4<-tagList(
-          vals$hand_save4,
-          tags$script(HTML(sprintf("setTimeout(function(){ $('#%s').prop('disabled', true); $('#%s').prop('disabled', true); }, 0);",ns("save_hc_factor"),ns("save_hc_factor_name"))))
-        )
-      }
-      showModal(
-        hand_save_modal()
-      )
-    }
+    store$open_save()
   })
   observeEvent(ignoreInit = T,input$tools_edithc_model,{
-    req(length(hc_model_names_saved())>0)
-    showModal(hc_model_edit_modal())
+    store$open_manage(input$hc_models)
   })
   observeEvent(ignoreInit = T,input$create_codebook,{
     if(input$create_codebook %% 2) {

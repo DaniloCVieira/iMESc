@@ -189,38 +189,62 @@ imesc_model_table<-function(data,saved=TRUE){
 }
 
 # ---- Save / delete windows shared by the modules ------------------------------------------
-# model_store$server(id, vals, type, datalist, entry, default_name, on_saved, on_deleted)
-# returns list(open_save(), open_delete(selected)). Called inside a module server; the module
-# keeps its own buttons and calls these functions. type and datalist are values or functions
-# (e.g. the supervised method chosen); entry(name) returns what is stored for the new model
-# (by default the unsaved placeholder of the type); default_name() the suggested name.
+# model_store$server(id, vals, type, datalist, ...) returns list(open_save(), open_delete(),
+# open_manage()). Called inside a module server; the module keeps its own buttons and calls
+# these functions. type and datalist are values or functions (e.g. the supervised method).
+#   entry(name)         what is stored for the new model (default: the unsaved placeholder)
+#   default_name()      suggested name
+#   on_saved(name, input), on_deleted(names), on_renamed(old, new): callbacks (input gives
+#                       the inputs of extra_ui)
+#   get_models(), put_models(models): where the models are, when they are not
+#                       attr(datalist, type) (e.g. HC models of a SOM codebook)
+#   saved_names()       saved models shown (default: imesc_model_names)
+#   extra_ui(ns)        more inputs in the save window (e.g. save the clusters as a factor)
+#   location()          where the models are saved, shown in the windows
 #' @export
 model_store<-list()
 #' @export
-model_store$server<-function(id,vals,type,datalist,entry=NULL,default_name=NULL,on_saved=NULL,on_deleted=NULL){
+model_store$server<-function(id,vals,type,datalist,entry=NULL,default_name=NULL,on_saved=NULL,on_deleted=NULL,on_renamed=NULL,
+                             get_models=NULL,put_models=NULL,saved_names=NULL,extra_ui=NULL,location=NULL){
   moduleServer(id,function(input,output,session){
     ns<-session$ns
     val<-function(x) if(is.function(x)) x() else x
     cur<-reactiveValues(type=NULL,datalist=NULL)
-    saved_names<-function() imesc_model_names(vals$saved_data[[cur$datalist]],cur$type)
-
-    open_save<-function(){
+    custom<-is.function(get_models)&&is.function(put_models)
+    models_now<-function() if(custom) get_models() else attr(vals$saved_data[[cur$datalist]],cur$type)
+    saved_list<-function() if(is.function(saved_names)) saved_names() else imesc_model_names(vals$saved_data[[cur$datalist]],cur$type)
+    where<-function() if(is.function(location)) location() else span("the Datalist ",strong(cur$datalist))
+    callback<-function(f,...) if(is.function(f)) do.call(f,list(...)[seq_len(min(length(list(...)),length(formals(f))))])
+    start<-function(){
       cur$type<-val(type)
       cur$datalist<-val(datalist)
       req(cur$type,cur$datalist%in%names(vals$saved_data))
-      data<-vals$saved_data[[cur$datalist]]
-      saved<-saved_names()
+    }
+    issue_of<-function(name,old=NULL){
+      name<-trimws(if(is.null(name)) "" else name)
+      if(!nzchar(name)) return("The model name is empty.")
+      if(name%in%setdiff(names(models_now()),old)) return(paste0("A ",imesc_model_info(cur$type)$label," model named '",name,"' already exists."))
+      NULL
+    }
+    issue_ui<-function(iss) if(!is.null(iss)) div(style="color: #b71c1c; font-size: 12px",icon("triangle-exclamation")," ",iss)
+
+    # ---- save
+    open_save<-function(){
+      start()
+      saved<-saved_list()
       base<-if(is.null(default_name)) imesc_model_info(cur$type)$short else val(default_name)
-      nm<-imesc_model_unique_name(data,cur$type,base)
+      nm<-make.unique(c(names(models_now()),base),sep="_")
+      nm<-nm[length(nm)]
       showModal(modalDialog(
         title=span(icon("fas fa-save")," Save ",imesc_model_info(cur$type)$label," model"),easyClose=TRUE,
         div(style="padding: 4px 10px",
-            p("The model is saved in the Datalist ",strong(cur$datalist),"."),
+            p("The model is saved in ",where(),"."),
             # Replace only when there are saved models of this type
             if(length(saved)) radioButtons(ns("mode"),NULL,choices=c("Create a new model"="create","Replace a saved model"="replace"),inline=TRUE),
             div(id=ns("create_box"),textInput(ns("name"),"Name:",value=nm,width="340px")),
             if(length(saved)) shinyjs::hidden(div(id=ns("replace_box"),selectInput(ns("replace"),"Model to replace:",choices=saved,width="340px"))),
-            uiOutput(ns("issue"))),
+            uiOutput(ns("issue")),
+            if(is.function(extra_ui)) extra_ui(ns)),
         footer=div(modalButton("Cancel"),actionButton(ns("confirm_save"),"Save",icon=icon("fas fa-save")))
       ))
     }
@@ -232,52 +256,121 @@ model_store$server<-function(id,vals,type,datalist,entry=NULL,default_name=NULL,
     name_issue<-reactive({
       req(cur$type,cur$datalist)
       if(save_mode()=="replace") return(NULL)
-      imesc_model_name_issue(vals$saved_data[[cur$datalist]],cur$type,input$name)
+      issue_of(input$name)
     })
     output$issue<-renderUI({
       iss<-name_issue()
       shinyjs::toggleState("confirm_save",condition=is.null(iss))
-      if(is.null(iss)) return(NULL)
-      div(style="color: #b71c1c; font-size: 12px",icon("triangle-exclamation")," ",iss)
+      issue_ui(iss)
     })
     observeEvent(input$confirm_save,ignoreInit=TRUE,{
       req(cur$type,cur$datalist%in%names(vals$saved_data),is.null(name_issue()))
       name<-if(save_mode()=="replace") input$replace else trimws(input$name)
       req(nzchar(name%||%""))
       e<-if(is.null(entry)) NULL else entry(name)
-      vals$saved_data[[cur$datalist]]<-imesc_model_save_unsaved(vals$saved_data[[cur$datalist]],cur$type,name,e)
+      if(custom){
+        ms<-models_now()
+        if(is.null(ms)) ms<-list()
+        if(name%in%names(ms)) ms[name]<-list(e) else ms<-c(ms,stats::setNames(list(e),name))
+        put_models(ms)
+      } else{
+        vals$saved_data[[cur$datalist]]<-imesc_model_save_unsaved(vals$saved_data[[cur$datalist]],cur$type,name,e)
+      }
       removeModal()
-      showNotification(paste0("Model '",name,"' saved in the Datalist ",cur$datalist,"."),type="message")
-      if(is.function(on_saved)) on_saved(name)
+      showNotification(paste0("Model '",name,"' saved."),type="message")
+      callback(on_saved,name,input)
     })
 
+    # ---- delete
+    delete_ui<-function(saved,selected){
+      tagList(
+        shinyWidgets::virtualSelectInput(ns("delete_pick"),NULL,choices=saved,selected=intersect(selected,saved),multiple=TRUE,search=TRUE,
+                                         keepAlwaysOpen=TRUE,hideClearButton=TRUE,alwaysShowSelectedOptionsCount=TRUE,optionHeight="24px",width="340px"),
+        em("Deleted models cannot be recovered."))
+    }
+    no_models<-function(saved){
+      if(length(saved)) return(FALSE)
+      showNotification("There are no saved models.",type="warning")
+      TRUE
+    }
     open_delete<-function(selected=NULL){
-      cur$type<-val(type)
-      cur$datalist<-val(datalist)
-      req(cur$type,cur$datalist%in%names(vals$saved_data))
-      saved<-saved_names()
-      if(!length(saved)){
-        showNotification("There are no saved models to delete.",type="warning")
-        return(invisible(NULL))
-      }
+      start()
+      saved<-saved_list()
+      if(no_models(saved)) return(invisible(NULL))
       showModal(modalDialog(
         title=span(icon("fas fa-trash")," Delete ",imesc_model_info(cur$type)$label," models"),easyClose=TRUE,
-        div(style="padding: 4px 10px",
-            p("Saved models of the Datalist ",strong(cur$datalist),":"),
-            shinyWidgets::virtualSelectInput(ns("delete_pick"),NULL,choices=saved,selected=intersect(selected,saved),multiple=TRUE,search=TRUE,
-                                             keepAlwaysOpen=TRUE,hideClearButton=TRUE,alwaysShowSelectedOptionsCount=TRUE,optionHeight="24px",width="340px"),
-            em("Deleted models cannot be recovered.")),
+        div(style="padding: 4px 10px",p("Saved models of ",where(),":"),delete_ui(saved,selected)),
         footer=div(modalButton("Cancel"),actionButton(ns("confirm_delete"),"Delete",icon=icon("fas fa-trash")))
       ))
     }
     observeEvent(input$confirm_delete,ignoreInit=TRUE,{
       req(cur$type,cur$datalist%in%names(vals$saved_data),length(input$delete_pick)>0)
       del<-input$delete_pick
-      vals$saved_data[[cur$datalist]]<-imesc_model_delete(vals$saved_data[[cur$datalist]],cur$type,del)
+      if(custom){
+        ms<-models_now()
+        put_models(ms[!names(ms)%in%del])
+      } else{
+        vals$saved_data[[cur$datalist]]<-imesc_model_delete(vals$saved_data[[cur$datalist]],cur$type,del)
+      }
       removeModal()
       showNotification(paste0(length(del)," model(s) deleted."),type="message")
-      if(is.function(on_deleted)) on_deleted(del)
+      callback(on_deleted,del)
     })
-    list(open_save=open_save,open_delete=open_delete)
+
+    # ---- manage: rename and delete in one window
+    open_manage<-function(selected=NULL){
+      start()
+      saved<-saved_list()
+      if(no_models(saved)) return(invisible(NULL))
+      sel<-if(length(selected)&&selected[1]%in%saved) selected[1] else saved[1]
+      showModal(modalDialog(
+        title=span(icon("fas fa-edit")," Edit ",imesc_model_info(cur$type)$label," models"),easyClose=TRUE,
+        div(style="padding: 4px 10px",
+            p("Saved models of ",where(),"."),
+            h4(strong("Rename")),
+            div(style="display: flex; gap: 10px; align-items: flex-end",
+                selectInput(ns("rename_from"),"Model:",choices=saved,selected=sel,width="200px"),
+                textInput(ns("rename_to"),"New name:",value=sel,width="200px"),
+                div(style="padding-bottom: 15px",actionButton(ns("confirm_rename"),"Rename",icon=icon("fas fa-pen")))),
+            uiOutput(ns("rename_issue")),
+            tags$hr(),
+            h4(strong("Delete")),
+            delete_ui(saved,NULL),
+            div(style="padding-top: 6px",actionButton(ns("confirm_delete"),"Delete selected",icon=icon("fas fa-trash")))),
+        footer=modalButton("Close")
+      ))
+    }
+    observeEvent(input$rename_from,ignoreInit=TRUE,{ updateTextInput(session,"rename_to",value=input$rename_from) })
+    rename_issue<-reactive({
+      req(cur$type,input$rename_from)
+      if(identical(trimws(input$rename_to%||%""),input$rename_from)) return(NULL)
+      issue_of(input$rename_to,old=input$rename_from)
+    })
+    output$rename_issue<-renderUI({
+      iss<-rename_issue()
+      shinyjs::toggleState("confirm_rename",condition=is.null(iss))
+      issue_ui(iss)
+    })
+    observeEvent(input$confirm_rename,ignoreInit=TRUE,{
+      req(cur$type,input$rename_from,is.null(rename_issue()))
+      old<-input$rename_from
+      new<-trimws(input$rename_to)
+      req(nzchar(new))
+      if(!identical(old,new)){
+        if(custom){
+          ms<-models_now()
+          names(ms)[names(ms)==old]<-new
+          put_models(ms)
+        } else{
+          full<-names(attr(vals$saved_data[[cur$datalist]],cur$type))
+          full[full==old]<-new
+          vals$saved_data[[cur$datalist]]<-imesc_model_rename(vals$saved_data[[cur$datalist]],cur$type,full)
+        }
+        showNotification(paste0("Model '",old,"' renamed to '",new,"'."),type="message")
+      }
+      removeModal()
+      callback(on_renamed,old,new)
+    })
+    list(open_save=open_save,open_delete=open_delete,open_manage=open_manage)
   })
 }

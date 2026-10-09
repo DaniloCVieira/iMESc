@@ -3197,3 +3197,82 @@ stcv_block_table_ui<-function(tab,fixed=FALSE){
           tags$table(style="width: 100%",tags$thead(head_row),tags$tbody(rows))),
       if(!is.null(note)) div(style="color: #8a6d3b; padding-top: 3px",icon("circle-info")," ",note))
 }
+
+# ---- Leakage check: derived temporal variables (Temporal Features) x validation scheme ----
+# meta: attr(Datalist,"temporal_feature_meta"); predictors / response: column names used by the model;
+# prequential: forward validation; horizon, gap: in temporal blocks; steps_per_block: time steps per block
+#' @export
+stcv_leakage_check<-function(meta,predictors,response,prequential=TRUE,horizon=1,gap=0,steps_per_block=1,
+                             irregular=FALSE,repeated_steps=FALSE){
+  res<-list(critical=character(0),attention=character(0),n=0)
+  if(is.null(meta)||!nrow(meta)) return(res)
+  m<-meta[meta$feature%in%predictors,,drop=FALSE]
+  res$n<-nrow(m)
+  if(!nrow(m)) return(res)
+  lst<-function(v,n=6) paste0(paste(utils::head(v,n),collapse=", "),if(length(v)>n) paste0(" (+",length(v)-n," more)") else "")
+  # 1. future values as predictors
+  lead<-m$feature[m$uses_future]
+  if(length(lead)) res$critical<-c(res$critical,paste0("Predictors with future values (lead): ",lst(lead),". Use lead variables only as the response of a forecasting model."))
+  # 2. variables derived from the response
+  fy<-m[m$source%in%response,,drop=FALSE]
+  cur<-fy$feature[fy$includes_current]
+  if(length(cur)) res$critical<-c(res$critical,paste0("Predictors derived from the response that include its value at time t: ",lst(cur),". They contain the value the model has to predict; recreate them with Past values only."))
+  fy<-fy[!fy$includes_current&!fy$uses_future,,drop=FALSE]
+  if(nrow(fy)){
+    # most recent response value used at t: lag k, or t-1 for the past-only summaries
+    used_lag<-ifelse(fy$type=="lag",fy$k,1)
+    if(isTRUE(prequential)){
+      reach<-(gap+horizon)*steps_per_block
+      short<-fy$feature[used_lag<reach]
+      if(length(short)) res$critical<-c(res$critical,paste0("Predictors derived from the response use values up to ",min(used_lag[used_lag<reach])," time step(s) before t, but the test windows reach about ",round(reach)," time step(s) after the last training time (gap + horizon = ",gap+horizon," block(s)): when forecasting, those response values would not be known yet. Affected: ",lst(short),". Use lags of at least ",ceiling(reach)," time steps, or a shorter horizon."))
+    } else{
+      res$critical<-c(res$critical,paste0("With leave-one-time-block-out, the training blocks that follow the test block carry response values of the test block through lags and windows of the response (",lst(fy$feature),"). Use Prequential CV (training only on the past)."))
+    }
+  }
+  # 3. other derived predictors
+  other<-m[!m$source%in%response&!m$uses_future,,drop=FALSE]
+  if(nrow(other)){
+    if(!isTRUE(prequential)&&any(other$type!="lag"|other$k>0)){
+      res$attention<-c(res$attention,"Leave-one-time-block-out: the training blocks next to the test block share lag/window values with it (predictor values only). Prequential CV avoids this.")
+    }
+    cur_p<-other$feature[other$includes_current]
+    if(length(cur_p)&&isTRUE(prequential)) res$attention<-c(res$attention,paste0("Predictors that include their value at time t (",lst(cur_p),"): valid only if they are known when the prediction is made."))
+  }
+  if(any(!m$grouped)&&isTRUE(repeated_steps)) res$attention<-c(res$attention,"Derived variables were created without grouping the series while several observations share the same time step: lags and windows may mix observations of different locations.")
+  if(isTRUE(irregular)) res$attention<-c(res$attention,"Irregular sampling: lags and windows count observations, not time, so a lag of 1 covers different time intervals.")
+  res
+}
+
+#' @export
+stcv_leakage_ui<-function(res){
+  if(is.null(res)||!res$n) return(NULL)
+  if(!length(res$critical)&&!length(res$attention)){
+    return(div(style="padding: 6px 8px; margin: 6px 0px; background: #e8f5e9; border-left: 4px solid #2f6f3e; font-size: 11px",
+               icon("circle-check")," ",strong("Leakage check: "),paste0("no risk detected among the ",res$n," derived temporal predictor(s).")))
+  }
+  div(style="margin: 6px 0px; font-size: 11px",
+      if(length(res$critical)) div(style="padding: 6px 8px; background: #fdecea; border-left: 4px solid #b71c1c; margin-bottom: 4px",
+                                   strong(icon("triangle-exclamation")," Leakage check: data leakage"),
+                                   tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 16px",lapply(res$critical,tags$li))),
+      if(length(res$attention)) div(style="padding: 6px 8px; background: #fff8db; border-left: 4px solid #8a6d3b",
+                                    strong(icon("circle-info")," Leakage check: attention"),
+                                    tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 16px",lapply(res$attention,tags$li))))
+}
+
+# time steps per temporal block, irregular sampling and repeated time steps of the training data
+#' @export
+stcv_time_context<-function(time,blocks){
+  d<-stcv_as_date(time)
+  tv<-if(is.null(d)) time else d
+  ok<-!is.na(tv)&!is.na(blocks)
+  spb<-if(any(ok)) stats::median(tapply(as.character(tv[ok]),blocks[ok],function(v) length(unique(v)))) else 1
+  irregular<-FALSE
+  if(!is.null(d)){
+    ud<-sort(unique(d[!is.na(d)]))
+    if(length(ud)>2){
+      dif<-diff(as.numeric(ud))
+      irregular<-stats::sd(dif)/mean(dif)>0.2
+    }
+  }
+  list(steps_per_block=max(1,spb),irregular=irregular,repeated_steps=anyDuplicated(tv[!is.na(tv)])>0)
+}

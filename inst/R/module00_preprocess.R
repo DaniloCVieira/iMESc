@@ -8043,6 +8043,11 @@ tool2_tab10$ui<-function(id){
                          uiOutput(ns("time_col_ui")),
                          uiOutput(ns("group_by_coords_ui"))
                        ),
+                       checkboxInput(
+                         ns("past_only"),
+                         tiphelp5("Past values only","Rolling summaries (Trend), changes, anomalies and cumulative variables at time t use only values up to t-1, so they never contain the value observed at t. Keep it checked when the variables are derived from the response or when the model is used to forecast; uncheck it only for predictors that are known at time t."),
+                         value=TRUE
+                       ),
 
 
 
@@ -8099,7 +8104,7 @@ tool2_tab10$ui<-function(id){
                                    ),
                                    checkboxInput(
                                      ns("led_center"),
-                                     tiphelp5("Center","Center the LED variables after they are created. Useful when models are sensitive to scale."),
+                                     tiphelp5("Center","Subtract from each LED value the mean of the LED series up to that time (only past values are used). Useful when models are sensitive to scale."),
                                      value=FALSE
                                    ),
                                    div(
@@ -8110,7 +8115,7 @@ tool2_tab10$ui<-function(id){
 
                              )),
                            tabPanel(
-                             nav_tip("Lead","Creates future-shifted variables, such as x(t+1). Use this mainly to define future response targets. Avoid using leads as ordinary predictors because they can leak future information into machine-learning validation."),
+                             nav_tip("Lead","Creates future-shifted variables, such as x(t+1). Use them only as the response of a forecasting model (to predict t+h), never as predictors: they contain future values and leak information into the validation."),
                              value="lead",
                              div(class='nav-time',
                                  textInput(
@@ -8455,13 +8460,12 @@ tool2_tab10$server<-function(id,vals){
         state<-NA_real_
       }
       has_state<-!is.na(state)
+      # lagged: the value at t is the state before x(t) is added (past values only)
       for(i in seq_along(x)){
-        if(is.na(x[i])){
-          out[i]<-if(has_state) state else NA_real_
-        }else{
+        out[i]<-if(has_state) state else NA_real_
+        if(!is.na(x[i])){
           state<-if(has_state) alpha*x[i]+(1-alpha)*state else x[i]
           has_state<-TRUE
-          out[i]<-state
         }
       }
       out
@@ -8613,6 +8617,27 @@ tool2_tab10$server<-function(id,vals){
         return(out)
       }
       notes<-character(0)
+      past_only<-!isFALSE(input$past_only)
+      grouped<-isTRUE(input$group_by_coords)&&!is.null(attr(dat,"coords"))
+      # metadata of every generated variable (used by the leakage check of the Supervised validation)
+      meta<-list()
+      rec<-function(nm,var,type,k=NA,includes_current=FALSE,uses_future=FALSE){
+        meta[[length(meta)+1]]<<-data.frame(feature=nm,source=var,type=type,k=as.numeric(k),
+                                            includes_current=includes_current,uses_future=uses_future,
+                                            grouped=grouped,stringsAsFactors=FALSE)
+      }
+      # past values only: the summary at t is the one computed up to t-1
+      shift_past<-function(fun){
+        if(past_only) function(z) lag_values(fun(z),1) else fun
+      }
+      # several observations in the same time step of a series: lags follow their row order
+      tt0<-get_time_values(dat,input$time_col)
+      if(!is.null(tt0)){
+        key<-paste(as.character(get_series_groups(dat)),as.character(tt0))
+        if(anyDuplicated(key)){
+          notes<-c(notes,paste0("Several observations share the same time step within a series",if(!grouped) " (no Group by coordinates)" else "",": lags and windows move through these observations in row order, so a lag of 1 may be another observation of the same time. Group the series (e.g. by coordinates) or keep one observation per time step."))
+        }
+      }
 
       for(step in steps){
         vars<-intersect(step$vars,colnames(out))
@@ -8626,6 +8651,7 @@ tool2_tab10$server<-function(id,vals){
             for(lag_i in lags){
               nm<-feature_name(prefix,var,paste0("lag",lag_i),colnames(out))
               out[[nm]]<-apply_by_series(dat,x,function(z)lag_values(z,lag_i))
+              rec(nm,var,"lag",lag_i)
             }
           }
         }
@@ -8638,6 +8664,7 @@ tool2_tab10$server<-function(id,vals){
             for(lead_i in leads){
               nm<-feature_name(prefix,var,paste0("lead",lead_i),colnames(out))
               out[[nm]]<-apply_by_series(dat,x,function(z)lead_values(z,lead_i))
+              rec(nm,var,"lead",lead_i,uses_future=TRUE)
             }
           }
         }
@@ -8654,19 +8681,21 @@ tool2_tab10$server<-function(id,vals){
             for(window_i in windows){
               for(stat_i in stats){
                 nm<-feature_name(prefix,var,paste0("roll",window_i,"_",stat_i),colnames(out))
-                out[[nm]]<-switch(
+                stat_fun<-switch(
                   stat_i,
-                  mean=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,mean))),
-                  sd=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,stats::sd))),
-                  slope=apply_by_series(dat,x,function(z)rolling_slope(z,window_i)),
-                  min=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,min))),
-                  max=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,max))),
-                  median=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,stats::median))),
-                  q25=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,function(v)stats::quantile(v,.25,names=FALSE)))),
-                  q75=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,function(v)stats::quantile(v,.75,names=FALSE)))),
-                  iqr=apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,stats::IQR))),
-                  apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,mean)))
+                  mean=function(y)safe_stat(y,mean),
+                  sd=function(y)safe_stat(y,stats::sd),
+                  min=function(y)safe_stat(y,min),
+                  max=function(y)safe_stat(y,max),
+                  median=function(y)safe_stat(y,stats::median),
+                  q25=function(y)safe_stat(y,function(v)stats::quantile(v,.25,names=FALSE)),
+                  q75=function(y)safe_stat(y,function(v)stats::quantile(v,.75,names=FALSE)),
+                  iqr=function(y)safe_stat(y,stats::IQR),
+                  function(y)safe_stat(y,mean)
                 )
+                roll_fun<-if(identical(stat_i,"slope")) function(z)rolling_slope(z,window_i) else function(z)rolling_values(z,window_i,stat_fun)
+                out[[nm]]<-apply_by_series(dat,x,shift_past(roll_fun))
+                rec(nm,var,"rolling",window_i,includes_current=!past_only)
               }
             }
           }
@@ -8685,7 +8714,7 @@ tool2_tab10$server<-function(id,vals){
               for(type_i in types){
                 suffix<-if(type_i=="pct") paste0("pct_change",lag_i) else paste0("diff",lag_i)
                 nm<-feature_name(prefix,var,suffix,colnames(out))
-                out[[nm]]<-apply_by_series(dat,x,function(z){
+                out[[nm]]<-apply_by_series(dat,x,shift_past(function(z){
                   lagged<-lag_values(z,lag_i)
                   if(type_i=="pct"){
                     pct<-(z-lagged)/lagged
@@ -8693,7 +8722,8 @@ tool2_tab10$server<-function(id,vals){
                     return(pct)
                   }
                   z-lagged
-                })
+                }))
+                rec(nm,var,"change",lag_i,includes_current=!past_only)
               }
             }
           }
@@ -8712,9 +8742,11 @@ tool2_tab10$server<-function(id,vals){
               roll_mean<-apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,mean)))
               roll_median<-apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,stats::median)))
               roll_sd<-apply_by_series(dat,x,function(z)rolling_values(z,window_i,function(y)safe_stat(y,stats::sd)))
+              # past values only: the anomaly of t-1 (x(t) is not used)
+              shift1<-function(v) if(past_only) apply_by_series(dat,v,function(z)lag_values(z,1)) else v
               for(type_i in types){
                 nm<-feature_name(prefix,var,paste0("anom_",window_i,"_",type_i),colnames(out))
-                out[[nm]]<-switch(
+                out[[nm]]<-shift1(switch(
                   type_i,
                   mean_dev=x-roll_mean,
                   median_dev=x-roll_median,
@@ -8724,7 +8756,8 @@ tool2_tab10$server<-function(id,vals){
                     zsc
                   },
                   x-roll_mean
-                )
+                ))
+                rec(nm,var,"anomaly",window_i,includes_current=!past_only)
               }
             }
           }
@@ -8744,9 +8777,11 @@ tool2_tab10$server<-function(id,vals){
               function(z)led_values(z,alpha=alpha,initial=initial)
             )
             if(isTRUE(step$settings$center)){
-              vals_led<-as.numeric(scale(vals_led,center=TRUE,scale=FALSE))
+              # mean of the LED series up to each time (the overall mean used future values)
+              vals_led<-vals_led-apply_by_series(dat,vals_led,function(z)cumulative_values(z,"mean"))
             }
             out[[nm]]<-vals_led
+            rec(nm,var,"led",NA)
           }
         }
 
@@ -8759,7 +8794,8 @@ tool2_tab10$server<-function(id,vals){
             x<-as.numeric(out[[var]])
             for(type_i in types){
               nm<-feature_name(prefix,var,paste0("cum_",type_i),colnames(out))
-              out[[nm]]<-apply_by_series(dat,x,function(z)cumulative_values(z,type_i))
+              out[[nm]]<-apply_by_series(dat,x,shift_past(function(z)cumulative_values(z,type_i)))
+              rec(nm,var,"cumulative",NA,includes_current=!past_only)
             }
           }
         }
@@ -8824,6 +8860,16 @@ tool2_tab10$server<-function(id,vals){
       attrs$derived_feature_names<-generated_names
       attributes(out)<-attrs
       attr(out,"feature_notes")<-unique(notes)
+      # metadata of the derived variables (kept with the ones of earlier feature runs)
+      new_meta<-if(length(meta)) do.call(rbind,meta) else NULL
+      old_meta<-attr(dat,"temporal_feature_meta")
+      all_meta<-rbind(old_meta,new_meta)
+      if(!is.null(all_meta)){
+        all_meta<-all_meta[all_meta$feature%in%colnames(out),,drop=FALSE]
+        all_meta<-all_meta[!duplicated(all_meta$feature,fromLast=TRUE),,drop=FALSE]
+        rownames(all_meta)<-NULL
+      }
+      attr(out,"temporal_feature_meta")<-all_meta
       out
     }
 

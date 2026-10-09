@@ -3714,6 +3714,7 @@ temporal_validation$ui<-function(id,time_source="numeric"){
                      numericInput(ns("rolling_train_blocks"), span("Rolling train blocks",tipright("Training window length for rolling prequential validation. If left empty, the app uses Initial train blocks as the rolling window length.")), value = NA, min = 1, step = 1),
                      uiOutput(ns("prequential_split_preview"))
                    ),
+                   uiOutput(ns("leakage_check")),
                    div(
                      id=ns("run_temporal_cv_btn"),
                      class="save_changes",
@@ -3903,19 +3904,37 @@ temporal_validation$server<-function(id,vals){
       }
     })
 
-    output$time_blocks_table<-renderUI({
+    # temporal block of each training observation, as the scheme will define it
+    temporal_block_ids<-reactive({
       tempo<-get_temporal_vector()
       if(isTRUE(using_fixed_time_blocks())){
-        blocks<-make_fixed_time_blocks(tempo,input$time_block_unit,input$time_block_width)
-      } else{
-        tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
-        bs<-suppressWarnings(as.numeric(input$time_block_size))
-        bs<-if(length(bs)&&is.finite(bs[1])) bs[1] else NULL
-        tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=effective_k_time(),block_size=bs),error=function(e) NULL)
-        req(tb)
-        blocks<-as.integer(tb$block_ids)
+        return(make_fixed_time_blocks(tempo,input$time_block_unit,input$time_block_width))
       }
-      stcv_block_table_ui(stcv_block_table(tempo,blocks),fixed=isTRUE(using_fixed_time_blocks()))
+      tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
+      bs<-suppressWarnings(as.numeric(input$time_block_size))
+      bs<-if(length(bs)&&is.finite(bs[1])) bs[1] else NULL
+      tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=effective_k_time(),block_size=bs),error=function(e) NULL)
+      req(tb)
+      as.integer(tb$block_ids)
+    })
+    output$time_blocks_table<-renderUI({
+      stcv_block_table_ui(stcv_block_table(get_temporal_vector(),temporal_block_ids()),fixed=isTRUE(using_fixed_time_blocks()))
+    })
+    # derived temporal predictors (Temporal Features) x this scheme
+    leakage<-reactive({
+      args<-vals$trainSL_args
+      req(args$x_train,args$y_train)
+      meta<-attr(vals$saved_data[[args$data_x]],"temporal_feature_meta")
+      req(!is.null(meta))
+      preq<-identical(input$validation_type,"time_block_prequential")
+      ctx<-tryCatch(stcv_time_context(get_temporal_vector(),temporal_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
+      stcv_leakage_check(meta,colnames(args$x_train),colnames(args$y_train),prequential=preq,
+                         horizon=if(preq) tryCatch(max_horizon(),error=function(e) 1) else 1,
+                         gap=if(preq) gap_blocks() else 0,
+                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps)
+    })
+    output$leakage_check<-renderUI({
+      stcv_leakage_ui(leakage())
     })
 
     output$estimated_temporal_blocks<-renderUI({
@@ -4376,6 +4395,8 @@ temporal_validation$server<-function(id,vals){
         return(NULL)
       }
       shinyjs::removeClass("run_temporal_cv_btn","save_changes")
+      lk<-tryCatch(leakage(),error=function(e) NULL)
+      if(length(lk$critical)) shiny::showNotification("Temporal CV created, but the leakage check found data leakage: see the Leakage check above the Create button.",type="warning",duration=10)
       output$cvt_result<-renderUI({
         if(is.null(vals$cvt)){
           return(empty_temporal_result())
@@ -4697,6 +4718,7 @@ spatiotemporal_validation$ui<-function(id,cvst_params,time_source="numeric"){
                                numericInput(ns("rolling_train_blocks"),span("Rolling train blocks",tipright("Training window length for rolling prequential validation. If empty, Initial train blocks is used.")),value=cvst_params$rolling_train_blocks,min=1,step=1)
 
                            ),
+                           uiOutput(ns("leakage_check")),
                            div(id=ns("run_cvst_btn"),class="save_changes",align="right",
                                actionButton(ns("run_cvst"),"Create spatiotemporal CV scheme",icon=icon("play"),class="btn-primary")),
                            div(
@@ -4872,18 +4894,33 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
     st_k_time<-reactive({
       if(isTRUE(st_fixed())) max(2L,length(unique(st_fixed_blocks()))) else input$k_time
     })
-    output$time_blocks_table<-renderUI({
+    st_block_ids<-reactive({
+      if(isTRUE(st_fixed())) return(st_fixed_blocks())
       tempo<-st_time_vector()
-      if(isTRUE(st_fixed())){
-        blocks<-st_fixed_blocks()
-      } else{
-        tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
-        req(is.numeric(input$k_time),input$k_time>=2)
-        tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=input$k_time),error=function(e) NULL)
-        req(tb)
-        blocks<-as.integer(tb$block_ids)
-      }
-      stcv_block_table_ui(stcv_block_table(tempo,blocks),fixed=isTRUE(st_fixed()))
+      tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
+      req(is.numeric(input$k_time),input$k_time>=2)
+      tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=input$k_time),error=function(e) NULL)
+      req(tb)
+      as.integer(tb$block_ids)
+    })
+    output$time_blocks_table<-renderUI({
+      stcv_block_table_ui(stcv_block_table(st_time_vector(),st_block_ids()),fixed=isTRUE(st_fixed()))
+    })
+    # derived temporal predictors (Temporal Features) x this scheme
+    st_leakage<-reactive({
+      args<-vals$trainSL_args
+      req(args$x_train,args$y_train)
+      meta<-attr(vals$saved_data[[args$data_x]],"temporal_feature_meta")
+      req(!is.null(meta))
+      preq<-identical(input$validation_type,"spatiotemporal_contiguous_block_prequential")
+      ctx<-tryCatch(stcv_time_context(st_time_vector(),st_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
+      stcv_leakage_check(meta,colnames(args$x_train),colnames(args$y_train),prequential=preq,
+                         horizon=if(preq) tryCatch(max(st_horizons()),error=function(e) 1) else 1,
+                         gap=if(preq) st_gap_blocks() else 0,
+                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps)
+    })
+    output$leakage_check<-renderUI({
+      stcv_leakage_ui(st_leakage())
     })
 
     empty_cvst_result<-function(message="No spatiotemporal CV scheme has been created yet. Adjust the parameters and click Create spatiotemporal CV scheme."){
@@ -5020,6 +5057,8 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
         return(NULL)
       }
       shinyjs::removeClass("run_cvst_btn","save_changes")
+      lk<-tryCatch(st_leakage(),error=function(e) NULL)
+      if(length(lk$critical)) shiny::showNotification("Spatiotemporal CV created, but the leakage check found data leakage: see the Leakage check above the Create button.",type="warning",duration=10)
       output$cvst_result<-renderUI({
         req(vals$cvst)
         params<-attr(vals$cvst,"params")

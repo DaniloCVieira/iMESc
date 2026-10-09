@@ -1028,6 +1028,14 @@ dbscan_module$ui<-function(id){
         column(4,class="mp0",
                box_caret(ns("box_result"),title="Result",color="#c3cc74ff",
                          div(
+                           # trained (unsaved) model and the models saved in the Datalist
+                           div(style="display: flex; gap: 6px; align-items: flex-end; margin-bottom: 6px",
+                               div(style="flex: 1 1 auto; min-width: 0",
+                                   pickerInput_fromtop(ns("dbs_model"),tiphelp5("Model:","The model just trained (unsaved) or a model saved in the training Datalist. Saved models keep the setup, the parameters and the clusters; they can be renamed or deleted in Pre-processing tools > Rename models / Datalist manager."),choices=NULL,width="100%")),
+                               div(id=ns("save_model_btn"),class="save_changes",
+                                   actionButton(ns("save_model"),icon("fas fa-save"),title="Save the model in the Datalist",style="height: 30px; padding: 3px 10px")),
+                               div(id=ns("delete_model_btn"),
+                                   actionButton(ns("delete_model"),icon("fas fa-trash"),title="Delete the saved model",style="height: 30px; padding: 3px 10px"))),
                            uiOutput(ns("summary")),
                            checkboxInput(ns("assign_noise"),tiphelp5("Assign noise to the nearest cluster","Noise points (not dense enough to belong to any cluster) are given the cluster of their nearest clustered point. Only for the saved/plotted labels; keep them as Noise when outliers matter."),value=FALSE),
                            div(class="save_changes",actionButton(ns("save_clusters"),span(icon("fas fa-save")," Save clusters in the Factor-Attribute")))
@@ -1153,7 +1161,7 @@ dbscan_module$server<-function(id,vals){
       shinyjs::toggle("hdbscan_box",condition=identical(input$method,"hdbscan"))
       shinyjs::toggle("som_opts",condition=identical(input$target,"som"))
       shinyjs::toggle("data_opts",condition=!identical(input$target,"som"))
-      shinyjs::toggle("assign_noise",condition=!is.null(result()))
+      shinyjs::toggle("assign_noise",condition=!is.null(model()))
     })
 
     # data or SOM distances ready for the algorithms
@@ -1441,9 +1449,86 @@ dbscan_module$server<-function(id,vals){
       updateTabsetPanel(session,"tabs",selected="tab2")
     })
 
+    # ---- models: the one just trained (unsaved) and the ones saved in the Datalist
+    unsaved_label<-"New model (unsaved)"
+    sel_model<-reactiveVal(NULL)
+    saved_models<-reactive({
+      req(input$data_db%in%names(vals$saved_data))
+      attr(vals$saved_data[[input$data_db]],"dbscan")
+    })
+    observeEvent(result(),ignoreNULL=FALSE,{
+      if(!is.null(result())) sel_model(unsaved_label)
+    })
+    observe({
+      ch<-c(if(!is.null(result())) unsaved_label,names(saved_models()))
+      sel<-sel_model()
+      if(is.null(sel)||!sel%in%ch) sel<-if(length(ch)) ch[1] else character(0)
+      updatePickerInput(session,"dbs_model",choices=ch,selected=sel)
+    })
+    observeEvent(input$dbs_model,{ sel_model(input$dbs_model) })
+    model<-reactive({
+      s<-input$dbs_model
+      if(is.null(s)||!nzchar(s)) return(NULL)
+      if(identical(s,unsaved_label)) return(result())
+      saved_models()[[s]]
+    })
+    observeEvent(model(),ignoreNULL=FALSE,{ pred(NULL) })
+    observe({
+      unsaved<-identical(input$dbs_model,unsaved_label)&&!is.null(result())
+      shinyjs::toggle("save_model_btn",condition=unsaved)
+      shinyjs::toggle("delete_model_btn",condition=!is.null(model())&&!unsaved)
+    })
+    observeEvent(input$save_model,ignoreInit=TRUE,{
+      r<-result()
+      req(r)
+      k<-length(unique(r$cluster[r$cluster>0]))
+      name0<-paste0(toupper(r$method),if(identical(r$target,"som")) "_som" else "","_",k,"cl")
+      nm<-make.unique(c(names(attr(vals$saved_data[[r$datalist]],"dbscan")),name0),sep="_")
+      showModal(modalDialog(
+        title="Save model",easyClose=TRUE,
+        div(p("Model saved in the Datalist ",strong(r$datalist),":"),
+            textInput(ns("model_name"),NULL,value=nm[length(nm)],width="300px"),
+            em("A model with the same name is replaced.")),
+        footer=div(modalButton("Cancel"),actionButton(ns("confirm_save_model"),"Save"))
+      ))
+    })
+    observeEvent(input$confirm_save_model,ignoreInit=TRUE,{
+      r<-result()
+      name<-trimws(input$model_name%||%"")
+      req(r,nzchar(name),r$datalist%in%names(vals$saved_data))
+      attr(r,"model_name")<-name
+      r$saved<-format(Sys.time(),"%Y-%m-%d %H:%M")
+      ms<-attr(vals$saved_data[[r$datalist]],"dbscan")
+      if(is.null(ms)) ms<-list()
+      ms[[name]]<-r
+      attr(vals$saved_data[[r$datalist]],"dbscan")<-ms
+      sel_model(name)
+      result(NULL)
+      removeModal()
+      showNotification(paste0("Model '",name,"' saved in the Datalist ",r$datalist,"."),type="message")
+    })
+    observeEvent(input$delete_model,ignoreInit=TRUE,{
+      req(input$dbs_model%in%names(saved_models()))
+      showModal(modalDialog(
+        title="Delete model",easyClose=TRUE,
+        p("Delete the model ",strong(input$dbs_model)," from the Datalist ",strong(input$data_db),"?"),
+        footer=div(modalButton("Cancel"),actionButton(ns("confirm_delete_model"),"Delete"))
+      ))
+    })
+    observeEvent(input$confirm_delete_model,ignoreInit=TRUE,{
+      nm<-input$dbs_model
+      req(nm%in%names(saved_models()))
+      ms<-attr(vals$saved_data[[input$data_db]],"dbscan")
+      ms[[nm]]<-NULL
+      attr(vals$saved_data[[input$data_db]],"dbscan")<-if(length(ms)) ms else NULL
+      sel_model(NULL)
+      removeModal()
+      showNotification(paste0("Model '",nm,"' deleted."),type="message")
+    })
+
     # labels of the clustered units (neurons or observations), optionally without noise
     unit_clusters<-reactive({
-      r<-result()
+      r<-model()
       validate(need(!is.null(r),"Train the model in 1. Parameters (RUN)."))
       cl<-r$cluster
       if(isTRUE(input$assign_noise)) cl<-dbs_assign_noise(r$prep,cl)
@@ -1451,10 +1536,11 @@ dbscan_module$server<-function(id,vals){
     })
     # labels of the observations of the Datalist
     obs_clusters<-reactive({
-      r<-result()
+      r<-model()
       cl<-unit_clusters()
       if(identical(r$target,"som")){
         m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
+        validate(need(inherits(m,"kohonen"),paste0("The SOM model ",r$som_model," of this model is no longer in the Datalist ",r$datalist,".")))
         f<-dbs_factor(cl)[m$unit.classif]
         names(f)<-names(m$unit.classif)%||%rownames(vals$saved_data[[r$datalist]])
         return(f)
@@ -1465,7 +1551,7 @@ dbscan_module$server<-function(id,vals){
     })
 
     output$summary<-renderUI({
-      r<-result()
+      r<-model()
       if(is.null(r)) return(div(style="font-size: 11px; color: #555555",em("Train the model in 1. Parameters (RUN).")))
       tab<-dbs_summary(r,r$prep)
       k<-sum(tab$Cluster!="Noise")
@@ -1473,6 +1559,8 @@ dbscan_module$server<-function(id,vals){
       q<-if(is.na(v)) "" else if(v>=0.5) " (strong)" else if(v>=0.2) " (moderate)" else if(v>=0) " (weak)" else " (no density-separated groups: the data may form a single group)"
       go<-glosh_out()
       div(
+        if(!is.null(attr(r,"model_name"))) div(style="font-size: 11px; color: #555555; padding-bottom: 3px",icon("fas fa-save")," ",
+                                                 em(paste0("Saved model '",attr(r,"model_name"),"' of ",r$datalist,if(!is.null(r$saved)) paste0(" (",r$saved,")") else ""))),
         div(style="font-size: 12px",
             strong(toupper(r$method)),": ",k," cluster(s), ",round(dbs_noise(r$prep,r$cluster),1),"% noise",
             if(!is.na(v)) span(", ",tiphelp5(paste0("DBCV ",round(v,3),q),"Density-Based Clustering Validation (-1 to 1): separation of the clusters by low-density regions, penalised by the noise. Above 0.5 strong, 0.2-0.5 moderate, below 0.2 weak.")) else "",
@@ -1486,14 +1574,14 @@ dbscan_module$server<-function(id,vals){
     })
     # GLOSH outliers (HDBSCAN on the Numeric-Attribute)
     glosh_out<-reactive({
-      r<-result()
+      r<-model()
       if(is.null(r)||!identical(r$method,"hdbscan")||!identical(r$target,"data")) return(NULL)
       q<-input$glosh_q
       if(!isTRUE(q>0&&q<1)) return(NULL)
       r$glosh>stats::quantile(r$glosh,q,names=FALSE)
     })
     observe({
-      r<-result()
+      r<-model()
       is_h<-!is.null(r)&&identical(r$method,"hdbscan")
       shinyjs::toggle("plot_type_box",condition=is_h)
       shinyjs::toggle("glosh_box",condition=is_h&&identical(r$target,"data"))
@@ -1501,7 +1589,7 @@ dbscan_module$server<-function(id,vals){
 
     # ---- plot (SOM map as in the HC / K-means modules, or PCA/PCoA of the observations)
     dbs_plot<-reactive({
-      r<-result()
+      r<-model()
       req(r)
       cl<-unit_clusters()
       f<-dbs_factor(cl)
@@ -1513,6 +1601,7 @@ dbscan_module$server<-function(id,vals){
       }
       if(identical(r$target,"som")){
         m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
+        validate(need(inherits(m,"kohonen"),paste0("The SOM model ",r$som_model," of this model is no longer in the Datalist ",r$datalist,".")))
         req(m)
         hexs<-get_neurons(m,background_type="hc",property=NULL,hc=f)
         cols<-dbs_colors(f,pal_fun)
@@ -1542,7 +1631,7 @@ dbscan_module$server<-function(id,vals){
       suppressWarnings(suppressMessages(print(p)))
     })
     output$plot_note<-renderUI({
-      r<-result()
+      r<-model()
       req(r)
       if(identical(r$method,"hdbscan")&&identical(input$plot_type,"ctree")) return(NULL)
       if(identical(r$target,"som")) return(NULL)
@@ -1551,12 +1640,12 @@ dbscan_module$server<-function(id,vals){
     observeEvent(input$down_plot,ignoreInit=TRUE,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      callModule(module_server_figs,"downfigs",vals=vals,generic=dbs_plot(),message="Density-based clustering",name_c=paste0(result()$method,"_clusters"),datalist_name=result()$datalist)
+      callModule(module_server_figs,"downfigs",vals=vals,generic=dbs_plot(),message="Density-based clustering",name_c=paste0(model()$method,"_clusters"),datalist_name=model()$datalist)
     })
 
     # ---- save the clusters as a Factor-Attribute
     observeEvent(input$save_clusters,ignoreInit=TRUE,{
-      r<-result()
+      r<-model()
       if(is.null(r)){
         showNotification("Train the model first.",type="warning")
         return()
@@ -1576,7 +1665,7 @@ dbscan_module$server<-function(id,vals){
       ))
     })
     observeEvent(input$confirm_save,ignoreInit=TRUE,{
-      r<-result()
+      r<-model()
       req(r,nzchar(input$factor_name%||%""))
       f<-obs_clusters()
       d<-vals$saved_data[[r$datalist]]
@@ -1598,16 +1687,16 @@ dbscan_module$server<-function(id,vals){
     # ---- predict new observations
     pred<-reactiveVal(NULL)
     observe({
-      r<-result()
+      r<-model()
       shinyjs::toggle("run_pred",condition=!is.null(r)&&identical(r$target,"data"))
     })
     output$pred_info<-renderUI({
-      r<-result()
+      r<-model()
       msg<-if(is.null(r)) "Train the model in 1. Parameters (RUN)." else if(!identical(r$target,"data")) "Prediction is available for models trained on the Numeric-Attribute (for a SOM codebook, use the SOM predictions)." else if(identical(r$method,"dbscan")) "A new observation gets the cluster of its nearest core point when it is within eps; otherwise it is noise." else "A new observation gets the cluster of its nearest clustered point (mutual reachability distance); it is noise when that distance is larger than the one at which the cluster appears in the hierarchy."
       div(style="font-size: 11px; color: #555555; padding-top: 6px",em(msg,if(!is.null(r$prep$reduced)) paste0(" New observations are first projected onto the ",r$prep$reduced$method," axes of the training data",if(identical(r$prep$reduced$method,"PCoA")) " (Gower's add-a-point formula)" else "",".") else ""))
     })
     observeEvent(input$run_pred,ignoreInit=TRUE,{
-      r<-result()
+      r<-model()
       req(r,identical(r$target,"data"),input$new_data%in%names(vals$saved_data))
       nd<-vals$saved_data[[input$new_data]]
       vars<-r$prep$vars%||%colnames(r$prep$X)
@@ -1648,7 +1737,7 @@ dbscan_module$server<-function(id,vals){
       d<-vals$saved_data[[p$datalist]]
       fac<-attr(d,"factors")
       if(is.null(fac)) fac<-data.frame(row.names=rownames(d))
-      nm<-make.unique(c(colnames(fac),paste0(toupper(result()$method),"_pred")),sep="_")
+      nm<-make.unique(c(colnames(fac),paste0(toupper(model()$method),"_pred")),sep="_")
       nm<-nm[length(nm)]
       fac[[nm]]<-factor(as.character(p$f[rownames(fac)]),levels=levels(p$f))
       attr(vals$saved_data[[p$datalist]],"factors")<-fac

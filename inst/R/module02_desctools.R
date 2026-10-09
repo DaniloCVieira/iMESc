@@ -5460,7 +5460,7 @@ datalist_overview<-function(data,available_models){
 
 
 
-  attrs<-c(as.character(available_models),"pwRDA","som","kmeans")
+  attrs<-c(as.character(available_models),"pwRDA","som","kmeans","dbscan")
   modelsl<-sapply(attrs,function(x){
 
     models<-attr(data,x)
@@ -5470,7 +5470,7 @@ datalist_overview<-function(data,available_models){
       m1<-lapply(models,function(m){
         nclusters=NULL
 
-        if(!x%in%c("som","kmeans","hc","pwRDA")){
+        if(!x%in%c("som","kmeans","hc","pwRDA","dbscan")){
           m<-m$m
         }
         hc=attr(m,"hc.objec")
@@ -5482,6 +5482,8 @@ datalist_overview<-function(data,available_models){
           }
           class=paste0(class(m),"-",class)
 
+        } else if(identical(x,"dbscan")){
+          class=paste0("density-based-",m$method)
         } else if(x%in%c("pwRDA","kmeans","hc")){
           class="pwRDA"
         } else {

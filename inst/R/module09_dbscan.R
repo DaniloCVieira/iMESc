@@ -929,7 +929,7 @@ gg_dbs_axes<-function(s,base_size=11){
 # its points (or weights) still in the cluster as lambda = 1 / distance increases; the selected
 # clusters are coloured
 #' @export
-gg_dbs_ctree<-function(model,colors=NULL,base_size=12,title=""){
+gg_dbs_ctree<-function(model,colors=NULL,base_size=12,title="",relabel=NULL){
   ct<-model$condensed
   n<-length(model$cluster)
   cr<-ct[ct$child>n,,drop=FALSE]
@@ -958,6 +958,8 @@ gg_dbs_ctree<-function(model,colors=NULL,base_size=12,title=""){
   place(root,0)
   sel<-model$selected
   lab<-stats::setNames(seq_along(sel),sel)
+  # sorted clusters: new number of each cluster (relabel names: original numbers)
+  if(!is.null(relabel)) lab[]<-as.integer(relabel[as.character(lab)])
   rects<-do.call(rbind,lapply(clusters,function(c){
     r<-ct[ct$parent==c,,drop=FALSE]
     end<-max(r$lambda)
@@ -988,6 +990,84 @@ gg_dbs_ctree<-function(model,colors=NULL,base_size=12,title=""){
                   caption="Bar width: points still in the cluster. Long bars (large stability) are robust clusters; coloured: selected clusters.")+
     ggplot2::theme_bw(base_size=base_size)+
     ggplot2::theme(axis.text.x=ggplot2::element_blank(),axis.ticks.x=ggplot2::element_blank(),panel.grid.major.x=ggplot2::element_blank(),panel.grid.minor.x=ggplot2::element_blank())
+}
+
+# full HDBSCAN hierarchy as an 'hclust' object: single linkage of the mutual reachability
+# distances (heights), leaves in the order of the tree
+#' @export
+dbs_hclust<-function(model,labels=NULL){
+  sl<-model$tree$sl
+  n<-sl$n
+  merge<-cbind(ifelse(sl$left<=n,-sl$left,sl$left-n),ifelse(sl$right<=n,-sl$right,sl$right-n))
+  ord<-integer(0)
+  stack<-2L*n-1L
+  while(length(stack)){
+    v<-stack[length(stack)]
+    stack<-stack[-length(stack)]
+    if(v<=n) ord<-c(ord,v) else stack<-c(stack,sl$right[v-n],sl$left[v-n])
+  }
+  if(is.null(labels)) labels<-as.character(seq_len(n))
+  structure(list(merge=merge,height=sl$height,order=ord,labels=labels,method="single (HDBSCAN mutual reachability)",
+                 dist.method="mutual reachability"),class="hclust")
+}
+
+# dendrogram of the HDBSCAN hierarchy in the style of the HC module: each branch takes the
+# colour of its cluster when all its leaves (noise aside) belong to that cluster; branches
+# joining clusters are black and branches of noise only are grey; a label marks the top of
+# each cluster. The clusters are not a horizontal cut (each one is selected at its own height),
+# so the branches are coloured from the leaves instead of by cutree as in the HC module.
+#' @export
+gg_dbs_dendrogram<-function(model,ids,colors,base_size=12,title="",labels=NULL,lwd=0.6){
+  n<-length(model$cluster)
+  if(length(ids)!=n) ids<-as.character(seq_len(n))
+  hc<-dbs_hclust(model,ids)
+  if(is.null(labels)) labels<-n<=200
+  cl<-model$cluster
+  xleaf<-numeric(n)
+  xleaf[hc$order]<-seq_len(n)
+  H<-hc$height
+  nodex<-numeric(n-1)
+  nodecl<-integer(n-1)
+  # cluster of a branch: the same cluster for all its leaves (noise ignored); 0 noise only; -1 mixed
+  join<-function(a,b) if(a==b) a else if(a==-1||b==-1) -1L else if(a==0) b else if(b==0) a else -1L
+  seg<-vector("list",n-1)
+  for(i in seq_len(n-1)){
+    ch<-hc$merge[i,]
+    info<-lapply(ch,function(j) if(j<0) c(x=xleaf[-j],y=0,c=cl[-j]) else c(x=nodex[j],y=H[j],c=nodecl[j]))
+    nodex[i]<-mean(c(info[[1]]["x"],info[[2]]["x"]))
+    nodecl[i]<-join(as.integer(info[[1]]["c"]),as.integer(info[[2]]["c"]))
+    seg[[i]]<-data.frame(x=c(info[[1]]["x"],info[[2]]["x"],info[[1]]["x"]),
+                         y=c(info[[1]]["y"],info[[2]]["y"],H[i]),
+                         xend=c(info[[1]]["x"],info[[2]]["x"],info[[2]]["x"]),
+                         yend=c(H[i],H[i],H[i]),
+                         c=c(info[[1]]["c"],info[[2]]["c"],nodecl[i]))
+  }
+  seg<-do.call(rbind,seg)
+  k<-sort(unique(cl[cl>0]))
+  lv<-c(as.character(k),"Noise","Between clusters")
+  cols<-c(stats::setNames(unname(colors)[seq_along(k)],as.character(k)),Noise="gray70","Between clusters"="black")
+  seg$group<-factor(ifelse(seg$c==-1,"Between clusters",ifelse(seg$c==0,"Noise",as.character(seg$c))),levels=lv)
+  # label at the top of each cluster
+  tops<-do.call(rbind,lapply(k,function(g){
+    i<-which(nodecl==g)
+    if(!length(i)) return(NULL)
+    i<-i[which.max(H[i])]
+    data.frame(x=nodex[i],y=H[i],label=as.character(g),group=factor(as.character(g),levels=lv))
+  }))
+  p<-ggplot2::ggplot()+
+    ggplot2::geom_segment(data=seg,ggplot2::aes(x=x,y=y,xend=xend,yend=yend,color=group),linewidth=lwd,lineend="square")
+  if(!is.null(tops)) p<-p+ggplot2::geom_label(data=tops,ggplot2::aes(x=x,y=y,label=label,color=group),size=base_size/3.2,fill="white",show.legend=FALSE)
+  if(isTRUE(labels)){
+    lab<-data.frame(x=seq_len(n),label=hc$labels[hc$order])
+    p<-p+ggplot2::geom_text(data=lab,ggplot2::aes(x=x,y=-0.01*max(H),label=label),angle=90,hjust=1,size=base_size/12*1.6,color="gray30")+
+      ggplot2::coord_cartesian(clip="off")
+  }
+  p+ggplot2::scale_color_manual(values=cols,name="Cluster",drop=TRUE)+
+    ggplot2::labs(x=if(isTRUE(labels)) NULL else paste0(n," leaves"),y="Mutual reachability distance",title=if(nzchar(title)) title else "HDBSCAN hierarchy",
+                  caption=paste0("Single linkage of the mutual reachability distances.","\n","Each cluster is selected at its own height (stability), not by a horizontal cut."))+
+    ggplot2::theme_minimal(base_size=base_size)+
+    ggplot2::theme(axis.text.x=ggplot2::element_blank(),panel.grid.major.x=ggplot2::element_blank(),panel.grid.minor.x=ggplot2::element_blank(),
+                   plot.margin=ggplot2::margin(5.5,5.5,if(isTRUE(labels)) 30 else 5.5,5.5))
 }
 
 # ---- Module
@@ -1061,6 +1141,13 @@ dbscan_module$ui<-function(id){
       ),
       tabPanel(
         "2. Results",value="tab2",
+        # views of the result (as the HC module): navigation tabs only; the plot box and the
+        # common plot options (palette, base size, title) are shared by the views
+        div(style="padding: 4px 0px 6px 0px",
+            tabsetPanel(id=ns("plot_type"),selected="clusters",
+                        tabPanel("Clusters",value="clusters"),
+                        tabPanel("Condensed tree",value="ctree"),
+                        tabPanel("Dendrogram",value="dendro"))),
         column(4,class="mp0",
                box_caret(ns("box_result"),title="Result",color="#c3cc74ff",
                          div(
@@ -1074,12 +1161,15 @@ dbscan_module$ui<-function(id){
                                    actionButton(ns("delete_model"),icon("fas fa-trash"),title="Delete the saved model",style="height: 30px; padding: 3px 10px"))),
                            uiOutput(ns("summary")),
                            checkboxInput(ns("assign_noise"),tiphelp5("Assign noise to the nearest cluster","Noise points (not dense enough to belong to any cluster) are given the cluster of their nearest clustered point. Only for the saved/plotted labels; keep them as Noise when outliers matter."),value=FALSE),
-                           div(class="save_changes",actionButton(ns("save_clusters"),span(icon("fas fa-save")," Save clusters in the Factor-Attribute")))
+                           checkboxInput(ns("sort_clusters"),tiphelp5("Sort clusters","Renumber the clusters by the mean of a numeric variable of their observations (ascending: cluster 1 has the lowest mean), as in the HC module. Applies to the table, the plots and the saved clusters; noise is not renumbered."),value=FALSE),
+                           div(id=ns("sort_box"),style="display: flex; gap: 8px",
+                               div(style="flex: 1; min-width: 0",pickerInput_fromtop(ns("sort_datalist"),"Datalist:",choices=NULL,width="100%")),
+                               div(style="flex: 1; min-width: 0",pickerInput_fromtop(ns("sort_var"),"Variable:",choices=NULL,width="100%",options=shinyWidgets::pickerOptions(liveSearch=TRUE)))),
+                           div(id=ns("save_clusters_btn"),class="save_changes",actionButton(ns("save_clusters"),span(icon("fas fa-save")," Save clusters in the Factor-Attribute"))),
+                           uiOutput(ns("clusters_saved_note"))
                          )),
                box_caret(ns("box_plotopts"),title="Plot options",color="#c3cc74ff",
                          div(
-                           div(id=ns("plot_type_box"),
-                               radioButtons(ns("plot_type"),"Plot:",choices=c("Clusters"="clusters","Condensed tree"="ctree"),inline=TRUE)),
                            pickerInput_fromtop_live(ns("palette"),"Palette:",choices=NULL),
                            div(id=ns("data_opts"),
                                checkboxInput(ns("hulls"),"Convex hulls",value=TRUE),
@@ -1195,8 +1285,11 @@ dbscan_module$server<-function(id,vals){
       shinyjs::toggle("axes_box",condition=isTRUE(input$reduce))
       shinyjs::toggle("dbscan_box",condition=identical(input$method,"dbscan"))
       shinyjs::toggle("hdbscan_box",condition=identical(input$method,"hdbscan"))
-      shinyjs::toggle("som_opts",condition=identical(input$target,"som"))
-      shinyjs::toggle("data_opts",condition=!identical(input$target,"som"))
+      # options of the Clusters view only, for the target of the model shown
+      tg<-if(is.null(model())) input$target else model()$target
+      clusters_view<-identical(input$plot_type%||%"clusters","clusters")
+      shinyjs::toggle("som_opts",condition=clusters_view&&identical(tg,"som"))
+      shinyjs::toggle("data_opts",condition=clusters_view&&!identical(tg,"som"))
       shinyjs::toggle("assign_noise",condition=!is.null(model()))
     })
 
@@ -1579,12 +1672,63 @@ dbscan_module$server<-function(id,vals){
     })
 
     # labels of the clustered units (neurons or observations), optionally without noise
-    unit_clusters<-reactive({
+    raw_clusters<-reactive({
       r<-model()
       validate(need(!is.null(r),"Train the model in 1. Parameters (RUN)."))
       cl<-r$cluster
       if(isTRUE(input$assign_noise)) cl<-dbs_assign_noise(r$prep,cl)
       cl
+    })
+    # ---- sort clusters by a numeric variable (as in the HC module)
+    # observation IDs of the model and their (unsorted) clusters
+    raw_obs_clusters<-reactive({
+      r<-model()
+      cl<-raw_clusters()
+      if(identical(r$target,"som")){
+        m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
+        validate(need(inherits(m,"kohonen"),paste0("The SOM model ",r$som_model," of this model is no longer in the Datalist ",r$datalist,".")))
+        o<-dbs_neuron_clusters(r$prep,cl,m)[m$unit.classif]
+        names(o)<-names(m$unit.classif)%||%rownames(vals$saved_data[[r$datalist]])
+        return(o)
+      }
+      stats::setNames(cl,r$prep$ids)
+    })
+    observe({ shinyjs::toggle("sort_box",condition=isTRUE(input$sort_clusters)) })
+    observe({
+      r<-model()
+      req(r)
+      ids<-names(raw_obs_clusters())
+      ch<-names(vals$saved_data)[vapply(vals$saved_data,function(d) all(ids%in%rownames(d))&&any(vapply(d,is.numeric,logical(1))),logical(1))]
+      updatePickerInput(session,"sort_datalist",choices=ch,selected=first_or(isolate(input$sort_datalist)%||%r$datalist,ch))
+    })
+    observeEvent(input$sort_datalist,{
+      d<-vals$saved_data[[input$sort_datalist]]
+      req(d)
+      ch<-colnames(d)[vapply(d,is.numeric,logical(1))]
+      updatePickerInput(session,"sort_var",choices=ch,selected=first_or(isolate(input$sort_var),ch))
+    })
+    # new number of each cluster (names: original numbers; noise stays 0), or NULL
+    cl_map<-reactive({
+      if(!isTRUE(input$sort_clusters)) return(NULL)
+      o<-raw_obs_clusters()
+      d<-vals$saved_data[[input$sort_datalist%||%""]]
+      if(is.null(d)||!isTRUE(input$sort_var%in%colnames(d))||!all(names(o)%in%rownames(d))) return(NULL)
+      v<-as.numeric(d[names(o),input$sort_var])
+      k<-sort(unique(o[o>0]))
+      if(length(k)<2) return(NULL)
+      score<-vapply(k,function(g) mean(v[o==g],na.rm=TRUE),numeric(1))
+      newk<-rank(score,ties.method="first",na.last=TRUE)
+      stats::setNames(c(0L,as.integer(newk)),c("0",as.character(k)))
+    })
+    relabel_clusters<-function(cl){
+      mp<-cl_map()
+      if(is.null(mp)) return(cl)
+      out<-as.integer(mp[as.character(cl)])
+      out[is.na(out)]<-0L
+      out
+    }
+    unit_clusters<-reactive({
+      relabel_clusters(raw_clusters())
     })
     # labels of the observations of the Datalist
     obs_clusters<-reactive({
@@ -1606,6 +1750,14 @@ dbscan_module$server<-function(id,vals){
       r<-model()
       if(is.null(r)) return(div(style="font-size: 11px; color: #555555",em("Train the model in 1. Parameters (RUN).")))
       tab<-dbs_summary(r,r$prep)
+      # sorted clusters: new numbers, in order
+      mp<-cl_map()
+      if(!is.null(mp)){
+        cc<-tab$Cluster!="Noise"
+        tab$Cluster[cc]<-as.character(mp[tab$Cluster[cc]])
+        tab<-tab[order(cc==FALSE,suppressWarnings(as.integer(tab$Cluster))),,drop=FALSE]
+        rownames(tab)<-NULL
+      }
       k<-sum(tab$Cluster!="Noise")
       v<-r$dbcv
       q<-if(is.na(v)) "" else if(v>=0.5) " (strong)" else if(v>=0.2) " (moderate)" else if(v>=0) " (weak)" else " (no density-separated groups: the data may form a single group)"
@@ -1635,7 +1787,9 @@ dbscan_module$server<-function(id,vals){
     observe({
       r<-model()
       is_h<-!is.null(r)&&identical(r$method,"hdbscan")
-      shinyjs::toggle("plot_type_box",condition=is_h)
+      # the hierarchy views exist for HDBSCAN only
+      for(v in c("ctree","dendro")) if(is_h) showTab("plot_type",v) else hideTab("plot_type",v)
+      if(!is_h&&!identical(isolate(input$plot_type),"clusters")) updateTabsetPanel(session,"plot_type",selected="clusters")
       shinyjs::toggle("glosh_box",condition=is_h&&identical(r$target,"data"))
     })
 
@@ -1649,7 +1803,12 @@ dbscan_module$server<-function(id,vals){
       pal_fun<-vals$newcolhabs[[input$palette]]
       if(identical(r$method,"hdbscan")&&identical(input$plot_type,"ctree")){
         k<-length(r$selected)
-        return(gg_dbs_ctree(r,colors=if(k) pal_fun(k) else NULL,base_size=input$base_size%||%12,title=input$title))
+        return(gg_dbs_ctree(r,colors=if(k) pal_fun(k) else NULL,base_size=input$base_size%||%12,title=input$title,relabel=cl_map()))
+      }
+      if(identical(r$method,"hdbscan")&&identical(input$plot_type,"dendro")){
+        rr<-r
+        rr$cluster<-cl
+        return(gg_dbs_dendrogram(rr,r$prep$ids,dbs_colors(f,pal_fun),base_size=input$base_size%||%12,title=input$title))
       }
       if(identical(r$target,"som")){
         m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
@@ -1686,7 +1845,7 @@ dbscan_module$server<-function(id,vals){
     output$plot_note<-renderUI({
       r<-model()
       req(r)
-      if(identical(r$method,"hdbscan")&&identical(input$plot_type,"ctree")) return(NULL)
+      if(identical(r$method,"hdbscan")&&input$plot_type%in%c("ctree","dendro")) return(NULL)
       if(identical(r$target,"som")) return(NULL)
       div(style="font-size: 11px; color: #555555; padding: 2px 5px",em(if(identical(r$prep$metric,"euclidean")) "Observations on the first two principal axes; noise as crosses." else "Observations on the first two axes of a PCoA of the chosen distance; noise as crosses."))
     })
@@ -1694,6 +1853,29 @@ dbscan_module$server<-function(id,vals){
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       callModule(module_server_figs,"downfigs",vals=vals,generic=dbs_plot(),message="Density-based clustering",name_c=paste0(model()$method,"_clusters"),datalist_name=model()$datalist)
+    })
+
+    # columns of the Factor-Attribute identical to a clustering (as cluster_already() of the HC
+    # module): the save button stops highlighting and the column is named
+    already_saved<-function(f,datalist){
+      fac<-attr(vals$saved_data[[datalist]],"factors")
+      if(is.null(fac)||!ncol(fac)||!all(rownames(fac)%in%names(f))) return(character(0))
+      cur<-as.character(f[rownames(fac)])
+      names(fac)[vapply(fac,function(x) identical(as.character(x),cur),logical(1))]
+    }
+    clusters_saved<-reactive({
+      r<-model()
+      req(r)
+      tryCatch(already_saved(obs_clusters(),r$datalist),error=function(e) character(0))
+    })
+    observe({
+      al<-tryCatch(clusters_saved(),error=function(e) character(0))
+      if(length(al)) shinyjs::removeClass("save_clusters_btn","save_changes") else shinyjs::addClass("save_clusters_btn","save_changes")
+    })
+    output$clusters_saved_note<-renderUI({
+      al<-clusters_saved()
+      req(length(al))
+      div(style="font-size: 11px; color: #555555; padding-top: 3px",em(paste0("The current clustering is saved in the Factor-Attribute as '",paste(al,collapse="; "),"'.")))
     })
 
     # ---- save the clusters as a Factor-Attribute
@@ -1780,9 +1962,11 @@ dbscan_module$server<-function(id,vals){
     output$pred_note<-renderUI({
       p<-pred()
       if(is.null(p)) return(NULL)
+      al<-already_saved(p$f,p$datalist)
       div(style="padding: 4px 5px",
           strong(paste0(length(p$f)," observations of ",p$datalist," classified.")),
-          div(class="save_changes",actionButton(ns("save_pred"),span(icon("fas fa-save")," Save as Factor-Attribute of ",p$datalist))))
+          div(class=if(length(al)) "button_normal" else "save_changes",actionButton(ns("save_pred"),span(icon("fas fa-save")," Save as Factor-Attribute of ",p$datalist))),
+          if(length(al)) div(style="font-size: 11px; color: #555555; padding-top: 3px",em(paste0("These predictions are saved in the Factor-Attribute as '",paste(al,collapse="; "),"'."))))
     })
     observeEvent(input$save_pred,ignoreInit=TRUE,{
       p<-pred()

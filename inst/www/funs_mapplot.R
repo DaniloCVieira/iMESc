@@ -126,13 +126,16 @@ north_arrow_fancy_orienteering<-function (line_width = 1, line_col = "black", fi
 }
 
 
+north_arrow_cache<-new.env()
 #' @export
 annotation_north_arrow<-function (mapping = NULL, data = NULL, ..., height = unit(1.5,"cm"), width = unit(1.5, "cm"), pad_x = unit(0.25,"cm"), pad_y = unit(0.25, "cm"), rotation = NULL,style = north_arrow_orienteering)
 {
   if (is.null(data)) {
     data <- data.frame(x = NA)
   }
-  GeomNorthArrow<-readRDS("inst/www/GeomNorthArrow.rds")
+  # read from disk only once per session
+  if(is.null(north_arrow_cache$geom)) north_arrow_cache$geom<-readRDS("inst/www/GeomNorthArrow.rds")
+  GeomNorthArrow<-north_arrow_cache$geom
   ggplot2::layer(data = data, mapping = mapping, stat = ggplot2::StatIdentity,
                  geom = GeomNorthArrow, position = ggplot2::PositionIdentity,
                  show.legend = FALSE, inherit.aes = FALSE,
@@ -186,4 +189,70 @@ scale_color_2<-function (palette="viridis",newcolhabs,fillOpacity=1, reverse_pal
     cols<-rev(cols)
   }
   adjustcolor(cols,fillOpacity)
+}
+
+# Screenshot of an htmlwidget (leaflet, plotly) as PNG without extra packages:
+# PhantomJS through webshot when it is installed, otherwise a headless Chrome/Edge.
+#' @export
+ll_find_browser<-function(){
+  opt<-getOption("imesc.browser")
+  if(!is.null(opt)&&file.exists(opt)) return(opt)
+  env<-Sys.getenv(c("CHROMOTE_CHROME","CHROME_PATH"))
+  env<-env[nzchar(env)&file.exists(env)]
+  if(length(env)) return(unname(env[1]))
+  cands<-if(.Platform$OS.type=="windows"){
+    pf<-c(Sys.getenv("PROGRAMFILES"),Sys.getenv("PROGRAMFILES(X86)"),Sys.getenv("LOCALAPPDATA"))
+    pf<-pf[nzchar(pf)]
+    c(file.path(pf,"Google/Chrome/Application/chrome.exe"),
+      file.path(pf,"Microsoft/Edge/Application/msedge.exe"),
+      file.path(pf,"Chromium/Application/chrome.exe"))
+  } else if(Sys.info()[["sysname"]]=="Darwin"){
+    c("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+      "/Applications/Chromium.app/Contents/MacOS/Chromium")
+  } else{
+    unname(Sys.which(c("google-chrome","google-chrome-stable","chromium","chromium-browser","microsoft-edge")))
+  }
+  cands<-cands[nzchar(cands)&file.exists(cands)]
+  if(length(cands)) cands[1] else NULL
+}
+
+#' @export
+ll_widget_png<-function(widget,file,vwidth=800,vheight=600,zoom=1,delay=0.2){
+  dir<-tempfile("widget_")
+  dir.create(dir)
+  on.exit(unlink(dir,recursive=TRUE),add=TRUE)
+  html<-file.path(dir,"map.html")
+  htmlwidgets::saveWidget(widget,html,selfcontained=FALSE)
+  if(isTRUE(tryCatch(webshot::is_phantomjs_installed(),error=function(e) FALSE))){
+    webshot::webshot(html,file=file,delay=delay,zoom=zoom,vwidth=vwidth,vheight=vheight)
+    return(invisible(file))
+  }
+  browser<-ll_find_browser()
+  if(is.null(browser)) stop("No screenshot engine found. Install Google Chrome or Microsoft Edge, or PhantomJS with webshot::install_phantomjs().")
+  out<-file.path(dir,"shot.png")
+  url<-paste0("file:///",gsub("\\\\","/",normalizePath(html,winslash="/")))
+  args<-c("--headless=new","--disable-gpu","--hide-scrollbars","--no-first-run","--no-default-browser-check",
+          paste0("--user-data-dir=",shQuote(file.path(dir,"profile"))),
+          paste0("--window-size=",round(vwidth),",",round(vheight)),
+          paste0("--force-device-scale-factor=",zoom),
+          # virtual time lets the tiles and the widget finish loading before the capture
+          paste0("--virtual-time-budget=",round(max(3000,delay*1000+2000))),
+          paste0("--screenshot=",shQuote(out)),
+          shQuote(url))
+  # the browser is not waited on (its helper processes can keep the console open);
+  # the screenshot is ready when the file exists and its size stops changing
+  suppressWarnings(system2(browser,args,stdout=FALSE,stderr=FALSE,wait=FALSE))
+  t0<-Sys.time()
+  last<- -1
+  repeat{
+    Sys.sleep(0.25)
+    size<-if(file.exists(out)) file.info(out)$size else -1
+    if(size>0&&size==last) break
+    last<-size
+    if(difftime(Sys.time(),t0,units="secs")>60) break
+  }
+  if(!file.exists(out)||file.info(out)$size==0) stop("The browser could not capture the map within 60 s.")
+  file.copy(out,file,overwrite=TRUE)
+  invisible(file)
 }

@@ -2164,17 +2164,11 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         req(input$mode_plot%in%"plot3D")
         shinyjs::toggle("run_map_btn",condition=isTRUE(plot3D_installed()))
       })
+      # the download server is created once (inside the click it was duplicated at each click)
+      plotly_out_id<-if(isTRUE(surface)) 'plotly_surface_out' else if(isTRUE(stack)) 'plotly_stack_out' else 'plotly_scatter3d_out'
+      plotly_download$server("d-plotly",out_id=plotly_out_id,session_in=session$ns(""))
       observeEvent(input$down_plotly,ignoreInit = T,{
-        if(isTRUE(surface)){
-          out_id='plotly_surface_out'
-        } else if(isTRUE(stack)){
-          out_id='plotly_stack_out'
-
-        } else if(isTRUE(scatter3d)){
-          out_id='plotly_scatter3d_out'
-        }
         plotly_download$ui(ns("d-plotly"))
-        plotly_download$server("d-plotly",out_id=out_id,session_in=session$ns(""))
       })
       observeEvent(input$mode_plot,{
 
@@ -2574,8 +2568,9 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         })
       }
       if(isTRUE(stack)){
-        req(isTRUE(plotly_installed()))
         observe({
+          # inside the observer: in the module body it aborted the rest of the setup
+          req(isTRUE(plotly_installed()))
           output$plotly_stack_out<-plotly::renderPlotly({
             run_map_stack_plotly()
           })
@@ -2781,7 +2776,8 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 
             colors<- vals$newcolhabs[[palette]](nlevels(data_z))
           } else {
-            colors<- vals$newcolhabs[[palette]](length(my_rst@data@values))
+            # the colors only feed a colorRampPalette: 100 are enough (one per cell was slow)
+            colors<- vals$newcolhabs[[palette]](min(100,length(my_rst@data@values)))
           }
           colors<-colorspace::lighten(colors,light)
 
@@ -2854,7 +2850,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
     }
 
 
-    ll_down_plot$server('save_png', map=map_result1_final())
+    ll_down_plot$server('save_png', map=map_result1_final)
 
 
     return(NULL)
@@ -2977,18 +2973,10 @@ sptools_pie$ui<-function(id){
     )
   )
 }
+# called inside a reactive: the observers are registered only on the first call,
+# otherwise every call added another copy of them
 sptools_pie$server<-function(id){
   moduleServer(id,function(input, output, session){
-
-    observeEvent(result(),{
-      shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
-    })
-
-    observeEvent(input$buffer_zize,ignoreInit = T,{
-      if(input$buffer_zize<=0){
-        updateNumericInput(session,"buffer_zize",value=0.00001)
-      }
-    })
     result<-reactive({
       list(
         addMinicharts=T,
@@ -2996,6 +2984,19 @@ sptools_pie$server<-function(id){
         buffer_zize=input$buffer_zize
       )
     })
+    once_key<-paste0("observers_",session$ns(""))
+    if(is.null(session$userData[[once_key]])){
+      session$userData[[once_key]]<-TRUE
+      observeEvent(result(),{
+        shinyjs::addClass(selector=".run_map_btn",class= "save_changes")
+      })
+
+      observeEvent(input$buffer_zize,ignoreInit = T,{
+        if(isTRUE(input$buffer_zize<=0)){
+          updateNumericInput(session,"buffer_zize",value=0.00001)
+        }
+      })
+    }
 
     return(result())
 
@@ -3223,18 +3224,24 @@ sptools_shapes$server_update_ir<-function(id, vals){
 
   })
 }
+# called inside reactives: the observers are registered only on the first call,
+# otherwise every call added another copy of them
 sptools_shapes$server<-function(id,vals){
   moduleServer(id,function(input, output, session){
     ns<-session$ns
-    box_caret_server('box_base')
-    box_caret_server('box_layer')
-    observeEvent(input$base_shape,{
-      shinyjs::toggle(selector=".base_options",condition=isTRUE(input$base_shape))
-    })
-    observeEvent(input$layer_shape,{
-      shinyjs::toggle(selector=".layer_options",condition=isTRUE(input$layer_shape))
+    once_key<-paste0("observers_",ns(""))
+    if(is.null(session$userData[[once_key]])){
+      session$userData[[once_key]]<-TRUE
+      box_caret_server('box_base')
+      box_caret_server('box_layer')
+      observeEvent(input$base_shape,{
+        shinyjs::toggle(selector=".base_options",condition=isTRUE(input$base_shape))
+      })
+      observeEvent(input$layer_shape,{
+        shinyjs::toggle(selector=".layer_options",condition=isTRUE(input$layer_shape))
 
-    })
+      })
+    }
     result<-reactive({
       list(
         base_shape_args=list(
@@ -3849,28 +3856,22 @@ sptools_providers$ui<-function(id){
         pickerInput_fromtop_live(
           ns("providers"),
           label ="+ Map Style",
-          selected="Stadia.StamenTerrain",
+          selected="OpenStreetMap.HOT",
           options=list(container="body"),
+          # only free providers whose tiles also appear in the downloaded PNG
+          # (Stadia needs an API key; MtbMap and USGS.USImagery have no global coverage)
           choices =c('OpenStreetMap.Mapnik',
                      'OpenStreetMap.DE',
                      'OpenStreetMap.France',
                      'OpenStreetMap.HOT',
                      'OPNVKarte',
-                     'Stadia.AlidadeSmooth',
-                     'Stadia.OSMBright',
-                     'Stadia.Outdoors',
-                     'Stadia.StamenWatercolor',
-                     'Stadia.StamenTerrain',
-                     'Stadia.StamenTerrainBackground',
                      'CyclOSM',
                      'Esri.WorldStreetMap',
                      'Esri.WorldTopoMap',
                      'Esri.WorldImagery',
-                     'MtbMap',
                      'Esri.OceanBasemap',
                      'Esri.NatGeoWorldMap',
-                     'Esri.WorldPhysical',
-                     'USGS.USImagery'
+                     'Esri.WorldPhysical'
           ),
         ),
         numericInput(ns("zoomSnap"),span('+ zoomSnap',tiphelp("defines the interval at which zoom levels are snapped")),min=0,max=1,0.25,step=0.01,width='160px')
@@ -3903,34 +3904,45 @@ ll_down_modal$ui<-function(id){
     inline(numericInput(ns("vwidth"),span('width', tiphelp("Viewport width. This is the width of the browser window")), 800, width="100px")),
     inline(numericInput(ns("vheight"),span('height',tiphelp("Viewport height This is the height of the browser window")), 600, width="100px")),
     inline(numericInput(ns("delay"),span('delay', tiphelp("Time to wait before taking screenshot, in seconds. Sometimes a longer delay is needed for all assets to display properly.")), 0.2, width="100px")),
-    inline(downloadButton(ns("download"), icon("download"))),
-
+    inline(actionButton(ns("create_png"),"Download",icon("download"))),
+    # the PNG is created first; the download starts only when it succeeded
+    div(style="position: absolute; left: -9999px; top: 0px",downloadButton(ns("download"),"download"))
   )
 
 }
+# map: the htmlwidget, or a reactive/function returning it (read when the PNG is created)
 ll_down_modal$server<-function(id, map,file_name='leaflet_'){
-
-
   moduleServer(id,function(input, output, session){
-    output$download<-{
-      downloadHandler(
-        filename = function() {
-          paste(file_name,Sys.Date(), ".png", sep = "")
-        },
-        content = function(file) {
-          withProgress(message="Preparing...",min=NA,max=NA,{
-            htmlwidgets::saveWidget(map, "map.html", selfcontained = FALSE)
-            webshot::webshot("map.html", file = file, delay = input$delay,zoom=input$zoom,
-                             vwidth=input$vwidth,
-                             vheight=input$vheight)
-          })
-
-
-          file.remove("map.html")
-
-        }
-      )
-    }
+    png_file<-reactiveVal(NULL)
+    observeEvent(input$create_png,ignoreInit=TRUE,{
+      widget<-tryCatch(if(is.function(map)) map() else map,error=function(e) NULL)
+      if(is.null(widget)){
+        showNotification("Create the map before downloading it.",type="warning")
+        return()
+      }
+      out<-tempfile(fileext=".png")
+      res<-withProgress(message="Preparing...",min=NA,max=NA,{
+        tryCatch(ll_widget_png(widget,out,vwidth=input$vwidth%||%800,vheight=input$vheight%||%600,
+                               zoom=input$zoom%||%1,delay=input$delay%||%0.2),
+                 error=function(e) conditionMessage(e))
+      })
+      if(is.character(res)&&!file.exists(out)){
+        showNotification(paste("The PNG could not be created.",res),type="error",duration=10)
+        return()
+      }
+      png_file(out)
+      shinyjs::click("download")
+    })
+    output$download<-downloadHandler(
+      filename=function() paste0(file_name,Sys.Date(),".png"),
+      content=function(file){
+        req(png_file())
+        file.copy(png_file(),file,overwrite=TRUE)
+      },
+      contentType="image/png"
+    )
+    # the button is kept off screen: without this its link is never set and the click does nothing
+    outputOptions(output,"download",suspendWhenHidden=FALSE)
   })
 }
 ll_down_plot<-list()
@@ -4341,6 +4353,8 @@ ll_vgm$server<-function(id,vals){
 
 
     get_autofit<-reactive({
+      # the variogram autofit only runs while the Interpolation tab is open
+      req(identical(vals$cur_mode_map,"interp"))
       req(is.numeric( vals$data_map[,1]))
       req(isTRUE(run_autofit()))
       data<-data()
@@ -4395,7 +4409,8 @@ ll_vgm$server<-function(id,vals){
       vc<-vals$interp_vc
       req(vc)
       vgm_model<-try(do.call(gstat::vgm,vgm_args()))
-      g<-try({gstat::gstat(NULL,id=vc$id,form= vc$formula,data= vc$dsp,model=vals$interp_vgm)})
+      # the current model (vals$interp_vgm was the previous one and made this reactive invalidate itself)
+      g<-try({gstat::gstat(NULL,id=vc$id,form= vc$formula,data= vc$dsp,model=if(inherits(vgm_model,"try-error")) NULL else vgm_model)})
       list(vgm_model,g)
     })
     observeEvent(get_krige_model(),{
@@ -4668,7 +4683,6 @@ sptools_colors$server_update<-function(id,vals){
             cutn<-cut(vals$data_map[,1],breaks=sort(unique(unfilt)),include.lowest=T)
             cols<-cols[cutn]
             cols<-cols[order(as.numeric(names(cols)))]
-            plot(rep(1,length(cols)),1:length(cols),col=cols,pch=15,cex=2)
             pal<-colorRampPalette(cols)
 
           }
@@ -4878,16 +4892,17 @@ surface_3d_control$ui<-function(id){
   )
 
 }
+# called inside a reactive: the observer is registered only on the first call,
+# otherwise every call added another copy of it
 surface_3d_control$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
-
-    observe({
-
-
-      shinyjs::toggle('surf_tick',condition = !vals$cur_modeplot%in%"plotly")
-    })
-
-
+    once_key<-paste0("observers_",session$ns(""))
+    if(is.null(session$userData[[once_key]])){
+      session$userData[[once_key]]<-TRUE
+      observe({
+        shinyjs::toggle('surf_tick',condition = !vals$cur_modeplot%in%"plotly")
+      })
+    }
     result<-reactive(
       list(
         surf_exp=input$surf_exp,

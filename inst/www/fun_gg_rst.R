@@ -50,9 +50,8 @@ get_data_map<-function(saved_data,name,attr,var,filter,filter_level){
   req(var%in%colnames(data_selected))
   newdata<-data_selected[filtered_rows,var, drop=F]
   final_data<-data_migrate(data,newdata,name)
-  args_list <- as.list(environment())
-  args_list <- args_list[!names(args_list) %in% "get_data_map"]
-  attr(final_data,"args")<-args_list
+  # only the small arguments are kept (saved_data would store every Datalist inside the map data)
+  attr(final_data,"args")<-list(name=name,attr=attr,var=var,filter=filter,filter_level=filter_level)
   return(final_data)
 }
 #' @export
@@ -1307,8 +1306,8 @@ map_discrete<-function(data, pal=viridis(100),nbreaks=5,min_radius=1,max_radius=
   if(isTRUE(addMinicharts)){
     map<-add_pie_chart(map,data,factor_chart,buffer_zize,fun, min_radius,max_radius, pal,light)
   }
-  map <- leaflet::addTiles(map)
-  map <- leaflet::addProviderTiles(map, providers)
+  # a single tile layer (addTiles under the provider downloaded two sets of tiles)
+  map <- if(length(providers)&&nzchar(providers[1])) leaflet::addProviderTiles(map, providers) else leaflet::addTiles(map)
 
 
   map0<-map
@@ -2045,7 +2044,8 @@ add_bar_scale<-function(p,data,position="bottomright",
   layer_shape<-attr(data,"layer_shape")
 
   if(all(!sapply(list(base_shape,layer_shape),is.null))){
-    crs.info<-st_crs(suppressWarnings(st_union(base_shape,layer_shape)))
+    # both shapes share the CRS; no need to union the geometries to read it
+    crs.info<-st_crs(base_shape)
   } else{
     if(!is.null(base_shape)){
       crs.info<-st_crs(base_shape)

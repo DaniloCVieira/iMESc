@@ -6571,28 +6571,6 @@ desctools_tab11$ui<-function(id){
                          div(id=ns("facet_box"),checkboxInput(ns("facet"),"One panel per group",value=FALSE)),
                          em(style="font-size: 11px; color: #555555","With a Factor-Attribute, the regression and the statistics are computed for each group.")
                      )),
-           box_caret(ns("sc_summary"),title="Summary",color="#c3cc74ff",
-                     div(
-                       pickerInput_fromtop(ns("agg"),tiphelp5("Aggregate Y","Mean of Y at each X value or X class (and color group), with error bars."),
-                                           choices=c("None (all points)"="none","Mean +/- SE"="se","Mean +/- SD"="sd"),selected="none"),
-                       div(id=ns("agg_opts"),
-                           div(style="display: flex; gap: 8px",
-                               pickerInput_fromtop(ns("x_group"),tiphelp5("X classes","Temporal X: calendar periods. Numeric X: equal-width bins. The means are computed in each class."),choices=c("Each X value"="none"),width="150px"),
-                               div(id=ns("x_bins_box"),numericInput(ns("x_bins"),"Bins:",value=10,min=2,step=1,width="80px"))),
-                           checkboxInput(ns("show_raw"),"Show raw points behind the means",value=TRUE),
-                           pickerInput_fromtop(ns("fit_on"),tiphelp5("Fit model on","Class means: the regression and the correlation use the means shown on the plot (n = number of classes); the R2 is usually higher because the variability within each class is removed. Raw observations: all observations are used, but observations of the same class (e.g. the same month) are often not independent, which makes the p-values optimistic."),
-                                               choices=c("Class means (shown)"="means","Raw observations"="raw"),selected="means"),
-                           div(id=ns("weight_n_box"),checkboxInput(ns("weight_n"),tiphelp5("Weight means by n","Weighted least squares: classes with more observations have more weight in the model."),value=FALSE))),
-                       div(id=ns("one_to_one_box"),checkboxInput(ns("one_to_one"),tiphelp5("1:1 line","Adds the identity line and agreement metrics (bias, MAE, RMSE) to the statistics. Useful when X and Y are in the same units."),value=FALSE)),
-                       div(style="display: flex; gap: 10px",
-                           div(id=ns("log_x_box"),checkboxInput(ns("log_x"),"log10 X",value=FALSE)),
-                           div(id=ns("log_y_box"),checkboxInput(ns("log_y"),"log10 Y",value=FALSE))),
-                       checkboxInput(ns("rug"),"Marginal rugs",value=FALSE),
-                       div(style="display: flex; gap: 8px",
-                           pickerInput_fromtop(ns("labels"),tiphelp5("Labels","Observation IDs. Largest residuals: the observations farthest from the model (or from a linear fit)."),
-                                               choices=c("None"="none","Largest residuals"="residuals","All points"="all"),selected="none",width="160px"),
-                           div(id=ns("label_n_box"),numericInput(ns("label_n"),"N:",value=5,min=1,step=1,width="70px")))
-                     )),
            box_caret(ns("sc_style"),title="Plot options",color="#c3cc74ff",hide_content=TRUE,
                      div(
                        div(style="display: flex; gap: 8px; flex-wrap: wrap",
@@ -6632,7 +6610,7 @@ desctools_tab11$ui<-function(id){
 desctools_tab11$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
     ns<-session$ns
-    for(b in c("sc_setup","sc_model","sc_time","sc_color","sc_summary","sc_plot","sc_fit","sc_table")) box_caret_server(b)
+    for(b in c("sc_setup","sc_model","sc_time","sc_color","sc_plot","sc_fit","sc_table")) box_caret_server(b)
     box_caret_server("sc_style",hide_content=TRUE)
 
     first_or<-function(sel,choices) if(length(sel)==1&&sel%in%choices) sel else unname(choices[1])
@@ -6833,29 +6811,13 @@ desctools_tab11$server<-function(id,vals){
     color_df<-points_color_source$server("sc_col",vals,color_base)
     color_is_factor<-reactive(isTRUE(input$use_color)&&identical(input[["sc_col-attr"]],"factor"))
 
-    observeEvent(x_vec(),{
-      ch<-if(x_is_time()) c("Each X value"="none","Day"="day","Week"="week","Month"="month","Quarter"="quarter","Year"="year") else c("Each X value"="none","Equal-width bins"="bins")
-      updatePickerInput(session,"x_group",choices=ch,selected=first_or(isolate(input$x_group),ch))
-    })
     observe({
       shinyjs::toggle("color_out",condition=isTRUE(input$use_color))
       shinyjs::toggle("facet_box",condition=color_is_factor())
-      shinyjs::toggle("agg_opts",condition=!identical(input$agg,"none"))
-      shinyjs::toggle("x_bins_box",condition=identical(input$x_group,"bins"))
       shinyjs::toggle("model_opts",condition=!identical(input$model,"none"))
       shinyjs::toggle("extra_box",condition=isTRUE(input$model%in%desc_scatter_multi))
-      shinyjs::toggle("label_n_box",condition=identical(input$labels,"residuals"))
-      shinyjs::toggle("weight_n_box",condition=identical(input$fit_on%||%"means","means"))
       shinyjs::toggle("sc_time_wrap",condition=!is.null(tryCatch(time_vec(),error=function(e) NULL)))
       shinyjs::toggle("tc_var_box",condition=!identical(input$x_attr,"time"))
-    })
-    observe({
-      xv<-tryCatch(x_vec(),error=function(e) NULL)
-      yv<-tryCatch(y_vec(),error=function(e) NULL)
-      x_time<-!is.null(xv)&&inherits(xv,c("Date","POSIXt"))
-      shinyjs::toggle("one_to_one_box",condition=!x_time)
-      shinyjs::toggle("log_x_box",condition=!x_time&&isTRUE(all(xv>0,na.rm=TRUE)))
-      shinyjs::toggle("log_y_box",condition=isTRUE(all(yv>0,na.rm=TRUE)))
     })
 
     # setup check: what is matched, and what does not make sense
@@ -6892,28 +6854,10 @@ desctools_tab11$server<-function(id,vals){
       yv<-y_vec()
       validate(need(!isTRUE(same_var()),"X and Y are the same variable."))
       col<-if(isTRUE(input$use_color)) color_df() else NULL
-      df<-desc_scatter_data(xv,yv,col,extra_df(),time=time_vec(),cycle=season_cycle())
-      if(!identical(input$agg,"none")) df<-desc_scatter_bin(df,input$x_group%||%"none",input$x_bins)
-      df
-    })
-    # data used by the model and the correlation: the class means shown on the plot
-    # (when Y is aggregated and "Fit model on" = means) or the raw observations
-    fit_on_means<-reactive(!identical(input$agg,"none")&&identical(input$fit_on%||%"means","means"))
-    sc_model_data<-reactive({
-      df<-sc_data()
-      if(!fit_on_means()) return(df)
-      sm<-desc_scatter_aggregate(df,input$agg)
-      if(!isTRUE(input$weight_n)) sm$w<-NULL
-      validate(need(nrow(sm)>1,"At least two X classes are needed to fit the model on the means."))
-      sm
-    })
-    model_data_note<-reactive({
-      if(!fit_on_means()) return(NULL)
-      sm<-sc_model_data()
-      paste0("Computed on ",nrow(sm)," class means (from ",attr(sm,"n_raw")," observations)",if(isTRUE(input$weight_n)) ", weighted by the number of observations" else "",".")
+      desc_scatter_data(xv,yv,col,extra_df(),time=time_vec(),cycle=season_cycle())
     })
     sc_fit<-reactive({
-      df<-sc_model_data()
+      df<-sc_data()
       if(identical(input$model%||%"none","none")) return(NULL)
       desc_scatter_fit(df,input$model,band=input$band%||%"confidence",level=input$level%||%0.95)
     })
@@ -6937,14 +6881,7 @@ desctools_tab11$server<-function(id,vals){
       }
       gg_desc_scatter(
         df,fitres=fr,
-        agg=if(identical(input$agg,"none")) "none" else "mean",
-        err=input$agg,
-        show_raw=isTRUE(input$show_raw),
-        one_to_one=isTRUE(input$one_to_one),
-        log_x=isTRUE(input$log_x),log_y=isTRUE(input$log_y),
         facet=isTRUE(input$facet)&&color_is_factor(),
-        rug=isTRUE(input$rug),
-        labels=input$labels%||%"none",label_n=input$label_n%||%5,
         show_eq=isTRUE(input$show_eq),
         colors=color_pal(),color_breaks=if(isTRUE(input$use_color)) attr(color_df(),"breaks") else NULL,
         point_size=input$point_size%||%2,alpha=input$alpha%||%0.7,
@@ -6967,14 +6904,8 @@ desctools_tab11$server<-function(id,vals){
       df<-sc_data()
       notes<-character(0)
       if(!identical(season_cycle(),"none")) notes<-c(notes,paste0("Anomalies: seasonal cycle (",names(time_struct()$cycles)[time_struct()$cycles==season_cycle()],") removed",if(identical(input$x_attr,"time")) " from Y." else " from X and Y."))
-      if(identical(input$agg,"none")&&length(unique(df$x))<0.8*nrow(df)) notes<-c(notes,paste0("X has repeated values (",length(unique(df$x))," distinct values for ",nrow(df)," observations), e.g. several observations per time step or site; observations sharing an X value may not be independent. Consider Aggregate Y with Fit model on class means."))
+      if(length(unique(df$x))<0.8*nrow(df)) notes<-c(notes,paste0("X has repeated values (",length(unique(df$x))," distinct values for ",nrow(df)," observations), e.g. several observations per time step or site; observations sharing an X value may not be independent."))
       if(isTRUE(attr(df,"n_left_out")>0)) notes<-c(notes,paste0(attr(df,"n_left_out")," observation(s) without a match in both Datalists (or with missing values) were left out; ",nrow(df)," plotted."))
-      if(!identical(input$agg,"none")){
-        if(isTRUE(input$use_color)&&is.numeric(df$color)) notes<-c(notes,"Means are not colored by a numeric variable; color by a factor to get one mean line per group.")
-        if(is.null(df$xb)&&!anyDuplicated(df$x)) notes<-c(notes,"Each X value has a single observation, so the means equal the raw values. Use X classes to summarise Y.")
-      }
-      if(isTRUE(input$log_x)&&(x_is_time()||any(df$x<=0))) notes<-c(notes,"log10 X ignored: X has values <= 0 or is temporal.")
-      if(isTRUE(input$log_y)&&any(df$y<=0)) notes<-c(notes,"log10 Y ignored: Y has values <= 0.")
       if(!length(notes)) return(NULL)
       div(style="font-size: 11px; color: #8a6d3b; padding: 0px 5px 4px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
     })
@@ -6982,7 +6913,7 @@ desctools_tab11$server<-function(id,vals){
     output$fit_notes<-renderUI({
       fr<-sc_fit()
       if(is.null(fr)) return(div(style="font-size: 11px; color: #555555; padding: 5px",em("Choose a model in Regression to fit it to the data. The line drawn on the plot is the fitted model.")))
-      notes<-c(model_data_note(),fr$notes)
+      notes<-fr$notes
       if(!length(notes)) return(NULL)
       div(style="font-size: 11px; color: #8a6d3b; padding: 2px 5px",icon("circle-info")," ",paste(notes,collapse=" "))
     })
@@ -6997,13 +6928,12 @@ desctools_tab11$server<-function(id,vals){
       fr$coefs
     },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
 
-    sc_stats<-reactive(desc_scatter_stats(sc_model_data(),agreement=isTRUE(input$one_to_one)))
+    sc_stats<-reactive(desc_scatter_stats(sc_data()))
     output$stats<-renderTable({
       sc_stats()
     },digits=4,striped=TRUE,bordered=TRUE,spacing="xs",na="")
     output$stats_note<-renderUI({
-      notes<-c("Correlation tests of X and Y (by color group, when colored by a factor).",model_data_note())
-      if(isTRUE(input$one_to_one)&&!x_is_time()) notes<-c(notes,"Bias, MAE and RMSE compare Y with X (Y - X).")
+      notes<-"Correlation tests of X and Y (by color group, when colored by a factor)."
       div(style="font-size: 11px; color: #555555",em(paste(notes,collapse=" ")))
     })
 

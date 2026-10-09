@@ -735,7 +735,7 @@ rf_explainer$server<-function(id,vals){
 
       req(input$sankey_tab=="plotly")
 
-      map<-get_ploly_sankey()
+      req(get_ploly_sankey())
       showModal(
         modalDialog(
           title='Download as png file',
@@ -743,9 +743,9 @@ rf_explainer$server<-function(id,vals){
           easyClose = T
         )
       )
-      ll_down_modal$server("sankey",map,file_name="sankey_plotly_")
 
     })
+    ll_down_modal$server("sankey",get_ploly_sankey,file_name="sankey_plotly_")
     observeEvent(input$down_gg_sankey,ignoreInit = T,{
 
       req(input$sankey_tab=="ggplot")

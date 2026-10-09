@@ -3834,25 +3834,9 @@ temporal_validation$server<-function(id,vals){
     }
 
     make_fixed_time_blocks<-function(x,unit,width){
-      width<-suppressWarnings(as.integer(width))
-      if(length(width)==0 || is.na(width) || width<1){
-        width<-1L
-      }
-      unit<-if(is.null(unit))"month" else unit
-      d<-parse_temporal_date(x)
-      lt<-as.POSIXlt(d)
-      year<-lt$year+1900L
-      month<-lt$mon+1L
-      key<-switch(
-        unit,
-        day = as.integer(d-min(d,na.rm=TRUE)),
-        week = as.integer(d-min(d,na.rm=TRUE))%/%7L,
-        month = year*12L+month,
-        quarter = year*4L+((month-1L)%/%3L+1L),
-        year = year,
-        year*12L+month
-      )
-      as.integer((key-min(key,na.rm=TRUE))%/%width)+1L
+      d<-stcv_as_date(x)
+      validate(need(!is.null(d)&&all(!is.na(d)),"Fixed time units require a date or date-time temporal column."))
+      stcv_fixed_blocks(d,if(is.null(unit)) "month" else unit,width)
     }
 
     effective_k_time<-reactive({
@@ -3867,16 +3851,22 @@ temporal_validation$server<-function(id,vals){
       max(2L,scalar_int_or(input$k_time,2L))
     })
 
+    # dates of the temporal column (NULL when it is not a date, e.g. a numeric index)
+    temporal_dates<-reactive({
+      tryCatch(stcv_as_date(get_temporal_vector()),error=function(e) NULL)
+    })
     output$time_block_mode_out<-renderUI({
       req(input$time_source)
       if(!identical(input$time_source,"time") || !isTRUE(has_temporal_attribute())){
         return(NULL)
       }
+      default<-if(!is.null(temporal_dates())) "fixed" else "observed"
+      sel<-get_selected_from_choices(isolate(input$time_block_mode),c("observed","fixed"))
       pickerInput_fromtop(
         ns("time_block_mode"),
-        span("Temporal block definition:",tipright("Observed time levels uses the existing unique temporal values. Fixed time units groups dates into blocks such as one month, one week, or one year.")),
-        choices=c("Observed time levels"="observed","Fixed time units"="fixed"),
-        selected=get_selected_from_choices(input$time_block_mode,c("observed","fixed"))
+        span("Temporal block definition:",tipright("Fixed time units: each block is one calendar unit (e.g. 1 month, 7 days, 1 year); the default for dates. Observed time levels: the ordered distinct dates are split into blocks with the same number of dates, which may cover different periods when the sampling is irregular.")),
+        choices=c("Fixed time units"="fixed","Observed time levels"="observed"),
+        selected=if(length(sel)) sel else default
       )
     })
 
@@ -3890,10 +3880,15 @@ temporal_validation$server<-function(id,vals){
           isolate(input$time_block_unit),
           c("day","week","month","quarter","year")
         )
+        if(!length(block_unit)){
+          d<-isolate(temporal_dates())
+          block_unit<-if(is.null(d)) "month" else stcv_guess_unit(d)
+        }
         tagList(
           numericInput(ns("time_block_width"),span("Block width",tipright("Number of time units per temporal block. Use 1 month to test the next month, 7 days to test the next seven-day block, etc.")),value=block_width,min=1,step=1),
           pickerInput_fromtop(ns("time_block_unit"),span("Block unit",tipright("Calendar unit used to group the Temporal-Attribute into ordered validation blocks.")),choices=c("Day"="day","Week"="week","Month"="month","Quarter"="quarter","Year"="year"),selected=block_unit),
-          uiOutput(ns("estimated_temporal_blocks"))
+          uiOutput(ns("estimated_temporal_blocks")),
+          uiOutput(ns("time_blocks_table"))
         )
       } else{
         tagList(
@@ -3902,9 +3897,25 @@ temporal_validation$server<-function(id,vals){
             span("Temporal resolution (blocks)",tipright("Number of temporal blocks used to discretize the time axis. In leave-one-time-block-out CV, each block becomes one test fold. In prequential CV, these blocks are combined with initial train, horizon, and step settings to generate the final splits.")),
             value = 5, min = 2, step = 1
           ),
-          numericInput(ns("time_block_size"), span("Temporal block size",tipright("Optional number of observed time levels per temporal block. When supplied, this overrides the requested temporal resolution.")), value = NA, min = 1, step = 1)
+          numericInput(ns("time_block_size"), span("Temporal block size",tipright("Optional number of observed time levels per temporal block. When supplied, this overrides the requested temporal resolution.")), value = NA, min = 1, step = 1),
+          uiOutput(ns("time_blocks_table"))
         )
       }
+    })
+
+    output$time_blocks_table<-renderUI({
+      tempo<-get_temporal_vector()
+      if(isTRUE(using_fixed_time_blocks())){
+        blocks<-make_fixed_time_blocks(tempo,input$time_block_unit,input$time_block_width)
+      } else{
+        tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
+        bs<-suppressWarnings(as.numeric(input$time_block_size))
+        bs<-if(length(bs)&&is.finite(bs[1])) bs[1] else NULL
+        tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=effective_k_time(),block_size=bs),error=function(e) NULL)
+        req(tb)
+        blocks<-as.integer(tb$block_ids)
+      }
+      stcv_block_table_ui(stcv_block_table(tempo,blocks),fixed=isTRUE(using_fixed_time_blocks()))
     })
 
     output$estimated_temporal_blocks<-renderUI({
@@ -4666,7 +4677,13 @@ spatiotemporal_validation$ui<-function(id,cvst_params,time_source="numeric"){
                            uiOutput(ns("time_var_out")),
                            pickerInput_fromtop(ns("validation_type"),span("Scheme:",tipright("Spatiotemporal block CV tests combinations of temporal blocks and contiguous spatial folds. Prequential spatiotemporal block CV uses past time blocks for training and future blocks for testing.")),choices=c("Spatiotemporal block CV"="spatiotemporal_contiguous_block_cv","Prequential spatiotemporal block CV"="spatiotemporal_contiguous_block_prequential"),selected="spatiotemporal_contiguous_block_cv"),
                            numericInput(ns("k_spat"),span("Spatial folds",tipright("Number of contiguous spatial folds.")),value=cvst_params$k_spat,min=2,step=1),
-                           numericInput(ns("k_time"),span("Temporal blocks",tipright("Number of temporal blocks used to discretize the time axis.")),value=cvst_params$k_time,min=2,step=1),
+                           uiOutput(ns("time_block_mode_out")),
+                           div(id=ns("k_time_box"),
+                               numericInput(ns("k_time"),span("Temporal blocks",tipright("Number of temporal blocks used to discretize the time axis: the ordered distinct dates are split into blocks with the same number of dates.")),value=cvst_params$k_time,min=2,step=1)),
+                           div(id=ns("fixed_time_box"),style="display: none",
+                               numericInput(ns("time_block_width"),span("Block width",tipright("Number of calendar units per temporal block (e.g. 1 month, 7 days).")),value=1,min=1,step=1),
+                               pickerInput_fromtop(ns("time_block_unit"),span("Block unit",tipright("Calendar unit used to group the dates into ordered temporal blocks.")),choices=c("Day"="day","Week"="week","Month"="month","Quarter"="quarter","Year"="year"),selected="month")),
+                           uiOutput(ns("time_blocks_table")),
                            numericInput(ns("cellsize"),span("Cell size",tipright("Spatial cell size, in metres, used to build contiguous spatial blocks. Use the Cell Size Evaluation tab to estimate a candidate value.")),value=cvst_params$cellsize,min=1,step=1),
                            pickerInput_fromtop(ns("grid_shape"),span("Grid shape",tipright("Shape of the spatial grid used before grouping cells into contiguous folds.")),choices=c("square","hexagon"),selected=cvst_params$grid_shape),
                            pickerInput_fromtop(ns("contiguity"),span("Contiguity",tipright("Neighbour rule used to create contiguous regions. Rook shares edges; queen shares edges or corners.")),choices=c("rook","queen"),selected=cvst_params$contiguity),
@@ -4812,6 +4829,63 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
     observeEvent(input$time_var,{vals$cur_cvst_time_var<-input$time_var})
     observeEvent(input$time_source,{vals$cur_cvst_time_var<-NULL})
 
+    # raw temporal column of the training observations
+    st_time_vector<-reactive({
+      args<-vals$trainSL_args
+      req(args$x_train,input$time_var,input$time_source)
+      data_x<-vals$saved_data[[args$data_x]]
+      row_ids<-rownames(args$x_train)
+      if(identical(input$time_source,"time")){
+        time_attr<-attr(data_x,"time")
+        req(!is.null(time_attr),input$time_var%in%colnames(time_attr),all(row_ids%in%rownames(time_attr)))
+        time_attr[row_ids,input$time_var,drop=TRUE]
+      } else{
+        req(input$time_var%in%colnames(args$x_train))
+        args$x_train[,input$time_var]
+      }
+    })
+    st_dates<-reactive(tryCatch(stcv_as_date(st_time_vector()),error=function(e) NULL))
+    output$time_block_mode_out<-renderUI({
+      req(identical(input$time_source,"time"))
+      req(!is.null(st_dates()))
+      sel<-get_selected_from_choices(isolate(input$time_block_mode),c("fixed","observed"))
+      pickerInput_fromtop(ns("time_block_mode"),
+                          span("Temporal block definition:",tipright("Fixed time units: each temporal block is one calendar unit (e.g. 1 month, 7 days, 1 year); the default for dates. Observed time levels: the ordered distinct dates are split into blocks with the same number of dates, which may cover different periods when the sampling is irregular.")),
+                          choices=c("Fixed time units"="fixed","Observed time levels"="observed"),
+                          selected=if(length(sel)) sel else "fixed")
+    })
+    st_fixed<-reactive({
+      identical(input$time_source,"time")&&!is.null(st_dates())&&identical(input$time_block_mode,"fixed")
+    })
+    observe({
+      fixed<-isTRUE(tryCatch(st_fixed(),error=function(e) FALSE))
+      shinyjs::toggle("k_time_box",condition=!fixed)
+      shinyjs::toggle("fixed_time_box",condition=fixed)
+    })
+    # suggested unit from the sampling step, when the temporal column changes
+    observeEvent(st_dates(),{
+      updatePickerInput(session,"time_block_unit",selected=stcv_guess_unit(st_dates()))
+    })
+    st_fixed_blocks<-reactive({
+      stcv_fixed_blocks(st_dates(),input$time_block_unit%||%"month",input$time_block_width)
+    })
+    st_k_time<-reactive({
+      if(isTRUE(st_fixed())) max(2L,length(unique(st_fixed_blocks()))) else input$k_time
+    })
+    output$time_blocks_table<-renderUI({
+      tempo<-st_time_vector()
+      if(isTRUE(st_fixed())){
+        blocks<-st_fixed_blocks()
+      } else{
+        tnorm<-if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)) .stcv_normalize_time_vector(tempo) else tempo
+        req(is.numeric(input$k_time),input$k_time>=2)
+        tb<-tryCatch(make_time_blocks(data.frame(Tempo=tnorm),"Tempo",k_time=input$k_time),error=function(e) NULL)
+        req(tb)
+        blocks<-as.integer(tb$block_ids)
+      }
+      stcv_block_table_ui(stcv_block_table(tempo,blocks),fixed=isTRUE(st_fixed()))
+    })
+
     empty_cvst_result<-function(message="No spatiotemporal CV scheme has been created yet. Adjust the parameters and click Create spatiotemporal CV scheme."){
       div(style="padding: 10px; font-size: 12px; color: #555555;",em(message))
     }
@@ -4831,7 +4905,7 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
       g<-suppressWarnings(as.integer(input$gap_blocks))
       if(!length(g)||is.na(g[1])||g[1]<0) 0L else g[1]
     })
-    observeEvent(list(input$time_source,input$time_var,input$validation_type,input$k_spat,input$k_time,input$cellsize,input$grid_shape,input$contiguity,input$seed,input$initial_train_blocks,input$horizon_blocks,input$gap_blocks,input$step_blocks,input$temporal_window,input$rolling_train_blocks),{
+    observeEvent(list(input$time_source,input$time_var,input$validation_type,input$k_spat,input$k_time,input$cellsize,input$grid_shape,input$contiguity,input$seed,input$initial_train_blocks,input$horizon_blocks,input$gap_blocks,input$step_blocks,input$temporal_window,input$rolling_train_blocks,input$time_block_mode,input$time_block_unit,input$time_block_width),{
       reset_cvst()
     },ignoreInit=TRUE)
     # scheme cleared elsewhere (training setup changed): ask for a new one
@@ -4861,7 +4935,9 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
         validate(need(input$time_var%in%colnames(args$x_train),"Selected temporal column was not found in the training predictors."))
         args$x_train[,input$time_var]
       }
-      if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)){
+      if(isTRUE(st_fixed())){
+        tempo<-st_fixed_blocks()
+      } else if(exists(".stcv_normalize_time_vector",mode="function",inherits=TRUE)){
         tempo<-.stcv_normalize_time_vector(tempo)
       } else if(is.factor(tempo)){
         tempo<-as.integer(tempo)
@@ -4892,7 +4968,7 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
           validation_type=input$validation_type,
           spatial_selection="contiguous",
           k_spat=input$k_spat,
-          k_time=input$k_time,
+          k_time=st_k_time(),
           cellsize=input$cellsize,
           grid_shape=input$grid_shape,
           contiguity=input$contiguity,
@@ -4916,7 +4992,10 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
           time_source=input$time_source,
           time_var=input$time_var,
           k_spat=input$k_spat,
-          k_time=input$k_time,
+          k_time=st_k_time(),
+          time_block_mode=if(isTRUE(st_fixed())) "fixed" else "observed",
+          time_block_width=if(isTRUE(st_fixed())) input$time_block_width else NA,
+          time_block_unit=if(isTRUE(st_fixed())) input$time_block_unit else NA,
           cellsize=input$cellsize,
           grid_shape=input$grid_shape,
           contiguity=input$contiguity,
@@ -4953,6 +5032,7 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
               div(strong("Scheme: "),params$validation_type),
               div(strong("Spatial folds: "),params$k_spat),
               div(strong("Temporal blocks: "),params$k_time),
+              if(!is.null(params$time_block_mode)) div(strong("Block definition: "),if(identical(params$time_block_mode,"fixed")) paste(params$time_block_width,params$time_block_unit) else "observed time levels"),
               div(strong("Cell size: "),params$cellsize," meters"),
               if(length(params$horizons)) div(strong("Horizon blocks: "),paste(params$horizons,collapse=", ")),
               if(isTRUE(params$gap_blocks>0)) div(strong("Gap blocks: "),params$gap_blocks),

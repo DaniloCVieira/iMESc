@@ -3104,3 +3104,96 @@ plot_spatiotemporal_scheme_preview_plotly <- function(
   fig
 }
 
+
+# ---- Temporal blocks by calendar unit (Supervised > validation schemes) ---------------------
+# dates of a temporal column; NULL when it cannot be read as dates (e.g. a numeric index)
+#' @export
+stcv_as_date<-function(x){
+  if(inherits(x,"Date")) return(x)
+  if(inherits(x,"POSIXt")) return(as.Date(x))
+  if(is.null(x)||is.numeric(x)||!length(x)) return(NULL)
+  d<-tryCatch({
+    g<-guess_time_settings(x)
+    if(g$type%in%c("date","datetime")) as.Date(convert_time_column(x,g$type,g$format,g$custom)) else NULL
+  },error=function(e) NULL)
+  if(is.null(d)){
+    x_chr<-trimws(as.character(x))
+    d<-suppressWarnings(as.Date(x_chr,format="%Y-%m-%d"))
+    idx<-is.na(d)&grepl("^[0-9]{4}-[0-9]{1,2}$",x_chr)
+    if(any(idx)) d[idx]<-suppressWarnings(as.Date(paste0(x_chr[idx],"-01")))
+    idx<-is.na(d)&grepl("^[0-9]{4}$",x_chr)
+    if(any(idx)) d[idx]<-suppressWarnings(as.Date(paste0(x_chr[idx],"-01-01")))
+  }
+  if(is.null(d)||all(is.na(d))) return(NULL)
+  d
+}
+
+# calendar unit that matches the sampling step (median gap between consecutive dates)
+#' @export
+stcv_guess_unit<-function(d){
+  ud<-sort(unique(d[!is.na(d)]))
+  if(length(ud)<2) return("day")
+  step<-stats::median(diff(as.numeric(ud)))
+  if(step<=1.5) "day" else if(step<=10) "week" else if(step<=45) "month" else if(step<=135) "quarter" else "year"
+}
+
+# block number of each date: consecutive calendar units of 'width' (e.g. 1 month, 7 days)
+#' @export
+stcv_fixed_blocks<-function(d,unit="month",width=1){
+  width<-suppressWarnings(as.integer(width))
+  if(!length(width)||is.na(width)||width<1) width<-1L
+  lt<-as.POSIXlt(d)
+  year<-lt$year+1900L
+  month<-lt$mon+1L
+  key<-switch(unit,
+              day=as.integer(d-min(d,na.rm=TRUE)),
+              week=as.integer(d-min(d,na.rm=TRUE))%/%7L,
+              month=year*12L+month,
+              quarter=year*4L+((month-1L)%/%3L+1L),
+              year=year,
+              year*12L+month)
+  as.integer((key-min(key,na.rm=TRUE))%/%width)+1L
+}
+
+# one row per temporal block: period covered, number of dates and observations
+#' @export
+stcv_block_table<-function(time,blocks){
+  d<-stcv_as_date(time)
+  ok<-!is.na(blocks)
+  ids<-sort(unique(blocks[ok]))
+  tab<-do.call(rbind,lapply(seq_along(ids),function(i){
+    sel<-ok&blocks==ids[i]
+    if(!is.null(d)){
+      s<-min(d[sel],na.rm=TRUE)
+      e<-max(d[sel],na.rm=TRUE)
+      data.frame(Block=paste0("T",i),Start=format(s),End=format(e),Span_days=as.numeric(e-s)+1,
+                 Dates=length(unique(d[sel])),Observations=sum(sel),stringsAsFactors=FALSE)
+    } else{
+      v<-time[sel]
+      data.frame(Block=paste0("T",i),Start=as.character(min(v,na.rm=TRUE)),End=as.character(max(v,na.rm=TRUE)),Span_days=NA,
+                 Dates=length(unique(v)),Observations=sum(sel),stringsAsFactors=FALSE)
+    }
+  }))
+  rownames(tab)<-NULL
+  tab
+}
+
+#' @export
+stcv_block_table_ui<-function(tab,fixed=FALSE){
+  if(is.null(tab)||!nrow(tab)) return(NULL)
+  note<-NULL
+  dd<-tab$Span_days[!is.na(tab$Span_days)]
+  if(!isTRUE(fixed)&&length(dd)>1&&max(dd)>1.5*min(dd)){
+    note<-paste0("The blocks cover different periods (",min(dd)," to ",max(dd)," days): each block has the same number of dates, not the same duration. With irregular sampling, use Fixed time units so that each block is one calendar unit.")
+  }
+  if(isTRUE(fixed)&&nrow(tab)>1&&max(tab$Dates)>2*min(tab$Dates)){
+    note<-"The blocks have different numbers of dates (irregular sampling); calendar units without observations are not blocks."
+  }
+  head_row<-tags$tr(lapply(colnames(tab),function(n) tags$th(style="padding: 1px 6px; border-bottom: 1px solid #cccccc",n)))
+  rows<-lapply(seq_len(nrow(tab)),function(i) tags$tr(lapply(tab[i,],function(v) tags$td(style="padding: 1px 6px",as.character(v)))))
+  div(style="font-size: 11px; margin: 6px 0px",
+      strong(paste0("Temporal blocks (",nrow(tab),")")),
+      div(style="max-height: 160px; overflow-y: auto; border: 1px solid #eeeeee",
+          tags$table(style="width: 100%",tags$thead(head_row),tags$tbody(rows))),
+      if(!is.null(note)) div(style="color: #8a6d3b; padding-top: 3px",icon("circle-info")," ",note))
+}

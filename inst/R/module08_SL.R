@@ -3702,8 +3702,9 @@ temporal_validation$ui<-function(id,time_source="numeric"){
                    div(
                      id = ns("prequential_args"),
                      numericInput(ns("initial_train_blocks"), span("Initial train blocks",tipright("Number of temporal blocks used in the first training window. For expanding windows, training starts with these blocks and then grows. For rolling windows, this is the default window length when rolling train blocks is empty.")), value = 1, min = 1, step = 1),
-                     textInput(ns("horizon_blocks"), span("Horizon blocks",tipright("Number of future temporal blocks included in each test set. A value of 1 means each split tests the next temporal block. Several horizons can be given separated by commas (e.g. 1, 3, 7): the folds use the largest one and, after training, Performance > By Horizon shows the metrics for each cumulative test window t+1...t+h, using the same origins.")), value = "1"),
+                     textInput(ns("horizon_blocks"), span("Horizon blocks",tipright("Number of future temporal blocks included in each test set. A value of 1 means each split tests the next temporal block. Several horizons can be given separated by commas (e.g. 1, 3, 7): the folds use the largest one and, after training, Performance > By Horizon shows the metrics for each horizon (test block t+h, or the cumulative window t+1...t+h), using the same origins. With lags or windows of the response among the predictors, use Horizon evaluation = Recursive (below) for horizons beyond the leakage-free limit.")), value = "1"),
                      numericInput(ns("gap_blocks"), span("Gap blocks",tipright("Number of temporal blocks skipped between the end of the training window and the start of the test window. With gap = g, each split trains up to t and tests t+g+1...t+g+h. Use it when predictions are made some time ahead or to reduce temporal autocorrelation between train and test. 0 = no gap.")), value = 0, min = 0, step = 1),
+                     uiOutput(ns("horizon_eval_out")),
                      numericInput(ns("step_blocks"), span("Step blocks",tipright("Number of temporal blocks by which the validation origin moves after each split. Larger values generate fewer splits.")), value = 1, min = 1, step = 1),
                      pickerInput_fromtop(
                        ns("temporal_window"),
@@ -3920,18 +3921,85 @@ temporal_validation$server<-function(id,vals){
     output$time_blocks_table<-renderUI({
       stcv_block_table_ui(stcv_block_table(get_temporal_vector(),temporal_block_ids()),fixed=isTRUE(using_fixed_time_blocks()))
     })
+    # time steps per block, irregular sampling and repeated time steps of the training rows
+    time_ctx<-reactive({
+      tryCatch(stcv_time_context(get_temporal_vector(),temporal_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
+    })
+    # metadata of the response when it was created with Temporal Features (e.g. a lead)
+    response_meta<-reactive({
+      args<-vals$trainSL_args
+      req(args$data_y)
+      attr(vals$saved_data[[args$data_y]],"temporal_feature_meta")
+    })
+    # largest horizon (blocks) free of leakage with the observed predictors
+    valid_horizon<-reactive({
+      args<-vals$trainSL_args
+      req(args$x_train,args$y_train)
+      sl_valid_horizon(attr(vals$saved_data[[args$data_x]],"temporal_feature_meta"),colnames(args$x_train),colnames(args$y_train),
+                       gap=gap_blocks(),steps_per_block=time_ctx()$steps_per_block)
+    })
+    # recursive evaluation: available when predictors derived from the response can be recomputed
+    recursive_setup<-reactive({
+      args<-vals$trainSL_args
+      req(args$x_train,args$y_train)
+      data_x<-vals$saved_data[[args$data_x]]
+      data_y<-vals$saved_data[[args$data_y]]
+      y_all<-if(!is.null(data_y)&&args$var_y%in%colnames(data_y)) data_y[match(rownames(data_x),rownames(data_y)),args$var_y] else rep(NA_real_,nrow(data_x))
+      tryCatch(sl_recursive_setup(data_x,colnames(args$x_train),colnames(args$y_train),y_all),error=function(e) list(ok=FALSE,reason=conditionMessage(e)))
+    })
+    output$horizon_eval_out<-renderUI({
+      req(identical(input$validation_type,"time_block_prequential"))
+      rs<-recursive_setup()
+      hv<-tryCatch(valid_horizon(),error=function(e) Inf)
+      hmax<-tryCatch(max_horizon(),error=function(e) 1)
+      leaky<-is.finite(hv)&&hmax>hv
+      prev<-isolate(input$horizon_eval)
+      sel<-if(!isTRUE(rs$ok)) "observed" else if(length(prev)&&prev%in%c("observed","recursive")) prev else if(leaky) "recursive" else "observed"
+      args<-isolate(vals$trainSL_args)
+      others<-setdiff(colnames(args$x_train),if(isTRUE(rs$ok)) rs$features else character(0))
+      cal<-others[grepl("_(month|doy)_(sin|cos)$|_week$|_year$|_cycle[0-9p]+_(sin|cos)$",others)|others%in%isolate(input$time_var)]
+      meta<-attr(vals$saved_data[[args$data_x]],"temporal_feature_meta")
+      if(!is.null(meta)&&"type"%in%names(meta)) cal<-union(cal,intersect(others,meta$feature[meta$type=="calendar"]))
+      known_prev<-isolate(input$known_vars)
+      div(style="padding: 4px 6px; margin-bottom: 8px; border: 1px solid #e3e3e3; background: #fbfbfb",
+          radioButtons(ns("horizon_eval"),span("Horizon evaluation:",tipright("Observed predictors: each test row uses its own observed predictors, so lags and windows of the response use values observed after the origin; the horizons beyond the leakage-free limit are flagged. Recursive: from each origin the response is forecast one time step at a time, and its lags and windows are recomputed from the forecasts (iterated forecasting). Hyperparameters are then tuned on the first test block (one-step) and each fold model forecasts recursively up to the largest horizon.")),
+                       choices=c("Observed predictors"="observed","Recursive (iterated)"="recursive"),selected=sel,inline=TRUE),
+          if(!isTRUE(rs$ok)){
+            rmeta0<-tryCatch(response_meta(),error=function(e) NULL)
+            is_lead<-!is.null(rmeta0)&&any(rmeta0$feature%in%colnames(args$y_train)&rmeta0$uses_future)
+            div(style="font-size: 11px; color: #555555",em(if(is_lead) "Recursive not needed: the response is a lead (direct forecast); keep Observed predictors and set Gap blocks to cover the lead (see the Leakage check)." else paste("Recursive not available:",rs$reason)))
+          },
+          if(is.finite(hv)) div(style=paste0("font-size: 11px; color: ",if(leaky) "#b71c1c" else "#2f6f3e"),
+                                em(if(hv<1) "Observed predictors: no horizon is free of leakage (the lags/windows of the response are shorter than a temporal block + gap)." else paste0("Observed predictors: horizons up to ",hv," block(s) are free of leakage",if(leaky) paste0("; larger ones (up to ",hmax,") will be flagged.") else "."))),
+          div(id=ns("recursive_opts"),
+              radioButtons(ns("exo_mode"),span("Other predictors after the origin:",tipright("Predictors not derived from the response. Keep last observed value: each site keeps the value observed at the origin (they are not known in the future). Treat as known: their observed values are used (only for variables known in advance, e.g. calendar terms or scenarios).")),
+                           choices=c("Keep last observed value"="last","Treat as known"="known"),selected=isolate(input$exo_mode)%||%"last",inline=TRUE),
+              div(id=ns("known_box"),
+                  pickerInput_fromtop(ns("known_vars"),span("Known in the future:",tipright("Predictors whose future values are known at the origin (calendar terms, the time itself, planned scenarios). They keep their observed values; the others keep the last value observed at the origin.")),
+                                      choices=others,selected=if(length(known_prev)) intersect(known_prev,others) else cal,multiple=TRUE,
+                                      options=shinyWidgets::pickerOptions(actionsBox=TRUE,liveSearch=TRUE,noneSelectedText="None")))))
+    })
+    observe({
+      shinyjs::toggle("recursive_opts",condition=identical(input$horizon_eval,"recursive"))
+      shinyjs::toggle("known_box",condition=identical(input$exo_mode,"last"))
+    })
+    use_recursive<-reactive({
+      identical(input$validation_type,"time_block_prequential")&&identical(input$horizon_eval,"recursive")&&isTRUE(recursive_setup()$ok)
+    })
     # derived temporal predictors (Temporal Features) x this scheme
     leakage<-reactive({
       args<-vals$trainSL_args
       req(args$x_train,args$y_train)
       meta<-attr(vals$saved_data[[args$data_x]],"temporal_feature_meta")
-      req(!is.null(meta))
+      rmeta<-tryCatch(response_meta(),error=function(e) NULL)
+      req(!is.null(meta)||!is.null(rmeta))
       preq<-identical(input$validation_type,"time_block_prequential")
-      ctx<-tryCatch(stcv_time_context(get_temporal_vector(),temporal_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
+      ctx<-time_ctx()
       stcv_leakage_check(meta,colnames(args$x_train),colnames(args$y_train),prequential=preq,
                          horizon=if(preq) tryCatch(max_horizon(),error=function(e) 1) else 1,
                          gap=if(preq) gap_blocks() else 0,
-                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps)
+                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps,
+                         response_meta=rmeta,recursive=isTRUE(tryCatch(use_recursive(),error=function(e) FALSE)))
     })
     output$leakage_check<-renderUI({
       stcv_leakage_ui(leakage())
@@ -4311,7 +4379,10 @@ temporal_validation$server<-function(id,vals){
       input$gap_blocks,
       input$step_blocks,
       input$temporal_window,
-      input$rolling_train_blocks
+      input$rolling_train_blocks,
+      input$horizon_eval,
+      input$exo_mode,
+      input$known_vars
     ),{
       reset_temporal_scheme(mark_dirty=TRUE)
     },ignoreInit = TRUE)
@@ -4372,6 +4443,10 @@ temporal_validation$server<-function(id,vals){
           step_blocks = if(identical(input$validation_type,"time_block_prequential")) input$step_blocks else NA,
           temporal_window = if(identical(input$validation_type,"time_block_prequential")) input$temporal_window else NA,
           rolling_train_blocks = if(identical(input$validation_type,"time_block_prequential")) rolling_blocks else NA,
+          horizon_eval = if(isTRUE(use_recursive())) "recursive" else "observed",
+          exo_mode = if(isTRUE(use_recursive())) (input$exo_mode%||%"last") else NA,
+          known_vars = if(isTRUE(use_recursive())&&identical(input$exo_mode%||%"last","last")) input$known_vars else NULL,
+          leak = if(identical(input$validation_type,"time_block_prequential")) list(h_valid=tryCatch(valid_horizon(),error=function(e) Inf),steps_per_block=time_ctx()$steps_per_block) else NULL,
           stcv = cv_obj
         )
         attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
@@ -4911,13 +4986,18 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
       args<-vals$trainSL_args
       req(args$x_train,args$y_train)
       meta<-attr(vals$saved_data[[args$data_x]],"temporal_feature_meta")
-      req(!is.null(meta))
+      rmeta<-if(!is.null(args$data_y)) attr(vals$saved_data[[args$data_y]],"temporal_feature_meta") else NULL
+      req(!is.null(meta)||!is.null(rmeta))
       preq<-identical(input$validation_type,"spatiotemporal_contiguous_block_prequential")
-      ctx<-tryCatch(stcv_time_context(st_time_vector(),st_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
+      ctx<-st_time_ctx()
       stcv_leakage_check(meta,colnames(args$x_train),colnames(args$y_train),prequential=preq,
                          horizon=if(preq) tryCatch(max(st_horizons()),error=function(e) 1) else 1,
                          gap=if(preq) st_gap_blocks() else 0,
-                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps)
+                         steps_per_block=ctx$steps_per_block,irregular=ctx$irregular,repeated_steps=ctx$repeated_steps,
+                         response_meta=rmeta)
+    })
+    st_time_ctx<-reactive({
+      tryCatch(stcv_time_context(st_time_vector(),st_block_ids()),error=function(e) list(steps_per_block=1,irregular=FALSE,repeated_steps=FALSE))
     })
     output$leakage_check<-renderUI({
       stcv_leakage_ui(st_leakage())
@@ -5041,6 +5121,10 @@ spatiotemporal_validation$server<-function(id,vals,cvst_params,result_cvst_sizee
           horizons=if(is_preq) st_horizons() else NULL,
           horizon_map=if(is_preq) make_horizon_map(caret_folds) else NULL,
           gap_blocks=if(is_preq) st_gap_blocks() else 0L,
+          horizon_eval="observed",
+          leak=if(is_preq) list(h_valid=tryCatch(sl_valid_horizon(attr(vals$saved_data[[vals$trainSL_args$data_x]],"temporal_feature_meta"),colnames(vals$trainSL_args$x_train),colnames(vals$trainSL_args$y_train),
+                                                                gap=st_gap_blocks(),steps_per_block=st_time_ctx()$steps_per_block),error=function(e) Inf),
+                                steps_per_block=st_time_ctx()$steps_per_block) else NULL,
           stcv=cv_obj
         )
         attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
@@ -7896,6 +7980,8 @@ model_results$ui<-function(id){
                                  color="#c3cc74ff",
                                  div(
                                    pickerInput_fromtop(ns("hz_metric"),"Metric:",choices=NULL),
+                                   radioButtons(ns("hz_window"),tiphelp5("Window:","Exact: the test block t+h only (how the error grows with the horizon). Cumulative: all test blocks from t+1 to t+h together."),
+                                                choices=c("Exact (t+h)"="exact","Cumulative (t+1...t+h)"="cumulative"),selected="cumulative",inline=TRUE),
                                    checkboxInput(ns("hz_show_sd"),"Show +/- SD across folds",value=TRUE),
                                    checkboxInput(ns("hz_show_pooled"),tiphelp5("Show pooled","Metric computed with all test predictions of the window together (x marks)."),value=FALSE),
                                    colourpicker::colourInput(ns("hz_color"),"Color:",value="#05668D",showColour="background"),
@@ -8130,9 +8216,15 @@ model_results$server<-function(id,vals){
       validate(need(inherits(model(),"train"),"No trained  models found"))
       m<-model()
       validate(need(!is.null(attr(m,"cvt")$horizon_map)||!is.null(attr(m,"cvst")$horizon_map),"Horizon curves are available for models trained with Prequential temporal CV or Prequential spatiotemporal block CV. In the validation scheme, set Horizon blocks to one or more values (e.g. 1, 3, 7), create the scheme and train the model."))
-      hz<-horizon_curve_data(m)
+      hz<-horizon_curve_data(m,window=input$hz_window%||%"cumulative")
       validate(need(!is.null(hz),"No test predictions could be matched to the forecast horizons."))
       hz
+    })
+    # recursive models: exact horizons by default
+    observeEvent(model(),{
+      m<-model()
+      rec<-!is.null(attr(m,"recursive")$pred)
+      updateRadioButtons(session,"hz_window",selected=if(rec) "exact" else "cumulative")
     })
     observeEvent(hz_data(),{
       choices<-hz_data()$metrics
@@ -8163,17 +8255,34 @@ model_results$server<-function(id,vals){
         from_target<-Reduce(`|`,lapply(c("_lag","_roll","_diff","_pct_change","_anom_","_led","_cum_"),function(s) grepl(paste0(y,s),xnames,fixed=TRUE)))
         lag_like<-xnames[from_target]
       }
+      rec<-attr(m,"recursive")
+      cvt<-attr(m,"cvt")
+      win<-if(identical(hz$window,"exact")) paste0("the test block t+",if(hz$gap>0) paste0(hz$gap,"+h") else "h") else paste0("the test window t+",hz$gap+1,"...t+",if(hz$gap>0) paste0(hz$gap,"+h") else "h")
       div(style="font-size: 11px; color: #555555; padding: 0px 5px 5px 5px",
           em(paste0(
-            "Each point summarises the test window t+",hz$gap+1,"...t+",if(hz$gap>0) paste0(hz$gap,"+h") else "h"," over ",max(hz$summary$Folds),
+            "Each point summarises ",win," over ",max(hz$summary$Folds),
             if(is.null(attr(m,"cvt")$horizon_map)) " validation splits (origins x spatial folds)" else " origins",
             if(hz$gap>0) paste0(", with a gap of ",hz$gap," blocks after each origin") else "",
-            ". All horizons use the same splits and models (defined by the largest horizon), so they are directly comparable."
+            ". All horizons use the same origins, so they are directly comparable."
           )),
-          if(length(lag_like)&&max(hz$horizons)>1){
+          if(identical(hz$mode,"recursive")){
+            div(style="color: #2f6f3e; margin-top: 4px",icon("circle-check")," ",
+                paste0("Recursive forecasts: from each origin, ",paste(head(rec$features,3),collapse=", "),if(length(rec$features)>3) ", ..." else "",
+                       " were recomputed from the model's own forecasts (no response value after the origin is used). Other predictors: ",
+                       if(identical(rec$exo_mode,"known")) "observed values (treated as known)." else paste0("last value observed at the origin",if(length(rec$known)) paste0(", except ",paste(head(rec$known,4),collapse=", "),if(length(rec$known)>4) ", ..." else ""," (known)") else "","."),
+                       " One model per fold with the hyperparameters tuned on one-step predictions",if(isTRUE(rec$failed>0)) paste0("; ",rec$failed," fold(s) could not be refitted") else "",
+                       if(isTRUE(rec$filled>0)) paste0("; ",rec$filled," value(s) at the start of a series kept as observed") else "","."))
+          } else if(identical(cvt$horizon_eval,"recursive")&&!is.null(rec$note)){
+            div(style="color: brown; margin-top: 4px",icon("triangle-exclamation")," ",paste0("The recursive evaluation could not be run (",rec$note,"); the curve shows the observed predictors."))
+          },
+          if(!identical(hz$mode,"recursive")&&!is.null(hz$h_valid)&&max(hz$horizons)>hz$h_valid){
             div(style="color: brown; margin-top: 4px",
                 icon("triangle-exclamation"),
-                paste0("Predictors derived from the target (",paste(head(lag_like,3),collapse=", "),if(length(lag_like)>3) ", ..." else "",") use observed values inside the test window, so horizons beyond t+1 are optimistic. For a direct h-step forecast, use a Lead target (Temporal Features) with predictors known at the origin."))
+                paste0("Data leakage beyond ",if(hz$h_valid<1) "every horizon" else paste0("t+",hz$gap+hz$h_valid)," (red points): the predictors derived from the response use values observed after the origin, so those horizons are optimistic. Use Horizon evaluation = Recursive in the temporal validation scheme, or a Lead target (direct forecast) with Gap blocks covering the lead."))
+          } else if(!identical(hz$mode,"recursive")&&is.null(hz$h_valid)&&length(lag_like)&&max(hz$horizons)>1){
+            div(style="color: brown; margin-top: 4px",
+                icon("triangle-exclamation"),
+                paste0("Predictors derived from the target (",paste(head(lag_like,3),collapse=", "),if(length(lag_like)>3) ", ..." else "",") use observed values inside the test window, so horizons beyond t+1 are optimistic. Recreate the temporal scheme and use Horizon evaluation = Recursive, or a Lead target (direct forecast)."))
           }
       )
     })
@@ -12388,6 +12497,13 @@ sl_module$server<-function(id,vals){
           trControl_list$p<-NULL
           trControl_list$index <-caret_folds$index
           trControl_list$indexOut <- caret_folds$indexOut
+          # recursive horizon evaluation: hyperparameters tuned on one-step predictions
+          if(identical(attr(caret_folds,"params")$horizon_eval,"recursive")){
+            of<-sl_onestep_folds(caret_folds)
+            trControl_list$index<-of$index
+            trControl_list$indexOut<-of$indexOut
+            trControl_list$number<-length(of$index)
+          }
         }
         if(args_r$method=='st_cv'){
           validate(need(!is.null(vals$cvst),"Spatiotemporal CV scheme not found!"))
@@ -12476,6 +12592,16 @@ sl_module$server<-function(id,vals){
             }
 
             req(!inherits(m,"try-error"))
+            # recursive forecasts from each origin (Performance > By Horizon)
+            if(args_r$method=='time_cv'&&identical(attr(vals$cvt,"params")$horizon_eval,"recursive")){
+              data_x_full<-vals$saved_data[[args$data_x]]
+              data_y_full<-vals$saved_data[[args$data_y]]
+              y_all<-data_y_full[match(rownames(data_x_full),rownames(data_y_full)),args$var_y]
+              attr(m,"recursive")<-tryCatch(
+                sl_run_recursive(m,args_train,vals$cvt,x,y,args$var_y,data_x_full,y_all,seed=seed,
+                                 progress=function(v,f) setProgress(message=paste0("Recursive forecasts (",round(100*v),"% of the folds)"))),
+                error=function(e) list(pred=NULL,note=conditionMessage(e)))
+            }
             attr(m,"test_partition")<-paste("Test data:",args$partition,"::",args$partition_ref)
             attr(m,"Y")<-paste(args$data_y,"::",args$var_y)
             attr(m,"Datalist")<-paste(args$data_x)
@@ -12594,6 +12720,12 @@ sl_module$server<-function(id,vals){
                 trControl_list$p<-NULL
                 trControl_list$index <-caret_folds$index
                 trControl_list$indexOut <- caret_folds$indexOut
+                if(identical(attr(caret_folds,"params")$horizon_eval,"recursive")){
+                  of<-sl_onestep_folds(caret_folds)
+                  trControl_list$index<-of$index
+                  trControl_list$indexOut<-of$indexOut
+                  trControl_list$number<-length(of$index)
+                }
               }
               if(args_r$method=='st_cv'){
                 validate(need(!is.null(vals$cvst),"Spatiotemporal CV scheme not found!"))
@@ -12671,6 +12803,13 @@ sl_module$server<-function(id,vals){
               req(!inherits(m,"try-error"))
               if(args_r$method=='time_cv'){
                 attr(m,"cvt")<-attr(vals$cvt,"params")
+                if(identical(attr(vals$cvt,"params")$horizon_eval,"recursive")){
+                  data_x_full<-vals$saved_data[[args$data_x]]
+                  y_all<-var_y_df[match(rownames(data_x_full),rownames(var_y_df)),var_y]
+                  attr(m,"recursive")<-tryCatch(
+                    sl_run_recursive(m,args_train,vals$cvt,x,y,var_y,data_x_full,y_all,seed=seed),
+                    error=function(e) list(pred=NULL,note=conditionMessage(e)))
+                }
               }
               if(args_r$method=='st_cv'){
                 attr(m,"cvst")<-attr(vals$cvst,"params")

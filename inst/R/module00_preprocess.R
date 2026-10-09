@@ -8621,10 +8621,20 @@ tool2_tab10$server<-function(id,vals){
       grouped<-isTRUE(input$group_by_coords)&&!is.null(attr(dat,"coords"))
       # metadata of every generated variable (used by the leakage check of the Supervised validation)
       meta<-list()
-      rec<-function(nm,var,type,k=NA,includes_current=FALSE,uses_future=FALSE){
+      # detail (summary or change type), alpha/initial/center (LED) and the time column let the
+      # variables be recomputed from the response (recursive forecasts in the Supervised module)
+      time_col0<-if(length(input$time_col)==1) input$time_col else NA_character_
+      rec<-function(nm,var,type,k=NA,includes_current=FALSE,uses_future=FALSE,detail=NA,alpha=NA,initial=NA,center=NA){
         meta[[length(meta)+1]]<<-data.frame(feature=nm,source=var,type=type,k=as.numeric(k),
                                             includes_current=includes_current,uses_future=uses_future,
-                                            grouped=grouped,stringsAsFactors=FALSE)
+                                            grouped=grouped,detail=as.character(detail),alpha=as.numeric(alpha),
+                                            initial=as.numeric(initial),center=as.logical(center),
+                                            time_col=as.character(time_col0),stringsAsFactors=FALSE)
+      }
+      # calendar variables (known in the future)
+      cal<-function(nm,v,src){
+        out[[nm]]<<-v
+        rec(nm,src,"calendar")
       }
       # past values only: the summary at t is the one computed up to t-1
       shift_past<-function(fun){
@@ -8695,7 +8705,7 @@ tool2_tab10$server<-function(id,vals){
                 )
                 roll_fun<-if(identical(stat_i,"slope")) function(z)rolling_slope(z,window_i) else function(z)rolling_values(z,window_i,stat_fun)
                 out[[nm]]<-apply_by_series(dat,x,shift_past(roll_fun))
-                rec(nm,var,"rolling",window_i,includes_current=!past_only)
+                rec(nm,var,"rolling",window_i,includes_current=!past_only,detail=stat_i)
               }
             }
           }
@@ -8723,7 +8733,7 @@ tool2_tab10$server<-function(id,vals){
                   }
                   z-lagged
                 }))
-                rec(nm,var,"change",lag_i,includes_current=!past_only)
+                rec(nm,var,"change",lag_i,includes_current=!past_only,detail=type_i)
               }
             }
           }
@@ -8757,7 +8767,7 @@ tool2_tab10$server<-function(id,vals){
                   },
                   x-roll_mean
                 ))
-                rec(nm,var,"anomaly",window_i,includes_current=!past_only)
+                rec(nm,var,"anomaly",window_i,includes_current=!past_only,detail=type_i)
               }
             }
           }
@@ -8781,7 +8791,7 @@ tool2_tab10$server<-function(id,vals){
               vals_led<-vals_led-apply_by_series(dat,vals_led,function(z)cumulative_values(z,"mean"))
             }
             out[[nm]]<-vals_led
-            rec(nm,var,"led",NA)
+            rec(nm,var,"led",NA,alpha=alpha,initial=if(length(initial)) initial[1] else NA,center=isTRUE(step$settings$center))
           }
         }
 
@@ -8795,7 +8805,7 @@ tool2_tab10$server<-function(id,vals){
             for(type_i in types){
               nm<-feature_name(prefix,var,paste0("cum_",type_i),colnames(out))
               out[[nm]]<-apply_by_series(dat,x,shift_past(function(z)cumulative_values(z,type_i)))
-              rec(nm,var,"cumulative",NA,includes_current=!past_only)
+              rec(nm,var,"cumulative",NA,includes_current=!past_only,detail=type_i)
             }
           }
         }
@@ -8815,8 +8825,8 @@ tool2_tab10$server<-function(id,vals){
               terms<-step$settings$terms
               if("month_cyclic"%in%terms){
                 month_i<-time_parts$month
-                out[[feature_name(prefix,time_col,"month_sin",colnames(out))]]<-sin(2*pi*month_i/12)
-                out[[feature_name(prefix,time_col,"month_cos",colnames(out))]]<-cos(2*pi*month_i/12)
+                cal(feature_name(prefix,time_col,"month_sin",colnames(out)),sin(2*pi*month_i/12),time_col)
+                cal(feature_name(prefix,time_col,"month_cos",colnames(out)),cos(2*pi*month_i/12),time_col)
               }
               if("doy_cyclic"%in%terms){
                 # (doy-1)/days-in-year keeps Dec 31 -> Jan 1 one day apart in leap and non-leap years
@@ -8824,14 +8834,14 @@ tool2_tab10$server<-function(id,vals){
                 leap<-!is.na(year_i)&((year_i%%4==0&year_i%%100!=0)|year_i%%400==0)
                 days_in_year<-ifelse(is.na(year_i),365.25,ifelse(leap,366,365))
                 doy_i<-time_parts$doy
-                out[[feature_name(prefix,time_col,"doy_sin",colnames(out))]]<-sin(2*pi*(doy_i-1)/days_in_year)
-                out[[feature_name(prefix,time_col,"doy_cos",colnames(out))]]<-cos(2*pi*(doy_i-1)/days_in_year)
+                cal(feature_name(prefix,time_col,"doy_sin",colnames(out)),sin(2*pi*(doy_i-1)/days_in_year),time_col)
+                cal(feature_name(prefix,time_col,"doy_cos",colnames(out)),cos(2*pi*(doy_i-1)/days_in_year),time_col)
               }
               if("week"%in%terms){
-                out[[feature_name(prefix,time_col,"week",colnames(out))]]<-time_parts$week
+                cal(feature_name(prefix,time_col,"week",colnames(out)),time_parts$week,time_col)
               }
               if("year"%in%terms){
-                out[[feature_name(prefix,time_col,"year",colnames(out))]]<-time_parts$year
+                cal(feature_name(prefix,time_col,"year",colnames(out)),time_parts$year,time_col)
               }
               periods<-parse_numeric_list(step$settings$periods,NULL)
               periods<-unique(periods[!is.na(periods)&periods>1])
@@ -8839,8 +8849,8 @@ tool2_tab10$server<-function(id,vals){
                 cyc_idx<-apply_by_series(dat,seq_len(nrow(out)),function(z)seq_along(z))
                 for(period_i in periods){
                   period_label<-gsub("\\.","p",as.character(period_i))
-                  out[[feature_name(prefix,time_col,paste0("cycle",period_label,"_sin"),colnames(out))]]<-sin(2*pi*cyc_idx/period_i)
-                  out[[feature_name(prefix,time_col,paste0("cycle",period_label,"_cos"),colnames(out))]]<-cos(2*pi*cyc_idx/period_i)
+                  cal(feature_name(prefix,time_col,paste0("cycle",period_label,"_sin"),colnames(out)),sin(2*pi*cyc_idx/period_i),time_col)
+                  cal(feature_name(prefix,time_col,paste0("cycle",period_label,"_cos"),colnames(out)),cos(2*pi*cyc_idx/period_i),time_col)
                 }
               }
             }
@@ -8863,7 +8873,12 @@ tool2_tab10$server<-function(id,vals){
       # metadata of the derived variables (kept with the ones of earlier feature runs)
       new_meta<-if(length(meta)) do.call(rbind,meta) else NULL
       old_meta<-attr(dat,"temporal_feature_meta")
-      all_meta<-rbind(old_meta,new_meta)
+      all_meta<-if(is.null(old_meta)) new_meta else if(is.null(new_meta)) old_meta else{
+        cols<-union(colnames(old_meta),colnames(new_meta))
+        for(cc in setdiff(cols,colnames(old_meta))) old_meta[[cc]]<-NA
+        for(cc in setdiff(cols,colnames(new_meta))) new_meta[[cc]]<-NA
+        rbind(old_meta[,cols,drop=FALSE],new_meta[,cols,drop=FALSE])
+      }
       if(!is.null(all_meta)){
         all_meta<-all_meta[all_meta$feature%in%colnames(out),,drop=FALSE]
         all_meta<-all_meta[!duplicated(all_meta$feature,fromLast=TRUE),,drop=FALSE]
@@ -12846,8 +12861,8 @@ tool6$ui<-function(id){
                 uiOutput(ns("na_group_dl_ui")),
                 uiOutput(ns("na_group_var_ui")),
                 radioButtons(ns("na_group_mode"),NULL,
-                             choices=c("Learn from one level, apply to all"="reference","Each level separately"="separate"),
-                             selected="reference"),
+                             choices=c("Each level separately"="separate","Learn from one level, apply to all"="reference"),
+                             selected="separate"),
                 uiOutput(ns("na_ref_level_ui"))
             ),
             div(align="right",id=ns("run_na_btn"),

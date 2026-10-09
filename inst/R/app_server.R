@@ -388,6 +388,7 @@ app_server<-server<-function(input, output, session) {
                "menu_compare"={},
 
                'menu_kmeans'={},
+               'menu_dbscan'={},
                'menu_hc'={},
 
                'menu_maps2'={},
@@ -1046,6 +1047,7 @@ app_server<-server<-function(input, output, session) {
     shinyjs::toggle('module_supersom',condition=cond)
     shinyjs::toggle('module_hc',condition=cond)
     shinyjs::toggle('module_kmeans',condition=cond)
+    shinyjs::toggle('module_dbscan',condition=cond)
     shinyjs::toggle('module_sl',condition=cond)
     shinyjs::toggle('module_compare',condition=cond)
 
@@ -1058,6 +1060,7 @@ app_server<-server<-function(input, output, session) {
   output$validate_supersom<-renderUI({validate_datatalist()})
   output$validate_hc<-renderUI({validate_datatalist()})
   output$validate_kmeans<-renderUI({validate_datatalist()})
+  output$validate_dbscan<-renderUI({validate_datatalist()})
   output$validate_sl<-renderUI({validate_datatalist()})
   output$validate_comp<-renderUI({validate_datatalist()})
   output$menu_bank_out<-renderUI({
@@ -1110,6 +1113,16 @@ app_server<-server<-function(input, output, session) {
   })
   output$module_kmeans_out<-renderUI({
     k_means_module$server('module_kmeans',vals)
+    NULL
+  })
+  output$menu_dbscan_out<-renderUI({
+    div(
+      dbscan_module$ui("module_dbscan"),
+      uiOutput("module_dbscan_out")
+    )
+  })
+  output$module_dbscan_out<-renderUI({
+    dbscan_module$server('module_dbscan',vals)
     NULL
   })
 
@@ -1275,7 +1288,7 @@ output$module_sl_server<-renderUI({
 
   })
 
-  module_ids<-c('module_databank','module_desctools','module_div', 'sptools_data','sptools_panels','module_supersom','module_hc','module_kmeans','module_sl','module_comp')
+  module_ids<-c('module_databank','module_desctools','module_div', 'sptools_data','sptools_panels','module_supersom','module_hc','module_kmeans','module_dbscan','module_sl','module_comp')
   observe({
     if(is.null(vals$fheight)){vals$fheight<-15}
     if(is.null(vals$fwidth)){vals$fwidth<-20}

@@ -1080,8 +1080,12 @@ make_horizon_map<-function(caret_folds){
   maps
 }
 
+# window = "cumulative" (t+1...t+h) or "exact" (block t+h only). Models evaluated with the
+# recursive strategy use their recursive predictions (attr(m,"recursive")); otherwise the
+# caret test predictions (observed predictors), with the horizons beyond the leakage-free
+# limit (attr(m,"cvt")$leak$h_valid) flagged.
 #' @export
-horizon_curve_data<-function(m){
+horizon_curve_data<-function(m,window="cumulative"){
   cvt<-attr(m,"cvt")
   if(is.null(cvt$horizon_map)) cvt<-attr(m,"cvst")
   hmap<-cvt$horizon_map
@@ -1090,32 +1094,44 @@ horizon_curve_data<-function(m){
   if(!length(gap)||is.na(gap[1])) gap<-0L
   gap<-gap[1]
   if(is.null(hmap)||!length(horizons)||is.null(m$pred)) return(NULL)
-  pred<-m$pred
-  tune_names<-intersect(colnames(m$bestTune),colnames(pred))
-  for(nm in tune_names){
-    pred<-pred[pred[[nm]]==m$bestTune[[nm]],,drop=FALSE]
+  rec<-attr(m,"recursive")
+  mode<-"observed"
+  if(!is.null(rec$pred)&&nrow(rec$pred)){
+    pred<-rec$pred[!is.na(rec$pred$pred),,drop=FALSE]
+    mode<-"recursive"
+  } else{
+    pred<-m$pred
+    tune_names<-intersect(colnames(m$bestTune),colnames(pred))
+    for(nm in tune_names){
+      pred<-pred[pred[[nm]]==m$bestTune[[nm]],,drop=FALSE]
+    }
+    leads<-do.call(rbind,lapply(names(hmap),function(f) data.frame(Resample=f,hmap[[f]],stringsAsFactors=FALSE)))
+    pred<-merge(pred,leads,by=c("Resample","rowIndex"))
   }
-  leads<-do.call(rbind,lapply(names(hmap),function(f) data.frame(Resample=f,hmap[[f]],stringsAsFactors=FALSE)))
-  pred<-merge(pred,leads,by=c("Resample","rowIndex"))
   if(!nrow(pred)) return(NULL)
   # position inside the test window (1 = first block after the gap)
   pred$lead<-pred$lead-gap
   metrics<-function(p,o) suppressWarnings(caret::postResample(p,o))
+  in_window<-function(lead,h) if(identical(window,"exact")) lead==h else lead<=h
 
   by_fold<-do.call(rbind,lapply(horizons,function(h){
     do.call(rbind,lapply(sort(unique(pred$Resample)),function(f){
-      sub<-pred[pred$Resample==f&pred$lead<=h,,drop=FALSE]
+      sub<-pred[pred$Resample==f&in_window(pred$lead,h),,drop=FALSE]
       if(!nrow(sub)) return(NULL)
       data.frame(Horizon=h,Fold=f,n=nrow(sub),t(metrics(sub$pred,sub$obs)),check.names=FALSE)
     }))
   }))
+  if(is.null(by_fold)) return(NULL)
   metric_names<-setdiff(colnames(by_fold),c("Horizon","Fold","n"))
+  h_valid<-if(identical(mode,"observed")&&length(cvt$leak$h_valid)&&is.finite(cvt$leak$h_valid)) cvt$leak$h_valid else NULL
 
   summary<-do.call(rbind,lapply(horizons,function(h){
     bf<-by_fold[by_fold$Horizon==h,,drop=FALSE]
-    pooled_rows<-pred[pred$lead<=h,,drop=FALSE]
+    pooled_rows<-pred[in_window(pred$lead,h),,drop=FALSE]
     pooled<-metrics(pooled_rows$pred,pooled_rows$obs)
-    out<-data.frame(Horizon=h,Window=paste0("t+",gap+1,"...t+",gap+h),Folds=nrow(bf),Predictions=nrow(pooled_rows),check.names=FALSE)
+    out<-data.frame(Horizon=h,Window=if(identical(window,"exact")) paste0("t+",gap+h) else paste0("t+",gap+1,"...t+",gap+h),
+                    Folds=nrow(bf),Predictions=nrow(pooled_rows),check.names=FALSE)
+    if(!is.null(h_valid)) out$Leakage<-if(h>h_valid) "yes" else "no"
     for(mt in metric_names){
       out[[paste0(mt,"_mean")]]<-mean(bf[[mt]],na.rm=TRUE)
       out[[paste0(mt,"_sd")]]<-stats::sd(bf[[mt]],na.rm=TRUE)
@@ -1123,7 +1139,7 @@ horizon_curve_data<-function(m){
     }
     out
   }))
-  list(summary=summary,by_fold=by_fold,metrics=metric_names,horizons=horizons,gap=gap)
+  list(summary=summary,by_fold=by_fold,metrics=metric_names,horizons=horizons,gap=gap,mode=mode,window=window,h_valid=h_valid)
 }
 
 #' @export
@@ -1137,18 +1153,408 @@ gg_horizon_curve<-function(hz,metric,show_sd=TRUE,show_pooled=FALSE,color="#0566
     p<-p+ggplot2::geom_errorbar(ggplot2::aes(ymin=mean-sd,ymax=mean+sd),width=0.15,color=color,na.rm=TRUE)
   }
   p<-p+ggplot2::geom_line(color=color)+ggplot2::geom_point(color=color,size=2.5)
+  leaky<-"Leakage"%in%names(df)&&any(df$Leakage=="yes")
+  if(leaky){
+    p<-p+ggplot2::geom_point(data=df[df$Leakage=="yes",,drop=FALSE],color="#B71C1C",size=3.2,shape=21,fill="#FDECEA",stroke=1)
+  }
   if(isTRUE(show_pooled)){
     p<-p+ggplot2::geom_point(ggplot2::aes(y=pooled),shape=4,size=3,color="gray30",na.rm=TRUE)
   }
   gap<-if(is.null(hz$gap)) 0L else hz$gap
+  exact<-identical(hz$window,"exact")
+  cap<-c(if(identical(hz$mode,"recursive")) "Recursive forecasts from each origin (predicted response values feed the lags and windows of the response).",
+         if(leaky) "Red: horizons with data leakage (the predictors derived from the response use values observed after the origin).",
+         if(isTRUE(show_pooled)) "x = pooled over all test predictions")
   p+ggplot2::scale_x_continuous(breaks=df$Horizon,labels=paste0("t+",gap+df$Horizon))+
     ggplot2::labs(
-      x=if(gap>0) paste0("Forecast horizon (cumulative test window t+",gap+1,"...t+h; gap = ",gap," blocks)") else "Forecast horizon (cumulative test window t+1...t+h)",
+      x=if(exact) paste0("Forecast horizon (test block t+h",if(gap>0) paste0("; gap = ",gap," blocks") else "",")") else
+        if(gap>0) paste0("Forecast horizon (cumulative test window t+",gap+1,"...t+h; gap = ",gap," blocks)") else "Forecast horizon (cumulative test window t+1...t+h)",
       y=paste0(metric,if(isTRUE(show_sd)) " (mean +/- SD across folds)" else " (mean across folds)"),
       title=title,
-      caption=if(isTRUE(show_pooled)) "x = pooled over all test predictions" else NULL
+      caption=if(length(cap)) paste(cap,collapse="\n") else NULL
     )+
     ggplot2::theme_bw(base_size=base_size)
+}
+
+# ---- Recursive (iterated) horizon evaluation ---------------------------------------------
+# From each validation origin the response is forecast one time step at a time: the
+# predictors derived from the response (Temporal Features: lags, rolling windows, changes,
+# anomalies, LED, cumulative) are recomputed from the response history in which the values
+# after the origin are the model's own predictions. The other predictors are taken as known
+# or kept at their last value observed at the origin.
+
+# time values as sortable numbers (same reading as the Temporal Features builder)
+#' @export
+sl_time_numeric<-function(tt){
+  if(inherits(tt,"Date")||inherits(tt,"POSIXt")||is.numeric(tt)) return(as.numeric(tt))
+  d<-tryCatch({
+    g<-guess_time_settings(tt)
+    if(g$type%in%c("date","datetime")) as.numeric(convert_time_column(tt,g$type,g$format,g$custom)) else NULL
+  },error=function(e) NULL)
+  if(!is.null(d)&&!all(is.na(d))) return(d)
+  x<-as.character(tt)
+  as.numeric(match(x,sort(unique(x))))
+}
+
+# series of the Temporal Features builder (coordinates, rounded to 6 decimals)
+#' @export
+sl_series_groups<-function(dat,grouped=TRUE){
+  coords<-attr(dat,"coords")
+  if(!isTRUE(grouped)||is.null(coords)) return(factor(rep("all",nrow(dat))))
+  coords<-as.data.frame(coords)
+  if(nrow(coords)!=nrow(dat)||!ncol(coords)) return(factor(rep("all",nrow(dat))))
+  key<-data.frame(lapply(coords,function(x) if(is.numeric(x)) round(x,6) else x),check.names=FALSE)
+  interaction(key,drop=TRUE,lex.order=TRUE)
+}
+
+# rows of each series in time order, and the position of each row in its series
+sl_series_index<-function(groups,tt_num){
+  o<-order(tt_num,seq_along(tt_num),na.last=TRUE)
+  idx<-lapply(levels(groups),function(g) o[groups[o]==g])
+  idx<-idx[lengths(idx)>0]
+  series<-integer(length(tt_num))
+  pos<-integer(length(tt_num))
+  for(s in seq_along(idx)){
+    series[idx[[s]]]<-s
+    pos[idx[[s]]]<-seq_along(idx[[s]])
+  }
+  list(idx=idx,series=series,pos=pos)
+}
+
+# recipe of a derived predictor, from its metadata (the name gives the summary for older
+# Datalists whose metadata do not record it)
+#' @export
+sl_tf_spec<-function(mr){
+  col<-function(nm,default=NA) if(nm%in%names(mr)&&length(mr[[nm]])&&!is.na(mr[[nm]])) mr[[nm]] else default
+  f<-mr$feature
+  esc<-gsub("([][{}()+*^$|\\\\?.])","\\\\\\1",mr$source)
+  suf<-sub("\\.[0-9]+$","",sub(paste0("^(.*_)?",esc,"_"),"",f))
+  detail<-col("detail",switch(mr$type,
+                             rolling=sub("^roll[0-9]+_","",suf),
+                             change=if(grepl("^pct_change",suf)) "pct" else "diff",
+                             anomaly=sub("^anom_[0-9]+_","",suf),
+                             cumulative=sub("^cum_","",suf),
+                             NA))
+  list(feature=f,source=mr$source,type=mr$type,k=as.numeric(mr$k),detail=detail,past_only=!isTRUE(mr$includes_current),
+       grouped=isTRUE(mr$grouped),alpha=as.numeric(col("alpha",0.3)),initial=as.numeric(col("initial",NA)),center=col("center",NA))
+}
+
+# one series (time ordered): the same formulas as the Temporal Features builder
+#' @export
+sl_tf_series<-function(spec,z){
+  z<-as.numeric(z)
+  n<-length(z)
+  lagv<-function(x,l){ if(l>=length(x)) return(rep(NA_real_,length(x))); c(rep(NA_real_,l),utils::head(x,-l)) }
+  past<-function(v) if(isTRUE(spec$past_only)) lagv(v,1) else v
+  safe<-function(x,fun){
+    x<-x[!is.na(x)]
+    if(!length(x)) return(NA_real_)
+    v<-suppressWarnings(fun(x))
+    if(!length(v)) return(NA_real_)
+    v<-as.numeric(v[1])
+    if(is.na(v)||is.nan(v)||is.infinite(v)) NA_real_ else v
+  }
+  roll<-function(x,k,fun){
+    out<-rep(NA_real_,length(x))
+    if(k<1||!length(x)) return(out)
+    for(i in seq_along(x)) out[i]<-fun(x[seq(max(1,i-k+1),i)])
+    out
+  }
+  stat_fun<-function(s) switch(s,
+                               sd=function(y) safe(y,stats::sd),
+                               min=function(y) safe(y,min),
+                               max=function(y) safe(y,max),
+                               median=function(y) safe(y,stats::median),
+                               q25=function(y) safe(y,function(v) stats::quantile(v,.25,names=FALSE)),
+                               q75=function(y) safe(y,function(v) stats::quantile(v,.75,names=FALSE)),
+                               iqr=function(y) safe(y,stats::IQR),
+                               function(y) safe(y,mean))
+  k<-spec$k
+  switch(spec$type,
+         lag=lagv(z,k),
+         rolling={
+           v<-if(identical(spec$detail,"slope")) roll(z,k,function(w){ ok<-!is.na(w); if(sum(ok)<2) return(NA_real_); stats::coef(stats::lm(w[ok]~seq_along(w)[ok]))[2] }) else roll(z,k,stat_fun(spec$detail))
+           past(v)
+         },
+         change={
+           lagged<-lagv(z,k)
+           v<-if(identical(spec$detail,"pct")){ p<-(z-lagged)/lagged; p[is.nan(p)|is.infinite(p)]<-NA_real_; p } else z-lagged
+           past(v)
+         },
+         anomaly={
+           v<-switch(spec$detail,
+                     median_dev=z-roll(z,k,stat_fun("median")),
+                     zscore={ s<-(z-roll(z,k,stat_fun("mean")))/roll(z,k,stat_fun("sd")); s[is.nan(s)|is.infinite(s)]<-NA_real_; s },
+                     z-roll(z,k,stat_fun("mean")))
+           past(v)
+         },
+         led={
+           alpha<-min(max(spec$alpha,.Machine$double.eps),1)
+           state<-spec$initial
+           has<-!is.na(state)
+           out<-rep(NA_real_,n)
+           for(i in seq_len(n)){
+             out[i]<-if(has) state else NA_real_
+             if(!is.na(z[i])){ state<-if(has) alpha*z[i]+(1-alpha)*state else z[i]; has<-TRUE }
+           }
+           if(isTRUE(spec$center)){
+             ok<-!is.na(out)
+             cm<-ifelse(cumsum(ok)>0,cumsum(ifelse(ok,out,0))/cumsum(ok),NA_real_)
+             out<-out-cm
+           }
+           out
+         },
+         cumulative={
+           ok<-!is.na(z)
+           z0<-ifelse(ok,z,0)
+           v<-if(identical(spec$detail,"mean")) ifelse(cumsum(ok)>0,cumsum(z0)/cumsum(ok),NA_real_) else if(identical(spec$detail,"sum")) cumsum(z0) else rep(NA_real_,n)
+           past(v)
+         },
+         rep(NA_real_,n))
+}
+
+# derived predictor for all rows (x: source values; si: sl_series_index)
+sl_tf_compute<-function(spec,x,si){
+  out<-rep(NA_real_,length(x))
+  for(idx in si$idx){
+    r<-sl_tf_series(spec,x[idx])
+    if(length(r)==length(idx)) out[idx]<-r
+  }
+  out
+}
+
+# derived predictor for some rows only, from the recent history of their series
+sl_tf_rows<-function(spec,x,si,rows){
+  need<-switch(spec$type,lag=spec$k+1,rolling=spec$k+1,change=spec$k+2,anomaly=spec$k+2,NA)
+  vapply(rows,function(r){
+    idx<-si$idx[[si$series[r]]][seq_len(si$pos[r])]
+    if(!is.na(need)&&length(idx)>need) idx<-utils::tail(idx,need)
+    v<-sl_tf_series(spec,x[idx])
+    v[length(v)]
+  },numeric(1))
+}
+
+# share of the rows where the recomputed values (a) match the stored ones (b). The first rows
+# of each series are skipped: they are often removed (missing lags) after the features were
+# created, which shortens the history. LED and cumulative summaries keep a small effect of
+# the removed history, so they are compared with a tolerance.
+sl_tf_match<-function(a,b,pos,spec){
+  a<-as.numeric(a)
+  b<-as.numeric(b)
+  long<-spec$type%in%c("led","cumulative")
+  burn<-if(long) 20 else if(is.na(spec$k)) 2 else spec$k+2
+  ok<-!is.na(a)&!is.na(b)&pos>burn
+  if(sum(ok)<5) ok<-!is.na(a)&!is.na(b)
+  if(!any(ok)) return(1)
+  if(long){
+    # same variable up to the level shift left by the lost history (corrected by the anchor
+    # of the recursive forecasts)
+    if(sum(ok)<3||stats::sd(b[ok])==0) return(as.numeric(isTRUE(all.equal(a[ok],b[ok]))))
+    return(as.numeric(isTRUE(stats::cor(a[ok],b[ok])>0.95)))
+  }
+  tol<-1e-6*max(1,max(abs(b[ok])))
+  mean(abs(a[ok]-b[ok])<=tol+1e-12)
+}
+
+# everything the recursive evaluation needs, checked once per model: the derived predictors
+# of the response reproduced from its values, the time order and the series of the rows.
+# data_x: X Datalist (all rows); predictors: columns used by the model; response: its name;
+# y_all: response for the rows of data_x (NA when unknown)
+#' @export
+sl_recursive_setup<-function(data_x,predictors,response,y_all){
+  fail<-function(reason) list(ok=FALSE,reason=reason)
+  if(!is.numeric(y_all)) return(fail("The recursive evaluation is available for regression models (numeric response)."))
+  meta<-attr(data_x,"temporal_feature_meta")
+  if(is.null(meta)||!nrow(meta)) return(fail("No predictor was created with Temporal Features."))
+  m<-meta[meta$feature%in%predictors&meta$source%in%response&!meta$uses_future,,drop=FALSE]
+  if(!nrow(m)) return(fail("No predictor is derived from the response (lags, windows, changes...): the recursive evaluation would give the same results as the observed predictors."))
+  if(any(m$includes_current)) return(fail(paste0("Predictors derived from the response include its value at time t (",paste(utils::head(m$feature[m$includes_current],3),collapse=", "),"): recreate them with Past values only.")))
+  if(!all(m$type%in%c("lag","rolling","change","anomaly","led","cumulative"))) return(fail("Some predictors derived from the response cannot be recomputed."))
+  specs<-lapply(seq_len(nrow(m)),function(i) sl_tf_spec(m[i,,drop=FALSE]))
+  # response history: the source column of the X Datalist (all its rows) when present
+  hist0<-as.numeric(y_all)
+  src<-unique(m$source)[1]
+  if(src%in%colnames(data_x)&&is.numeric(data_x[[src]])){
+    xs<-as.numeric(data_x[[src]])
+    both<-!is.na(xs)&!is.na(hist0)
+    if(any(both)&&max(abs(xs[both]-hist0[both]))>1e-8*max(1,max(abs(hist0[both])))) return(fail(paste0("The response differs from the variable '",src,"' of the X Datalist used to create the derived predictors.")))
+    hist0[is.na(hist0)]<-xs[is.na(hist0)]
+  }
+  # time order: the time column recorded with the features, or the one that reproduces them
+  tattr<-attr(data_x,"time")
+  cands<-unique(c(if("time_col"%in%names(m)) stats::na.omit(m$time_col),if(!is.null(tattr)) colnames(tattr),NA))
+  ids<-rownames(data_x)
+  for(tc in cands){
+    tt<-if(is.na(tc)) seq_len(nrow(data_x)) else{
+      if(is.null(tattr)||!tc%in%colnames(tattr)||!all(ids%in%rownames(tattr))) next
+      sl_time_numeric(tattr[ids,tc,drop=TRUE])
+    }
+    si<-list(sl_series_index(sl_series_groups(data_x,FALSE),tt),sl_series_index(sl_series_groups(data_x,TRUE),tt))
+    match_of<-function(v){
+      s<-si[[if(v$grouped) 2 else 1]]
+      sl_tf_match(sl_tf_compute(v,hist0,s),data_x[[v$feature]],s$pos,v)
+    }
+    for(i in seq_along(specs)){
+      sp<-specs[[i]]
+      # LED: the centring is not recorded in older metadata; both are tried
+      if(identical(sp$type,"led")&&is.na(sp$center)){
+        specs[[i]]$center<-match_of(utils::modifyList(sp,list(center=TRUE)))>match_of(utils::modifyList(sp,list(center=FALSE)))
+      }
+    }
+    ok<-vapply(specs,function(sp) match_of(sp)>=0.9,logical(1))
+    bad_feats<-m$feature[!ok]
+    if(all(ok)){
+      grp<-sl_series_groups(data_x,any(vapply(specs,function(s) s$grouped,logical(1))))
+      if(anyDuplicated(paste(as.character(grp),tt))) return(fail("Several observations share the same time step within a series: the recursive forecasts need one observation per time step and series."))
+      return(list(ok=TRUE,specs=specs,features=m$feature,hist0=hist0,tt=tt,ids=ids,si=si,
+                  site=sl_series_groups(data_x,TRUE),time_col=tc,data_x=data_x))
+    }
+  }
+  fail(paste0("The predictors derived from the response could not be reproduced from its values (",paste(utils::head(bad_feats,3),collapse=", "),"). Recreate them with Temporal Features on this Datalist."))
+}
+
+# recursive forecasts of one fold. fit: model trained on the fold; X: numeric matrix of the
+# predictors for all rows of data_x (rownames = ctx$ids); known: predictors known in the future
+#' @export
+sl_recursive_fold<-function(fit,ctx,X,train_ids,test_ids,known=character(0),exo="last"){
+  tt<-ctx$tt
+  pos_tr<-match(train_ids,ctx$ids)
+  pos_te<-match(test_ids,ctx$ids)
+  t0<-max(tt[pos_tr],na.rm=TRUE)
+  t1<-max(tt[pos_te],na.rm=TRUE)
+  fut<-!is.na(tt)&tt>t0
+  hist<-ctx$hist0
+  hist[fut]<-NA
+  # the other predictors: last value observed at the origin in each site, or known
+  if(identical(exo,"last")){
+    cols<-setdiff(colnames(X),c(ctx$features,known))
+    if(length(cols)){
+      for(s in levels(ctx$site)){
+        rows<-which(ctx$site==s)
+        past<-rows[!is.na(tt[rows])&tt[rows]<=t0]
+        futr<-rows[fut[rows]]
+        if(!length(past)||!length(futr)) next
+        last<-past[which.max(tt[past])]
+        X[futr,cols]<-matrix(X[last,cols],nrow=length(futr),ncol=length(cols),byrow=TRUE)
+      }
+    }
+  }
+  # anchor of each series: the stored value at its first time after the origin (known at the
+  # origin) minus the recomputed one, which differ only when early rows were removed after the
+  # features were created (the history before them is lost); 0 otherwise
+  offs<-lapply(ctx$specs,function(sp){
+    si<-ctx$si[[if(sp$grouped) 2 else 1]]
+    d<-numeric(length(si$idx))
+    for(s in seq_along(si$idx)){
+      idx<-si$idx[[s]]
+      f1<-idx[fut[idx]][1]
+      if(is.na(f1)) next
+      r<-sl_tf_rows(sp,hist,si,f1)
+      st<-X[f1,sp$feature]
+      if(!is.na(r)&&!is.na(st)) d[s]<-st-r
+    }
+    d
+  })
+  steps<-sort(unique(tt[fut&tt<=t1]))
+  pred<-rep(NA_real_,length(tt))
+  filled<-0L
+  for(s in steps){
+    R<-which(tt==s)
+    for(j in seq_along(ctx$specs)){
+      sp<-ctx$specs[[j]]
+      si<-ctx$si[[if(sp$grouped) 2 else 1]]
+      v<-sl_tf_rows(sp,hist,si,R)+offs[[j]][si$series[R]]
+      bad<-is.na(v)
+      filled<-filled+sum(bad)
+      v[bad]<-X[R[bad],sp$feature]
+      X[R,sp$feature]<-v
+    }
+    p<-tryCatch(as.numeric(stats::predict(fit,newdata=X[R,,drop=FALSE])),error=function(e) rep(NA_real_,length(R)))
+    if(length(p)!=length(R)) p<-rep(NA_real_,length(R))
+    pred[R]<-p
+    hist[R]<-p
+  }
+  list(pred=pred[pos_te],steps_ahead=match(tt[pos_te],steps),filled=filled)
+}
+
+# recursive evaluation of all folds: a model per fold with the selected hyperparameters
+# (args_train: the caret::train arguments of the final model), then the recursive forecasts
+#' @export
+sl_recursive_eval<-function(args_train,ctx,x,y,caret_folds,hmap,known=character(0),exo="last",seed=NULL,progress=NULL,best_tune=NULL){
+  X<-matrix(NA_real_,length(ctx$ids),ncol(x),dimnames=list(ctx$ids,colnames(x)))
+  data_x<-ctx$data_x
+  for(cn in colnames(x)) if(cn%in%colnames(data_x)) X[,cn]<-as.numeric(data_x[[cn]])
+  # rows of the training data keep the values used in training
+  X[rownames(x),]<-as.matrix(x)
+  xm<-as.matrix(x)
+  out<-list()
+  filled<-0L
+  folds<-names(caret_folds$index)
+  for(i in seq_along(folds)){
+    f<-folds[i]
+    if(is.function(progress)) progress(i/length(folds),f)
+    tr<-caret_folds$index[[f]]
+    te<-caret_folds$indexOut[[f]]
+    a<-args_train
+    a[[1]]<-xm[tr,,drop=FALSE]
+    a[[2]]<-y[tr]
+    a$trControl<-caret::trainControl(method="none")
+    a$tuneGrid<-best_tune
+    a$tuneLength<-NULL
+    if(!is.null(a$weights)) a$weights<-a$weights[tr]
+    fit<-tryCatch(suppressWarnings({ if(!is.null(seed)) set.seed(seed); do.call(caret::train,a) }),error=function(e) e)
+    if(inherits(fit,"error")) next
+    r<-sl_recursive_fold(fit,ctx,X,rownames(x)[tr],rownames(x)[te],known,exo)
+    filled<-filled+r$filled
+    lead<-hmap[[f]]$lead[match(te,hmap[[f]]$rowIndex)]
+    out[[f]]<-data.frame(Resample=f,rowIndex=te,pred=r$pred,obs=y[te],lead=lead,steps_ahead=r$steps_ahead,stringsAsFactors=FALSE)
+  }
+  pred<-if(length(out)) do.call(rbind,out) else NULL
+  list(pred=pred,folds=length(out),failed=length(folds)-length(out),filled=filled)
+}
+
+# folds for tuning the hyperparameters in the recursive evaluation: each fold tests only its
+# first block after the gap (one-step predictions with observed predictors)
+#' @export
+sl_onestep_folds<-function(caret_folds){
+  p<-attr(caret_folds,"params")
+  hm<-p$horizon_map
+  gap<-if(length(p$gap_blocks)&&!is.na(p$gap_blocks[1])) p$gap_blocks[1] else 0
+  out<-lapply(names(caret_folds$index),function(f) hm[[f]]$rowIndex[hm[[f]]$lead==gap+1])
+  names(out)<-names(caret_folds$index)
+  keep<-lengths(out)>0
+  list(index=caret_folds$index[keep],indexOut=out[keep])
+}
+
+# recursive evaluation of a trained caret model (stored in attr(m,"recursive")): the folds of
+# the temporal scheme, the selected hyperparameters and the arguments of caret::train
+#' @export
+sl_run_recursive<-function(m,args_train,caret_folds,x,y,response,data_x,y_all,seed=NULL,progress=NULL){
+  p<-attr(caret_folds,"params")
+  t0<-Sys.time()
+  ctx<-sl_recursive_setup(data_x,colnames(x),response,y_all)
+  if(!isTRUE(ctx$ok)) return(list(pred=NULL,note=ctx$reason))
+  r<-sl_recursive_eval(args_train,ctx,x,y,caret_folds,p$horizon_map,
+                       known=if(identical(p$exo_mode,"known")) colnames(x) else if(is.null(p$known_vars)) character(0) else p$known_vars,
+                       exo=if(is.null(p$exo_mode)||is.na(p$exo_mode)) "last" else p$exo_mode,
+                       seed=seed,progress=progress,best_tune=m$bestTune)
+  r$exo_mode<-p$exo_mode
+  r$known<-p$known_vars
+  r$time_col<-ctx$time_col
+  r$features<-ctx$features
+  r$run_time<-difftime(Sys.time(),t0,units="secs")
+  r
+}
+
+# horizons (in blocks) free of leakage with the observed predictors: the predictors derived
+# from the response must use values from at least (gap + h) blocks before t
+#' @export
+sl_valid_horizon<-function(meta,predictors,response,gap=0,steps_per_block=1){
+  if(is.null(meta)||!nrow(meta)) return(Inf)
+  m<-meta[meta$feature%in%predictors&meta$source%in%response&!meta$uses_future&!meta$includes_current,,drop=FALSE]
+  if(!nrow(m)) return(Inf)
+  used_lag<-min(ifelse(m$type=="lag",m$k,1))
+  floor(used_lag/max(1,steps_per_block))-gap
 }
 
 # ---- Model setup checks ------------------------------------------------------------

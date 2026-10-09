@@ -3202,14 +3202,35 @@ stcv_block_table_ui<-function(tab,fixed=FALSE){
 # meta: attr(Datalist,"temporal_feature_meta"); predictors / response: column names used by the model;
 # prequential: forward validation; horizon, gap: in temporal blocks; steps_per_block: time steps per block
 #' @export
+# response_meta: metadata of the response when it is a derived variable (a lead: direct
+# forecasting); recursive: the horizons are evaluated with recursive forecasts
 stcv_leakage_check<-function(meta,predictors,response,prequential=TRUE,horizon=1,gap=0,steps_per_block=1,
-                             irregular=FALSE,repeated_steps=FALSE){
-  res<-list(critical=character(0),attention=character(0),n=0)
+                             irregular=FALSE,repeated_steps=FALSE,response_meta=NULL,recursive=FALSE){
+  res<-list(critical=character(0),attention=character(0),info=character(0),n=0)
+  lst<-function(v,n=6) paste0(paste(utils::head(v,n),collapse=", "),if(length(v)>n) paste0(" (+",length(v)-n," more)") else "")
+  # 0. direct forecasting: the response is a lead of h time steps. The training rows of the
+  # last h-1 time steps before each origin have targets inside the test period (embargo)
+  rm<-if(!is.null(response_meta)) response_meta[response_meta$feature%in%response&response_meta$uses_future,,drop=FALSE] else NULL
+  if(!is.null(rm)&&nrow(rm)){
+    h<-max(rm$k,na.rm=TRUE)
+    res$n<-res$n+nrow(rm)
+    if(isTRUE(prequential)){
+      need<-ceiling((h-1)/max(1,steps_per_block))
+      if(gap*steps_per_block<h-1){
+        res$critical<-c(res$critical,paste0("The response '",rm$feature[1],"' is a lead of ",h," time step(s) of '",rm$source[1],"' (direct forecast): the training rows of the last ",h-1," time step(s) before each origin have targets inside the test period. Set Gap blocks to at least ",need," (",need*steps_per_block," time steps)."))
+      } else{
+        res$info<-c(res$info,paste0("Direct forecast of '",rm$source[1],"' ",h," time step(s) ahead: the gap of ",gap," block(s) keeps the training targets before the test period. Horizon blocks then measure how the model ages, not the lead."))
+      }
+    } else{
+      res$critical<-c(res$critical,paste0("The response '",rm$feature[1],"' is a lead (future values): with leave-one-time-block-out, training rows next to the test block have targets inside it. Use Prequential CV with Gap blocks covering ",h-1," time step(s)."))
+    }
+  }
   if(is.null(meta)||!nrow(meta)) return(res)
   m<-meta[meta$feature%in%predictors,,drop=FALSE]
-  res$n<-nrow(m)
+  # calendar variables (seasonality) are known in advance
+  if("type"%in%names(m)) m<-m[m$type!="calendar",,drop=FALSE]
+  res$n<-res$n+nrow(m)
   if(!nrow(m)) return(res)
-  lst<-function(v,n=6) paste0(paste(utils::head(v,n),collapse=", "),if(length(v)>n) paste0(" (+",length(v)-n," more)") else "")
   # 1. future values as predictors
   lead<-m$feature[m$uses_future]
   if(length(lead)) res$critical<-c(res$critical,paste0("Predictors with future values (lead): ",lst(lead),". Use lead variables only as the response of a forecasting model."))
@@ -3221,10 +3242,12 @@ stcv_leakage_check<-function(meta,predictors,response,prequential=TRUE,horizon=1
   if(nrow(fy)){
     # most recent response value used at t: lag k, or t-1 for the past-only summaries
     used_lag<-ifelse(fy$type=="lag",fy$k,1)
-    if(isTRUE(prequential)){
+    if(isTRUE(prequential)&&isTRUE(recursive)){
+      res$info<-c(res$info,paste0("Recursive evaluation: after each origin, the predictors derived from the response (",lst(fy$feature),") are recomputed from the model's own forecasts, so no response value after the origin is used."))
+    } else if(isTRUE(prequential)){
       reach<-(gap+horizon)*steps_per_block
       short<-fy$feature[used_lag<reach]
-      if(length(short)) res$critical<-c(res$critical,paste0("Predictors derived from the response use values up to ",min(used_lag[used_lag<reach])," time step(s) before t, but the test windows reach about ",round(reach)," time step(s) after the last training time (gap + horizon = ",gap+horizon," block(s)): when forecasting, those response values would not be known yet. Affected: ",lst(short),". Use lags of at least ",ceiling(reach)," time steps, or a shorter horizon."))
+      if(length(short)) res$critical<-c(res$critical,paste0("Predictors derived from the response use values up to ",min(used_lag[used_lag<reach])," time step(s) before t, but the test windows reach about ",round(reach)," time step(s) after the last training time (gap + horizon = ",gap+horizon," block(s)): when forecasting, those response values would not be known yet. Affected: ",lst(short),". Use Horizon evaluation = Recursive, lags of at least ",ceiling(reach)," time steps, or a shorter horizon."))
     } else{
       res$critical<-c(res$critical,paste0("With leave-one-time-block-out, the training blocks that follow the test block carry response values of the test block through lags and windows of the response (",lst(fy$feature),"). Use Prequential CV (training only on the past)."))
     }
@@ -3246,11 +3269,16 @@ stcv_leakage_check<-function(meta,predictors,response,prequential=TRUE,horizon=1
 #' @export
 stcv_leakage_ui<-function(res){
   if(is.null(res)||!res$n) return(NULL)
+  info<-if(length(res$info)) div(style="padding: 6px 8px; background: #e3f2fd; border-left: 4px solid #05668D; margin-bottom: 4px",
+                                 tags$ul(style="margin: 0px; padding-left: 16px",lapply(res$info,tags$li)))
   if(!length(res$critical)&&!length(res$attention)){
-    return(div(style="padding: 6px 8px; margin: 6px 0px; background: #e8f5e9; border-left: 4px solid #2f6f3e; font-size: 11px",
-               icon("circle-check")," ",strong("Leakage check: "),paste0("no risk detected among the ",res$n," derived temporal predictor(s).")))
+    return(div(style="margin: 6px 0px; font-size: 11px",
+               div(style="padding: 6px 8px; margin-bottom: 4px; background: #e8f5e9; border-left: 4px solid #2f6f3e",
+                   icon("circle-check")," ",strong("Leakage check: "),paste0("no risk detected among the ",res$n," derived temporal variable(s).")),
+               info))
   }
   div(style="margin: 6px 0px; font-size: 11px",
+      info,
       if(length(res$critical)) div(style="padding: 6px 8px; background: #fdecea; border-left: 4px solid #b71c1c; margin-bottom: 4px",
                                    strong(icon("triangle-exclamation")," Leakage check: data leakage"),
                                    tags$ul(style="margin: 2px 0px 0px 0px; padding-left: 16px",lapply(res$critical,tags$li))),

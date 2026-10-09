@@ -246,7 +246,11 @@ app_ui<-ui<-function(request) {
                                                                        icon=icon(
                                                                          name = NULL,
                                                                          class="custom_side-icon kmeans-icon"
-                                                                       ))
+                                                                       )),
+                                           shinydashboard::menuSubItem(tabName = "menu_dbscan",
+                                                                       "Density-based (DBSCAN)",
+                                                                       icon=icon("fas fa-circle-nodes")
+                                           )
                   ),
                   shinydashboard::menuItem(tabName = "menu_sl",
                                            "Supervised Algorithms",
@@ -392,6 +396,16 @@ Shiny.onInputChange('shiny_height',myHeight)
                                div(
                                  id="module_kmeans",
                                  imesc_withSpinner(uiOutput('menu_kmeans_out'),caption="K-Means")
+                               )
+                        )
+                      ),
+                      shinydashboard::tabItem(
+                        tabName = "menu_dbscan",
+                        column(12,
+                               uiOutput("validate_dbscan"),
+                               div(
+                                 id="module_dbscan",
+                                 imesc_withSpinner(uiOutput('menu_dbscan_out'),caption="Density-based clustering")
                                )
                         )
                       ),

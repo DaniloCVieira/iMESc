@@ -294,16 +294,20 @@ dbs_condense<-function(sl,min_cluster_size){
     sa<-sl$size[a]
     sb<-sl$size[b]
     p<-relabel[node]
-    if(sa>=min_cluster_size&&sb>=min_cluster_size){
+    # a cluster needs at least min_cluster_size points (or weights) and more than one point:
+    # a single heavy point (e.g. a SOM neuron with many hits) falls out of its parent
+    big_a<-sa>=min_cluster_size&&a>n
+    big_b<-sb>=min_cluster_size&&b>n
+    if(big_a&&big_b){
       relabel[a]<-next_label; next_label<-next_label+1L
       relabel[b]<-next_label; next_label<-next_label+1L
       add(p,relabel[a],lambda,sa)
       add(p,relabel[b],lambda,sb)
       stack<-c(stack,a,b)
-    } else if(sa<min_cluster_size&&sb<min_cluster_size){
+    } else if(!big_a&&!big_b){
       for(leaf in dbs_leaves(sl,a)) add(p,leaf,lambda,wl[leaf])
       for(leaf in dbs_leaves(sl,b)) add(p,leaf,lambda,wl[leaf])
-    } else if(sa<min_cluster_size){
+    } else if(!big_a){
       relabel[b]<-p
       for(leaf in dbs_leaves(sl,a)) add(p,leaf,lambda,wl[leaf])
       stack<-c(stack,b)
@@ -588,8 +592,12 @@ dbs_suggest_eps<-function(prep,minPts,kd=NULL,nq=25,max_n=1500,min_size=NULL){
   if(is.null(kd)) kd<-dbs_core_dist(prep,minPts)
   n_u<-if(is.null(prep$w)) prep$n else sum(prep$w)
   if(is.null(min_size)) min_size<-dbs_suggest_mcs(n_u,minPts)
-  knee<-dbs_knee(kd)$value
-  e_v<-unique(signif(stats::quantile(kd,seq(0.02,0.98,length.out=nq),names=FALSE),3))
+  # core distances of 0 (a weighted point that alone reaches minPts, e.g. a SOM neuron with
+  # many hits, or duplicates) say nothing about the radius
+  kdp<-kd[kd>0]
+  if(length(kdp)<3) kdp<-kd
+  knee<-dbs_knee(kdp)$value
+  e_v<-unique(signif(stats::quantile(kdp,seq(0.02,0.98,length.out=nq),names=FALSE),3))
   e_v<-e_v[e_v>0]
   if(!length(e_v)) return(list(eps=knee,knee=knee,scan=NULL,plateau=NULL,quality="none",stable=FALSE,note="knee of the k-distance plot."))
   scan<-dbs_eps_scan(prep,e_v,minPts,max_n)
@@ -598,8 +606,16 @@ dbs_suggest_eps<-function(prep,minPts,kd=NULL,nq=25,max_n=1500,min_size=NULL){
   knee_txt<-paste0("The knee (",signif(knee,3),") gives ",k_knee," cluster",if(k_knee!=1) "s" else "",".")
   ok<-which(scan$clusters>=2&!is.na(scan$dbcv)&scan$dbcv>0&scan$min_size>=min_size)
   if(!length(ok)){
-    return(list(eps=knee,knee=knee,scan=scan,plateau=NULL,quality="none",stable=FALSE,min_size=min_size,
-                note=paste0("no eps value separates 2 or more clusters of at least ",min_size," points by low density (DBCV > 0): the data seem to form a single group (eps set to the knee of the k-distance plot). Check with HDBSCAN, a smaller minPts or other principal axes. ",knee_txt)))
+    # the eps of a single group: the smallest tested eps that gives one cluster (the largest
+    # tested eps when none does)
+    one<-which(scan$clusters==1&seq_len(nrow(scan))>=which.max(scan$clusters))
+    i1<-if(length(one)) min(one) else nrow(scan)
+    e1<-scan$eps[i1]
+    k1<-scan$clusters[i1]
+    return(list(eps=e1,knee=knee,scan=scan,plateau=NULL,quality="none",stable=FALSE,min_size=min_size,
+                note=paste0("no eps value separates 2 or more clusters of at least ",min_size," points by low density (DBCV > 0): the data seem to form a single group. eps set to ",signif(e1,3),
+                            if(k1==1) ", which gives one cluster. " else paste0(" (the largest tested), which still gives ",k1," clusters, some with fewer than ",min_size," points. "),
+                            "Check with HDBSCAN, a smaller minPts or other principal axes. ",knee_txt)))
   }
   b<-ok[which.max(scan$dbcv[ok])]
   lo<-hi<-b
@@ -760,6 +776,24 @@ dbs_assign_noise<-function(prep,cl){
     cl[i]<-cl[ok[which.min(d)]]
   }
   cl
+}
+
+# clusters of all the neurons of a SOM: the neurons left out of the clustering (empty, no
+# observations) take the cluster of the nearest clustered neuron (codebook distance), for
+# the map only
+#' @export
+dbs_neuron_clusters<-function(prep,cl,m){
+  nn<-if(is.null(prep$n_neurons)) length(cl) else prep$n_neurons
+  keep<-if(is.null(prep$neurons)) seq_len(nn) else prep$neurons
+  full<-integer(nn)
+  full[keep]<-cl
+  emp<-setdiff(seq_len(nn),keep)
+  if(length(emp)&&any(cl>0)){
+    D<-as.matrix(kohonen::object.distances(m,"codes"))
+    lab<-keep[cl>0]
+    full[emp]<-full[lab[apply(D[emp,lab,drop=FALSE],1,which.min)]]
+  }
+  full
 }
 
 #' @export
@@ -977,15 +1011,17 @@ dbscan_module$ui<-function(id){
             div(id=ns("som_box"),style="display: flex; column-gap: 20px; align-items: flex-start",
                 pickerInput_fromtop(ns("som_model"),"SOM model:",choices=NULL,width="180px"),
                 div(style="padding-top: 25px",
-                    checkboxInput(ns("som_weight"),tiphelp5("Weight neurons by hits","The SOM spreads its neurons over the data space, so the density of neurons does not follow the density of the observations. Each neuron counts with its number of observations (hits): minPts and the min cluster size are then numbers of observations, and empty neurons are never core points."),value=TRUE,width="auto"))),
+                    checkboxInput(ns("som_weight"),tiphelp5("Weight neurons by hits","The SOM spreads its neurons over the data space, so the density of neurons does not follow the density of the observations. Each neuron counts with its number of observations (hits): minPts and the min cluster size are then numbers of observations, and the empty neurons (no observations) are left out of the clustering (on the map they take the cluster of the nearest clustered neuron): in simulations they bridged separate groups."),value=TRUE,width="auto"))),
             pickerInput_fromtop(ns("method"),"Method:",choices=c("HDBSCAN"="hdbscan","DBSCAN"="dbscan"),selected="hdbscan",width="150px"),
             div(id=ns("metric_box"),style="display: flex; column-gap: 20px; align-items: flex-start",
                 pickerInput_fromtop(ns("metric"),tiphelp5("Distance:","Euclidean and Manhattan for continuous variables (scale them when they have different units); Bray-Curtis for abundances (non-negative); Jaccard for presence/absence (values > 0 are presences). With a SOM codebook, the distances between neurons of the SOM model are used."),
                                     choices=c("Euclidean"="euclidean","Manhattan"="manhattan","Bray-Curtis"="bray","Jaccard (presence/absence)"="jaccard"),width="200px"),
                 div(style="padding-top: 25px",
-                    checkboxInput(ns("scale"),tiphelp5("Scale","Standardise the variables (mean 0, SD 1) before computing distances. Recommended for Euclidean/Manhattan when the variables have different units."),value=FALSE,width="auto")),
+                    checkboxInput(ns("scale"),tiphelp5("Scale","Standardise the variables (mean 0, SD 1) before computing distances. Recommended for Euclidean/Manhattan when the variables have different units."),value=FALSE,width="auto"))),
+            # principal axes: of the data, or of the codebook vectors of a (single-layer) SOM
+            div(style="display: flex; column-gap: 20px; align-items: flex-start",
                 div(style="padding-top: 25px",
-                    checkboxInput(ns("reduce"),tiphelp5("Use principal axes","With many variables all distances become similar (curse of dimensionality) and density-based clustering finds one large cluster or only noise. The clustering is then run on the first axes of a PCA (Euclidean distance) or of a PCoA (other distances). Checked by default when there are more than 10 variables."),value=TRUE,width="auto")),
+                    checkboxInput(ns("reduce"),tiphelp5("Use principal axes","With many variables all distances become similar (curse of dimensionality) and density-based clustering finds one large cluster or only noise. The clustering is then run on the first axes of a PCA (Euclidean distance) or of a PCoA (other distances); for a SOM codebook, on the first axes of a PCA of the codebook vectors (single-layer SOM). Checked by default when there are more than 10 variables."),value=TRUE,width="auto")),
                 div(id=ns("axes_box"),style="display: flex; column-gap: 12px; align-items: flex-start",
                     pickerInput_fromtop(ns("axes_rule"),tiphelp5("Axes rule:","How many principal axes are kept (between 2 and 10). Broken-stick (default): the axes explaining more variance than expected if the variance were split at random (Jackson 1993; Legendre & Legendre 2012); in simulations with many noise variables it kept the axes with the groups, while the 50% rule often added noise axes. 50% of the variance: the smallest number of axes explaining half of the variance. Check the choice in Parameter guide > Sensitivity > Number of axes."),
                                         choices=c("Broken-stick"="bstick","50% of the variance"="var50"),selected="bstick",width="170px"),
@@ -1156,7 +1192,7 @@ dbscan_module$server<-function(id,vals){
     observe({
       shinyjs::toggle("som_box",condition=identical(input$target,"som"))
       shinyjs::toggle("metric_box",condition=!identical(input$target,"som"))
-      shinyjs::toggle("axes_box",condition=!identical(input$target,"som")&&isTRUE(input$reduce))
+      shinyjs::toggle("axes_box",condition=isTRUE(input$reduce))
       shinyjs::toggle("dbscan_box",condition=identical(input$method,"dbscan"))
       shinyjs::toggle("hdbscan_box",condition=identical(input$method,"hdbscan"))
       shinyjs::toggle("som_opts",condition=identical(input$target,"som"))
@@ -1183,11 +1219,25 @@ dbscan_module$server<-function(id,vals){
     prep<-reactive({
       if(identical(input$target,"som")){
         m<-som_model()
-        D<-kohonen::object.distances(m,"codes")
-        pr<-dbs_prepare(D)
-        pr$p<-ncol(do.call(cbind,m$codes))
-        pr$ids<-paste0("neuron_",seq_len(pr$n))
-        if(isTRUE(input$som_weight)) pr$w<-tabulate(m$unit.classif,pr$n)
+        codes<-do.call(cbind,m$codes)
+        nn<-nrow(codes)
+        hits<-tabulate(m$unit.classif,nn)
+        weighted<-isTRUE(input$som_weight)
+        # with the hits, the empty neurons are left out (they bridged separate groups in simulations)
+        keep<-if(weighted&&sum(hits>0)>=3) which(hits>0) else seq_len(nn)
+        if(isTRUE(input$reduce)&&length(m$codes)==1&&ncol(codes)>2){
+          k<-suppressWarnings(as.integer(input$n_axes))
+          pr<-tryCatch(dbs_axes(dbs_prepare(codes[keep,,drop=FALSE]),if(length(k)&&!is.na(k)) k else NULL,rule=input$axes_rule%||%"bstick"),
+                       error=function(e) validate(need(FALSE,conditionMessage(e))))
+        } else{
+          D<-as.matrix(kohonen::object.distances(m,"codes"))[keep,keep,drop=FALSE]
+          pr<-dbs_prepare(stats::as.dist(D))
+          pr$p<-ncol(codes)
+        }
+        pr$ids<-paste0("neuron_",keep)
+        pr$neurons<-keep
+        pr$n_neurons<-nn
+        if(weighted) pr$w<-hits[keep]
         return(pr)
       }
       pr0<-prep0()
@@ -1214,8 +1264,10 @@ dbscan_module$server<-function(id,vals){
       if(is.null(pr)) return(NULL)
       warn<-NULL
       txt<-if(identical(input$target,"som")){
-        paste0(pr$n," neurons of the SOM model (codebook distances), ",pr$p," variables",
-               if(!is.null(pr$w)) paste0("; neurons weighted by their hits (",sum(pr$w)," observations, ",sum(pr$w==0)," empty neurons)") else "")
+        n_emp<-(pr$n_neurons%||%pr$n)-pr$n
+        paste0(pr$n," neurons of the SOM model",if(n_emp>0) paste0(" (",n_emp," empty neurons left out)") else "",", ",
+               if(!is.null(pr$reduced)) paste0(pr$reduced$p0," variables -> ",pr$reduced$k," principal axes of the codebook (",round(100*pr$reduced$var),"% of the variance)") else paste0("codebook distances, ",pr$p," variables"),
+               if(!is.null(pr$w)) paste0("; neurons weighted by their hits (",sum(pr$w)," observations)") else "")
       } else if(!is.null(pr$reduced)){
         rule<-switch(pr$reduced$rule,manual="number given",bstick="broken-stick rule","50% of the variance rule")
         paste0(pr$n," observations x ",pr$reduced$p0," variables -> ",pr$reduced$k," principal axes (",pr$reduced$method," of the ",pr$reduced$metric0," distance",if(isTRUE(input$scale)) " on scaled data" else "","; ",rule,"; ",round(100*pr$reduced$var),"% of the variance); Euclidean distance on the axes")
@@ -1541,7 +1593,7 @@ dbscan_module$server<-function(id,vals){
       if(identical(r$target,"som")){
         m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
         validate(need(inherits(m,"kohonen"),paste0("The SOM model ",r$som_model," of this model is no longer in the Datalist ",r$datalist,".")))
-        f<-dbs_factor(cl)[m$unit.classif]
+        f<-dbs_factor(dbs_neuron_clusters(r$prep,cl,m))[m$unit.classif]
         names(f)<-names(m$unit.classif)%||%rownames(vals$saved_data[[r$datalist]])
         return(f)
       }
@@ -1603,6 +1655,7 @@ dbscan_module$server<-function(id,vals){
         m<-attr(vals$saved_data[[r$datalist]],"som")[[r$som_model]]
         validate(need(inherits(m,"kohonen"),paste0("The SOM model ",r$som_model," of this model is no longer in the Datalist ",r$datalist,".")))
         req(m)
+        f<-dbs_factor(dbs_neuron_clusters(r$prep,cl,m))
         hexs<-get_neurons(m,background_type="hc",property=NULL,hc=f)
         cols<-dbs_colors(f,pal_fun)
         newcol<-vals$newcolhabs

@@ -1617,7 +1617,9 @@ dbscan_module$server<-function(id,vals){
       if(identical(s,unsaved_label)) return(result())
       saved_models()[[s]]
     })
-    observeEvent(model(),ignoreNULL=FALSE,{ pred(NULL) })
+    # predictions belong to the model shown: cleared when another model is selected or a new one
+    # is trained (not when the Datalist changes, e.g. when the predictions are saved in it)
+    observeEvent(list(input$dbs_model,result()),ignoreNULL=FALSE,{ pred(NULL) })
     observe({
       unsaved<-identical(input$dbs_model,unsaved_label)&&!is.null(result())
       shinyjs::toggle("save_model_btn",condition=unsaved)

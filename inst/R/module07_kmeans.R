@@ -703,8 +703,14 @@ k_means_module$server<-function (id,vals){
 
 
 
+    # save / delete windows shared by the modules (model_store, funs_models.R)
+    store<-model_store$server("model_store",vals,type="kmeans",datalist=function() input$data_kmeans,
+                              entry=function(name) vals$k_means_results,
+                              default_name=function() "Kmeans",
+                              on_saved=function(name){ vals$kmeans_models<-name },
+                              on_deleted=function(del){ vals$kmeans_models<-NULL })
     observeEvent(ignoreInit=T,input$trash_kmeans,{
-      vals$saved_data[[input$data_kmeans]]<-imesc_model_delete(vals$saved_data[[input$data_kmeans]],"kmeans",input$kmeans_models)
+      store$open_delete(input$kmeans_models)
     })
     observeEvent(ignoreInit=T,input$kmeans_models,{
       vals$kmeans_models<-input$kmeans_models
@@ -749,20 +755,7 @@ k_means_module$server<-function (id,vals){
 
 
     observeEvent(ignoreInit=T,input$save_kmeans_models,{
-      vals$hand_save<-"Save K-means Model"
-      vals$hand_save2<-NULL
-      vals$hand_save3<-NULL
-      showModal(module_kmeans())
-
-    })
-
-    savekmeans_models<-reactive({
-      # saved with the model functions of funs_models.R (the unsaved placeholder is removed)
-      cur_kmeans_models<-if(input$hand_save=="create") input$newdatalist else input$over_datalist
-      vals$saved_data[[input$data_kmeans]]<-imesc_model_save_unsaved(vals$saved_data[[input$data_kmeans]],"kmeans",cur_kmeans_models,vals$k_means_results)
-      vals$kmeans_models<-cur_kmeans_models
-
-
+      store$open_save()
     })
 
 
@@ -1455,7 +1448,6 @@ k_means_module$server<-function (id,vals){
       req(!is.null(vals$hand_save))
       switch(
         vals$hand_save,
-        "Save K-means Model"= {savekmeans_models()},
         "Save K-means Clusters"= {savekmeans()},
         "create_codebook_kmeans"=savecodebook()
       )

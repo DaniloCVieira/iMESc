@@ -602,117 +602,31 @@ sl_model_setup$server<-function(id,vals=NULL){
     observeEvent(input$filter,{
       vals$cur_filter_model<-input$filter
     })
+    # save / delete windows shared by the modules (model_store, funs_models.R); the type is
+    # the caret method of the model (vals$cmodel)
+    store<-model_store$server("model_store",vals,type=function() vals$cmodel,datalist=function() input$data_x,
+                              entry=function(name){
+                                # the unsaved entry keeps the results computed for it (e.g. permutation importance)
+                                m<-vals$cur_caret_model
+                                attr(m,"model_name")<-name
+                                e<-imesc_model_get(vals$saved_data[[input$data_x]],vals$cmodel,"new model")
+                                if(!is.list(e)||is.null(e$m)) e<-list()
+                                e$m<-m
+                                e
+                              },
+                              default_name=function() paste(vals$cmodel,'-',paste0(vals$trainSL_args$var_y,'~',vals$trainSL_args$data_x)),
+                              on_saved=function(name){ vals$cur_model_name<-name; vals$newmodel<-NULL },
+                              on_deleted=function(del){ vals$update_tab_caret<-"tab1" })
     observeEvent(input$trash_model,ignoreInit = T,{
-      choices<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
-      ns<-session$ns
-      showModal(
-        modalDialog(
-          easyClose = T,
-          title="Remove models",
-          div(
-            shinyWidgets::virtualSelectInput(
-              inputId = ns("trash_picker"),
-              label = "Select the columns",
-              optionHeight='24px',
-              choices = choices,
-              search = TRUE,
-              keepAlwaysOpen = TRUE,
-              multiple =T,
-              hideClearButton=T,
-              alwaysShowSelectedOptionsCount=T,
-              searchPlaceholderText="Select all",
-              optionselectedText="Models selected",
-              optionSelectedText="Models selected"
-            ),
-            actionButton(ns("trash_confirm"),"Remove Models",icon("trash"))
-          ),
-          footer=div(modalButton("Close"))
-        )
-      )
-    })
-
-    observeEvent(input$trash_confirm,ignoreInit = T,{
       req(vals$cmodel)
-      vals$update_tab_caret<-"tab1"
-      vals$saved_data[[input$data_x]]<-imesc_model_delete(vals$saved_data[[input$data_x]],vals$cmodel,input$trash_picker)
-      removeModal()
+      store$open_delete(input$model_name)
     })
 
 
 
     observeEvent(input$save_model,ignoreInit = T,{
-
-      m<-vals$cur_caret_model
-      model_names<-names(attr(vals$saved_data[[input$data_x]],vals$cmodel))
-
-
-
-      model_name<-paste0(vals$trainSL_args$var_y,'~',vals$trainSL_args$data_x)
-
-      bag<-paste(vals$cmodel,'-',model_name)
-      new_names<-make.unique(c(model_names,bag))
-      name0<-new_names[length(new_names)]
-      if(length(model_names)==1){
-        choices<-"Create"
-      } else{
-        choices<-c("Create","Replace")
-      }
-
-      model_names<-model_names[-which(model_names=="new model")]
-
-      showModal(
-        modalDialog(
-          title=paste("Save",vals$cmodel,"model"),
-
-          footer=div(actionButton(ns("data_confirm"),strong("confirm")),
-                     modalButton("Cancel")),
-          div(style="padding: 20px",
-
-              div(class="half-drop",
-                  style="display: flex",
-                  div(style="width: 20%",
-                      radioButtons(ns("create_replace"),NULL,choices)
-                  ),
-                  div(style="padding-top: 10px",
-                      textInput(ns("newdatalit"),NULL,name0),
-                      hidden(selectInput(ns("overdatalist"),NULL,model_names))
-                  )
-              ),
-              div(style="padding-left: 30px",
-                  uiOutput(ns('newdata')),
-
-              )
-          )
-        )
-      )
-
-
-    })
-    observeEvent(input$create_replace,{
-      shinyjs::toggle("newdatalit",condition=input$create_replace=="Create")
-      shinyjs::toggle("overdatalist",condition=input$create_replace=="Replace")
-    })
-    observeEvent(input$data_confirm,ignoreInit = T,{
-
-
-      model<-vals$cmodel
-
-      m<-vals$cur_caret_model
-
-      # saved with the model functions of funs_models.R: the unsaved entry keeps the results
-      # computed for it (e.g. permutation importance); the placeholder is removed
-      name<-if(input$create_replace=="Create") input$newdatalit else input$overdatalist
-      attr(m,"model_name")<-name
-      entry<-imesc_model_get(vals$saved_data[[input$data_x]],model,"new model")
-      if(!is.list(entry)||is.null(entry$m)) entry<-list()
-      entry$m<-m
-      vals$saved_data[[input$data_x]]<-imesc_model_save_unsaved(vals$saved_data[[input$data_x]],model,name,entry)
-      vals$cur_model_name<-name
-      vals$newmodel<-NULL
-      removeModal()
-
-
-
+      req(vals$cmodel)
+      store$open_save()
     })
     observeEvent(input$data_x,{
       req(input$data_x%in%names(vals$saved_data))

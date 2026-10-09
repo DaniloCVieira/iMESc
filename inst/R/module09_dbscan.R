@@ -1625,47 +1625,28 @@ dbscan_module$server<-function(id,vals){
       shinyjs::toggle("save_model_btn",condition=unsaved)
       shinyjs::toggle("delete_model_btn",condition=!is.null(model())&&!unsaved)
     })
+    # save / delete windows shared by the modules (model_store, funs_models.R)
+    store<-model_store$server("model_store",vals,type="dbscan",
+                              datalist=function() if(!is.null(result())) result()$datalist else input$data_db,
+                              entry=function(name){
+                                r<-result()
+                                attr(r,"model_name")<-name
+                                r$saved<-format(Sys.time(),"%Y-%m-%d %H:%M")
+                                r
+                              },
+                              default_name=function(){
+                                r<-result()
+                                k<-length(unique(r$cluster[r$cluster>0]))
+                                paste0(toupper(r$method),if(identical(r$target,"som")) "_som" else "","_",k,"cl")
+                              },
+                              on_saved=function(name){ sel_model(name); result(NULL) },
+                              on_deleted=function(del){ sel_model(NULL) })
     observeEvent(input$save_model,ignoreInit=TRUE,{
-      r<-result()
-      req(r)
-      k<-length(unique(r$cluster[r$cluster>0]))
-      name0<-paste0(toupper(r$method),if(identical(r$target,"som")) "_som" else "","_",k,"cl")
-      nm<-imesc_model_unique_name(vals$saved_data[[r$datalist]],"dbscan",name0)
-      showModal(modalDialog(
-        title="Save model",easyClose=TRUE,
-        div(p("Model saved in the Datalist ",strong(r$datalist),":"),
-            textInput(ns("model_name"),NULL,value=nm,width="300px"),
-            em("A model with the same name is replaced.")),
-        footer=div(modalButton("Cancel"),actionButton(ns("confirm_save_model"),"Save"))
-      ))
-    })
-    observeEvent(input$confirm_save_model,ignoreInit=TRUE,{
-      r<-result()
-      name<-trimws(input$model_name%||%"")
-      req(r,nzchar(name),r$datalist%in%names(vals$saved_data))
-      attr(r,"model_name")<-name
-      r$saved<-format(Sys.time(),"%Y-%m-%d %H:%M")
-      vals$saved_data[[r$datalist]]<-imesc_model_set(vals$saved_data[[r$datalist]],"dbscan",name,r)
-      sel_model(name)
-      result(NULL)
-      removeModal()
-      showNotification(paste0("Model '",name,"' saved in the Datalist ",r$datalist,"."),type="message")
+      req(result())
+      store$open_save()
     })
     observeEvent(input$delete_model,ignoreInit=TRUE,{
-      req(input$dbs_model%in%names(saved_models()))
-      showModal(modalDialog(
-        title="Delete model",easyClose=TRUE,
-        p("Delete the model ",strong(input$dbs_model)," from the Datalist ",strong(input$data_db),"?"),
-        footer=div(modalButton("Cancel"),actionButton(ns("confirm_delete_model"),"Delete"))
-      ))
-    })
-    observeEvent(input$confirm_delete_model,ignoreInit=TRUE,{
-      nm<-input$dbs_model
-      req(nm%in%names(saved_models()))
-      vals$saved_data[[input$data_db]]<-imesc_model_delete(vals$saved_data[[input$data_db]],"dbscan",nm)
-      sel_model(NULL)
-      removeModal()
-      showNotification(paste0("Model '",nm,"' deleted."),type="message")
+      store$open_delete(input$dbs_model)
     })
 
     # labels of the clustered units (neurons or observations), optionally without noise
@@ -1871,7 +1852,7 @@ dbscan_module$server<-function(id,vals){
     })
     output$clusters_saved_note<-renderUI({
       al<-clusters_saved()
-      req(length(al))
+      req(length(al)>0)
       div(style="font-size: 11px; color: #555555; padding-top: 3px",em(paste0("The current clustering is saved in the Factor-Attribute as '",paste(al,collapse="; "),"'.")))
     })
 

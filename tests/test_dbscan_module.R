@@ -35,13 +35,14 @@ shiny::testServer(dbscan_module$server,args=list(vals=vals),{
   # Numeric-Attribute of envi: save, reload, delete models
   session$setInputs(data_db="envi_araca",method="hdbscan",reduce=FALSE,scale=TRUE)
   session$setInputs(minPts=4,mcs=8,run=3); session$setInputs(dbs_model=unsaved)
-  session$setInputs(save_model=1); session$setInputs(model_name="HDB_envi",confirm_save_model=1)
+  session$setInputs(save_model=1); session$setInputs(`model_store-name`="HDB_envi",`model_store-confirm_save`=1)
   check("model saved in the Datalist",identical(names(attr(vals$saved_data$envi_araca,"dbscan")),"HDB_envi"))
   session$setInputs(dbs_model="HDB_envi")
   check("saved model reloaded",grepl("Saved model 'HDB_envi'",out_text(output$summary)))
 
   # sorted clusters and the saved-clusters check
   f0<-obs_clusters()
+  check("no 'clustering is saved' note before saving",inherits(tryCatch(output$clusters_saved_note,error=function(e) e),"error"))
   session$setInputs(save_clusters=1); session$setInputs(factor_name="HDB_x",confirm_save=1)
   check("saved clusters recognised in the Factor-Attribute",identical(clusters_saved(),"HDB_x"))
   session$setInputs(sort_clusters=TRUE,sort_datalist="envi_araca",sort_var=var1)
@@ -65,7 +66,7 @@ shiny::testServer(dbscan_module$server,args=list(vals=vals),{
   check("SOM: dendrogram drawn",{ session$setInputs(plot_type="dendro"); has_plot(output$plot) })
   session$setInputs(plot_type="clusters")
   check("SOM: one cluster label per observation",length(obs_clusters())==nrow(envi))
-  session$setInputs(save_model=2); session$setInputs(model_name="HDB_som",confirm_save_model=2)
-  session$setInputs(dbs_model="HDB_envi",delete_model=1,confirm_delete_model=1)
+  session$setInputs(save_model=2); session$setInputs(`model_store-name`="HDB_som",`model_store-confirm_save`=2)
+  session$setInputs(dbs_model="HDB_envi",delete_model=1); session$setInputs(`model_store-delete_pick`="HDB_envi",`model_store-confirm_delete`=1)
   check("model deleted",identical(names(attr(vals$saved_data$envi_araca,"dbscan")),"HDB_som"))
 })

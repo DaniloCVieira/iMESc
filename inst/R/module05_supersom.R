@@ -796,37 +796,19 @@ imesc_supersom$server<-function (id,vals ){
       vals$saved_data[[input$data_som]]<-imesc_model_delete(vals$saved_data[[input$data_som]],"som","new som (unsaved)")
 
     })
+    # save / delete windows shared by the modules (model_store, funs_models.R)
+    store<-model_store$server("model_store",vals,type="som",datalist=function() input$data_som,
+                              entry=function(name) current_som_model(),
+                              default_name=function() bag_somname(),
+                              on_saved=function(name){
+                                curtab<-vals$cursomtab
+                                vals$cur_som_models<-name
+                                delay(500,{updateTabsetPanel(session,"som_tab",curtab)
+                                  updateTabsetPanel(session,"som_res",vals$som_res)})
+                              },
+                              on_deleted=function(del){ if(isTRUE(vals$cur_som_models%in%del)) vals$cur_som_models<-NULL })
     observeEvent(input$som_model_delete,ignoreInit = T,{
-      choices<-names(attr(vals$saved_data[[input$data_som]],"som"))
-      req(length(choices)>0)
-      showModal(modalDialog(
-        easyClose = T,
-        title="Remove models",
-        div(
-          shinyWidgets::virtualSelectInput(
-            inputId = ns("som_trash_picker"),
-            label = "Select the models",
-            optionHeight='24px',
-            choices = choices,
-            selected=input$som_models,
-            search = TRUE,
-            keepAlwaysOpen = TRUE,
-            multiple =T,
-            hideClearButton=T,
-            alwaysShowSelectedOptionsCount=T,
-            searchPlaceholderText="Select all",
-            optionselectedText="Models selected",
-            optionSelectedText="Models selected"
-          ),
-          actionButton(ns("som_trash_confirm"),"Remove Models",icon("trash"))
-        ),
-        footer=div(modalButton("Close"))
-      ))
-    })
-    observeEvent(input$som_trash_confirm,ignoreInit = T,{
-      req(length(input$som_trash_picker)>0)
-      vals$saved_data[[input$data_som]]<-imesc_model_delete(vals$saved_data[[input$data_som]],"som",input$som_trash_picker)
-      removeModal()
+      store$open_delete(input$som_models)
     })
 
 
@@ -1057,14 +1039,7 @@ imesc_supersom$server<-function (id,vals ){
 
       }})
     observeEvent(ignoreInit = T,input$tools_savesom,{
-      if(input$tools_savesom %% 2){
-        vals$hand_save<-"Save new som in"
-        vals$hand_save2<-column(12,div(em(input$data_som, style="color:gray"),strong("::"), em("Som-Attribute", style="color:gray"),strong("::")
-        ))
-        vals$hand_save3<-em("Both 'create' and 'overwrite' options add the resulting BMU to the 'Factor-Attribute' of the corresponding Datalist."
-        )
-        showModal(
-          module_som())}
+      store$open_save()
     })
 
     observe({

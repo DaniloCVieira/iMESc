@@ -733,6 +733,100 @@ app_server<-server<-function(input, output, session) {
               class = "news-list",
               style="padding: 10px; font-size: 12px",
               div(
+                class = "news-card news-card-green",
+
+                div(
+                  class = "news-date",
+                  "9 October 2026"
+                ),
+
+                h4(
+                  icon("circle-nodes"),
+                  " Density-based clustering (DBSCAN / HDBSCAN)"
+                ),
+
+                div(
+                  "A new ",
+                  strong("Density-based clustering"),
+                  " module was added to ",
+                  strong("Unsupervised Algorithms"),
+                  ". It finds groups separated by low-density regions, without setting the number of clusters, and marks isolated points as noise."
+                ),
+
+                div(
+                  "It runs on the Numeric-Attribute or on a SOM codebook, with automatic parameter suggestions (validated with simulated data), principal axes for many variables, the DBCV quality index, condensed tree and dendrogram views, GLOSH outlier scores, cluster sorting, saved models and prediction of new data."
+                )
+              ),
+              div(
+                class = "news-card news-card-blue",
+
+                div(
+                  class = "news-date",
+                  "9 October 2026"
+                ),
+
+                h4(
+                  icon("shield-halved"),
+                  " Forecast horizons without data leakage"
+                ),
+
+                div(
+                  strong("Supervised Algorithms"),
+                  " now checks the temporal validation for data leakage: derived temporal predictors (lags, rolling windows) are compared with the validation scheme, and horizons that would use future information are flagged."
+                ),
+
+                div(
+                  "A new ",
+                  strong("Recursive"),
+                  " horizon evaluation forecasts step by step from each origin, recomputing the lags from the model's own predictions. Direct forecasts with lead targets are checked for the required gap, and temporal blocks can follow calendar units (week, month, year)."
+                )
+              ),
+              div(
+                class = "news-card news-card-orange",
+
+                div(
+                  class = "news-date",
+                  "9 October 2026"
+                ),
+
+                h4(
+                  icon("magnifying-glass-chart"),
+                  " Outlier Handling tool"
+                ),
+
+                div(
+                  "A new ",
+                  strong("Outlier Handling"),
+                  " tool was added to Pre-processing. Outliers can be detected with univariate (robust z, IQR, z-score, percentiles, Rosner's ESD), temporal (Hampel filter) or multivariate (Mahalanobis) methods, by variable and group."
+                ),
+
+                div(
+                  "Flagged values can be inspected and then replaced by NA, capped at the limits, replaced by the median, or removed."
+                )
+              ),
+              div(
+                class = "news-card",
+
+                div(
+                  class = "news-date",
+                  "9 October 2026"
+                ),
+
+                h4(
+                  icon("chart-column"),
+                  " Scatter plots with regression and Histograms"
+                ),
+
+                div(
+                  strong("Descriptive Tools"),
+                  " has a new ",
+                  strong("Scatter plot"),
+                  " tab with linear and multiple regression (fit line, coefficients and diagnostics), and a new ",
+                  strong("Histogram"),
+                  " tab (single histogram or one panel per variable)."
+                )
+              ),
+              div(
                 class = "news-card",
 
                 div(

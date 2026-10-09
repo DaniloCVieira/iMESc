@@ -6067,6 +6067,7 @@ tool2_tab6$server<-function(id,vals){
       res<- switch(attr,
                    "som"={span(tiphelp("Self-Organizing Maps","left"),span("SOM"))},
                    "kmeans"={span(tiphelp("K-Means","left"),span("k-Means"))},
+                   "hc"={span(tiphelp("Hierarchical clustering","left"),span("HC"))},
                    "dbscan"={span(tiphelp("Density-based clustering (DBSCAN / HDBSCAN)","left"),span("DBSCAN"))},
                    "rf"={span(tiphelp("Random Forest","left"),span("RF"))},
                    "nb"={span(tiphelp("Naive Bayes","left"),span("NB"))},
@@ -6081,6 +6082,7 @@ tool2_tab6$server<-function(id,vals){
       res<- switch(attr,
                    "som"={"SOM (usupervised)"},
                    "kmeans"={"k-means"},
+                   "hc"={"Hierarchical clustering"},
                    "dbscan"={"Density-based (DBSCAN/HDBSCAN)"},
                    "rf"={"Random Forest"},
                    "nb"={"Naive Bayes"},
@@ -10622,6 +10624,7 @@ tool2_tab14$server <- function(id, vals) {
           "pwRDA",
           "som",
           "kmeans",
+          "hc",
           "dbscan",
           as.character(available_models)
         )

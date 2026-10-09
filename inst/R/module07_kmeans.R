@@ -1438,7 +1438,7 @@ k_means_module$server<-function (id,vals){
       choices<-c(names(vals$saved_data))
       req(input$hand_save=="over")
       choices=switch (vals$hand_save,
-                      'Save K-means Model'=names(attr(vals$saved_data[[input$kmeans]],"kmeans")),
+                      'Save K-means Model'=setdiff(names(attr(vals$saved_data[[input$data_kmeans]],"kmeans")),"new kmeans (unsaved)"),
                       'Save K-means Clusters'=colnames(attr(vals$saved_data[[input$data_kmeans]],'factors')),
                       "create_codebook_kmeans"=names(vals$saved_data)
       )

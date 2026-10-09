@@ -777,7 +777,7 @@ sptools_tab$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F,  shap
                       hidden(div(id=ns("down_btn_gg"),
                                  actionLink(ns("down_ggplot"), "Download",icon("download")))),
                       hidden(div(id=ns("down_btn_generic"),
-                                 tipify_ui(actionLink(ns("down_plot3D_btn"), "Download",icon("download")),"Download")
+                                 tiphelp_icon(actionLink(ns("down_plot3D_btn"), "Download",icon("download")),"Download")
                       ))
 
                     ),
@@ -802,7 +802,7 @@ sptools_tab$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F,  shap
                                                 emgray(icon("fas fa-hand-point-right"),"Click to Create the map")
                                             ),
                                             div(style="position: absolute; right: 2px;z-index:999",
-                                                tipify_ui(uiOutput(ns("save_map_btn")),"Save the Raster for using in Surface and Stack plots"),
+                                                tiphelp_icon(uiOutput(ns("save_map_btn")),"Save the Raster for using in Surface and Stack plots"),
                                                 uiOutput(ns("save_geotiff")),
                                                 actionLink(ns("create_grid"),"Grid Maps")
                                             ),
@@ -1408,7 +1408,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         if(isTRUE(circles)){
           "Circles"
         } else{
-          span("Pies",tipify_ui(actionLink(ns("pie_chart_help"),icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle")),"Click for details"))
+          span("Pies",tiphelp_icon(actionLink(ns("pie_chart_help"),icon(verify_fa = FALSE,name=NULL,class="fas fa-question-circle")),"Click for details"))
         }
 
 
@@ -2231,7 +2231,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
       })
       output$save_geotiff<-renderUI({
         req(rst())
-        tipify_ui(downloadLink(session$ns("down_geotif"), span(icon("download"),"GeoTiff")),"Download the GeoTiff file with georeferenced raster data for GIS applications")
+        tiphelp_icon(downloadLink(session$ns("down_geotif"), span(icon("download"),"GeoTiff")),"Download the GeoTiff file with georeferenced raster data for GIS applications")
       })
       output$error_map<-renderUI({
         render_message(

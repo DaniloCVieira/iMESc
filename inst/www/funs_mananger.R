@@ -1,5 +1,5 @@
 
-imesc_models<-c('som','kmeans','dbscan','rf','nb','svm','knn','sgboost','xyf')
+imesc_models<-c('som','kmeans','hc','dbscan','rf','nb','svm','knn','sgboost','xyf')
 imesc_attrs<-c("numeric","factors","coords","base_shape","layer_shape","extra_shape",'notes')
 
 list_models<-function(data,size=F,imesc_models){
@@ -10,7 +10,7 @@ list_models<-function(data,size=F,imesc_models){
       if(isTRUE(size)){
         format(object.size(mi), "auto")
       } else{
-        length(mi)>0
+        length(mi)>0||length(attributes(mi))>0
       }
     })
   })
@@ -133,7 +133,7 @@ get_attr_imesc<-function(datalist,attr, model_name=NA,vals,return_data=F,size=T,
     }
     if(attr%in% imesc_models){
       result<-attr(data,attr)[[model_name]]
-      if(!attr%in%c('som','kmeans','dbscan')){
+      if(!attr%in%c('som','kmeans','hc','dbscan')){
         result<-result[[1]]
       }
 

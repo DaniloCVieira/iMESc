@@ -427,7 +427,8 @@ points_color_source$server<-function(id,vals,data){
         b<-sort(unique(b[!is.na(b)]))
         attr(out,"breaks")<-if(length(b)>=2) b else NULL
       } else{
-        out[,1]<-factor(out[,1])
+        # a factor keeps all its levels, so each class keeps its colour (palettes named by level)
+        if(!is.factor(out[,1])) out[,1]<-factor(out[,1])
       }
       out
     })
@@ -1319,7 +1320,7 @@ desctools_tab2$server<-function(id,vals){
       data<-bbox_x_datalist()
       factors<-attr(data,"factors")
       labels<-factors[rownames(data), input$filter_box1]
-      choices = c(levels(as.factor(labels)))
+      choices = c(levels(droplevels(as.factor(labels))))
       selected=vals$cur_filter_box2
       selected=get_selected_from_choices(selected,choices)
 
@@ -1873,7 +1874,7 @@ desctools_tab4$server<-function(id,vals){
           y<-pred<-factors[rownames(data),input$ggpair.y.variable, drop=F]
           #validate(need(nlevels(pred[,1])<=50))
           df=cbind(data,pred)
-          cols<-vals$newcolhabs[[input$fm_palette]](nlevels(pred[,1]))
+          cols<-pal_levels(vals$newcolhabs[[input$fm_palette]],pred[,1])
           my_cols<-cols[pred[,1]]
         }
         include.y<-input$ggpair.box.include
@@ -4636,7 +4637,8 @@ desctools_tab9$server<-function(id,vals){
     get_breaks_from_factor<-reactive({
       x<-vals$saved_data[[input$segrda_X]]
       y<-vals$saved_data[[input$segrda_Y]]
-      bp<-attr(x,"factors")[,input$bp_column]
+      # classes without observations would hide a break (codes jumping by 2)
+      bp<-droplevels(as.factor(attr(x,"factors")[,input$bp_column]))
       xord<-x[order(as.numeric(bp)),,drop=F]
       yord<-y[order(as.numeric(bp)),,drop=F]
       breaks<-bp[order(as.numeric(bp))]
@@ -6412,7 +6414,8 @@ desctools_tab12$server<-function(id,vals){
       g<-if(identical(input$group%||%"none","none")) factor(rep("All",nrow(d))) else{
         fac<-attr(d,"factors")
         req(input$group%in%colnames(fac))
-        factor(fac[rownames(d),input$group])
+        g0<-fac[rownames(d),input$group]
+        if(is.factor(g0)) g0 else factor(g0)
       }
       out<-do.call(rbind,lapply(vars,function(v) data.frame(variable=v,value=d[[v]],group=g,stringsAsFactors=FALSE)))
       out$variable<-factor(out$variable,levels=vars)
@@ -6424,6 +6427,8 @@ desctools_tab12$server<-function(id,vals){
       out<-out[is.finite(out$value)&!is.na(out$group),,drop=FALSE]
       validate(need(nrow(out)>0,"No finite values to plot."))
       out$group<-droplevels(out$group)
+      # all the levels, so each class keeps its colour (gg_desc_hist)
+      attr(out,"group_levels")<-levels(g)
       layout<-input$layout%||%"pooled"
       if(identical(layout,"pooled")&&length(vars)>1){
         out$variable<-factor(if(length(vars)==length(num_vars())) "All variables" else paste0(length(vars)," variables pooled"))
@@ -6881,7 +6886,7 @@ desctools_tab11$server<-function(id,vals){
         return(gg_desc_scatter_diag(fr,view,colors=color_pal(),point_size=input$point_size%||%2,alpha=input$alpha%||%0.7,
                                     line_color=input$line_color%||%"#05668D",theme=input$theme%||%"theme_bw",
                                     base_size=input$base_size%||%12,title=input$title,legend.position=input$legend%||%"right",
-                                    color_title=attr(df,"color_name")))
+                                    color_title=attr(df,"color_name"),color_levels=if(is.factor(df$color)) levels(df$color)))
       }
       gg_desc_scatter(
         df,fitres=fr,

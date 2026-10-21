@@ -134,9 +134,9 @@ get_cols_factor_chart<-function(df,data, pal){
 
   min_opacity_factor<-0.6
   alphas<-seq(1,min_opacity_factor,len=length(unique(class_factor)))[as.factor(class_factor)]
+  # the colour of each slice is the colour of its class, from the palette over all the levels
   cols<-colorRampPalette(pal)(nlevels(data[,1]))
-  cols<-cols[levels(data[,1])%in%data[,1]]
-  cols<-cols[as.factor(z_factor)]
+  cols<-cols[match(z_factor,levels(data[,1]))]
   cols<-sapply(seq_along(cols),function(i) adjustcolor(cols[i],alphas[i]))
   cols
 }

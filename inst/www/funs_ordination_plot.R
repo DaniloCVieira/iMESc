@@ -330,7 +330,7 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
       if(!is.null(points_factor)){
         df1$points_factor<-points_factor[,1]
         show.legend=T}
-      col_points=points_palette(nlevels(df1$points_factor))
+      col_points=pal_levels(points_palette,df1$points_factor)
       p<-p+ggnewscale::new_scale_color()
       if(isTRUE(scale_shape)){
         p<-p+geom_point(aes(x,y,color=points_factor, shape=points_factor), data=df1,size=points_size,show.legend=show.legend)+scale_shape(colnames(points_factor))
@@ -339,7 +339,7 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
       }
       p<-p+
         scale_color_manual(colnames(points_factor),values=col_points)
-      if(col_points[1]==col_points[2]){
+      if(length(unique(col_points))==1){
         p<-p+guides(color="none")
       }
     }
@@ -350,7 +350,7 @@ ggpca<-function(model, base_size=12, theme='theme_bw', title="Principal componen
       col_text=text_palette(1)
       if(!is.null(text_factor)){
         df1$text_factor<-text_factor[,1]
-        col_text=text_palette(nlevels(df1$text_factor))
+        col_text=pal_levels(text_palette,df1$text_factor)
         df1$text_label<-df1$text_factor
       }
 
@@ -562,7 +562,7 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
       show.legend <- TRUE
     }
 
-    col_points <- points_palette(nlevels(df1$points_factor))
+    col_points <- pal_levels(points_palette, df1$points_factor)
 
     p <- p +
       ggplot2::geom_point(
@@ -628,7 +628,7 @@ ggrda<-function(model, base_size=12, theme='theme_bw', title="Redundancy analysi
 
     if (!is.null(text_factor)) {
       df1$text_factor <- as.factor(text_factor[, 1])
-      col_text <- text_palette(nlevels(df1$text_factor))
+      col_text <- pal_levels(text_palette, df1$text_factor)
       df1$text_label <- df1$text_factor
     }
 
@@ -745,7 +745,7 @@ ggmds<-function(model, base_size=12, theme='theme_bw', title="Multidimensional s
       if(!is.null(points_factor)){
         df1$points_factor<-points_factor[,1]
         show.legend=T}
-      col_points=points_palette(nlevels(df1$points_factor))
+      col_points=pal_levels(points_palette,df1$points_factor)
       p<-p+ggnewscale::new_scale_color()
       if(isTRUE(scale_shape)){
         p<-p+geom_point(aes(x,y,color=points_factor, shape=points_factor), data=df1,size=points_size,show.legend=show.legend)+scale_shape(colnames(points_factor))
@@ -762,7 +762,7 @@ ggmds<-function(model, base_size=12, theme='theme_bw', title="Multidimensional s
       col_text=text_palette(1)
       if(!is.null(text_factor)){
         df1$text_factor<-text_factor[,1]
-        col_text=text_palette(nlevels(df1$text_factor))
+        col_text=pal_levels(text_palette,df1$text_factor)
         df1$text_label<-df1$text_factor
       }
 

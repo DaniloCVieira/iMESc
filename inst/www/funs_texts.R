@@ -398,9 +398,9 @@ data_migrate<-function(data,newdata, newname=NULL){
 
     attr(newdata, "filename")=attr(data, "filename")
     factors<-attr(data, "factors")[rownames(newdata), , drop=FALSE]
-    fac2<-data.frame(lapply(factors,function(x){
-      factor(x,levels=levels(x)[levels(x)%in%x])
-    }))
+    # the levels are kept even when a class has no observations left (e.g. after filtering),
+    # so each class keeps its colour, since palettes are built over all the levels
+    fac2<-factors
     rownames(fac2)<-rownames(newdata)
     colnames(fac2)<-colnames(factors)
     attr(newdata, "factors")=fac2
@@ -433,6 +433,16 @@ data_migrate<-function(data,newdata, newname=NULL){
 }
 
 
+
+#' @export
+# colours of the levels of a factor, named by level: the palette is built over all the levels, so a
+# class keeps its colour when other classes have no observations (ggplot shows only the present ones)
+pal_levels<-function(pal,f){
+  f<-as.factor(f)
+  cols<-pal(nlevels(f))
+  names(cols)<-levels(f)
+  cols
+}
 
 #' @export
 ppsummary <- function(m){

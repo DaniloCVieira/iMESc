@@ -301,8 +301,9 @@ cv_spatial2<-function (x, column = NULL, r = NULL, k = 5L, hexagon = TRUE,
         train_test_table$train[p] <- length(train_set)
         train_test_table$test[p] <- length(test_set)
       }      else {
-        countrain <- table(x[train_set, column, drop = TRUE])
-        countest <- table(x[test_set, column, drop = TRUE])
+        # counted over the classes present (cl), so classes without observations do not shift the counts
+        countrain <- table(factor(as.character(x[train_set, column, drop = TRUE]), levels = as.character(cl)))
+        countest <- table(factor(as.character(x[test_set, column, drop = TRUE]), levels = as.character(cl)))
         train_test_table[p, which(cl %in% names(countrain))] <- countrain
         train_test_table[p, clen + which(cl %in% names(countest))] <- countest
       }
@@ -678,7 +679,7 @@ cv_spatial_autocor2<-function (r, x, column = NULL, num_sample = 5000L, deg_to_m
 evaluate_fold_classes <- function(sf_dat, resampling, column = "y") {
 
   response <- sf_dat[[column]]
-  response <- as.factor(response)
+  response <- droplevels(as.factor(response))
 
   test_table <- table(resampling$folds_ids, response)
 

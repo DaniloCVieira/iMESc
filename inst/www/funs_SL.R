@@ -1085,6 +1085,16 @@ make_horizon_map<-function(caret_folds){
 # caret test predictions (observed predictors), with the horizons beyond the leakage-free
 # limit (attr(m,"cvt")$leak$h_valid) flagged.
 #' @export
+# observed and predicted classes on the same levels, so the confusion matrix is square: the
+# predicted (model) classes, then the observed classes the model does not know; observed
+# classes without observations are left out
+sl_align_classes<-function(obs,pred){
+  pred<-if(is.factor(pred)) pred else factor(pred)
+  obs<-if(is.factor(obs)) droplevels(obs) else factor(obs)
+  lev<-union(levels(pred),levels(obs))
+  list(obs=factor(as.character(obs),levels=lev),pred=factor(as.character(pred),levels=lev))
+}
+#' @export
 horizon_curve_data<-function(m,window="cumulative"){
   cvt<-attr(m,"cvt")
   if(is.null(cvt$horizon_map)) cvt<-attr(m,"cvst")

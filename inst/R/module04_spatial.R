@@ -128,7 +128,8 @@ sptools_data$server<-function(id,vals){
     observeEvent(list(input$factor_filter,get_factors()),{
       req(input$factor_filter)
       fac<-get_filter()[,1]
-      choices<-levels(fac)
+      # only the levels with observations (an empty level would give an empty map)
+      choices<-levels(droplevels(as.factor(fac)))
       selected<-get_selected_from_choices(vals$cur_level_filter,choices)
 
       updatePickerInput(session,"level_filter",choices=choices, selected=selected)
@@ -1106,7 +1107,8 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 
       args_for_map1<-reactive({
         # if(is.null(vals$data_map)) {return(NULL)}
-        n<-length(unique(vals$data_map[, 1]))
+        # factors: the palette over all the levels, as for the circles (pies keep the class colours)
+        n<-if(is.factor(vals$data_map[, 1])) nlevels(vals$data_map[, 1]) else length(unique(vals$data_map[, 1]))
         req(color_args1())
         palette<-color_args1()$pal
         fillOpacity<-color_args1()$fillOpacity
@@ -1318,7 +1320,8 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 
         req(vals$cur_factor_filter!="None")
         req(vals$cur_factor_filter%in%colnames(factors))
-        factor_filter=factors[,vals$cur_factor_filter]
+        # one panel per level with observations (grid titles, breaks and layout follow these levels)
+        factor_filter=droplevels(as.factor(factors[,vals$cur_factor_filter]))
         factor_filter
       })
       get_grid_layout<-reactive({

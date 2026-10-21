@@ -416,7 +416,7 @@ imesc_supersom$server<-function (id,vals ){
       req(input$data_somY)
       req(input$partition_column)
       fac<-attr(vals$saved_data[[input$data_somY]],"factors")[,input$partition_column]
-      choices<-levels(fac)
+      choices<-levels(droplevels(as.factor(fac)))
       selected=vals$cur_partition_ref
       selected<-get_selected_from_choices(selected,choices)
       pickerInput_fromtop(ns("partition_ref"),span("Test reference:",tiphelp("choose the level as reference for the test data. Data referring to the level of the chosen factor will not be considered in the training, and can be be later used to generate predictions")), choices=choices,selected=selected)
@@ -1265,7 +1265,7 @@ imesc_supersom$server<-function (id,vals ){
           factors<-attr(vals$saved_data[[input$data_somY]],"factors")[rownames(data1),,drop=F]
           pic_split<-which(factors[,input$partition_column]%in%input$partition_ref)
           test_ids<-rownames(factors)[pic_split]
-          train_ids<-rownames(factors)[-pic_split]
+          train_ids<-setdiff(rownames(factors),test_ids)
           parts=list(train=train_ids,test=test_ids)
           train<-parts$train
           test<-parts$test
@@ -1545,9 +1545,8 @@ imesc_supersom$server<-function (id,vals ){
         factors<-attr(data,"factors")
         req(input$partition_column%in%colnames(factors))
         partition_column<-factors[input$partition_column]
-        test_ids<-which(partition_column[,1]%in%input$partition_ref)
-        train_ids<-rownames(data)[-test_ids]
-        test_ids<-rownames(data)[test_ids]
+        test_ids<-rownames(data)[partition_column[,1]%in%input$partition_ref]
+        train_ids<-setdiff(rownames(data),test_ids)
         return(list(train=train_ids,test=test_ids))
       })
       data_example<-reactive({

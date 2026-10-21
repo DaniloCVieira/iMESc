@@ -720,7 +720,8 @@ cursor: move;
         data<-vals$saved_data[[input$isp_Y]]
         factors<-attr(data,"factors")
         req(input$isp_group%in%colnames(factors))
-        y=factors[rownames(data),input$isp_group]
+        # groups without observations would make every statistic NA
+        y=droplevels(as.factor(factors[rownames(data),input$isp_group]))
 
 
 
@@ -1027,6 +1028,8 @@ cursor: move;
       results
     })
     simper_indicadoras<-function(data,ss,npic=20,hc){
+      # groups without observations are dropped by aggregate()
+      hc<-droplevels(as.factor(hc))
       df<-do.call(rbind,lapply(seq_along(ss),function(i){
         x<-ss[[i]]
         contrast=names(ss)[i]

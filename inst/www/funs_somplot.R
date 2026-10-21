@@ -869,7 +869,7 @@ pcorr<-function(m,npic=10, indicate=c("var","cor"), col.arrow="gray80",cex.var=1
 
   if(isTRUE(points)) {
     if(colreq[1]!=colreq[2]) {
-      legend("topr",pch=pch,legend=levels(labels.ind), col=getcolhabs(newcolhabs,factor.pal, nlevels(labels.ind)),border=NA, ncol=ncol, inset=c(insetx,insety),cex=cex, bg=adjustcolor('white',alpha.legend))
+      legend("topr",pch=pch,legend=levels(droplevels(labels.ind)), col=getcolhabs(newcolhabs,factor.pal, nlevels(labels.ind))[levels(labels.ind)%in%labels.ind],border=NA, ncol=ncol, inset=c(insetx,insety),cex=cex, bg=adjustcolor('white',alpha.legend))
 
     }}
   if(!is.null(xclus)){
@@ -1059,7 +1059,7 @@ pclus<-function(somC,  cex=1, pch=16, labels.ind=NULL,bg_palette="turbo", factor
           x<-range(m$grid$pts[,1])
           y<-range(m$grid$pts[,2])
 
-          legend(max(x)+1,max(y),pch=pch,legend=levels(labels.ind), col=getcolhabs(newcolhabs,factor.pal, nlevels(labels.ind)),border=NA, ncol=ncol,cex=cex, bg=adjustcolor('white',alpha.legend),xjust=0)}
+          legend(max(x)+1,max(y),pch=pch,legend=levels(droplevels(labels.ind)), col=getcolhabs(newcolhabs,factor.pal, nlevels(labels.ind))[levels(labels.ind)%in%labels.ind],border=NA, ncol=ncol,cex=cex, bg=adjustcolor('white',alpha.legend),xjust=0)}
 
       }
     }
@@ -2044,7 +2044,7 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
     if(isTRUE(points)){
       req(length(points_tomap)>0)
       if(isTRUE(fill_neurons)){
-        colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
+        colpoints<-pal_levels(newcolhabs[[points_palette]],points_tomap$point)
       } else{
         colpoints<-newcolhabs[[points_palette]](1)
       }
@@ -2053,6 +2053,7 @@ bmu_plot_hc<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,po
       if(length(unique(colpoints))==1){
         points_tomap$point<-points_legend
         namepoints=""
+        colpoints<-unname(colpoints)
       }
 
 
@@ -2255,11 +2256,12 @@ bmu_plot<-function(m,hexs,points_tomap=NULL,bp=NULL,points=T,points_size=2,point
   if(!is.null(points_tomap)){
     if(isTRUE(points)){
       req(length(points_tomap)>0)
-      colpoints<-newcolhabs[[points_palette]](nlevels(points_tomap$point))
+      colpoints<-pal_levels(newcolhabs[[points_palette]],points_tomap$point)
       namepoints<-attr(points_tomap,"namepoints")
       if(length(unique(colpoints))==1){
         points_tomap$point<-points_legend
         namepoints=""
+        colpoints<-unname(colpoints)
       }
 
       p<- p+geom_point(data=points_tomap, aes(x_pt, y_pt,col=point), size=points_size+2, shape=pch)+

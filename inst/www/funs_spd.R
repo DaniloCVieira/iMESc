@@ -80,6 +80,7 @@ gg_pairplot<-function(x,y,cols,xlab="",ylab="",title="",include.y=F,cor.size=1,v
 
   col.curve<-adjustcolor(cols,alpha.curve)
   col.points<-adjustcolor(cols,alpha.points)
+  names(col.curve)<-names(col.points)<-names(cols)
 
   cor.size=cor.size*3
   points.size=points.size*3
@@ -217,6 +218,7 @@ gg_pairplot2<-function(x,y,cols,xlab="",ylab="",title="",include.y=F,cor.size=1,
 
   col.curve<-adjustcolor(cols,alpha.curve)
   col.points<-adjustcolor(cols,alpha.points)
+  names(col.curve)<-names(col.points)<-names(cols)
 
   cor.size=cor.size*3
   points.size=points.size*3

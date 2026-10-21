@@ -454,6 +454,8 @@ generate_partiton<-function(data,split_t,split_y,split_p,split_seed,part_type="B
     data<-factors
   }
   y<-data[,split_y]
+  # classes without observations are ignored by createDataPartition (with a warning)
+  if(is.factor(y)) y<-droplevels(y)
   if(is.na(split_seed)){split_seed=NULL}
   set.seed(split_seed)
   p=((100-split_p)/100)
@@ -3714,6 +3716,10 @@ tool2_tab3$server <- function(id, vals) {
         data <- data.frame(lapply(data, as.factor), check.names = FALSE)
         rownames(data) <- rownames(obj$data)
       }
+      # factor -> numeric: levels without observations would give all-zero binary columns or gaps in the ranks
+      if (is_convert("factor", "numeric")) {
+        data <- droplevels(data)
+      }
 
       attr(data, "datalist") <- input$import_from_data
       data
@@ -4330,7 +4336,11 @@ tool2_tab3$server <- function(id, vals) {
 
         numeric_factor <- factor(as.numeric(data[, var]))
         new_factor <- factor(numeric_factor, levels = ordered_levels, labels = labels)
-        new_factor <- factor(new_factor, levels = levels(new_factor)[levels(new_factor) %in% new_factor])
+        # factor -> factor keeps the levels without observations (each class keeps its colour);
+        # levels created by a numeric/time conversion without observations (e.g. empty breaks) are dropped
+        if (!is_convert("factor", "factor")) {
+          new_factor <- factor(new_factor, levels = levels(new_factor)[levels(new_factor) %in% new_factor])
+        }
 
         out <- data.frame(new_factor, check.names = FALSE)
         colnames(out) <- input[[paste0("newcol_", var_id)]] %or% var
@@ -11851,7 +11861,7 @@ tool3$server <- function(id, vals = NULL){
       req(input$subset_factor %in% colnames(factors()))
 
       choices <- levels(
-        factors()[, input$subset_factor]
+        droplevels(as.factor(factors()[, input$subset_factor]))
       )
 
       updatePickerInput(
@@ -11867,7 +11877,7 @@ tool3$server <- function(id, vals = NULL){
       req(input$subset_factor %in% colnames(factors()))
 
       choices <- levels(
-        factors()[, input$subset_factor]
+        droplevels(as.factor(factors()[, input$subset_factor]))
       )
 
       req(input$subset_level %in% choices)

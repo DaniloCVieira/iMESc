@@ -2159,7 +2159,7 @@ gg_plotList<-function(cur_data,
   data<-data[rownames(data),,drop=F]
   dd<-data[vars[j]]
   i=3
-  rs<-split(dd,factor_filter)
+  rs<-split(dd,factor_filter,drop=TRUE)
   ps<-list()
 
 

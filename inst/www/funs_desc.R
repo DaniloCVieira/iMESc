@@ -1,6 +1,8 @@
 #' @export
 plot_ridges<-function(data,fac,palette,newcolhabs,ncol=3, title="",base_size=11){
   col<-getcolhabs(newcolhabs,palette,nlevels(data$class))
+  # named by level: a class keeps its colour when other classes have no observations
+  if(length(col)==nlevels(data$class)) names(col)<-levels(data$class)
   df<-data.frame(id=rownames(data),y=fac,data)
   df<-reshape2::melt(data,'class')
   ggplot(df, aes(x = value, y = class)) +
@@ -61,6 +63,8 @@ ggbox<-function(res,pal,violin=F,horiz=F,base_size=12,cex.axes=11,cex.lab=1,
   coline<-box_linecol
   cols<-newcolhabs[[pal]](nlevels(res$x))
   cols<-colorspace::lighten(cols,box_alpha)
+  # named by level: a class keeps its colour when other classes have no observations
+  names(cols)<-levels(res$x)
   p<-ggplot(res, aes(x=x, y=y, fill=x))
   if(isTRUE(violin)){
     p<-p+geom_violin(color=coline)
@@ -507,6 +511,8 @@ prepare_factors<-function(factors, width=.8){
   df<-do.call(rbind,lapply(1:ncol(factors),function(i){
     x<-factors[,i]
     tt<-table(x)
+    # levels without observations would overlap the labels of the next level
+    tt<-tt[tt>0]
     n=as.vector(tt)
     levels=names(tt)
     labels=paste0(levels)
@@ -1374,6 +1380,8 @@ gg_desc_scatter<-function(df,fitres=NULL,agg="none",err="se",show_raw=TRUE,
   color_title<-attr(df,"color_name")
   theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
   pal_n<-function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n)
+  # colours over all the levels of the colour factor: a class keeps its colour in any Datalist
+  grp_cols<-pal_levels(pal_n,if(has_color&&is.factor(df$color)) df$color else df$group)
   is_time<-inherits(df$x,c("Date","POSIXt"))
   log_x<-isTRUE(log_x)&&!is_time&&all(df$x>0)
   log_y<-isTRUE(log_y)&&all(df$y>0)
@@ -1413,13 +1421,17 @@ gg_desc_scatter<-function(df,fitres=NULL,agg="none",err="se",show_raw=TRUE,
   }
 
   # fitted model (per group), with its confidence/prediction band
+  fill_used<-FALSE
   cv<-if(!is.null(fitres)) fitres$curve else NULL
   if(!is.null(cv)&&nrow(cv)){
     cv$group<-factor(cv$group,levels=levels(df$group))
     if(log_y) cv<-cv[!is.na(cv$fit)&cv$fit>0,,drop=FALSE]
     has_band<-any(!is.na(cv$lwr))
     if(grouped&&!color_num){
-      if(has_band) p<-p+ggplot2::geom_ribbon(data=cv,ggplot2::aes(x=x,ymin=lwr,ymax=upr,fill=group,group=group),inherit.aes=FALSE,alpha=0.15,na.rm=TRUE)
+      if(has_band){
+        p<-p+ggplot2::geom_ribbon(data=cv,ggplot2::aes(x=x,ymin=lwr,ymax=upr,fill=group,group=group),inherit.aes=FALSE,alpha=0.15,na.rm=TRUE)
+        fill_used<-TRUE
+      }
       p<-p+ggplot2::geom_line(data=cv,ggplot2::aes(x=x,y=fit,color=group,group=group),inherit.aes=FALSE,linewidth=0.9,na.rm=TRUE)
     } else{
       if(has_band) p<-p+ggplot2::geom_ribbon(data=cv,ggplot2::aes(x=x,ymin=lwr,ymax=upr),inherit.aes=FALSE,fill=fit_color,alpha=0.15,na.rm=TRUE)
@@ -1446,8 +1458,8 @@ gg_desc_scatter<-function(df,fitres=NULL,agg="none",err="se",show_raw=TRUE,
   }
 
   if(grouped&&!color_num){
-    p<-p+ggplot2::scale_color_manual(values=pal_n(nlevels(df$group)),name=color_title,drop=FALSE)+
-      ggplot2::scale_fill_manual(values=pal_n(nlevels(df$group)),name=color_title,drop=FALSE)
+    p<-p+ggplot2::scale_color_manual(values=grp_cols,name=color_title,drop=FALSE)
+    if(fill_used) p<-p+ggplot2::scale_fill_manual(values=grp_cols,name=color_title,drop=FALSE)
   }
   if(isTRUE(facet)&&grouped) p<-p+ggplot2::facet_wrap(~group)
   if(log_x) p<-p+ggplot2::scale_x_log10()
@@ -1461,15 +1473,16 @@ gg_desc_scatter<-function(df,fitres=NULL,agg="none",err="se",show_raw=TRUE,
 # model diagnostics: observed vs fitted, residuals vs fitted, normal Q-Q
 #' @export
 gg_desc_scatter_diag<-function(fitres,view="obs_fit",colors=NULL,point_size=2,alpha=0.7,line_color="#05668D",
-                               theme="theme_bw",base_size=12,title="",legend.position="right",color_title=NULL){
+                               theme="theme_bw",base_size=12,title="",legend.position="right",color_title=NULL,color_levels=NULL){
   r<-fitres$resid
   validate(need(!is.null(r)&&nrow(r)>0,"The model could not be fitted."))
   theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
   r$group<-factor(r$group)
   grouped<-nlevels(r$group)>1
   pal_n<-function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n)
+  grp_cols<-if(length(color_levels)&&all(levels(r$group)%in%color_levels)) pal_levels(pal_n,factor(color_levels,levels=color_levels)) else pal_levels(pal_n,r$group)
   pts<-function(p,mapping){
-    if(grouped) p+ggplot2::geom_point(mapping,size=point_size,alpha=alpha)+ggplot2::scale_color_manual(values=pal_n(nlevels(r$group)),name=color_title)
+    if(grouped) p+ggplot2::geom_point(mapping,size=point_size,alpha=alpha)+ggplot2::scale_color_manual(values=grp_cols,name=color_title)
     else p+ggplot2::geom_point(mapping,color=line_color,size=point_size,alpha=alpha)
   }
   if(identical(view,"resid")){
@@ -1609,7 +1622,10 @@ gg_desc_hist<-function(long,method="sturges",n=20,width=NULL,ytype="count",posit
   groups<-levels(long$group)
   grouped<-length(groups)>1
   theme_fun<-switch(theme,theme_light=ggplot2::theme_light,theme_minimal=ggplot2::theme_minimal,theme_classic=ggplot2::theme_classic,theme_grey=ggplot2::theme_grey,ggplot2::theme_bw)
-  pal<-if(grouped) (if(is.null(colors)) grDevices::hcl.colors(length(groups),"Dark 3") else colors(length(groups))) else fill
+  # colours over all the levels of the grouping factor: a class keeps its colour in any Datalist
+  all_groups<-attr(long,"group_levels")
+  if(!length(all_groups)||!all(groups%in%all_groups)) all_groups<-groups
+  pal<-if(grouped) pal_levels(function(n) if(is.null(colors)) grDevices::hcl.colors(n,"Dark 3") else colors(n),factor(all_groups,levels=all_groups)) else fill
   hd$group<-factor(hd$group,levels=groups)
   a<-if(grouped&&identical(position,"overlay")) min(alpha,0.5) else alpha
   p<-ggplot2::ggplot()

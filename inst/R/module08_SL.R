@@ -217,7 +217,7 @@ sl_model_setup$server<-function(id,vals=NULL){
               if(col%in%colnames(factors)){
                 fac<-factors[,col]
                 output[[paste0("part_loop_test_out",i)]]<-renderUI({
-                  pickerInput_fromtop(ns(paste0("part_loop_test",i)),NULL,choices=levels(fac), options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))})
+                  pickerInput_fromtop(ns(paste0("part_loop_test",i)),NULL,choices=levels(droplevels(as.factor(fac))), options=shinyWidgets::pickerOptions(liveSearch =T,windowPadding="top"))})
 
               } else{
                 output[[paste0("part_loop_test_out",i)]]<-renderUI({ NULL})
@@ -564,7 +564,8 @@ sl_model_setup$server<-function(id,vals=NULL){
       req(input$var_y)
       data<-get_data_y()
       req(input$var_y%in%colnames(data))
-      data[get_partition()$train,input$var_y,drop=F]
+      # classes without observations in the training data are dropped (caret refuses empty classes)
+      droplevels(data[get_partition()$train,input$var_y,drop=F])
     })
     y_test<-reactive({
       req(input$var_y)
@@ -876,7 +877,7 @@ sl_model_setup$server<-function(id,vals=NULL){
     output$partition_ref_out<-renderUI({
       req(input$partition!="None")
       data<-y_factors()
-      choices<-levels(data[,input$partition])
+      choices<-levels(droplevels(as.factor(data[,input$partition])))
       selected<-get_selected_from_choices(vals$cur_testdata,choices)
       pickerInput_fromtop_live(ns("partition_ref"),span("Test reference:",tipright("Choose the level of the selected factor to serve as a reference for the test data. Data corresponding to this level will be excluded from the training set and can be used later for model evaluation or prediction generation")), choices=choices, selected=selected)
     })
@@ -3356,8 +3357,8 @@ msp_cforest$server<-function(id,model,vals){
       ct<-get_cTree(model$finalModel,as.numeric(input$tree))
 
       pred<-predict_cforest_tree(tree=ct@tree,newdata, model)
-
-      cm<-table(pred,obs)
+      po<-sl_align_classes(obs,pred)
+      cm<-table(pred=po$pred,obs=po$obs)
       cm
     })
 
@@ -11009,9 +11010,13 @@ model_predic$server<-function(id,vals){
         obs<-getdata_model(m,"test")
       }
 
+      obs<-unlist(obs)
+      if(m$modelType=="Classification"){
+        return(sl_align_classes(obs,pred))
+      }
       return(
         list(
-          obs=unlist(obs),
+          obs=obs,
           pred=pred
         )
       )
@@ -12585,6 +12590,7 @@ sl_module$server<-function(id,vals){
               x0<-vals$cur_datax
               x<-x0[train_ids,]
               y<-var_y_df[train_ids,var_y]
+              if(is.factor(y)) y<-droplevels(y)
               y_test<-var_y_df[test_ids,var_y,drop=F]
               x_test<-x0[test_ids,]
 

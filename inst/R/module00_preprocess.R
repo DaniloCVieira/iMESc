@@ -3141,10 +3141,8 @@ tool2_tab3$ui <- function(id) {
           1,
           style = "margin:0px;padding:0px;width:30px",
           align = "center",
-          div(actionLink(ns("rev_datalist"), icon("arrow-right-arrow-left")), style = "position:absolute;top:35px;left:10px"),
-          div(actionLink(ns("rev_attr"), icon("arrow-right-arrow-left")), style = "position:absolute;top:80px;left:10px"),
-          bsTooltip(ns("rev_datalist"), "Switch", "right"),
-          bsTooltip(ns("rev_attr"), "Switch", "right")
+          div(tiphelp_icon(actionLink(ns("rev_datalist"), icon("arrow-right-arrow-left")), "Switch", "right"), style = "position:absolute;top:35px;left:10px"),
+          div(tiphelp_icon(actionLink(ns("rev_attr"), icon("arrow-right-arrow-left")), "Switch", "right"), style = "position:absolute;top:80px;left:10px")
         ),
         column(
           4,
@@ -3170,26 +3168,14 @@ tool2_tab3$ui <- function(id) {
               "Conversion type:",
               choiceValues = c("Binary", "Ordinal"),
               choiceNames = list(
-                div("Binary", span(id = ns("conv_bin"), icon("question-circle"))),
-                div("Integer", span(id = ns("conv_ord"), icon("question-circle")))
+                div("Binary", tiphelp_icon(icon("question-circle"), "Creates one binary column per factor level, with 1 indicating the class of each observation.", "right")),
+                div("Integer", tiphelp_icon(icon("question-circle"), "Creates one numeric column using integer values assigned to factor levels.", "right"))
               ),
               inline = TRUE
             )
           ),
           div(uiOutput(ns("error_transf0")))
         )
-      ),
-
-      bsTooltip(
-        ns("conv_bin"),
-        "Creates one binary column per factor level, with 1 indicating the class of each observation.",
-        placement = "right",
-        options = list(style = "width: 600px")
-      ),
-      bsTooltip(
-        ns("conv_ord"),
-        "Creates one numeric column using integer values assigned to factor levels.",
-        placement = "right"
       )
     ),
 
@@ -6697,7 +6683,12 @@ tool2_tab8$server<-function(id,vals){
         lims1<-rect_coords()
         req(lims1)
         lims1<-unlist(lims1)
-        new_shape<-sf::st_crop(new_shape, lims1)
+        # the crop is a longitude/latitude rectangle, so it is done on the plane: with spherical
+        # geometry (s2) the edges of the rectangle are great circles, and a shape whose border lies
+        # on the rectangle (e.g. a shape already clipped to a rectangle) breaks st_crop
+        old_s2<-suppressMessages(sf::sf_use_s2(FALSE))
+        new_shape<-tryCatch(suppressMessages(sf::st_crop(new_shape, lims1)),
+                            finally=suppressMessages(sf::sf_use_s2(old_s2)))
       })
 
       shape4_final(new_shape)
@@ -14389,7 +14380,6 @@ pp_data$ui<-function(id){
                 uiOutput(ns('data_upload'))
             )
         ),
-        bsTooltip(ns("change_picker"),"Target Datalist"),
 
 
 

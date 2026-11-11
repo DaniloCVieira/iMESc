@@ -820,14 +820,13 @@ sptools_tab$ui<-function(id, circles=F, pie=F, radius=F,raster=F,interp=F,  shap
                                                 div(id=ns("zoom_leaflet_btn"),
                                                     div(
                                                       style="position: absolute; top: 150px; left: 40px; z-index: 9999;",
-                                                      actionLink(ns("zoom_leaflet"),icon("magnifying-glass-plus",style="color: #05668D;"),style="font-size: 18px;")
+                                                      tiphelp_icon(actionLink(ns("zoom_leaflet"),icon("magnifying-glass-plus",style="color: #05668D;"),style="font-size: 18px;"),"Shows the Leaflet map in a modal window","right")
                                                     ),
                                                     div(
                                                       # style="display: flex; position: absolute;top: 30px; right: 0px;gap: 15px; align-items: center",
 
 
                                                     )),
-                                                shinyBS::bsTooltip(ns('zoom_leaflet'),"Shows the Leafmap map in a modal Window"),
 
                                                 div(
                                                   class="sptools_plot",

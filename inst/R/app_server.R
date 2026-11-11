@@ -519,7 +519,7 @@ app_server<-server<-function(input, output, session) {
   output$qsave_btn<-renderUI({
     req(getwd()=="D:/R3/imesc/imesc3")
     req(length(vals$saved_data)>0)
-    div(id="quick_save",actionButton("flashsave",icon(verify_fa = FALSE,name=NULL,class="fas fa-bolt")))
+    div(id="quick_save",tiphelp_icon(actionButton("flashsave",icon(verify_fa = FALSE,name=NULL,class="fas fa-bolt")),"Creates savepoint file in your working directory","top"))
   })
   exist_save<-reactiveValues(df=0)
   observe({
@@ -530,11 +530,11 @@ app_server<-server<-function(input, output, session) {
   output$qload_btn<-renderUI({
     req(!length(grep("connect/apps",getwd()))>0)
     req( exist_save$df==1)
-    actionButton("quick_load",icon(verify_fa = FALSE,name=NULL,class="fas fa-spinner"))
+    tiphelp_icon(actionButton("quick_load",icon(verify_fa = FALSE,name=NULL,class="fas fa-spinner")),"Load savepoint file from your working directory","top")
   })
   output$qcomment_btn<-renderUI({
     req(length(vals$saved_data)>0)
-    div(actionButton("qnote_open",icon(verify_fa = FALSE,name=NULL,class="fas fa-comment")))
+    div(tiphelp_icon(actionButton("qnote_open",icon(verify_fa = FALSE,name=NULL,class="fas fa-comment")),"Creates a comment for the Datalist","top"))
   })
   output$footer_qsave<-renderUI({
     div(class="footer_buttons",
@@ -549,10 +549,7 @@ app_server<-server<-function(input, output, session) {
     div(id="qsave_btns",
         inline(uiOutput("qsave_btn")),
         #inline(uiOutput("qload_btn")),
-        inline(uiOutput("qcomment_btn")),
-        shinyBS::bsTooltip('flashsave', "Creates savepoint file in your working directory", 'top'),
-        shinyBS::bsTooltip('quick_load',  "Load savepoint file from your working directory", 'top'),
-        shinyBS::bsTooltip('qnote_open',  "Creates a comment for the Datalist", 'top')
+        inline(uiOutput("qcomment_btn"))
     )
   })
 

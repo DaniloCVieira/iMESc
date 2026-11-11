@@ -490,7 +490,6 @@ Shiny.onInputChange('shiny_height',myHeight)
               )
 
             ),
-            shinyBS::bsTooltip("disable_tool", HTML("<span id=\\'offtip\\'><i class=\\'fas fa-ban\\'></i><span>Create a Datalist or load a savepoint to enable the pre-processing tools</span></span>")),
 
             # div(ban="\\f05e",class="mydiv",id="pp_block",div(class="mydiv2",style="color:gray; width: 100%; height:100%;"),style="position: fixed;  background: #9c9c9c40; right: 50px; width: 330px;top: 15px; height: 30px;z-index:9999"),
 

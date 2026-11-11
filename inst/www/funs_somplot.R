@@ -17,62 +17,6 @@ pickerInput_fromtop_live<-function(inputId, label = NULL, choices, selected = NU
 }
 
 
-#' @export
-supersom_summaries<-function(m){
-  traindata <- m$data
-
-  summ <- m$grid[-1]
-  summ$neighbourhood.fct <- as.character(summ$neighbourhood.fct)
-  summ <- do.call(rbind, summ)
-  som_qual<-errors_som(m)
-
-
-
-
-  #  t(rbind(mean=mean,t(som_qual[[1]])))
-
-  df2<-data.frame(n.obs = sapply(traindata, nrow),
-                  n.variables = sapply(traindata, ncol),
-                  user.weights = m$user.weights,
-                  dist.fcts = m$dist.fcts
-  )
-  df2<-data.frame(t(df2))
-
-  mean=apply(apply(t(som_qual[[1]]),1,function(x) as.numeric(x)),1,mean)
-
-  df3<-data.frame(mean)
-  rownames(df3)<-rownames(som_qual[[1]])
-  df4<-data.frame(som_qual[[1]])
-  rownames(df3)<-paste0("mean_",rownames(df4))
-  neu.uti<-som_qual[[2]]
-
-  df2<-rbind(df2,df4)
-
-  n.units=nrow(m$grid$pts)
-  xdim=m$grid$xdim
-  ydim=m$grid$ydim
-  topo=m$grid$topo
-  toroidal=m$grid$toroidal
-  neighbourhood.fct=m$grid$neighbourhood.fct
-
-  mode =attr(m,"mode")
-  alpha0 = m$alpha[1]
-  alpha1 =m$alpha[2]
-  radius0 =m$radius[1]
-  radius1 =m$radius[2]
-  maxNA.fraction = m$maxNA.fraction
-  normalizeDataLayers=attr(m,'normalizeDataLayers')
-
-  df5<-rbind(neu.uti,n.units,xdim,ydim,topo,toroidal,neighbourhood.fct,mode,alpha0,alpha1,radius0,radius1,maxNA.fraction,normalizeDataLayers)
-  colnames(df3)<-colnames(df5)<-"Value"
-
-
-
-  df1<-data.frame(value=rbind(df3,df5))
-
-
-  list(df2,df1)
-}
 
 
 #' @export
@@ -255,29 +199,6 @@ hc_hex<-function(hexs){
 #' @export
 
 #' @export
-getbp_som<-function(m,indicate,npic,hc){
-  if(is.null(indicate)){return(NULL)}
-  inds<-indsom(m,indicate=indicate,npic=ncol(do.call(cbind,m$codes)))
-  CORMAP<-inds[[1]]
-  result<-inds[[2]]
-  bp=data.frame(na.omit(as.matrix(t(CORMAP))))
-  bp[,1]<-  scales::rescale(bp[,1], c(min(m$grid$pts[,1]), max(m$grid$pts[,1])))
-  bp[,2]<-  scales::rescale(bp[,2], c(min(m$grid$pts[,2]), max(m$grid$pts[,2])))
-  bp<-bp[ inds[[3]],]
-  if(indicate%in%c('cor_bmu','cor_hc')){
-    picvar<-getvars_bycluster(bp, m, result, hc)[1:npic]
-  } else{
-    picvar<-inds[[3]][1:npic]
-  }
-  indicadores<-picvar
-  colnames(bp)<-c('x','y')
-  bp$id<-rownames(bp)
-
-  bp<-bp[indicadores,]
-  bp$importance<-inds[[2]][indicadores,]
-  bp
-}
-#' @export
 getpxpy2<-function(m){
   px<-diff(unique(m$grid$pts[,1])[1:2])/2
   py<-diff(unique(m$grid$pts[,2])[1:2])/2
@@ -415,42 +336,7 @@ new_scale<-function (new_aes) {
 new_scale_fill<-function () {
   ggnewscale::new_scale("fill")
 }
-get_sigma_som<-function(codebook,unit.classif,neus_ids){
-  nb <- table(factor(unit.classif, levels=neus_ids))
-  sqrt(apply(codebook,2,function(x,effectif){m2<-sum(effectif*(x- weighted.mean(x,effectif, na.rm=T))^2, na.rm=T)/(sum(effectif, na.rm=T)-1)},effectif=nb))
 
-}
-
-importance_som_hc<-function(m,layer,hc, n_top){
-  codebook<-data.frame(abs(m$codes[[layer]]))
-  #codebook<-data.frame(m$codes[[layer]])
-  colnames(codebook)<-colnames(m$codes[[layer]])
-  rownames(codebook)<-paste0("neu",1:nrow(codebook))
-
-
-  grid<-data.frame(m$grid$pts)
-  grid$hc<-hc
-  hc_ids<-lapply(split(grid,grid$hc),function(x) as.numeric(rownames(x)))
-  hc_imp_rel<-codebook
-  ids<-hc_ids[[1]]
-  split_codebook<-lapply(hc_ids,function(ids){
-    code<-hc_imp_rel[ids,]
-    unit.classif=m$unit.classif[m$unit.classif%in%ids]
-    x<-get_sigma_som(code,unit.classif=unit.classif,neus_ids=ids)
-    x
-  })
-  sigs<-data.frame(split_codebook)
-  hc_imp_rel<-vegan::decostand(sigs,"total")
-  top_indicators <- apply(hc_imp_rel, 2, function(x) {
-    top_indices <- order(x, decreasing = TRUE)[1:n_top]
-    rownames(hc_imp_rel)[top_indices]
-  })
-  indicadores<-as.vector(unlist(top_indicators))
-  l_inds<-unique(indicadores)
-  attr(l_inds,"imp_results")<-hc_imp_rel
-  attr(l_inds,"imp_layer")<-layer
-  l_inds
-}
 
 
 
@@ -462,210 +348,6 @@ importance_som_hc<-function(m,layer,hc, n_top){
 
 
 
-#' @export
-pclus_new<-function(m,somC,points,points_factor,points_size,points_palette,pch,text,text_factor,text_size,text_palette,bg_palette,newcolhabs,bgalpha,border,npic,indicate,cex.var,col.text,col.bg.var,col.bg.var.alpha,background_type=c("hc","property","uMatrix"), property=NULL) {
-  background_type<-match.arg(background_type,c("property","uMatrix","hc"))
-
-  if(!exists("col.arrow")){
-    col.arrow<-"black"
-  }
-  if(isTRUE(text)){
-    req(text_factor)
-  }
-
-  if(isTRUE(points)){
-    if(is.null(points_factor)){
-      points_factor<-names(m$unit.classif)
-    }
-  }
-  if(background_type=="uMatrix"){
-    nhbrdist <- unit.distances(m$grid)
-    cddist <- as.matrix(object.distances(m, type = "codes"))
-    cddist[abs(nhbrdist - 1) > 0.001] <- NA
-    neigh.dists <- colMeans(cddist, na.rm = TRUE)
-    #dists<-as.matrix(kohonen::object.distances(m,"codes"))
-    hc <- neigh.dists
-    bg_color<-newcolhabs[[bg_palette]](length(x))
-
-  } else  if(background_type=="property"){
-    hc<-do.call(cbind,m$codes)[,property]
-    bg_color <-getcolhabs(newcolhabs,bg_palette,length(hc))
-  } else  if(background_type=="hc"){
-    validate(need(!is.null(somC$som.hc),"HC not found"))
-    hc<-somC$som.hc
-    bg_color= newcolhabs[[bg_palette]](nlevels(hc))
-  }
-  bg_color<-colorspace::lighten(bg_color, bgalpha)
-
-  grid<-data.frame(m$grid$pts)
-
-
-  grid<-data.frame(m$grid$pts)
-  px<-diff(unique(m$grid$pts[,1])[1:2])/2
-  py<-diff(unique(m$grid$pts[,2])[1:2])/3
-
-
-
-  nx<-m$grid$xdim
-  ny<-m$grid$ydim
-
-  rang<-range(grid$x)
-  rang[1]<-rang[1]-px
-  rang[2]<-rang[2]+px
-
-
-  rang2<-range(grid$y)
-  rang2[1]<-rang2[1]-(2*py)
-  rang2[2]<-rang2[2]+(2*py)
-
-
-
-  dists<-kohonen::dist2WU(m)
-  co<-cmdscale(object.distances(m))
-  copoints<-data.frame(x_pt=scales::rescale(co[,1],rang),
-                       y_pt=scales::rescale(co[,2],rang2),
-                       neu=m$unit.classif,
-                       label=text_factor)
-
-  copoints_list<-split(copoints,copoints$neu)
-  i=56
-  j=1
-  hexs<-lapply(1:nrow(grid), function(i){
-
-    x=c(
-      grid[i,1],
-      grid[i,1]-px,
-      grid[i,1]-px,
-      grid[i,1],
-      grid[i,1]+px,
-      grid[i,1]+px,
-      grid[i,1]
-    )
-
-    y=c(
-      grid[i,2]-(2*py),
-      grid[i,2]-py,
-      grid[i,2]+py,
-      grid[i,2]+(2*py),
-      grid[i,2]+py,
-      grid[i,2]-py,
-      grid[i,2]-(2*py)
-    )
-    res<-data.frame(x,y)
-    cop<-copoints_list[[as.character(i)]]
-    if(is.null(cop)){
-      cop=NA
-    } else{
-      radius<-  (y[3]-y[2])*(sqrt(3)/2)
-      #radius=.4
-      newlim_x<-range(range(res$x))
-      newlim_y<-range(range(res$y))
-      newlim_x[1]<-newlim_x[1]+.25
-      newlim_x[2]<-newlim_x[2]-.25
-
-      newlim_y<-  c(res$y[2]+(py/2),(res$y[3]-(py/2)))
-
-      cop$x_pt<-scales::rescale(cop$x_pt,  newlim_x)
-      cop$y_pt<-scales::rescale(cop$y_pt,  newlim_y)
-    }
-    res$neu=i
-    res$group<-hc[i]
-    attr(res,"points")<-cop
-    res
-  })
-
-  {
-
-
-    df<-data.frame(do.call(rbind,hexs))
-
-    if(background_type=="uMatrix"){
-      leg_name<-"Distance"
-    } else if(background_type=="property"){
-      leg_name<-property
-    } else if ( background_type=="hc"){
-      leg_name<-"Cluster"
-    }
-
-    mybreaks<-scales::rescale(1:nx,c(min(grid$x)+px,max(grid$x)))
-    mybreaksy<-scales::rescale(1:ny,c(min(grid$y),max(grid$y)))
-
-
-
-
-    p<-ggplot() +
-      geom_polygon(data=df, mapping=aes(x=x, y=y, group=neu, fill=group), col=border) +xlab("")+ylab("")
-    if(background_type=="uMatrix"){
-      p<- p+scale_fill_gradientn(name=leg_name,colours=bg_color)
-    } else if(background_type=="property"){
-      p<- p+scale_fill_gradientn(name=leg_name,colours=bg_color)
-    } else if ( background_type=="hc"){
-      p<- p+scale_fill_manual(name=leg_name,values=bg_color)
-    }
-
-
-
-
-    p
-    copoints2<-na.omit(do.call(rbind,lapply(hexs,function(x){
-      attr(x,"points")
-    })))
-    if(isTRUE(points)){
-      p<- p+geom_point(data=copoints2, aes(x_pt, y_pt), size=points_size, shape=pch)
-    }
-    if(isTRUE(text)){
-      p<- p+geom_text(data=copoints2, aes(x_pt, y_pt, label=label),size=text_size)
-    }
-    if(!is.null(indicate)) {
-
-      inds<-indsom(m,indicate=indicate,npic=ncol(do.call(cbind,m$codes)))
-
-
-      CORMAP<-inds[[1]]
-      result<-inds[[2]]
-      bp=data.frame(na.omit(as.matrix(t(CORMAP))))
-      bp[,1]<-  scales::rescale(bp[,1], c(min(m$grid$pts[,1]), max(m$grid$pts[,1])))
-      bp[,2]<-  scales::rescale(bp[,2], c(min(m$grid$pts[,2]), max(m$grid$pts[,2])))
-
-
-      bp<-bp[ inds[[3]],]
-
-      p<-p+scale_x_continuous(limits=rang,breaks=mybreaks ,labels=1:nx)+
-        scale_y_continuous(limits=rang2,breaks=mybreaksy ,labels=1:ny)
-
-      if(indicate%in%c('cor_bmu','cor_hc')){
-        picvar<-getvars_bycluster(bp, m, result, hc=somC$som.hc)[1:npic]
-
-      } else{
-        picvar<-inds[[3]][1:npic]
-      }
-
-      indicadores<-picvar
-      coltext<-getcolhabs(newcolhabs,col.text,1)
-
-      colbg.var<-getcolhabs(newcolhabs,col.bg.var,1)
-      colbg.var<-adjustcolor(colbg.var, col.bg.var.alpha)
-
-      {
-        colnames(bp)<-c('x','y')
-        bp$id<-rownames(bp)
-
-        p<-p+ggrepel::geom_label_repel(data=bp[indicadores,], aes(x,y,label=id), fill=colbg.var,colour=coltext, seed=1)
-
-      }
-
-
-
-      colreq<-getcolhabs(newcolhabs,factor.pal,2)
-
-
-    }
-
-    p<-p+ coord_fixed() + theme(panel.background=element_blank())
-  }
-
-p
-}
 
 #' @export
 legend.col <- function(col, lev,  bx =par("usr")*.8, cex=1,property){
@@ -1175,15 +857,6 @@ pcodes<-function(somC,...){
 
 }
 #' @export
-phist<-function(data){
-  opar<-par(no.readonly=TRUE)
-  par(mar=c(5,5,5,1))
-  hist(colSums(data, na.rm=T), main="")
-  phist<-recordPlot()
-  on.exit(par(opar),add=TRUE,after=FALSE)
-  return(phist)
-}
-#' @export
 smwhc<-function(result,n.rand=99,ws,target=c("marginal_gain","wss"),conf=0.95, session=getDefaultReactiveDomain()){
   target<-match.arg(target)
   result0<-result
@@ -1426,41 +1099,9 @@ smw.root3<-function (yo, w=4, dist="euclidean"){
 
 
 
-#' @export
-smw.root<-function(yo, w){
-
-  if (w%%2 == 1) {
-    stop("window size should be even")
-  }
-  diss <- NULL
-  yo <- data.frame(yo)
-  for (i in 1:(nrow(yo) - w + 1)) {
-    wy.ord <- yo[i:(i + (w - 1)), ]
-    half.a <- sum(wy.ord[1:(length(wy.ord)/2) ])
-    half.b <- sum(wy.ord[-c(1:(length(wy.ord)/2))])
-    d <- dist(rbind(half.a, half.b))
-    diss[i] <- d
-    k <- (w/2)
-    for (i in 1:((nrow(yo) - w))) {
-      k[i + 1] <- (w/2) + i
-    }
-  }
-  result <- data.frame(positions = k, sampleID = rownames(yo)[k],
-                       diss = diss)
-  return(invisible(result))
-}
 
 
 
-#' @export
-pUmatrix<-function(m){  opar<-par(no.readonly=TRUE)
-shape="straight"
-plot(m, type="dist.neighbours", main = "U-Matrix",border="white",shape=shape,keepMargins =T, palette.name=viridis)
-pUmatrix<-recordPlot()
-on.exit(par(opar),add=TRUE,after=FALSE)
-return(pUmatrix)
-
-}
 #' @export
 pcounts<-function(m){  opar<-par(no.readonly=TRUE)
 shape="straight"
@@ -1470,21 +1111,6 @@ plot(m, type="counts", main = "Counts",border="white",shape=shape,keepMargins =T
 pcounts<-recordPlot()
 on.exit(par(opar),add=TRUE,after=FALSE)
 return(pcounts)
-}
-#' @export
-coolBlueHotRed <- function(n, alpha = 1) {
-  rainbow(n, end=4/6, alpha=alpha)[n:1]
-}
-#' @export
-pproperty<-function(m, main, pic){
-  opar<-par(no.readonly=TRUE)
-  shape="straight"
-  plot(m,type="property",property=do.call(cbind,m$codes)[,pic],main=main,cex=0.5,shape=shape,keepMargins = TRUE, palette.name=coolBlueHotRed)
-  pproperty<-recordPlot()
-  on.exit(par(opar),add=TRUE,after=FALSE)
-  return(pproperty)
-
-  plot(m,"mapping",shape=shape, border=border, main=main,keepMargins =T, bgcol=colcodes,codeRendering=F, labels=labels.ind, cex=cex, pch=pch, col=col,classif=classif )
 }
 #' @export
 pbox<-function(res, palette="viridis", coefic=1.5, lab_out=NULL ,cex.lab=1, lwd=1, main=paste0(colnames(res)[2],"~",colnames(res)[1]), ylim=range(na.omit(res[,2])), insetx=0, insety=0, show_outs=T,mar_b=5,mar_t=5,mar_l=5,mar_r=NULL, srt=0,srty="horizontal",xlab.adj=0,newcolhabs, showleg=F, xsize=1, ysize=1,tck=-0.05, linexlab=1, lineylab=1, cex_xlab=1, cex_ylab=1, font_xlab="plain", font_ylab='plain', xlab_text=colnames(res)[1], ylab_text=colnames(res)[2], horizontal=F,varwidth=F,cex_pbox=1){

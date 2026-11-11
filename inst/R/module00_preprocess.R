@@ -496,24 +496,8 @@ get_scale<-function(data,scale,center){
 
 
 }
-check_is_integer <- function(data) {
-  vapply(data, function(column) {
-    all(column==round(column),na.rm=T)
-  },logical(1))
-}
 
 
-ui_base<-function(id){
-  ns<-NS(id)
-  div(
-
-  )
-}
-server_base<-function(id,data=NULL, vals=NULL){
-  moduleServer(id,function(input,output,session){
-
-  })
-}
 create<-tool2<-pp_data<-tool3<-tool4<-tool5<-tool6<-tool7<-tool8<-tool9<-list()
 confirm_changes<-list()
 confirm_changes$ui<-function(id, message=""){
@@ -6793,16 +6777,6 @@ tool2_tab8$server<-function(id,vals){
 
       )
     })
-    current_shapes<-reactive({
-      data<-data_shp()
-      base<-!is.null(attr(data,"base_shape"))
-      layer<-!is.null(attr(data,"layer_shape"))
-      extra<-!is.null(attr(data,"extra_shape"))
-      choices<-c(base,layer,extra)
-      pic<-which(choices)
-      pic
-    })
-    go_prepare<-reactiveVal(1)
     filtered_shp<-reactive({
       bacias<-shape1_raw()
 
@@ -6847,7 +6821,6 @@ tool2_tab8$server<-function(id,vals){
       shinyjs::addClass("prepare_btn","save_changes")
       shinyjs::hide('add_shape_btn_out')
     })
-    shape5_to_add<-reactiveVal(NULL)
     confirm_shp<-reactiveVal(F)
     observeEvent(input$add_shape,ignoreInit = T,{
       cur_shape<-attr(data_shp(),input$shp_include)
@@ -6945,16 +6918,6 @@ tool2_tab8$server<-function(id,vals){
       showModal(
         shp_tool()
       )
-    })
-    shapes_list<-reactive({
-      base_shape<-attr(data_shp(),"base_shape")
-      layer_shape<-attr(data_shp(),"layer_shape")
-      eshape<-attr(data_shp(),"extra_shape")
-      pic<-which(unlist(lapply(list(base_shape,layer_shape),function(x)length(x)>0)))
-      eshape[['Base Shape']]<-base_shape
-      eshape[['Layer Shape']]<-layer_shape
-      new=c(eshape)
-      new
     })
     observeEvent(input$close_shp,{
       removeModal()
@@ -11242,7 +11205,6 @@ tool3$server <- function(id, vals = NULL){
 
     vtool3 <- reactiveValues()
     row_match <- reactiveVal()
-    factor_tree <- reactiveVal()
     rm_subset <- reactiveVal()
 
     time_tab_inserted <- reactiveVal(FALSE)
@@ -12332,7 +12294,6 @@ tool4$server<-function(id,vals=NULL){
         cutoff =input$cor_cutoff
       )
     })
-    cor_val<-reactiveVal()
     corr_message<-reactiveVal()
     observeEvent(input$run_cor, ignoreInit = T,{
       corr_message(NULL)
@@ -12606,12 +12567,7 @@ tool5$server<-function(id,vals){
     observe({
       shinyjs::toggle('tranf_ord_btn', condition=length(cur_transfs())==2)
     })
-    message_prep<-reactiveVal()
-    r_transf_before<-reactiveVal()
-    r_transf_prep<-reactiveVal()
 
-    stop_transf<-reactiveVal(F)
-    r_last<-reactiveVal()
     cur_transfs<-reactiveVal()
 
 
@@ -14627,10 +14583,8 @@ toolbar$server<-function(id, vals=NULL){
       )
 
     })
-    tool_values<-reactiveValues()
 
 
-    get_tool_result<-reactiveVal()
     observeEvent(vals$pp_data,{
       shinyjs::reset("imput_tabs")
     })
@@ -14772,7 +14726,6 @@ pre_process$server<-function(id, vals){
       }
       action
     })
-    r_factors<-reactiveVal()
     observeEvent(input$reset_change,ignoreInit = T,{
 
       shinyjs::addClass(selector=".run_na_btn",clas="save_changes")

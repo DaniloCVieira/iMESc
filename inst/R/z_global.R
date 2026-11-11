@@ -83,12 +83,6 @@ if(getwd()=="C:/R4/iMESc-Dev/imesc_2025"){
 
 #last_update<-format(Sys.Date(),"%d-%m-%Y")
 
-TESTE<- reactive({
-  mybooks_teste<-readRDS('vals.rds')
-  for (var in names(mybooks_teste)) {    vals[[var]]<-mybooks_teste[[var]]  }
-  updateTextInput(session, "tabs", value = mybooks_teste$cur_tab)
-
-})
 
 
 
@@ -133,10 +127,8 @@ source("inst/www/funs_mapplot.R")
 source("inst/www/funs_rf_inter.R")
 source("inst/www/funs_ensemble.R")
 source("inst/www/funs_interp.R")
-source("inst/www/mytrain_som.R")
 source("inst/www/funs_spd.R")
 source("inst/www/funs_som2.R")
-source("inst/www/funs_task_mananger.R")
 source("inst/www/funs_desc.R")
 source("inst/www/funs_toolbar.R")
 source("inst/www/funs_models.R")

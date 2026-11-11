@@ -3,92 +3,7 @@
 ## Licensed under the CC BY-NC-ND 4.0 license.
 
 
-#' @export
-dtable_som<-function (kohobj, whatmap, data=NULL, classif = NULL){
 
-  if (is.null(classif)) {
-    if (is.null(kohobj$unit.classif)) {
-      stop("No classification information present")
-    }    else {
-      classif <- kohobj$unit.classif
-    }
-  }
-  if (is.null(data)) {
-    if (!is.null(kohobj$data)) {
-      data <- kohobj$data
-      if(class(data)!='list'){
-        data<-list(kohobj$data)
-      }
-    }    else {
-      stop("No data present")
-    }
-  }
-  if (is.null(whatmap)) {
-    whatmap <- kohobj$whatmap
-  }  else {
-    whatmap <- check.whatmap(kohobj, whatmap)
-  }
-  weights <- kohobj$user.weights[whatmap] * kohobj$distance.weights[whatmap]
-  maxNA.fraction <- kohobj$maxNA.fraction
-  distanceFunctions <- kohobj$dist.fcts[whatmap]
-  dist.ptrs <- kohonen:::getDistancePointers(distanceFunctions, maxNA.fraction = maxNA.fraction)
-  data <- data[whatmap]
-  codes <- kohobj$codes[whatmap]
-  if (any(factor.idx <- sapply(data, is.factor))){
-    data[factor.idx] <- lapply(data[factor.idx], classvec2classmat)}
-  nvars <- sapply(data, ncol)
-  nobjects <- nrow(data[[1]])
-  nNA <- kohonen:::getnNA(data, maxNA.fraction, nobjects)
-  datamat <- matrix(unlist(data), ncol = nobjects, byrow = TRUE)
-  codemat <- matrix(unlist(codes), ncol = nunits(kohobj), byrow = TRUE)
-  units<-lapply(1:nrow(kohobj$grid$pts),function(x) rep(x,length(kohobj$unit.classif)))
-  res<-lapply(1:length(units),function(i){
-    u1<-units[[i]]
-    kohobj_temp<- kohobj
-    kohobj_temp$unit.classif<-u1
-    kohobj_temp$unit.classif -  1
-
-    d2wus<-kohonen:::LayerDistances(data = datamat, codes = codemat, uclassif = kohobj_temp$unit.classif -1, numVars = nvars, numNAs = nNA, distanceFunctions = dist.ptrs,weights = weights)
-    matrix(d2wus,dimnames = list(rownames(kohobj_temp$data[[1]]),i))
-  })
-
-  res2<-do.call(cbind,res)
-  result<-t(apply(res2,1,order))
-  result
-
-}
-
-#' @export
-my_check_som<-function (pkg) {
-  requireNamespace("kohonen")
-  current <- packageDescription("kohonen")$Version
-  expected <- "3.0.0"
-  if (compareVersion(current, expected) < 0)
-    stop("This modeling workflow requires kohonen version ",
-         expected, "or greater.", call. = FALSE)
-}
-#' @export
-plotnetwork<-function(m, col='red', label=T){
-  mds<-cmdscale(object.distances(m,"codes"))
-  matdis2<-matdis<-unit.distances(m$grid)
-  dec<-decimalplaces(max(matdis2))
-  matdis2<-round(matdis2,dec)
-  neighs<-lapply(1:nrow(matdis2),function(i){
-    which(matdis2[i,]==1)
-  })
-  plot(mds, xlab="Distance", ylab="Distance")
-  for(i in 1:length(neighs)){
-    nei<-neighs[[i]]
-    p0<-mds[i,]
-    p1<-mds[nei,]
-    points(p0[1],p0[2], pch=16, col=col)
-    segments(  p0[1], p0[2], p1[,1], p1[,2])
-    if(isTRUE(label)){
-      text(p0[1],p0[2], i)
-    }
-
-  }
-}
 #' @export
 decimalplaces <- function(x) {
   if ((x %% 1) != 0) {
@@ -99,73 +14,13 @@ decimalplaces <- function(x) {
 }
 
 
-#' @export
-plotnetwork_list<-function(m, palette='turbo',newcolhabs, label=T, main=""){
-  col<-newcolhabs[[palette]](length(m$data))
-
-
-  mds<-lapply(m$whatmap,function(x){
-    cmdscale(object.distances(m,"codes", whatmap = x))
-  })
-
-
-  matdis2<-matdis<-unit.distances(m$grid)
-  dec<-decimalplaces(max(matdis2))
-  matdis2<-round(matdis2,dec)
-  neighs<-lapply(1:nrow(matdis2),function(i){
-    which(matdis2[i,]==1)
-  })
-
-  for(j in 1:length(mds))
-
-    plot(do.call(rbind,mds), xlab="Distance", ylab="Distance", pch=16,main=main)
-  for(j in 1:length(mds)){
-    for(i in 1:length(neighs)) {
-      nei<-neighs[[i]]
-      p0<-mds[[j]][i,]
-      p1<-mds[[j]][nei,]
-      points(p0[1],p0[2], pch=16, col=col[j])
-      segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
-      if(isTRUE(label)){
-        text(p0[1],p0[2], i)
-      }
-
-    }
-  }
-
-  legend("topl",pch=16,col=col,legend=names(m$data), bty ="n")
-
-}
-
-
-
-#' @export
-distsom<-function(m){
-  switch(m$dist.fcts,
-         "BrayCurtis"={(m$codes[[1]])},
-         "euclidean"={dist(m$codes[[1]])},
-         "sumofsquares"={dist(m$codes[[1]])^2},
-         "manhattan"={dist(m$codes[[1]],method="manhattan")}
-  )
-}
 
 
 
 
-#' @export
-som_dist<-function (som) {
 
-  if (is.null(som))
-    return(NULL)
-  proto.gridspace.dist <- kohonen::unit.distances(som$grid,
-                                                  F)
-  proto.dataspace.dist <- as.matrix(object.distances(som,"codes"))
-  neigh <- round(proto.gridspace.dist, 3) == 1
-  proto.dataspace.dist.neigh <- proto.dataspace.dist
-  proto.dataspace.dist.neigh[!neigh] <- NA
-  list(proto.grid.dist = proto.gridspace.dist, neigh.matrix = neigh,
-       proto.data.dist = proto.dataspace.dist, proto.data.dist.neigh = proto.dataspace.dist.neigh)
-}
+
+
 
 
 
@@ -580,178 +435,8 @@ cutsom<-function(m,groups, members=NULL, method.hc="ward.D2", palette="turbo",ne
 
 }
 
-#' @export
-rect.dendrogram3<-function (tree, k = NULL,  horiz = FALSE,upper_rect = 0, prop_k_height = 0.5) {
 
 
-  tree_heights <- dendextend::heights_per_k.dendrogram(tree)[-1]
-  tree_order <- order.dendrogram(tree)
-
-  cluster <- dendextend::cutree(tree, k = k)
-  clustab <- table(cluster)[unique(cluster[tree_order])]
-  m <- c(0, cumsum(clustab))
-  which <- 1L:k
-
-  retval <- list()
-  result<-list()
-  for (n in seq_along(which)) {
-    next_k_height <- tree_heights[names(tree_heights) ==
-                                    k + 1]
-    if (length(next_k_height) == 0) {
-      next_k_height <- 0
-      prop_k_height <- 1
-    }
-    if (!horiz) {
-
-
-      ytop <- tree_heights[names(tree_heights) == k] *
-        prop_k_height + next_k_height * (1 - prop_k_height) +
-        upper_rect
-    }    else {
-
-      ytop <- m[which[n] + 1] + 0.33
-
-    }
-    result[[n]]<- ytop
-
-  }
-  res<-data.frame(do.call(rbind,result))
-  colnames(res)<-c('ytop')
-  res
-}
-#' @export
-ggplot.ggdend2<-function (data = NULL, mapping = aes(), ..., segments = TRUE,labels = TRUE, nodes = TRUE, horiz = FALSE, theme = theme_dendro(),
-                          offset_labels = 0, na.rm = TRUE, environment = parent.frame(),lbls, col,legend=c("outside","inside"),dend1,text_size=5, lwd=0.5) {
-  legend<-match.arg(legend,c("outside","inside"))
-
-  data <- dendextend::as.ggdend(dend1)
-  data <- dendextend::prepare.ggdend(data)
-  angle <- ifelse(horiz, 0, 90)
-  hjust <- ifelse(horiz, 0, 1)
-  p <- ggplot(mapping = mapping)###...
-  col_sequence<-col
-  names(col_sequence)<-c(as.character(lbls))
-  if (segments) {
-    p<- p + geom_segment(data = data$segments, na.rm = na.rm,
-                         aes(x = x, y = y, xend = xend, yend = yend,
-                             colour = col, linetype = lty),linewidth = lwd,
-                         lineend = "square")
-
-    if(legend=="outside"){
-      p<-p+
-        scale_colour_identity(name="Clusters",guide="legend",breaks=col, labels=levels(lbls))
-    } else{
-      p<-p+
-        scale_colour_identity()
-    }
-
-    p<-p+scale_size_identity() +
-      scale_linetype_identity()
-  }
-
-  if (labels) {
-    data$labels$cex <- 5 * data$labels$cex
-    data$labels$y <- data$labels$y + offset_labels
-    p <- p + geom_text(data = data$labels, aes(x = x,
-                                               y = y, label = label, colour = col, size = text_size),
-                       hjust = hjust, angle = angle, show.legend = FALSE)
-  }
-  if (horiz) {
-    p <- p + coord_flip() + scale_y_reverse(expand = c(0.2,0))
-  }
-  if (!is.null(theme)) {
-    p <- p + theme
-  }
-  p
-}
-get_dend_labposition<-function(dend,groups){
-
-  segments<-dendextend::as.ggdend(dend)$segments
-  dhei<-rect.dendrogram3(dend,k=groups)
-  dhei$group<-rownames(dhei)
-  tre<-segments[segments$y!=segments$yend,]
-  tre2<-tre[tre$y>max(dhei$ytop),]
-  dhei$x<-tre2[!is.na(tre2$col),"x"]
-  dhei
-}
-hc_plot<-function(obs.clusters,hc.clusters,hc.object, palette=NULL, labels=NULL, lwd=2, main="", xlab="Observations", ylab="Height", base_size=12, theme='theme_grey',offset_labels=-.1,xlab_adj=20, legend=c("outside","inside")){
-  legend<-match.arg(legend,c("outside","inside"))
-  groups<-nlevels(obs.clusters)
-  opar<-par(no.readonly=TRUE)
-  hc <- as.hclust(as.dendrogram(hc.object))
-  hc.dendo <- as.dendrogram(hc.object)
-  my_5_cluster <-hc.clusters
-  col=palette(nlevels(my_5_cluster))
-
-  clust.cutree <- dendextend::cutree(hc.dendo, k=groups, order_clusters_as_data = FALSE)
-  clust.cutree<-factor(clust.cutree,levels=levels(obs.clusters),labels=levels(obs.clusters))
-  idx <- order(as.vector(names(clust.cutree)))
-  clust.cutree <- clust.cutree[idx]
-  df.merge <- merge(my_5_cluster,clust.cutree,by='row.names')
-  df.merge.sorted <- df.merge[order(df.merge$y),]
-  lbls<-unique(df.merge.sorted$x)
-  if(is.null(col)){ color=viridis::turbo(nlevels(obs.clusters))[lbls]
-  } else {color=col[lbls]}
-  dend1 <- dendextend::color_branches(dend=hc.dendo, col=color,k = groups, groupLabels = lbls)
-  if(is.null(col)){
-    colors_dend1="black"
-  } else {colors_dend1="black" }
-
-  if(!is.null(labels)){
-    lab_dend<-dendextend::labels(dend1)
-    names(labels)<-names(obs.clusters)
-    dendextend::labels(dend1)<-labels[dendextend::labels(dend1)]
-  }
-  dendextend::labels_colors(dend1)<-colors_dend1
-  dend1<-dendextend::highlight_branches_lwd(dend1, lwd)
-
-
-  p<-ggplot.ggdend2(dend1,theme=NULL, offset_labels  = offset_labels, labels=T,col=col,lbls=lbls,legend=legend,text_size=base_size*.3,dend1=dend1,lwd=lwd)+xlab(xlab)+ylab(ylab)+ggtitle(main)
-  if(legend!="outside"){
-    try({
-      dhei<-get_dend_labposition(dend1,groups)
-      dhei$group<-lbls
-      p<-p+geom_label(aes(x,y=ytop, label=group),data=dhei, show.legend = F,
-                      size=base_size*.4,
-                      color=unique(dendextend::get_leaves_branches_col(dend1)))
-    },silent =T)
-
-
-  }
-
-
-  p<-switch(theme,
-            'theme_grey'={p+theme_grey(base_size)},
-            'theme_bw'={p+theme_bw(base_size)},
-            'theme_linedraw'={p+theme_linedraw(base_size)},
-            'theme_light'={p+theme_light(base_size)},
-            'theme_dark'={p+theme_dark(base_size)},
-            'theme_minimal'={p+theme_minimal(base_size)},
-            'theme_classic'={p+theme_classic(base_size)},
-            'theme_void'={p+theme_void(base_size)})
-  lab_dend<-labels(dend1)
-  if(theme=='theme_minimal'){
-    p<-p+theme(panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank(),
-               axis.line.y=element_line()
-    )
-  }
-  p<-p+theme(axis.text.x=element_blank(),
-
-             axis.title.x = element_text(margin = ggplot2::margin(t =xlab_adj)))
-  p<-p + coord_cartesian(clip = 'off', ylim=c((offset_labels*.9999)/2.5,max(hc$height)*1.05), expand = FALSE, xlim=c(0,length(lab_dend)+1))+theme(plot.margin = unit(c(1,1,1,1), "cm"))+
-    scale_x_discrete(labels=lab_dend,limits=lab_dend)
-  p
-
-}
-
-
-#' @export
-Kdata<-function(x){
-  res<-ceiling((5*sqrt(nrow(x)))/3)
-  if(res>15){res<-15}
-  res
-}
 
 #' @export
 topology<-function(df,dist="BrayCurtis",topo=T) {
@@ -806,18 +491,6 @@ weighted.correlation <- function(v,w,grille, i=NULL)
 
 
 
-#' @export
-s_bmu<-function(m)
-{
-  fun_xy <- function(x, y){
-    R <- (x+1)/2
-    G <- (1-x)/2
-    B <- (y+1)/2
-    A <- 1- 0.5*exp(-(x^2+y^2)/0.2)
-    rgb(R, G, B, A)}
-  z <- outer(seq(-1,1,length=m$grid$xdim), seq(-1,1,length=m$grid$ydim), FUN = fun_xy)
-  return(z)
-}
 
 
 
@@ -966,22 +639,6 @@ train.summary_fun<- function(m){
   }
 }
 
-#' @export
-brayCurtisDissim<-function(data, codes, n, nNA) {
-  if (nNA > 0) return(NA)
-  num <- 0.0
-  denom <- 0.0
-  for (i in seq_len(n)) {
-    num <- num + abs(data[i] - codes[i])
-    denom <- denom + data[i] + codes[i]
-  }
-
-  return(num/denom)
-}
-#' @export
-BrayCurtis<-function() {
-  return(brayCurtisDissim)
-}
 #' @export
 BrayCurtis<-function(){
   maxNA.fraction<-0L

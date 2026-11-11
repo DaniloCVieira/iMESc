@@ -258,17 +258,6 @@ pp_pctFreq<-function(data, pct){
 
 }
 
-#' @export
-singles<-function(data){
-  validate(need(sum(apply(data,2, is.integer), na.rm=T)==0,'"The Singletons option requires a counting data"'))
-
-
-  data0<-vegan::decostand(data,"pa", na.rm=T)
-  remove<-colSums(data0, na.rm=T)==1
-  if(sum(remove, na.rm=T)>0){return(  data[,-  which(remove)]) } else {return(data)}
-
-
-}
 
 
 

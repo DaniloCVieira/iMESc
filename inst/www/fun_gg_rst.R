@@ -1,8 +1,3 @@
-#' @export
-is_grob_like<-function (x)
-{
-  grid::is.grob(x) || inherits(x, "gList") || inherits(x, "gTree")
-}
 
 
 #' @export
@@ -53,16 +48,6 @@ get_data_map<-function(saved_data,name,attr,var,filter,filter_level){
   # only the small arguments are kept (saved_data would store every Datalist inside the map data)
   attr(final_data,"args")<-list(name=name,attr=attr,var=var,filter=filter,filter_level=filter_level)
   return(final_data)
-}
-#' @export
-breaks_interval<-function(z,nbreaks=5){
-  nbreaks=nbreaks-1
-  validate(need(nbreaks!=0,"Breaks should be higher than 2"))
-  if(nbreaks==1){
-    return(range(z))
-  }
-
-  seq(min(z),max(z),length.out=nbreaks)
 }
 col_factor_map<-function(newcolhabs,pal,data,reverse_palette){
 
@@ -249,17 +234,6 @@ g_cross_results<-function(g, coki=T){
 
 
 
-gg_grid<-function(ps,ncol,nrow,main,padding){
-
-  title_grob <- grid::textGrob(main, gp=grid::gpar(cex=2),vjust=0.3)
-  title_gTree <- grid::gTree(children = grid::gList(title_grob))
-  ml <-gridExtra::grid.arrange(grobs=ps,
-                    ncol = ncol,nrow=ceiling(length(ps)/ncol),
-                    top =title_gTree,
-                    padding=unit(padding,"npc"))
-
-  #graphics.off()
-}
 rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette,name,breaks,factor=F,data_o,light=0,custom_breaks,show_legend=T, limits,breaks_on=T,leg_title=NULL){
 
   if(!isTRUE(factor)){
@@ -1517,19 +1491,6 @@ raster_gg<-function(data,raster_resolution=0.1,down_grade_raster=NULL,down_grade
   }
   rst
 }
-get_limits<-function(limits,base_shape,layer_shape,coords){
-  shapes<-get_shapes(base_shape, layer_shape, coords)
-  base_shape<-shapes$base_shape
-  crs.info=shapes$crs.info
-  if(is.null(limits)){
-    limits<-st_bbox(base_shape)}
-  xlimits<-limits[c(1,3)]
-  ylimits<-limits[c(2,4)]
-  limits<-cbind(xlimits,ylimits)
-  colnames(limits)<-colnames(coords)
-  attr(limits,"crs.info")<-crs.info
-  return(limits)
-}
 lims_to_extend<-function(lims,as_extent=T){
   dflim<-rbind(c(lims$xmin,lims$ymin),c(lims$xmin,lims$ymax),c(lims$xmax,lims$ymax),c(lims$xmax,lims$ymin))
 
@@ -1577,39 +1538,6 @@ get_idw_leaf<-function(data, base_shape_args,
   }
   df_raster<-  raster::ratify(df_raster)
   return(df_raster)
-}
-#' @export
-get_knn_leaf<-function(data,k=5,base_shape_args,
-                       layer_shape_args,
-                       args_extra_shape,resolution){
-  coords<-attr(data,"coords")
-  base_shape<-attr(data,"base_shape")
-  layer_shape<-attr(data,"layer_shape")
-  limits<-get_limits2(data,base_shape_args,
-                      layer_shape_args,
-                      args_extra_shape)
-
-  limits<-lims_to_extend(limits,F)
-  colnames(limits)<-colnames(coords)
-  coords<-attr(data,"coords")
-  data<-na.omit(data)
-  coords<-coords[rownames(data),]
-  newgrid<-get_grid(coords,limits,crs.info,resolution)
-  z=data[,1]
-  m<-caret::train(x=coords,y=z,method="knn",trControl =caret::trainControl(method="cv"),kmax =k)
-  newdata<-data.frame(newgrid)
-  colnames(newdata)<-colnames(coords)
-  pred<-predict(m,newdata=newdata)
-  dfs<-data.frame(newdata,pred)
-  colnames(dfs)[3]<-colnames(data)
-  pred_spat<-to_spatial(dfs)
-  knn_raster <- raster::rasterFromXYZ(dfs)
-  rst<-cut_shape_fun(knn_raster,T,base_shape)
-  rst<-raster::ratify(rst)
-  raster::crs(rst)<-crs.info
-
-  return(rst)
-
 }
 
 
@@ -2246,50 +2174,6 @@ gg_add_north<-function(p,n_location,n_which_north,n_width,n_height,n_pad_x,n_pad
 }
 
 
-variogram_parameters<-function(df,model="Gau",var=1, log=F, g=NULL){
-
-  log_params=NULL
-  if(isTRUE(log)){
-    log_var<-vegan::decostand(df[,var],"log")
-    log_params<-attr(log_var,"parameters")
-    df[,var]<-log_var
-  }
-  coords<-attr(df,"coords")[rownames(df),]
-  req(coords)
-  req(!anyNA(coords))
-
-  colnames(coords)<-c("x","y")
-  z<-df[var]
-  if(!is.null(g)){
-    if(length(g$data)>0){
-      newnames<-make.unique(c(names(g$data),var))
-      var<-newnames[length(newnames)]
-      colnames(z)<-var
-    }
-  }
-  dd<-cbind(coords,z)
-  req(nrow(na.omit(dd))>0)
-  formula<-as.formula(paste(var,"~ 1"))
-  dsp<-to_spatial(dd)
-
-
-
-  if(nrow(sp::zerodist(dsp))>0){
-    dsp <- dsp[-sp::zerodist(dsp)[,1],]
-  }
-  TheVariogram=NULL
-
-  auto_log<-capture_log1(automap::autofitVariogram)(formula, dsp,model=model)
-  auto_z1<-auto_log[[1]]
-  vgm_z1<-auto_z1[[1]]
-  model_z1<-auto_z1[[2]]
-  result<-list(variogram=vgm_z1,auto_z1=auto_z1, formula=formula,dsp=dsp, id=var, log=log,log_params=log_params)
-  attr(result,"logs")<-auto_log[[2]]
-  result
-
-
-  return(result)
-}
 plot_variogram <- function(v, m, sized=F, show_vgm_lines=T) {
   preds = gstat::variogramLine(m, maxdist = max(v$dist))
   g<-ggplot()
@@ -2676,42 +2560,6 @@ gg_style_axes<-function(p,axis_style="default",xlab='Longitude',ylab='Latitude',
       geom_vline(xintercept =labelx,color =guides_color, linetype = guides_linetype, linewidth = guides_linewidth)
   }
   p
-
-}
-# Function to restore all inputs
-restoreInputs<-function(session, input_ids, state) {
-  print("RESTORING")
-
-  withProgress(message="Loading...",min=1,max=length(input_ids),{
-    for (id in input_ids) {
-      incProgress(1, #detail = paste("Updating", id)
-                  )
-     # runjs(paste0("Shiny.setInputValue('",id,"', '",state[[id]],"');"))
-      if (!is.null(state[[id]])) {
-        # Verifique se o input já existe no session$input
-        if (!is.null(session$input[[id]])) {
-          # Atualizar para inputs de texto
-          if (is.character(session$input[[id]])) {
-            #updateRadioButtons(session, id, selected = state[[id]])
-
-            updateTextInput(session, id, value = state[[id]])
-            updateRadioGroupButtons(session, id, selected = state[[id]])
-            # Atualizar para inputs numéricos
-          } else if (is.numeric(session$input[[id]])) {
-            updateNumericInput(session, id, value = state[[id]])
-          }
-
-
-          if (is.logical(session$input[[id]])) {
-            updateCheckboxInput(session, id, value = state[[id]])
-          }
-
-
-        }
-      }
-
-    }
-  })
 
 }
 restoreInputs2<-function(session, id, state) {

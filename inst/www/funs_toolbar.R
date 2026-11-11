@@ -120,9 +120,6 @@ get_tips<-function(tips){
 }
 option_tips<-get_tips(option_tips)
 
-split_vector <- function(vetor, positions = c(5, 20)) {
-  return(split(vetor, findInterval(seq_along(vetor), c(0, positions), rightmost.closed = TRUE)))
-}
 option_tabs<-tool2_tabs<-lapply(seq_along(option_names),function(i)
   span(option_names[i],option_tips[i]))
 
@@ -335,22 +332,6 @@ emwarning<-function(text){
 
   )
 }
-basic_summary<-function(data,show_missing=T){
-  if(is.null(data)){return(NULL)}
-  column(12,style="font-size: 11px; margin-top: 10px",
-         column(6,
-                div(strong('Number of rows:')),
-                div(strong('Number of columns:')),
-                if(show_missing)
-                div('Missing Values')),
-         column(6,
-                div(emgreen(nrow(data))),
-                div(emgreen(ncol(data))),
-                if(show_missing){div(emgreen(sum(is.na(data))))}
-         )
-
-  )
-}
 
 confirm_modal<-function(ns=ns("id"),action="",data1=NULL,data2=NULL,left="Old:",right="New:",from="",to="",div_left=T,div_right=T,div1_post="",arrow=T,print=NULL){
   showModal(
@@ -473,14 +454,6 @@ basic_summary2<-function(data, style_numeric="",style_factor="",style_coords="",
 }
 
 
-# Função para tornar a primeira letra maiúscula
-first_upper <- function(s) {
-
-  if(nchar(s) == 0) {
-    return(s)
-  }
-  return(paste(toupper(substr(s, 1, 1)), tolower(substr(s, 2, nchar(s))), sep = ""))
-}
 
 
 shp_help<-function(){
@@ -652,13 +625,6 @@ find_na<-function(x){
 
 
 
-scale_back <- function(data_scaled) {
-  scaled_center <- attr(data_scaled, "scaled:center")
-  scaled_scale <- attr(data_scaled, "scaled:scale")
-  original_data <- sweep(data_scaled, 2, scaled_scale, "*")
-  original_data <- sweep(original_data, 2, scaled_center, "+")
-  return(round(original_data,14))
-}
 scale_back_imp <- function(imp,pred) {
   scaled_center <- imp$mean
   scaled_scale <- imp$std
@@ -800,14 +766,6 @@ getclassmat<-function(data.factors)
 
 
 
-get_all_selected_from_choices<-function(selected, choices){
-  if(!is.null(selected)){
-    if(!all(selected%in%choices)){
-      selected<-NULL
-    }
-  }
-  selected[selected%in%choices]
-}
 fixed_dt<-function(data,scrollY = "400px",scrollX = TRUE,dom = 't',
                    round=3,fixedHeader=TRUE,autoWidth=F,
                    lengthMenu = list(c(20, -1), c( "20","All")),

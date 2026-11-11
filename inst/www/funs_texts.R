@@ -42,94 +42,6 @@ get_feature_data_plot<-function(df,m, npic){
 
 
 
-#' @export
-is.factor.matrix<-function (datamat, tolerance = 1e-08, completeThreshold = 5){
-  idx <- apply(datamat, 1, function(x) !any(is.na(x)))
-  if (sum(idx) > completeThreshold) {
-    datamat <- datamat[idx, ]
-    is.matrix(datamat) && min(datamat, na.rm = TRUE) >= 0 &&
-      max(datamat, na.rm = TRUE) <= 1 && all(abs(rowSums(datamat) -
-                                                   1) < tolerance)
-  }  else {
-    FALSE
-  }
-}
-
-#' @export
-feat<-function(m,moldels_importance,palette="turbo", newcolhabs=list(turbo=viridis::turbo),nvars=20,xlab="Importace",ylab="Variables", feat_type=c("Mean","side-by-side", "stacked")){
-
-  if(length(m$levels)>1){
-    m_levels<-m$levels
-  } else{
-    if(!is.na(m$levels)){
-      m_levels<-m$levels
-    } else{
-      m_levels<-1
-    }
-  }
-
-
-  imp_name<-"Mean importance"
-  if(is.null(feat_type)){
-    feat_type<-"Mean"
-    imp_name<-"Importance"
-  }
-
-  ptype<-feat_type
-  mi<-data.frame(moldels_importance)
-  colnames(mi)<-paste0(m_levels)
-  if(!feat_type%in%c("Mean","side-by-side", "stacked")){
-    mi<-mi[feat_type]
-  }
-
-  df<-reshape2::melt(data.frame(id=rownames(mi),mi),"id")
-  if(!feat_type%in%c("Mean","side-by-side", "stacked")){
-    df$variable<-factor(df$variable, labels=feat_type, levels=levels(df$variable))
-
-  } else{
-    df$variable<-factor(df$variable, labels=m_levels, levels=levels(df$variable))
-
-  }
-
-  if(ptype=='Mean'){
-    df2<-aggregate(df[-c(1:2)],df[1],sum)
-    df2$variable<-imp_name
-    df<-df2
-
-  }
-
-  mean_vals<-tapply(df$value,df$id, sum)
-  col_names<-names(mean_vals)[order(mean_vals,decreasing = T)[1:nvars]]
-  picvar<-which(df$id%in%col_names)
-  colvalues<-newcolhabs[[palette]](length(m_levels))
-  names(colvalues)<-m_levels
-  if(!feat_type%in%c("Mean","side-by-side", "stacked")){
-    colvalues<-colvalues[feat_type]
-  }
-  if(feat_type=="Mean"){
-    if(length(m_levels)>1){
-    col0<-colorspace::mixcolor(0.5,hex2RGB(colvalues[1]), hex2RGB(colvalues[2]))
-    for(i in 3:length(colvalues)){
-      col0<-colorspace::mixcolor(0.5,col0, hex2RGB(colvalues[i]))
-    }
-    colvalues=rgb(col0@coords[1,1],col0@coords[1,2],col0@coords[1,3])
-
-  }}
-
-
-  p<-ggplot(df[picvar,], aes(reorder(id,value, sum), value, fill=variable))+
-    geom_bar(stat = "identity")+ scale_fill_manual(name='',values=as.character(colvalues))+coord_flip()
-
-
-
-  if(imp_name=="Importance"|length(m_levels)==1){
-  p<-p+ theme(legend.position = "none")}
-  if(ptype=="side-by-side"){
-    p<-p + facet_grid(~factor(variable, levels=colnames(mi)))
-
-  }
-  p+xlab(ylab)+ylab(xlab)
-}
 
 
 
@@ -145,19 +57,7 @@ feat<-function(m,moldels_importance,palette="turbo", newcolhabs=list(turbo=virid
 
 
 
-#' @export
-#'
-#'
-tiphelp_icon <- function(icon,text, placement = "bottom") {
-  tags$span(
-    icon,
-    class = "help-tip",
-    style = "margin-left: 4px; cursor: help; color: #2c7fb8;",
-    `data-placement` = placement,
-    `data-html` = "true",
-    `data-original-title` = text
-  )
-}
+
 tiphelp <- function(text, placement = "bottom",class="tipnormal") {
   tags$span(class=class,
     icon("fas fa-question-circle"),
@@ -192,12 +92,6 @@ tipright <- function(text, placement = "right") {
 
 
 
-#' @export
-tiphelp3<-function(title,text,placement ="bottom"){
-  span(
-    style="color: #3c8dbc;",
-    title,tiphelp(text,placement =placement ))
-}
 
 
 
@@ -373,15 +267,6 @@ reshape_colnames<-function(data){
   data
 }
 
-reshape_datalist_colnames<-function(data){
-  datas<-list(factors=attr(data,"factors"),coords=attr(data,"coords"))
-  newdata<-reshape_colnames(data)
-  datas<-datas[sapply(datas,length)>0]
-  defdata<-lapply(datas,reshape_colnames)
-  attr(newdata,"factors")<-defdata$factors
-  attr(newdata,"coords")<-defdata$coords
-  newdata
-}
 
 
 
@@ -533,19 +418,6 @@ Read_Shapefile <- function(shp_path) {
   return(x)
 }
 
-#' @export
-textupload<-function(...){
-  as.character(
-
-
-
-  )}
-#' @export
-textlab<-function(...){
-  as.character(
-
-  )
-}
 
 
 
@@ -590,15 +462,6 @@ textseed<-function(...){
 
 
 
-#' @export
-textcoords<-function(...){
-  paste(
-    em('Required only for the spatial tools menu:'),
-
-
-
-  )
-}
 
 
 
@@ -643,188 +506,10 @@ make_pastel <- function(colors, percent=0.7) {
   sapply(colors, function(color) blend_with_white(color, percent))
 }
 
-pfac<-function(factors, width=0.4,
-               xlab="Factors",
-               ylab='Number of Observations',
-               title="Observation Totals by Factor and Level",
-               base_size=12,
-               border_palette=viridis::turbo,
-               fill_palette=viridis::turbo,
-               pastel=0.4,
-               show_levels=T,
-               show_obs=T,
-               col_lev="lightsteelblue",
-               col_obs="lightcyan"){
-
-  df<-do.call(rbind,lapply(1:ncol(factors),function(i){
-    x<-factors[,i]
-    tt<-table(x)
-    n=as.vector(tt)
-    levels=names(tt)
-    labels=paste0(levels)
-    dd<-data.frame(factor=colnames(factors)[i],
-                   level=levels,
-                   nobs=as.vector(n),
-                   labels=labels)
-
-    dd
-  }))
-  df <- df[order(df$factor, -as.numeric(as.factor(df$level))),,drop=F]
-  df$factor<-factor(df$factor, levels=rev(colnames(factors)))
-  df$position <- ave(df$nobs, df$factor, FUN = function(x){
-    res<-cumsum(x)
-    c(0,res[-length(res)])
-  })
-  df$label_position_top <- df$position
-  li<-split(df,df$factor)
-  newl<-new_limits(1:ncol(factors),width)
-  df<-data.frame(do.call(rbind,lapply(1:length(li),function(i){
-    x<-li[[i]]
-    x$pos_x<-newl[[1]][i]
-    x$pos_x2<-newl[[2]][i]
-    x
-  })))
-  blend_with_white <- function(color, percent=1) {
-    col_rgb <- col2rgb(color)
-    white_rgb <- matrix(rep(255, 3), nrow=3)
-    blended_rgb <- percent * white_rgb + (1 - percent) * col_rgb
-    return(rgb(blended_rgb[1], blended_rgb[2], blended_rgb[3], maxColorValue=255))
-  }
-  make_pastel <- function(colors, percent=0.7) {
-    sapply(colors, function(color) blend_with_white(color, percent))
-  }
-  border_colors <- border_palette(256)
-  fill_colors <- fill_palette(256)
-  pastel_fill <- make_pastel(fill_colors, pastel)
-  df$label_fill <- "lightcyan"
-  df$nobs_fill <- "lightsteelblue"
-
-  p<-ggplot(df, aes(x=factor, y=nobs)) +
-    geom_bar(aes(fill=position, color=position), position="stack", stat="identity", show.legend=F, width=width) +
-    scale_fill_gradientn(colors = pastel_fill, guide = "none") +
-    scale_color_gradientn(colors = border_colors, guide = "none") +
-    ylab(ylab) +
-    xlab(xlab) +
-    ggtitle(title) +
-    new_scale_fill()+
-    theme_bw(base_size)
-  lab_levels<-col_levels<-c()
-  if(isTRUE(show_levels)) {
-    req(length(col_lev)==1)
-    p<-p + geom_label(
-      aes(label = labels, y = label_position_top,x=pos_x2, fill = label_fill),
-      label.r = unit(0, "lines"),
-      label.size = 0,
-      label.padding = unit(0.15, "lines"),
-      hjust = 0,
-      vjust = 1,
-      show.legend = T
-    )
-
-    col_levels[ length(col_levels)+1]<-col_lev
-    lab_levels[ length(lab_levels)+1]<-"Level"
-
-  }
-  if(isTRUE(show_obs)){
-    req(length(col_obs)==1)
-    p<-p +geom_label(
-      aes(label = nobs, y = label_position_top,x=pos_x, fill = nobs_fill),
-      label.r = unit(0, "lines"),
-      label.size = 0,
-      label.padding = unit(0.15, "lines"),
-      hjust = 0,
-      vjust = 0,
-      show.legend = T
-    )
-    col_levels[length(col_levels)+1]<-col_obs
-    lab_levels[length(lab_levels)+1]<-"Number of Observations"
-  }
-  if(isTRUE(show_obs)|isTRUE(show_levels)){
-    p<-p+ scale_fill_manual(values = col_levels,
-                            labels =lab_levels,
-                            name = "")}
-
-  p<-p+guides(fill = guide_legend(override.aes = list(label = "")))+ coord_flip()
-
-  return(p)
-}
-
-.checkSelect<-function (select, scores) {
-  if (is.logical(select) && !isTRUE(all.equal(length(select),
-                                              NROW(scores)))) {
-    warning("length of 'select' does not match the number of scores: ignoring 'select'")
-  }
-  else {
-    scores <- if (is.matrix(scores)) {
-      scores[select, , drop = FALSE]
-    }
-    else {
-      scores[select]
-    }
-  }
-  scores
-}
 
 
 
-#' @export
-#'
-pwRDA.source<-function (x.ord, y.ord, BPs) {
-  y.ord <- as.matrix(y.ord)
-  x.ord <- as.matrix(x.ord)
-  n <- nrow(x.ord)
-  k <- ncol(x.ord)
-  bks <- c(0, BPs, nrow(x.ord))
-  nBPs <- length(bks) - 1
-  Xb <- matrix(0, ncol = nBPs * k, nrow = n)
-  for (i in 1:(nBPs)) {
-    Xb[(bks[i] + 1):bks[i + 1], ((k * (i - 1)) + 1):((k *
-                                                        (i - 1)) + k)] <- x.ord[(bks[i] + 1):bks[i + 1],
-                                                        ]
-  }
-  Xb <- jitter(Xb)
-  Xbc = scale(Xb, center = T, scale = F)
-  rda.0 <- vegan::rda(data.frame(y.ord) ~ ., data.frame(x.ord))
-  rda.pw <- vegan::rda(data.frame(y.ord) ~ ., data.frame(Xb))
-  Yc = scale(y.ord, center = T, scale = F)
-  Y.avg = matrix(rep(apply(Yc, 2, mean), times = nrow(Yc)),
-                 ncol = ncol(Yc), byrow = T)
-  B.pw = solve(t(Xbc) %*% Xbc) %*% (t(Xbc) %*% Yc)
-  coord <- rda.pw$CCA$biplot
-  bew.bp <- t(cor(coord, t(cor(x.ord, Xb))))
-  rda.pw$CCA$biplot <- bew.bp
-  Ypred.pw = Xbc %*% B.pw
-  Yres <- Yc - Ypred.pw
-  TSS.pw = sum((Yc)^2)
-  RSS.pw = sum((Ypred.pw - Y.avg)^2)
-  r2.pw <- RSS.pw/TSS.pw
-  n.pw <- nrow(Xbc)
-  k.pw <- ncol(Xbc)
-  Radj.pw <- 1 - ((1 - r2.pw) * ((n.pw - 1)/(n.pw - k.pw -
-                                               1)))
-  Xc = scale(jitter(x.ord), center = T, scale = F)
-  B.full = solve(t(Xc) %*% Xc) %*% (t(Xc) %*% Yc)
-  Ypred.full = Xc %*% B.full
-  Yres <- Yc - Ypred.full
-  TSS.full = sum((Yc)^2)
-  RSS.full = sum((Ypred.full - Y.avg)^2)
-  r2.full <- RSS.full/TSS.full
-  n.full <- nrow(Xc)
-  k.full <- ncol(Xc)
-  Radj.full <- 1 - ((1 - r2.full) * ((n.full - 1)/(n.full -
-                                                     k.full - 1)))
-  F.stat <- ((RSS.full - RSS.pw)/(k.full - k.pw))/(RSS.full/(n.pw -
-                                                               k.full))
-  dg1 <- k.pw - k.full
-  dg2 <- n.pw - k.pw
-  F.stat <- ((RSS.pw - RSS.full)/(dg1))/(RSS.pw/(dg2))
-  p.value <- 1 - pf(F.stat, dg1, dg2, lower.tail = T)
-  summ <- c(Radj.full = Radj.full, Radj.pw = Radj.pw, F.stat = F.stat,
-            p.value = p.value)
-  pw <- list(summ = summ, rda.0 = rda.0, rda.pw = rda.pw)
-  class(pw) <- "pw"
-  return(invisible(pw))
-}
+
 
 
 #' @export

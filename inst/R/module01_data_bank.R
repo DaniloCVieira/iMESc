@@ -346,13 +346,6 @@ databank_module$server <- function(id, vals) {
       )
     })
 
-    combsom <- reactive({
-      soms <- attr(getdata_bank(), "som")
-      req(length(soms) > 0)
-      res <- do.call("cbind", lapply(soms, train.summary_fun))
-      colnames(res) <- names(soms)
-      res
-    })
 
     render_metrics <- function(table, round) {
       ncol_base <- max(attr(table, "ncol_train"))
@@ -723,21 +716,6 @@ databank_module$server <- function(id, vals) {
       )
     })
 
-    bag_name_new <- reactive({
-      bag <- 1
-      name0 <- input$data_bank
-      name1 <- paste(name0, bag)
-
-      if (name1 %in% names(vals$saved_data)) {
-        repeat {
-          bag <- bag + 1
-          name1 <- paste(name0, bag)
-          if (!name1 %in% names(vals$saved_data)) break
-        }
-      }
-
-      paste(name0, bag)
-    })
 
     modal_comment <- reactive({
       modalDialog(
@@ -1428,8 +1406,5 @@ fixed_dt_con$server2<-function(id,data,max_length=100){
     if(!is.null(input$data_container))
       return(data_containers[[input$data_container]])
   })
-}
-split_vector_max_elements <- function(vec, max_length) {
-  split(vec, ceiling(seq_along(vec) / max_length))
 }
 

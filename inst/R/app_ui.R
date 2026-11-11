@@ -3,25 +3,6 @@
 
 
 
-#' @noRd
-# Function to create a spinner overlay for a UI component
-# The spinner indicates loading status and is unique to each component
-imesc_spinner <- function(output_ui) {
-
-  tagList(
-    # Spinner and overlay
-    tags$div(
-      class = "imesc-spinner-container",
-      tags$div(class = "imesc-loading-overlay"),
-      tags$div(
-        id = paste0(output_ui[[2]]$attribs$id, "-spinner"), # Ensure spinner is unique
-        class = "imesc-spinner",
-        tags$img(src = "imesc_logo.png", class = "spinner-image")
-      )
-    ),
-    output_ui
-  )
-  }
 
 # Main UI function for the iMESc application
 #' @export

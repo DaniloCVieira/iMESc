@@ -1,107 +1,15 @@
 
 
 
-#' @export
-true_north<-function (x, y, crs, delta_crs = 0.1, delta_lat = 0.1)
-{
-  pt_crs <- sf::st_sfc(sf::st_point(c(x, y)), crs = crs)
-  pt_crs_coords <- as.data.frame(sf::st_coordinates(pt_crs))
-  pt_latlon <- sf::st_transform(pt_crs, crs = 4326)
-  pt_latlon_coords <- as.data.frame(sf::st_coordinates(pt_latlon))
-  pt_grid_north <- sf::st_sfc(sf::st_point(c(x, y + delta_crs)),
-                              crs = crs)
-  pt_grid_north_coords <- as.data.frame(sf::st_coordinates(pt_grid_north))
-  pt_true_north <- sf::st_transform(sf::st_sfc(sf::st_point(c(pt_latlon_coords$X,
-                                                              pt_latlon_coords$Y + delta_lat)), crs = 4326), crs = crs)
-  pt_true_north_coords <- as.data.frame(sf::st_coordinates(pt_true_north))
-  a <- c(x = pt_true_north_coords$X - pt_crs_coords$X, y = pt_true_north_coords$Y -
-           pt_crs_coords$Y)
-  b <- c(x = pt_grid_north_coords$X - pt_crs_coords$X, y = pt_grid_north_coords$Y -
-           pt_crs_coords$Y)
-  theta <- acos(sum(a * b)/(sqrt(sum(a * a)) * sqrt(sum(b *
-                                                          b))))
-  cross_product <- a[1] * b[2] - a[2] * b[1]
-  rot_degrees <- theta * 180/pi * sign(cross_product)[1]
-  rot_degrees
-}
 
 
 
 
 
 
-#' @export
-.tosi<-function (unitvalue, unit)
-{
-  if (unit == "km") {
-    unitvalue * 1000
-  }
-  else if (unit == "m") {
-    unitvalue
-  }
-  else if (unit == "ft") {
-    unitvalue/3.28084
-  }
-  else if (unit == "mi") {
-    unitvalue * 1609.344051499
-  }
-  else if (unit == "in") {
-    unitvalue/39.3700799999998
-  }
-  else if (unit == "cm") {
-    unitvalue/100
-  }
-  else {
-    stop("Unrecognized unit: ", unit)
-  }
-}
 
-#' @export
-.fromsi<-function (sivalue, unit)
-{
-  if (unit == "km") {
-    sivalue/1000
-  }
-  else if (unit == "m") {
-    sivalue
-  }
-  else if (unit == "ft") {
-    sivalue * 3.28084
-  }
-  else if (unit == "mi") {
-    sivalue/1609.344051499
-  }
-  else if (unit == "in") {
-    sivalue * 39.3700799999998
-  }
-  else if (unit == "cm") {
-    sivalue * 100
-  }
-  else {
-    stop("Unrecognized unit: ", unit)
-  }
-}
 
-#' @export
-.torad<-function (deg) {
-  deg * pi/180
-}
 
-#' @export
-.geodist<-function (lonlat1, lonlat2) {
-  long1 <- .torad(lonlat1[1])
-  lat1 <- .torad(lonlat1[2])
-  long2 <- .torad(lonlat2[1])
-  lat2 <- .torad(lonlat2[2])
-  R <- 6371009
-  delta.long <- (long2 - long1)
-  delta.lat <- (lat2 - lat1)
-  a <- sin(delta.lat/2)^2 + cos(lat1) * cos(lat2) * sin(delta.long/2)^2
-  c <- 2 * asin(min(1, sqrt(a)))
-  d = R * c
-  return(d)
-
-}
 
 
 

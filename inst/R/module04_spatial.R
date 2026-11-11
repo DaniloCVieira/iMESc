@@ -516,7 +516,6 @@ sptools_panels$server<-function(id,vals){
 
 
     data<-reactiveVal()
-    cur_vars_choices<-reactiveVal()
 
 
 
@@ -986,12 +985,9 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
     })
 
     current_datalist<-reactiveVal()
-    chart_args1<-reactiveVal()
     args_map1<-reactiveVal()
     args_map2<-reactiveVal()
     map_result1_final<-reactiveVal()
-    map_ggplot<-reactiveVal()
-    map_ggplot_final<-reactiveVal()
     map_result2_final<-reactiveVal()
     map_result2<-reactiveVal()
     observe({
@@ -1772,10 +1768,6 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
           }
 
         })
-        condition_cokrige<-reactive({
-          is.factor(vals$data_map[,1])|
-            length(vals$g_final)>0
-        })
         raster_args<-reactive({
           # if(is.null(vals$data_map)) {return(NULL)}
           if (isTRUE(raster)) {
@@ -1801,29 +1793,6 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
             vals$cur_raster<-rst
             rst(rst)
           }
-        })
-        krige_cv<-reactive({
-
-          interp_type<-vals$interp_args$interp_type
-          req(interp_type)
-          req(vals$interp_gstat)
-          if(interp_type=="krige")
-            withProgress(min=NA,max=NA,message="Running...",{
-
-              g<-vals$interp_gstat
-              observed<-data.frame(lapply(g$data,function(x) data.frame(x$data)[3]))
-
-              if(is.na(seed)){
-                set.seed(NULL)
-              } else{
-                set.seed(seed)}
-              # out = gstat::gstat.cv(g,nfold = input$nfold,all.residuals=T)
-              # attr(out,"obs")<-observed
-              #attr(g,"cv")<-out
-              # vals$g_final_cv<-g
-
-            })
-
         })
         cvkrige<-reactive({
 
@@ -3957,7 +3926,6 @@ ll_down_plot$ui<-function(id){
 }
 ll_down_plot$server<-function(id, map){
   moduleServer(id,function(input, output, session){
-    vplot<-reactiveValues(newggplot=NULL)
     ns<-session$ns
 
     observeEvent(input$download_ll,ignoreInit = T,{
@@ -5060,10 +5028,6 @@ plotly_download$server<-function(id,out_id,session_in){
     })
 
   })
-}
-check_inputs<-function(input,pattern){
-  res<-names(input)[grep(pattern,names(input))]
-  res
 }
 
 collectInputs <- function(session, input_ids) {

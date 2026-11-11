@@ -87,51 +87,6 @@
   }
 }
 
-spatialBlock2<-function (speciesData, species = NULL, rasterLayer = NULL, theRange = NULL,
-                         rows = NULL, cols = NULL, k = 5L, selection = "random", iteration = 100L,
-                         blocks = NULL, foldsCol = NULL, numLimit = 0L, maskBySpecies = TRUE,
-                         degMetre = 111325, border = NULL, showBlocks = TRUE, biomod2Format = TRUE,
-                         xOffset = 0, yOffset = 0, extend = 0, seed = 42, progress = TRUE,
-                         verbose = F) {
-  message("This function is deprecated! Please use 'cv_spatial' instead.")
-  speciesData <- .check_x(speciesData, name = "speciesData")
-  .check_pkgs("sf")
-  if (!is.null(species)) {
-    if (!species %in% colnames(speciesData)) {
-      warning(sprintf("There is no column named '%s' in 'speciesData'.\n",
-                      species))
-      species <- NULL
-    }
-  }
-  if (selection == "predefined") {
-    if (is.null(foldsCol) || is.null(blocks)) {
-      stop("The 'blocks' and 'foldsCol' should be specified for 'predefined' selection")
-    }
-    if (!foldsCol %in% colnames(blocks)) {
-      stop(sprintf("There is no column named '%s' in 'blocks'.\n",
-                   foldsCol))
-    }
-    if (!is.numeric(blocks[, foldsCol, drop = TRUE])) {
-      stop("The fold numbers in 'foldsCol' must be integer numbers.")
-    }
-  }
-  if (!is.null(rasterLayer)) {
-    rasterLayer <- .check_r(rasterLayer, name = "rasterLayer")
-  }
-  out <- cv_spatial2(x = speciesData, column = species, r = rasterLayer,
-                     k = k, hexagon = FALSE, flat_top = FALSE, size = theRange,
-                     rows_cols = c(rows, cols), selection = selection, iteration = iteration,
-                     user_blocks = blocks, folds_column = foldsCol, deg_to_metre = degMetre,
-                     biomod2 = biomod2Format, offset = c(xOffset, yOffset),
-                     extend = extend, seed = seed, progress = progress, report = F,
-                     plot = showBlocks)
-  theList <- list(folds = out$folds_list, foldID = out$folds_ids,
-                  biomodTable = out$biomod_table, k = k, blocks = out$blocks,
-                  species = out$column, range = out$size, plots = NULL,
-                  records = out$records)
-  class(theList) <- c("SpatialBlock")
-  return(theList)
-}
 
 
 
@@ -486,121 +441,13 @@ cv_spatial2<-function (x, column = NULL, r = NULL, k = 5L, hexagon = TRUE,
 
 
 
-guess_size <- function(sf_points, method = "extent",p_test=0.2, kmax=200) {
-
-  k_info <- choose_k(p_test, nrow(sf_points), kmax = kmax)
-  k <- k_info$k
-
-  bbox <- sf::st_bbox(sf_points)
-  xrange <- bbox$xmax - bbox$xmin
-  yrange <- bbox$ymax - bbox$ymin
-
-  if (method == "extent") {
-    # divide a menor dimensão pela raiz do k → blocos suficientes
-    size <- min(xrange, yrange) / sqrt(k)
-  } else if (method == "density") {
-    dmat <- sf::st_distance(sf_points)
-    mean_nn <- mean(apply(dmat, 1, function(x) sort(x)[2])) # vizinho mais próximo
-    size <- mean_nn * 3  # por ex., 3x a distância média
-  }
-
-  return(round(size))
-}
 
 
 
 
-make_spatial_train_test <- function(sf_points,
-                                    response = "y",   # coluna da variável resposta
-                                    range = 2000,
-                                    p_test = 0.3,
-                                    selection = "random",
-                                    seed = 123,
-                                    verbose = FALSE,
-                                    kmax = 100) {
-  # Verificar se a coluna existe
-  if (!response %in% names(sf_points)) {
-    stop(sprintf("A coluna '%s' não existe em sf_points.", response))
-  }
-
-  # Determinar k automaticamente
-  k_info <- choose_k(p_test, nrow(sf_points), kmax = kmax)
-  k <- k_info$k
-
-  # Controle do seed
-  if (is.na(seed)) {
-    seed <- NULL
-  }
-
-  # Rodar cv_spatial2, informando a coluna resposta
-  folds <- cv_spatial2(x = sf_points,
-                       column = response,
-                       size = range,
-                       k = k,
-                       selection = selection,
-                       plot = FALSE,
-                       progress = FALSE,
-                       seed = seed)
-
-  # Selecionar 1 fold aleatório para ser o teste
-  test_fold <- sample(unique(folds$folds_ids), 1)
-
-  test_idx <- folds$folds_ids == test_fold
-  train_idx <- !test_idx
-
-  if (verbose) {
-    cat("p_test desejado:", p_test,
-        "| k escolhido:", k,
-        "| prop. real esperada:", round(k_info$prop_real, 3),
-        "| prop. obtida:", round(mean(test_idx), 3), "\n")
-  }
-
-  split <- ifelse(folds$folds_ids == test_fold, "test", "training")
-
-  return(list(folds=folds,
-              split=split))
-}
 
 
 
-check_leakage <- function(coords, split, k = 1, epsilon = NULL) {
-  library(FNN)
-
-  train <- coords[split == "Training", ]
-  test  <- coords[split == "Test", ]
-
-  nn <- get.knnx(train, test, k = k)
-  dmin <- nn$nn.dist[,1]
-
-  # se não definir epsilon → usa distância média ao vizinho mais próximo do treino
-  if (is.null(epsilon)) {
-    nn_train <- get.knn(train, k = 2)
-    epsilon <- mean(nn_train$nn.dist[,2]) # média vizinho mais próximo
-  }
-
-  leakage_rate <- mean(dmin < epsilon)
-
-  return(list(
-    epsilon = epsilon,
-    leakage_rate = leakage_rate,
-    leakage_pct = round(100 * leakage_rate, 2),
-    dmin_summary = summary(dmin)
-  ))
-}
-choose_k <- function(p, n, kmax = 100) {
-  ks <- 2:kmax
-  # tamanho do fold em número inteiro de observações
-  fold_sizes <- round(n / ks)
-  props_real <- fold_sizes / n
-  diffs <- abs(props_real - p)
-
-  k_best <- ks[which.min(diffs)]
-
-  list(k = k_best,
-       fold_size = fold_sizes[which.min(diffs)],
-       prop_real = props_real[which.min(diffs)],
-       diff = min(diffs))
-}
 
 
 cv_spatial_autocor2<-function (r, x, column = NULL, num_sample = 5000L, deg_to_metre = 111325,
@@ -892,90 +739,6 @@ plot_test_fold_heatmap <- function(summary_block,
       axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
       legend.position = "right"
     )
-}
-blockcv_to_caret <- function(cvsp) {
-
-  if (!is.null(cvsp$folds_list)) {
-
-    if (is.list(cvsp$folds_list[[1]]) &&
-        all(c("train", "test") %in% names(cvsp$folds_list[[1]]))) {
-
-      index <- lapply(cvsp$folds_list, function(z) z$train)
-      indexOut <- lapply(cvsp$folds_list, function(z) z$test)
-
-    } else {
-
-      index <- cvsp$folds_list
-
-      if (is.null(cvsp$folds_ids)) {
-        stop("Could not find 'folds_ids' to build indexOut.")
-      }
-
-      fold_ids <- sort(unique(cvsp$folds_ids))
-      indexOut <- lapply(fold_ids, function(f) which(cvsp$folds_ids == f))
-    }
-
-  } else {
-
-    if (is.null(cvsp$folds_ids)) {
-      stop("The cv_spatial object must contain either 'folds_list' or 'folds_ids'.")
-    }
-
-    fold_ids <- sort(unique(cvsp$folds_ids))
-
-    indexOut <- lapply(fold_ids, function(f) which(cvsp$folds_ids == f))
-    index <- lapply(fold_ids, function(f) which(cvsp$folds_ids != f))
-  }
-
-  names(index) <- paste0("Fold", seq_along(index))
-  names(indexOut) <- paste0("Fold", seq_along(indexOut))
-
-  list(
-    index = index,
-    indexOut = indexOut
-  )
-}
-repeated_blockcv_to_caret <- function(sf_dat,
-                                      column = "y",
-                                      k = 5,
-                                      repeats = 3,
-                                      size,
-                                      selection = "random",
-                                      iteration = 100,
-                                      seed = 123) {
-
-  index <- list()
-  indexOut <- list()
-
-  for (r in seq_len(repeats)) {
-
-    set.seed(seed + r)
-
-    cvsp <- cv_spatial2(
-      x = sf_dat,
-      column = column,
-      k = k,
-      size = size,
-      selection = selection,
-      iteration = iteration,
-      progress = FALSE
-    )
-
-    folds <- blockcv_to_caret(cvsp)
-
-    for (f in seq_len(k)) {
-
-      nm <- paste0("Fold", f, ".Rep", r)
-
-      index[[nm]] <- folds$index[[f]]
-      indexOut[[nm]] <- folds$indexOut[[f]]
-    }
-  }
-
-  list(
-    index = index,
-    indexOut = indexOut
-  )
 }
 create_repeated_spatial_cv <- function(sf_dat,
                                        column = "y",

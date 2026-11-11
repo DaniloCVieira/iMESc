@@ -16,17 +16,6 @@ list_models<-function(data,size=F,imesc_models){
   })
   lis[sapply(lis,length)>0]
 }
-list_ensemble<-function(vals,size=F){
-  md<-vals$saved_ensemble
-  lis<-lapply(md, function (mi){
-    if(isTRUE(size)){
-      format(object.size(mi), "auto")
-    } else{
-      length(mi)>0
-    }
-  })
-  lis[sapply(lis,length)>0]
-}
 list_attrs<-function(data,size=F,imesc_attrs,imesc_models){
   attrs<-imesc_attrs
   attr(data,"numeric")<-data.frame(data)

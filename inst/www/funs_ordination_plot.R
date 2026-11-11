@@ -176,21 +176,6 @@ get_maxdistances_clusters <- function(coords, n, centro = c(0, 0)) {
 
   return(results)
 }
-#' @export
-get_maxdistances <- function(coords, top, centro = c(0, 0)) {
-  if(top<1){top<-1}
-  # 1. Calculate the distance of each point from the center
-  coords$dist_to_center <- sqrt((coords$x - centro[1])^2 + (coords$y - centro[2])^2)
-  # 2. Calculate the angle of each point with respect to the x-axis
-  coords$angle <- atan2(coords$y - centro[2], coords$x - centro[1])
-  # 3. Order by angle descending (clockwise)
-  coords_sorted_by_angle <- coords[order(coords$angle),]
-  # 4. Order the top "top" points by distance descending
-  coords_sorted_by_distance <- coords_sorted_by_angle[1:top,][order(-coords_sorted_by_angle$dist_to_center[1:top]),]
-
-  top_points <- rownames(na.omit(coords_sorted_by_distance))
-  return(top_points)
-}
 
 
 

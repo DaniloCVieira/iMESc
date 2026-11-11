@@ -210,48 +210,8 @@ control_layers<-function(addCircles,addMinicharts,rst,base_shape_args,layer_shap
 
 }
 #' @export
-add_extraLL<-function(map,data,args_extra_shape){
-  if(is.null(args_extra_shape)){
-    return(map)
-  }
-  map2<-map
-  ea<-data.frame(args_extra_shape)
-  ea[,1]<-as.logical(ea[,1])
-  ea[,3]<-as.numeric(ea[,3])
-  ea[,5]<-as.numeric(ea[,5])
-
-  for(k in 1:nrow(args_extra_shape)){
-    e<-attr(data,"extra_shape")[[k]]
-    ei<-ea[k,]
-    if(!is.null(e)){
-      if(ei$layers){
-        extra<-st_as_sf(e)[,"geometry"]
-        if(!is.null(extra)){
-          for(i in 1:nrow(extra)){
-            geom<-sf::st_geometry_type(extra[i,])
-            base_temp<-st_cast(extra[i,],"LINESTRING")
-            for(j in 1:nrow(base_temp)){
-              co<-st_coordinates(base_temp[j,])[,1:2]
-              map2<-leaflet::addPolylines(map2,co[,1],co[,2],color =ei$colors ,opacity=1,weight =ei$sizes,group="extra_shape")
-            }
-          }
-        }
-      }
-    }
-  }
-  return(map2)
-}
-#' @export
 
 
-interp_leaflet<-function(data, cut_shape=T, resolution=3000,crs.info="+proj=longlat +datum=WGS84 +no_defs",k=5,...){
-  if(is.factor(data[,1])){
-    get_knn_leaf(data,k,cut_shape,resolution)
-  } else{
-    get_idw_leaf(data, cut_shape, resolution,crs.info="+proj=longlat +datum=WGS84 +no_defs",...)
-
-  }
-}
 
 
 #' @export
@@ -308,84 +268,8 @@ variogram_parameters<-function(df,model="Gau",var=1, log=F, g=NULL){
   model_z1<-auto_z1[[2]]
   return(list(variogram=vgm_z1,auto_z1=auto_z1, formula=formula,dsp=dsp, id=var, log=log,log_params=log_params))
 }
-#' @export
-predict_cokrige<-function(g,newdata=NULL, crs.info="+proj=longlat +datum=WGS84 +no_defs"){
 
 
-  coords<-attr(g,"coords")
-  base_shape<-attr(g,"base_shape")
-  layer_shape<-attr(g,"layer_shape")
-  limits<-get_limits(limits=NULL,base_shape,layer_shape,coords)
-  if(is.null(newdata)){
-      #newgrid<-get_grid(coords,limits,crs.info,res=resolution)
-    newgrid<-data.frame(coords,lapply(g$data,function(x) data.frame(x$data)[3]))
-  } else{
-    newgrid<-newdata
-  }
-
-  grd<-to_spatial(data.frame(newgrid),crs.info=crs.info)
-  k.c <- predict(g, grd)
-  #pred1<-predict(g, newdata =newgrid )
-  result<-data.frame(k.c)
-  result["optional"]<-NULL
-  islog=attr(g,"log")
-
-  if(!is.null(islog)){
-    names(islog)<-paste0(names(g$data),".pred")
-    for(i in 1:length(islog)){
-      if(!is.null(islog[[i]])){
-        pred<-result[,names(islog)[i]]
-        parameters<-islog[[i]]
-        result[,names(islog)[i]]<-(2^pred) * parameters$minpos
-      }
-    }
-  }
-  atts<-attributes(result)
-  result<-predict_cokrige_factors(result,g)
-
-  attr(result,"k.c")<-k.c
-  attr(result,"coords")<-coords
-  attr(result,"base_shape")<-base_shape
-  attr(result,"layer_shape")<-layer_shape
-  result
-}
-
-
-#' @export
-predict_cokrige_factors<-function(pred,g){
-  isfac<-attr(g,"is_factor")
-  if(!any(isfac)){
-    return(pred)
-  }
-  factor_column<-attr(g,"factor_column")
-  factor_level<-attr(g,"factor_level")
-  preds0<-preds<-pred[grep("\\.pred",colnames(pred))]
-  colnames(preds0)<-gsub("gstat_level_","",colnames(preds0))
-  predfac_results<-list()
-  for(var in unique(factor_column)){
-    preds<-preds0
-    pic_var<-which(factor_column==var)
-    preds<-preds[pic_var]
-    isfac2<-isfac[pic_var]
-    if(all(isfac2)){
-      pred_fac<-preds[which(isfac2)]
-      pred_tab<-vegan::decostand(pred_fac,"range")
-      probs<-pred_tab
-      colnames(probs)<-colnames(pred_fac)
-      predictions<-kohonen::classmat2classvec(probs)
-      df_pred<-data.frame(pred=factor(predictions, labels=unique(factor_level[pic_var])))
-      colnames(df_pred)<-var
-      predfac_results[[var]]<-df_pred
-    }
-  }
-
-  pred_class<-data.frame(do.call(cbind,predfac_results))
-  colnames(pred_class)<-paste0(names(predfac_results),".pred")
-  rownames(pred_class)<-rownames(pred)
-  pred_result<-cbind(pred,pred_class)
-  return(pred_result)
-
-}
 
 
 

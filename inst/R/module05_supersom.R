@@ -472,7 +472,6 @@ imesc_supersom$server<-function (id,vals ){
       }
       label
     })
-    somval<-reactiveValues(df=F)
     output$supersom_layers<-renderUI({
       div(class=show_dataX(),
           div("~ Training layers"),
@@ -652,19 +651,6 @@ imesc_supersom$server<-function (id,vals ){
       saveRDS(reactiveValuesToList(input),"input.rds")
       beepr::beep()
 
-
-    })
-    getobs_somX<-reactive({
-      datalist<-vals$saved_data
-      m<-current_som_model()
-      colnames_list<-lapply(datalist,colnames)
-      colnames_som<-lapply(m$data,colnames)
-      names(colnames_som)<-names(m$data)
-      do.call(c,lapply(colnames_som,function(j){
-        names(which(sapply(colnames_list,function(i){
-          identical(sort(i), sort(j))
-        })))
-      }))
 
     })
     getdata_som<-reactive({
@@ -2614,12 +2600,6 @@ table_results_tab3$server<-function(id,vals){
       })
 
     })
-    bag_vfm<-reactive({
-
-      name0<-paste0(data_x(),"_",input$codebook_npic,"vars")
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
     observeEvent(ignoreInit = T,input$codebook_varfacmap, {
       showModal(
         modalDialog(
@@ -2770,7 +2750,6 @@ table_results_tab3$server<-function(id,vals){
       cur_propert(cur+1)
     })
 
-    stop_update_propperty<-reactiveVal(F)
     observeEvent(cur_propert(),{
       req(input$codebook_variable_pproperty)
       #req(isFALSE(stop_update_propperty()))
@@ -3723,35 +3702,7 @@ table_predict_som$server<-function(id,vals){
       rownames(res)<-paste0("neu",1:nrow(res))
       res
     })
-    bag_tab_pred_result<-reactive({
-      name0<-paste(data_x(),input$tab_pred_result,input$layer_result, sep="_")
-      name1<-make.unique(c(names(vals$saved_data),name0), sep="_")
-      name1[length(vals$saved_data)+1]
-    })
 
-    create_predsom_errors<-reactive({
-
-      data_o<-switch(input$sompred_type,
-                     "Partition"={
-                       vals$saved_data[[data_x()]][rownames(attr(current_som_model(),"test")[[1]]),]
-                     },
-                     "Datalist"={vals$saved_data[[input$predsom_new]]},
-                     "Training"={vals$saved_data[[data_x()]]}
-      )
-
-      temp<-vals$som_perf_result
-      if(input$hand_save=="create") {
-        temp<-data_migrate(data_o,temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(data_o,temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-
-
-
-    })
     predcode_getdata_layer<-reactive({
       choices0 = names(current_som_model()$data)
       if(length(choices0)>0){
@@ -3996,34 +3947,6 @@ table_predict_som$server<-function(id,vals){
     })
 
 
-    getpred_model<-reactive({
-
-      res0<-res<-get_sompred()
-
-      pic_result<-input$predcode_property_layer
-
-      res$predictions
-      res<-res[["unit.predictions"]][[pic_result]]
-      rownames(res)<-paste0("neu",1:nrow(res))
-      unit.predictions<-res
-
-      res<-res0
-      res_temp<-data.frame(bmu=res[['unit.classif']])
-      rownames(res_temp)<-rownames(res[["predictions"]][[1]])
-      res<-res_temp
-      unit.classif<-res
-
-      res<-res0
-      if(is.null(res$predictions)){
-        res$predictions<-res$data
-      }
-
-      predictions<-res[["predictions"]][[pic_result]]
-
-      list(predictions=predictions,unit.classif=unit.classif,unit.predictions=unit.predictions,pic_result=pic_result)
-
-
-    })
 
 
 

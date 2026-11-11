@@ -198,48 +198,6 @@ container_global_caret<-function(table){
 #' @export
 ## check
 
-rf_global_test<-function(m) {
-  observed<-attr(m,"sup_test")
-  if(class(m$finalModel)=="randomForest"){
-    rf_pred <- randomForest:::predict.randomForest(m$finalModel,newdata = attr(m,"test"), predict.all=T)} else{
-      rf_pred <- predict(m,newdata = attr(m,"test"))
-    }
-  if(m$modelType=="Regression"){
-    if(is.list(rf_pred)){
-      if(length(rf_pred$individual)>0){
-        pred<-apply(rf_pred$individual,1,mean)
-        stat<-caret::postResample(pred,observed)
-        stat
-      }
-    } else{
-      stat<-caret::postResample(rf_pred,observed)
-      stat
-    } } else{
-      if(is.list(rf_pred)){
-        if(length(rf_pred$individual)>0){
-          pred<-apply(rf_pred$individual,1, function(x){
-            res<-table(x)
-            names(res)[ which.max(res)]})
-        } else{
-          pred<-rf_pred[[1]]
-        }
-      } else{
-        pred<-rf_pred
-      }
-
-
-
-      stat<-caret::postResample(pred,observed)
-
-
-      actual<-as.numeric(as.character(pred)==as.character(observed))
-      #auc<-  Metrics::auc(actual,pred)
-      stat<-c(stat,
-              #AUC=auc,
-              use.names=T)
-    }
-  return(c(nobs=length(observed),stat))
-}
 
 
 
@@ -286,32 +244,6 @@ accu_rf_reg_model<-function(m)
 
 }
 
-#' @export
-accu_rf_reg<-function(observed,predicted)
-{
-  obspred<-data.frame(obs=observed, pred=predicted)
-  reslist<-split(obspred,rownames(obspred))
-  mae_res<-list()
-  mape_res<-list()
-  mse_res<-list()
-  for(i in 1:length(observed))
-  {
-    mape_res[[i]]<-Metrics::mape(observed[i],predicted[i])
-    mae_res[[i]]<-Metrics::mae(observed[i], predicted[i])
-    mse_res[[i]]<-Metrics::mse(observed[i],predicted[i])
-  }
-  mse_res<-data.frame(MSE=do.call(c,mse_res))
-  mape_res<-data.frame(MAPE=do.call(c,mape_res))
-  mae_df<-data.frame(MAE=do.call(c,mae_res))
-  rownames(mse_res)<-names(observed)
-  rownames(mape_res)<-names(observed)
-  rownames(mae_df)<-names(observed)
-  res<-data.frame(mse=mse_res, mae=mae_df,mape=mape_res)
-  rownames(res)<-names(predicted)
-  res$obs=observed
-  res$pred=predicted
-  return(res)
-}
 
 
 
@@ -573,23 +505,6 @@ plotCM<-function(rf, palette="turbo",newcolhabs=list(turbo=viridis::turbo), font
 
 
 
-#' @export
-stringFunc<-function (x)
-{
-  if (!is.character(x))
-    x <- format(x)
-  numElements <- length(x)
-  out <- if (length(x) > 0) {
-    switch(min(numElements, 3), x, paste(x, collapse = " and "),
-           {
-             x <- paste0(x, c(rep(",", numElements -
-                                    2), " and", ""))
-             paste(x, collapse = " ")
-           })
-  }
-  else ""
-  out
-}
 
 
 

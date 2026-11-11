@@ -341,30 +341,6 @@ app_server<-server<-function(input, output, session) {
   observeEvent(ignoreInit = T,input$tabs,{
     # remove_unsaved_models()
   })
-  remove_unsaved_models<-reactive({
-    req(length(vals$saved_data)>0)
-    req(length(vals$cur_data)>0)
-
-    try({
-
-
-
-      models<-as.character(available_models)
-      for(x in models){
-        {
-          res<-attr(vals$saved_data[[vals$cur_data]],x)
-          pic<-grep("(unsaved)",names(res))
-          if(length(pic)>0){
-            attr(vals$saved_data[[vals$cur_data]],x)<-attr(vals$saved_data[[vals$cur_data]],x)[-pic]
-          }
-
-
-        }
-      }
-
-
-    })
-  })
 
 
   output$imesc_title<-renderUI({

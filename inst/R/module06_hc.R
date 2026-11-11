@@ -605,13 +605,6 @@ gg_dendrogram<-function(obs.clusters,hc.clusters,hc.object, palette=NULL, labels
   p
 }
 
-measure_time<-function(f,args) {
-  t1<-Sys.time()
-  res<-do.call(f,args)
-  t2<-Sys.time()
-  print(t2-t1)
-  res
-}
 
 textsilhouetteplot <- function(...){
   div(tags$style(HTML("

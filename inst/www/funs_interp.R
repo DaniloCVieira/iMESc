@@ -1,20 +1,6 @@
 
 
 #' @export
-get_limits<-function(limits,base_shape,layer_shape,coords){
-  shapes<-get_shapes(base_shape, layer_shape, coords)
-  base_shape<-shapes$base_shape
-  crs.info=shapes$crs.info
-  if(is.null(limits)){
-    limits<-st_bbox(base_shape)}
-  xlimits<-limits[c(1,3)]
-  ylimits<-limits[c(2,4)]
-  limits<-cbind(xlimits,ylimits)
-  colnames(limits)<-colnames(coords)
-  attr(limits,"crs.info")<-crs.info
-  return(limits)
-}
-#' @export
 get_shapes<-function(base_shape,layer_shape,coords,crs.info="+proj=longlat +datum=WGS84 +no_defs"){
   base_shape_int=F
   if(!is.null(base_shape)){

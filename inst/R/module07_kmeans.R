@@ -670,20 +670,6 @@ k_means_module$server<-function (id,vals){
     observeEvent(ignoreInit=T,input$model_or_data,{
       vals$model_or_data<-input$model_or_data
     })
-    choices_kmeans_names<-reactive({
-      req(input$data_kmeans)
-      a<-if (length(   names(vals$saved_data) > 0)) {
-        "Numeric-Attribute"
-      } else {
-        NULL
-      }
-
-      b<-   if(length(attr(vals$saved_data[[input$data_kmeans]],"som"))>0){"SOM-codebook"}else{
-
-        NULL}
-      res<-c(a, b)
-      res
-    })
     choices_kmeans<-reactive({
       req(input$data_kmeans)
       choices=c('Numeric-Attribute'="data",'SOM codebook'='som codebook')

@@ -1644,65 +1644,6 @@ cursor: move;
         # vals$cur_data<-input$over_datalist
       }
     })
-    div_create_training_errors<-reactive({
-      temp<-vals$div_down_errors_train
-      temp<-data_migrate(vals$saved_data[[input$data_divX]],temp,"newdatalist")
-      if(input$hand_save=="create") {
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-    })
-    div_create_pred<-reactive({
-      temp<-data.frame(vals$divtab_pred)
-      temp[,1]<-as.numeric( temp[,1])
-      attr(temp,"factors")<-temp
-
-      datao<-if(vals$divpred_which=="Datalist"){
-        vals$saved_data[[vals$preddiv_new]]
-      } else{ vals$saved_data[[input$data_divX]]}
-      if(input$hand_save=="create") {
-        temp<-data_migrate(datao,temp,input$newdatalist)
-        vals$saved_data[[input$newdatalist]]<-temp
-      } else{
-        temp<-data_migrate(datao,temp,input$over_datalist)
-        vals$saved_data[[input$over_datalist]]<-temp
-      }
-
-    })
-    name_save_div<-reactive({
-      bag<-1
-      name0<-paste0("div")
-      name1<-paste(name0,bag)
-      if(name1%in%names(attr(vals$saved_data[[input$data_divX]],"div"))){
-        repeat{
-          bag<-bag+1
-          name1<-paste(name0,bag)
-          if(!name1%in%names(attr(vals$saved_data[[input$data_divX]],"div"))) break
-        }}
-      paste(name0,bag)
-    })
-    name_div_train_errors<-reactive({
-      bag<-1
-      name0<-paste0("div training errors")
-      name1<-paste(name0,bag)
-      if(name1%in%names(vals$saved_data)){
-        repeat{bag<-bag+1
-        name1<-paste(name0,bag)
-        if(!name1%in%names(vals$saved_data)) break}}
-      paste(name0,bag)
-    })
-    name_div_pred<-reactive({
-      bag<-1
-      name0<-paste0("div predictions")
-      name1<-paste(name0,bag)
-      if(name1%in%names(vals$saved_data)){
-        repeat{bag<-bag+1
-        name1<-paste(name0,bag)
-        if(!name1%in%names(vals$saved_data)) break}}
-      paste(name0,bag)
-    })
     output$data_over<-renderUI({
       data_overwritte$df<-F
       choices<-c(names(vals$saved_data))

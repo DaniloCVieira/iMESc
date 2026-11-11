@@ -4795,11 +4795,6 @@ desctools_tab9$server<-function(id,vals){
       vals$bag_smw<-NULL
 
     })
-    getBP<-reactive({
-      pw_in<-get_breaks_from_factor()
-      breaks=pw_in$breaks
-      breaks
-    })
     segrda_summary<-reactive({
       req(input$disegrda_sp_summ)
       res<-summary(vals$segrda_model$rda.pw)
@@ -4817,18 +4812,6 @@ desctools_tab9$server<-function(id,vals){
       vals$segrda_summary<-res[,1:input$segrda_axes]
       vals$segrda_summary
 
-    })
-    savenames<-reactive({
-      switch(
-        vals$hand_save,
-        "Create factor using breakpoints from the dissimilarity profile"= {c(paste0("BP_"),nlevels(as.factor(vals$splitBP[,1])))},
-        "Save pwRDA model in"={
-          name_models<-names(attr(vals$saved_data[[input$segrda_X]],"pwRDA"))
-          newname<-paste0("pwRDA (",input$bp_column,")")
-          name_models<-make.unique(c(name_models,newname))
-          name_models<-name_models[length(name_models)]
-          name_models
-        })
     })
     save_pwRDA<-reactive({
       attr(vals$saved_data[[input$segrda_X]],"pwRDA")[[input$newdatalist]]<-vals$segrda_model
@@ -4924,13 +4907,6 @@ desctools_tab9$server<-function(id,vals){
       res<-pickerInput_fromtop(ns("over_datalist"), NULL,choices, width="350px",options=shinyWidgets::pickerOptions(liveSearch=T))
       data_overwritte$df<-T
       inline(res)
-    })
-    get_dataord<-reactive({
-      req(input$missing_reorder!="N missing")
-      data=getdata_descX()
-      dataord<-if(input$missing_reorder=="Factor"){
-        attr(data,"factors")    } else{data}
-      dataord
     })
 
     observeEvent(pwmodels(),{
@@ -5560,36 +5536,6 @@ datalist_overview<-function(data,available_models){
 
   )
 
-}
-update_inputs<-function(inputs,input,restored,session){
-  updated<-F
-  for(i in seq_along(inputs) ){
-    cur_input<-inputs[[i]]
-    cur_value<-cur_restored<-restored[[paste0("cur_",cur_input)]]
-    if(!is.null(cur_restored))
-      if(!is.null(input[[cur_input]]))
-        if(length(input[[cur_input]])==length(cur_restored))
-          if(!is.null(input[[cur_input]])){
-            if(!is.null(cur_value)){
-              if(!identical(input[[cur_input]],cur_restored)){
-                if(is.numeric(cur_value)){
-                  updated<-T
-                  updateNumericInput(session,cur_input,value=cur_value)
-                } else if(is.logical(cur_value)){
-                  updated<-T
-                  updateCheckboxInput(session,cur_input,value=cur_value)
-                } else if(is.character(cur_value)) {
-                  updated<-T
-                  updateTextInput(session,cur_input,value=cur_value)
-                }
-              }
-            }
-          }
-
-
-  }
-
-  updated
 }
 color_input<-function(id,label,selected=NULL,vals){
   pickerInput_fromtop_live(
@@ -6741,7 +6687,6 @@ desctools_tab11$server<-function(id,vals){
       req(input$y_var%in%colnames(y_table()))
       desc_scatter_vector(y_table(),input$y_var,input$y_attr)
     })
-    x_is_time<-reactive(inherits(x_vec(),c("Date","POSIXt")))
 
     # time of the observations: the temporal X, or a column of the Temporal-Attribute
     # of the X Datalist (or of the Y Datalist)

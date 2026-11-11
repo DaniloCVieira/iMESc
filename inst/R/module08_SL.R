@@ -382,14 +382,6 @@ sl_model_setup$server<-function(id,vals=NULL){
         shinyjs::toggle('yloop_page2', condition=yloop_pages()==2)
       })
 
-      yloop_vars<-reactive({
-        req(input$model_type)
-        y<-vals$saved_data[[input$data_y]]
-        factors<-attr(y,"factors")
-        if(input$model_type== 'Classification'){y<-factors}
-        yvars<-y[,input$yloop,drop=F]
-        yvars
-      })
 
       yloop_partition<-reactive({
         y<-vals$saved_data[[input$data_y]]
@@ -6191,28 +6183,6 @@ get_cm_impact<-function(predtable,var){
   dft<-table(res$pred,res$obs)
   dft
 }
-rf_oob_pred_prob <- function(forest, X) {
-
-  # Get individual predictions
-  preds = predict(forest, X, predict.all = TRUE)
-
-  # Identify OOB samples
-  oob = forest$inbag == 0
-  predind <- preds$individual
-  predind[!oob] <- NA
-
-  # Calculate class probabilities
-  class_levels <- levels(forest$y)
-  prob_matrix <- matrix(NA, nrow = nrow(X), ncol = length(class_levels))
-  colnames(prob_matrix) <- class_levels
-
-  for (i in seq_along(class_levels)) {
-    class <- class_levels[i]
-    prob_matrix[, i] <- rowMeans(predind == class, na.rm = TRUE)
-  }
-
-  return(prob_matrix)
-}
 rf_oob_pred<-function(forest, X) {
   if(is.null(forest$inbag)){
     return(predict(forest, X))
@@ -6729,10 +6699,6 @@ permutation_importance$server<-function(id,vals){
       df$var[ which( df$var%in%sig_names)]<-paste0("*",df$var[  which( df$var%in%sig_names)])
       df
     })
-    feature_data_list<-reactive({
-      df<-feature_data()
-      split(df,df$obs)
-    })
     output$feature_importance_plot<-renderUI({
 
       req(input$feat_wrap=="All")
@@ -6920,10 +6886,6 @@ permutation_importance$server<-function(id,vals){
         }),
         renderPrint(caret::confusionMatrix(dft, norm=input$feature_norm))
       )
-    })
-    getmetric<-reactive({
-      metric<-ifelse(m()$modelType=='Regression','Rsquared','Accuracy')
-      metric
     })
 
     output$feature_results<-renderUI({
@@ -8297,28 +8259,6 @@ model_results$server<-function(id,vals){
 
 
     cur_vars_feature<-reactiveVal()
-    multimp_importance<-reactive({
-      m<-rf<- model()
-      rfimp0<-rfimp<-rf_impotance2(rf,positive=!input$influence,scale=T,npic=input$nvars,only_sign=F, classes=input$xvar)
-      cur_vars_feature(unique(rfimp0$var))
-      rfimp0<-na.omit(rfimp0)
-      impdf<-rfimp<-rfimp0
-      impdf<-do.call(rbind,lapply(split(impdf,impdf$group),function(x){
-        x$var2<-paste0(x$group,"_",x$var)
-        x
-      }))
-
-      impdf$class2<-factor(reorder(impdf$group,impdf$value),levels=rf$levels)
-      impdf$var2<-reorder(impdf$var2,impdf$value)
-      vars0<-as.character(impdf$var)
-      vars2<-as.character(impdf$var2)
-      names(vars0)<-vars2
-      fill=input$feat_palette
-      p<-ggplot(impdf,aes(x=value,y=var2))+geom_bar(stat="identity",show.legend = F,fill=fill)
-
-      p<-p+facet_wrap(vars(class2),scales="free",ncol=length(m$levels)) +ylab("Variables")+xlab("Influence score")
-      p+ scale_y_discrete(labels=impdf$var,breaks=impdf$var2)
-    })
 
     output$xvar_out<-renderUI({
       if(!isTRUE(input$stack)){
@@ -11452,41 +11392,6 @@ model_predic$server<-function(id,vals){
 
 
 
-  })
-}
-get_params_unique<-function(x,ns){
-  req(nrow(x)>0)
-  lapply(1:nrow(x),function(i){
-    mg<-x$model_tag[[i]]
-    lab<-span(x$name[i],tipright(x$help[i]))
-    ui<-switch( x$class[i],
-                "logical"=checkboxInput(ns(x$name[i]),lab,as.logical(x$value[i])),
-                "numeric"=numericInput(ns(x$name[i]),lab,as.numeric(x$value[i])),
-                "char"=selectInput(ns(x$name[i]),lab,
-                                   choices=strsplit(x$choices[i],"_br_")[[1]],
-                                   selected=gsub("\\'","",x$value[i]))
-    )
-  })
-}
-get_params_expand<-function(x,ns){
-  req(nrow(x)>0)
-  lapply(1:nrow(x),function(i){
-    mg<-x$model_tag[[i]]
-    lab<-span(x$name[i],tipright(x$help[i]))
-    ui<-switch( x$class[i],
-                "logical"=selectInput(ns(x$name[i]),
-                                      lab,
-                                      as.logical(x$value[i]),
-                                      multiple = T,
-                                      selected=as.logical(x$value[i])),
-                "numeric"=textInput(ns(x$name[i]),lab,x$value[i]),
-                "char"={
-                  selectInput(ns(x$name[i]),lab,
-                              choices=strsplit(x$choices[i],"_br_")[[1]],
-                              selected=gsub("\\'","",x$value[i]),
-                              multiple = T)
-                }
-    )
   })
 }
 

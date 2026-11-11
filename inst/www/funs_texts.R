@@ -396,25 +396,66 @@ textauthors<-function(...){
 }
 #' @export
 #' @export
-Read_Shapefile <- function(shp_path) {
+# Reads a base/layer shape saved as .rda (load) or .rds (readRDS); a file that is neither (e.g. a
+# .shp or .zip) stops with a validation message (shown by the Create Datalist window)
+#' @export
+imesc_read_shape_rds<-function(path,what="shape"){
+  t<-try(silent=TRUE,{
+    e<-new.env()
+    nm<-suppressWarnings(load(path,envir=e))
+    get(nm[1],envir=e)
+  })
+  if(inherits(t,"try-error")) t<-try(readRDS(path),silent=TRUE)
+  validate(need(!inherits(t,"try-error")&&!is.null(t),
+                paste0("The ",what," file could not be read: use a .rds (or .rda) file. A shapefile (.shp) can be converted in Pre-processing > Shapefile toolbox.")))
+  t
+}
 
+# Reads a shapefile uploaded as its separate files (.shp, .dbf, .shx and optionally .prj...).
+# Returns NULL (with a notification) when it cannot be read. The name is taken from the .shp file
+# (names with more than one dot, e.g. 'basin.v2.shp', work). Without a .prj file, coordinates in
+# the longitude/latitude range are taken as WGS84; otherwise the shapefile is refused.
+Read_Shapefile <- function(shp_path) {
+  fail <- function(msg) {
+    showNotification(msg, type = "error", duration = 10)
+    NULL
+  }
   infiles <- shp_path$datapath # get the location of files
-  required <- c("\\.shp", "\\.dbf", "\\.shx")
-  val <- sapply(required, function(x) grepl(x, infiles))
-  validate(need(nrow(val) > 0, "Require at least three files: '.shp', '.dbf' and '.shx'"))
-  val <- sum(rowSums(val)) == 3
-  validate(need(val, "Require at least three files: '.shp', '.dbf' and '.shx'"))
+  names_in <- shp_path$name
+  required <- c("\\.shp$", "\\.dbf$", "\\.shx$")
+  has <- vapply(required, function(x) any(grepl(x, names_in, ignore.case = TRUE)), logical(1))
+  if (!all(has)) {
+    return(fail("Select at least the three files of the shapefile: '.shp', '.dbf' and '.shx' (and the '.prj', with the coordinate system)."))
+  }
+  shp_name <- names_in[grepl("\\.shp$", names_in, ignore.case = TRUE)]
+  if (length(shp_name) > 1) {
+    return(fail("Select the files of one shapefile only (more than one '.shp' file was selected)."))
+  }
 
   dir <- unique(dirname(infiles)) # get the directory
-  outfiles <- file.path(dir, shp_path$name) # create new path name
-  name <- strsplit(shp_path$name[1], "\\.")[[1]][1] # strip name
+  outfiles <- file.path(dir, names_in) # create new path name
 
   # Use a for loop to rename files
   for (i in seq_along(infiles)) {
     file.rename(infiles[i], outfiles[i])
   }
 
-  x <- read_sf(file.path(dir, paste0(name, ".shp"))) # read-in shapefile
+  x <- tryCatch(read_sf(file.path(dir, shp_name)), error = function(e) e) # read-in shapefile
+  if (inherits(x, "error")) {
+    return(fail(paste("The shapefile could not be read:", conditionMessage(x))))
+  }
+  if (!nrow(x)) {
+    return(fail("The shapefile has no features."))
+  }
+  if (is.na(sf::st_crs(x))) {
+    bb <- sf::st_bbox(x)
+    if (all(is.finite(bb)) && bb[["xmin"]] >= -180 && bb[["xmax"]] <= 180 && bb[["ymin"]] >= -90 && bb[["ymax"]] <= 90) {
+      sf::st_crs(x) <- 4326
+      showNotification("The shapefile has no '.prj' file: its coordinates were taken as longitude/latitude (WGS84).", type = "warning", duration = 10)
+    } else {
+      return(fail("The shapefile has no '.prj' file (coordinate system) and its coordinates are not longitude/latitude: select the '.prj' file too."))
+    }
+  }
   return(x)
 }
 

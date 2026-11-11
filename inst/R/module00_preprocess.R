@@ -1889,23 +1889,7 @@ tool1$server <- function(id, vals) {
 
         if (length(file_base()) > 0) {
 
-          t <- try({
-            get(
-              gsub(
-                " ",
-                "",
-                capture.output(
-                  load(file_base(), verbose = TRUE)
-                )[2]
-              )
-            )
-          })
-
-          if ("try-error" %in% class(t)) {
-            t <- readRDS(file_base())
-          }
-
-          t
+          imesc_read_shape_rds(file_base(), "Base-Shape")
 
         } else {
 
@@ -1924,23 +1908,7 @@ tool1$server <- function(id, vals) {
 
         if (length(file_layer()) > 0) {
 
-          t <- try({
-            get(
-              gsub(
-                " ",
-                "",
-                capture.output(
-                  load(file_layer(), verbose = TRUE)
-                )[2]
-              )
-            )
-          })
-
-          if ("try-error" %in% class(t)) {
-            t <- readRDS(file_layer())
-          }
-
-          t
+          imesc_read_shape_rds(file_layer(), "Layer-Shape")
 
         } else {
 
@@ -6629,6 +6597,7 @@ tool2_tab8$server<-function(id,vals){
     observeEvent(input$shp,ignoreInit = T,{
       req(input$shp$datapath)
       sf<-Read_Shapefile(input$shp)
+      req(sf)
       shinyjs::show('filter_crop')
       shinyjs::addClass('prepare_btn',"save_changes")
       shp_files(sf)
@@ -6645,7 +6614,11 @@ tool2_tab8$server<-function(id,vals){
       shinyjs::show('crop_shapes')
       req(shp_files())
       user_shp<-shp_files()
-      user_shp<-st_transform(user_shp,"+proj=longlat +datum=WGS84 +no_defs")
+      user_shp<-tryCatch(st_transform(user_shp,"+proj=longlat +datum=WGS84 +no_defs"),error=function(e){
+        showNotification(paste("The shapefile could not be converted to longitude/latitude:",conditionMessage(e)),type="error",duration=10)
+        NULL
+      })
+      req(user_shp)
 
 
       user_shp$shape<-"selected"
@@ -6704,9 +6677,18 @@ tool2_tab8$server<-function(id,vals){
         # geometry (s2) the edges of the rectangle are great circles, and a shape whose border lies
         # on the rectangle (e.g. a shape already clipped to a rectangle) breaks st_crop
         old_s2<-suppressMessages(sf::sf_use_s2(FALSE))
+        # invalid geometries (self-intersections...) are repaired once before giving up
         new_shape<-tryCatch(suppressMessages(sf::st_crop(new_shape, lims1)),
+                            error=function(e){
+                              tryCatch(suppressMessages(sf::st_crop(sf::st_make_valid(new_shape), lims1)),
+                                       error=function(e2){
+                                         showNotification(paste("The shape could not be cropped:",conditionMessage(e2)),type="error",duration=10)
+                                         NULL
+                                       })
+                            },
                             finally=suppressMessages(sf::sf_use_s2(old_s2)))
       })
+      req(new_shape)
 
       shape4_final(new_shape)
       shinyjs::show('add_shape_btn_out')

@@ -1324,8 +1324,9 @@ output$module_sl_server<-renderUI({
 
   observe({
     req(grepl("iMESc-Desktop",getwd()))
-    req(check_version())
+    # one request (FALSE when offline or when there is no newer release)
     result<-check_version()
+    req(isTRUE(result))
     current_version<-attr(result,"current")
     latest_version<-attr(result,"latest")
     showModal(

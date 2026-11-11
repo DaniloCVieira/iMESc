@@ -14,6 +14,34 @@ if(dir.exists("inst")){
   root=""
 }
 
+# raster (attached by the app) masks these base functions with S4 generics. A req()/validate()
+# raised while the generic evaluates its argument to select the method becomes a real error
+# ("error in evaluating the argument 'x' in selecting a method for function 'unique'"), which closes
+# the session inside an observer, e.g. unique(my_reactive()) when my_reactive() calls req().
+# These versions evaluate the argument first and then call the function found on the search path
+# (raster's generic when raster is attached, base otherwise), so req() stays silent and raster
+# objects keep their methods. Functions that name results after the argument expression
+# (as.data.frame, plot, ...) are not included.
+imesc_s4_safe<-function(name,arg="x"){
+  f<-function() NULL
+  formals(f)<-c(stats::setNames(alist(a=),arg),alist(...=))
+  body(f)<-bquote({
+    .(as.name(arg))
+    get(.(name),envir=parent.env(globalenv()),mode="function")(.(as.name(arg)),...)
+  })
+  environment(f)<-baseenv()
+  f
+}
+local({
+  for(n in c("unique","nrow","ncol","%in%","levels","is.factor","as.factor","match","mean","head","tail",
+             "split","cut","t","quantile","as.matrix","print")){
+    assign(n,imesc_s4_safe(n),envir=globalenv())
+  }
+  for(n in c("summary","predict")){
+    assign(n,imesc_s4_safe(n,"object"),envir=globalenv())
+  }
+})
+
 
 
 

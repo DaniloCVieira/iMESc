@@ -2410,7 +2410,7 @@ elbow_smw_module$server<-function(id, vals, getdata_hc, getmodel_hc, model_or_da
     observeEvent(input$download_plot2,ignoreInit = T,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=getsmw_plot()
+      generic=imesc_plot_or_null(getsmw_plot())
 
       datalist_name=attr(getdata_hc(),'datalist')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Scree plot", name_c="screeplot",datalist_name=datalist_name)
@@ -3311,7 +3311,7 @@ cut_dendrogram_module$server<-function(input, output, session, vals, getdata_hc,
   observeEvent(ignoreInit = T,input$download_plot3,{
     vals$hand_plot<-"generic_gg"
     module_ui_figs("downfigs")
-    generic=do.call(gg_dendrogram,hcut_argsplot())
+    generic=imesc_plot_or_null(do.call(gg_dendrogram,hcut_argsplot()))
     name_c=paste0("Dendrogram_",input$customKdata,"groups")
     datalist_name=attr(getdata_hc(),'datalist')
     mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message=name_c, name_c=name_c,datalist_name=datalist_name)
@@ -4101,7 +4101,7 @@ codebook_clusters_module$server<-function(input, output, session, vals, getdata_
   observeEvent(ignoreInit = T,input$download_plot4,{
     vals$hand_plot<-"generic_gg"
     module_ui_figs("downfigs")
-    generic=hcplot4()
+    generic=imesc_plot_or_null(hcplot4())
     datalist_name=attr(getdata_hc(),'datalist')
     cluster_count_value<-cluster_count()
     if(is.null(cluster_count_value)||length(cluster_count_value)==0||is.na(cluster_count_value)){
@@ -4395,7 +4395,8 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
       save_hc_clusters_to_factor(temp,input$hc_newname)
     } else{
       data_o<-vals$saved_data[[input$data_hc]]
-      facold<-attr(data_o,"factors")[rownames(data_o),]
+      facold<-attr(data_o,"factors")[rownames(data_o),,drop=FALSE]
+      req(input$hc_over%in%colnames(facold))
       facold[,input$hc_over]<-temp[rownames(data_o)]
       attr(vals$saved_data[[input$data_hc]],"factors")<-facold
     }
@@ -4572,7 +4573,7 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     vals$hcut_labels<-input$hcut_labels
   })
   observeEvent(ignoreInit = T,input$savemapcode,{
-    if(input$savemapcode %% 2) {
+    if(isTRUE(as.numeric(input$savemapcode)>0)) {
       vals$hand_save<-"Create Datalist with new mapping"
       vals$hand_save3<-NULL
       vals$hand_save4<-NULL
@@ -4585,7 +4586,7 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     if(is.null(vals$fixname)){
       vals$fixname<-F
     }
-    if(input$tools_savehc %% 2) {
+    if(isTRUE(as.numeric(input$tools_savehc)>0)) {
       vals$hand_save<-"Save Clusters"
       vals$hand_save2<-p(
         div( style="color: gray",
@@ -4612,7 +4613,7 @@ model_cluster_save_module$server<-function(input, output, session, vals, getdata
     store$open_manage(input$hc_models)
   })
   observeEvent(ignoreInit = T,input$create_codebook,{
-    if(input$create_codebook %% 2) {
+    if(isTRUE(as.numeric(input$create_codebook)>0)) {
       vals$hand_save<-"create_codebook"
       vals$hand_save2<-"Create Datalist with the Codebook and HC class"
       vals$hand_save3<-NULL
@@ -5111,6 +5112,8 @@ hc_module$server<-function(id, vals){
 
       req(input$model_or_data)
       req(input$method.hc0)
+      # an empty "Number of clusters" box (NA) stops here
+      req(isTRUE(input$customKdata>=1))
 
       args<-list(data=getdata_hc(), k= input$customKdata,hc_fun=input$hc_fun,hc_method=input$method.hc0,distance_metric=input$disthc,model_name=as.character(input$som_model_name),target=input$model_or_data,whatmap=vals$som_whatmap,use_weights=F)
 
@@ -5418,7 +5421,7 @@ hc_module$server<-function(id, vals){
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       datalist_name=attr(getdata_hc(),'datalist')
-      generic=hcplot5()
+      generic=imesc_plot_or_null(hcplot5())
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="SOM- Scree plot", name_c="screeplot",datalist_name=datalist_name)
     })
     observe({
@@ -5533,6 +5536,14 @@ hc_module$server<-function(id, vals){
         m<-getmodel_hc()
 
         k.max<-input$mapcode_loop_K
+        # K cannot reach the number of neurons (hcut needs 1 <= k < n)
+        req(isTRUE(k.max>=2))
+        n_units<-nrow(m$codes[[1]])
+        if(isTRUE(k.max>n_units-1)){
+          k.max<-n_units-1
+          showNotification(paste("K reduced to",k.max,"(the SOM has",n_units,"neurons)."),type="warning")
+        }
+        req(isTRUE(k.max>=2))
         hc_fun=input$hc_fun;hc_method=input$method.hc0
 
 

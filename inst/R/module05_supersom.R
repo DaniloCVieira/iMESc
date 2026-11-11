@@ -362,7 +362,8 @@ imesc_supersom$server<-function (id,vals ){
       layer_table<-ssom_reac()
       layers<-vals$saved_data[layer_table$Datalist]
       layers<-lapply(layers,function(x){
-        x[rownames(layers[[1]]),]
+        # drop=FALSE: a layer with a single variable must stay a table with row names
+        x[rownames(layers[[1]]),,drop=FALSE]
       })
       training_list<-lapply(layers,function(x) as.matrix(x))
       training_list
@@ -801,6 +802,14 @@ imesc_supersom$server<-function (id,vals ){
     current_som_model<-reactive({
       res<-getsom()
       req(inherits(res,"kohonen"))
+      # a model saved before its Datalist was renamed (older savepoints): its first layer is the
+      # Datalist that keeps the model
+      dl<-attr(res,"Datalist")
+      if(length(dl)&&!isTRUE(dl[1]%in%names(vals$saved_data))&&isTRUE(input$data_som%in%names(vals$saved_data))){
+        dl[1]<-input$data_som
+        attr(res,"Datalist")<-dl
+        if(length(res$data)>=1) names(res$data)[1]<-dl[1]
+      }
       if(length(res$data)==1){
         if(names(res$data)=="X"){
           names(res$data)<-attr(res,"Datalist")
@@ -1131,10 +1140,12 @@ imesc_supersom$server<-function (id,vals ){
         res<-if(!nrow(df)>0){
           c(L*L,L,L)
         } else{
-          topology(data, dist = input$distmethod)
+          # fails with constant columns, Inf or a single complete row: the grid panel then shows
+          # "suggested topology has been disabled" (output$showgrid)
+          try(topology(data, dist = input$distmethod),silent=TRUE)
         }
         topo.reactive(res)
-        if(isTRUE(input$sugtopo)){
+        if(isTRUE(input$sugtopo)&&!inherits(res,"try-error")){
           dim<-as.numeric(res[c(2,3)])
 
           updateNumericInput(session,"xdim",value= dim[1])
@@ -1142,6 +1153,22 @@ imesc_supersom$server<-function (id,vals ){
         }
 
       })
+      # grid dimensions must be whole numbers >= 1 and give no more units than training observations
+      som_grid_ok<-function(n_train){
+        xdim<-input$xdim
+        ydim<-input$ydim
+        ok<-is.numeric(xdim)&&is.numeric(ydim)&&length(xdim)==1&&length(ydim)==1&&
+          isTRUE(xdim>=1)&&isTRUE(ydim>=1)&&isTRUE(xdim==round(xdim))&&isTRUE(ydim==round(ydim))
+        if(!ok){
+          showNotification("xdim and ydim must be whole numbers of 1 or more.",type="error",duration=10)
+          return(FALSE)
+        }
+        if(!isTRUE(xdim*ydim<=n_train)){
+          showNotification(paste0("The number of map units (",xdim*ydim,") must be less than or equal to the number of training observations (",n_train,"). Please decrease 'xdim' and/or 'ydim'."),type="error",duration=10)
+          return(FALSE)
+        }
+        TRUE
+      }
       observeEvent(list(input$xdim, input$ydim), {
         req(input$xdim)
         req(input$ydim)
@@ -1245,6 +1272,10 @@ imesc_supersom$server<-function (id,vals ){
         layer_table<-ssom_reac()
         weights<-layer_table$Weights
         distances<-layer_table$Distances
+        if(anyNA(weights)||!isTRUE(sum(weights)>0)||!isTRUE(input$rlen>0)||anyNA(c(input$a1,input$a2,input$maxna))){
+          showNotification("Check the training parameters: layer weights (at least one above 0), rlen, alpha and maxNA.fraction must be filled in.",type="error",duration=10)
+          return()
+        }
         data1<-vals$saved_data[layer_table$Datalist][[1]]
         if(isTRUE(input$usepartition)){
           #req(input$data_somY)
@@ -1266,6 +1297,7 @@ imesc_supersom$server<-function (id,vals ){
           test_list<-"None"
         }
 
+        if(!som_grid_ok(nrow(training_list[[1]]))) return()
         ncodes<-input$xdim*input$ydim
         seed<-input$seed
         seed<-input$seed
@@ -1306,7 +1338,11 @@ imesc_supersom$server<-function (id,vals ){
               init=init
             )
 
-            m<-do.call(supersom,args)
+            m<-try(do.call(supersom,args),silent=TRUE)
+            if(inherits(m,"try-error")){
+              showNotification(paste("SOM training failed:",conditionMessage(attr(m,"condition"))),type="error",duration=10)
+            }
+            req(!inherits(m,"try-error"))
             attr(m,'mode')<-m$mode<-input$mode
             m$seed<-seed
             m$normalizeDataLayers<-input$normalizeDataLayers
@@ -1341,6 +1377,11 @@ imesc_supersom$server<-function (id,vals ){
 
         traindat=data=data_o<-data.frame(vals$saved_data[[input$data_som]])
         traindat=data[get_partition()$train,,drop=F]
+        if(!isTRUE(input$rlen>0)||anyNA(c(input$a1,input$a2,input$maxna))){
+          showNotification("Check the training parameters: rlen, alpha and maxNA.fraction must be filled in.",type="error",duration=10)
+          return()
+        }
+        if(!som_grid_ok(nrow(traindat))) return()
 
 
         withProgress(
@@ -1385,6 +1426,7 @@ imesc_supersom$server<-function (id,vals ){
             )
 
             if (!inherits(m,"kohonen"))        {
+              showNotification(paste("SOM training failed:",m[[1]],"Check the training parameters (e.g. decrease alpha, the learning rate)."),type="error",duration=10)
               validate(paste(m[[1]], "Please decrease your alpha (learning rate)"))
             }
             attr(m,'mode')<-m$mode<-input$mode
@@ -2004,13 +2046,19 @@ table_results_tab1$server<-function(id,vals){
 
     savebmu<-reactive({
       temp<-current_som_model()
-
+      req(isTRUE(data_x()%in%names(vals$saved_data)))
       bmu<-temp$unit.classif
       names(bmu)<-rownames(temp$data[[1]])
-      bmu<-data.frame(bmu=as.factor(bmu))
       factors<-attr(vals$saved_data[[data_x()]],"factors")
-      factors<-data.frame(factors,bmu)
+      req(is.data.frame(factors))
+      if(is.null(names(bmu))&&length(bmu)==nrow(factors)) names(bmu)<-rownames(factors)
+      # matched by observation ID: with a partition the model has only the training rows (test rows get NA)
+      bmu<-factor(bmu[rownames(factors)],levels=sort(unique(bmu)))
+      newcol<-make.unique(c(colnames(factors),"bmu"))[ncol(factors)+1]
+      factors[[newcol]]<-bmu
       attr(vals$saved_data[[data_x()]],"factors")<-factors
+      showNotification(paste0("BMUs saved as '",newcol,"' in the Factor-Attribute of '",data_x(),"'",
+                              if(anyNA(bmu)) " (observations not used in the training get NA)" else ""),type="message")
     })
 
     observeEvent(ignoreInit = T,input$down_pcodes_results,{
@@ -2146,7 +2194,7 @@ table_results_tab2$server<-function(id,vals){
 
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=g_pchanges()
+      generic=imesc_plot_or_null(g_pchanges())
       datalist_name=attr(current_som_model(),'model_name')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Changes plot", name_c="changes",datalist_name=datalist_name)
     })
@@ -2171,7 +2219,7 @@ table_results_tab2$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=g_pcounts()
+      generic=imesc_plot_or_null(g_pcounts())
       datalist_name=attr(current_som_model(),'model_name')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Counting plot", name_c="counting",datalist_name=datalist_name)
     })
@@ -2958,7 +3006,7 @@ table_results_tab4$server<-function(id,vals){
       req(get_plot_animation2())
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=get_plot_animation2()
+      generic=imesc_plot_or_null(get_plot_animation2())
       datalist_name=attr(current_som_model(),'model_name')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Grid-Weighted Neuron Plot", name_c="grid_weig_neuronplot",datalist_name=datalist_name)
     })
@@ -4050,7 +4098,15 @@ table_predict_som$server<-function(id,vals){
         whatmap<-which(newdata_names!="None")
       }
 
-      pred<-predict(m,newdata,whatmap=whatmap)
+      # e.g. new data without some of the variables of the model, or layers with different numbers of rows
+      pred<-try(predict(m,newdata,whatmap=whatmap),silent=TRUE)
+      if(inherits(pred,"try-error")){
+        if(!inherits(attr(pred,"condition"),"shiny.silent.error")){
+          showNotification(paste("Prediction failed:",conditionMessage(attr(pred,"condition")),
+                                 "The new data must have the same variables as the data used to train the SOM."),type="error",duration=10)
+        }
+        return()
+      }
       get_sompred(pred)
       shinyjs::removeClass('run_predSOM_btn',"save_changes")
     })
@@ -4117,7 +4173,7 @@ table_predict_som$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=getbmu_plot()
+      generic=imesc_plot_or_null(getbmu_plot())
       datalist_name=attr(current_som_model(),'model_name')
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="BMU plot - predictions", name_c=name_c,datalist_name=datalist_name)
     })

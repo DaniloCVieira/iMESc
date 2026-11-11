@@ -1,3 +1,28 @@
+# Used by the north arrow stored in inst/www/GeomNorthArrow.rds (do not remove)
+#' @export
+true_north<-function (x, y, crs, delta_crs = 0.1, delta_lat = 0.1)
+{
+  pt_crs <- sf::st_sfc(sf::st_point(c(x, y)), crs = crs)
+  pt_crs_coords <- as.data.frame(sf::st_coordinates(pt_crs))
+  pt_latlon <- sf::st_transform(pt_crs, crs = 4326)
+  pt_latlon_coords <- as.data.frame(sf::st_coordinates(pt_latlon))
+  pt_grid_north <- sf::st_sfc(sf::st_point(c(x, y + delta_crs)),
+                              crs = crs)
+  pt_grid_north_coords <- as.data.frame(sf::st_coordinates(pt_grid_north))
+  pt_true_north <- sf::st_transform(sf::st_sfc(sf::st_point(c(pt_latlon_coords$X,
+                                                              pt_latlon_coords$Y + delta_lat)), crs = 4326), crs = crs)
+  pt_true_north_coords <- as.data.frame(sf::st_coordinates(pt_true_north))
+  a <- c(x = pt_true_north_coords$X - pt_crs_coords$X, y = pt_true_north_coords$Y -
+           pt_crs_coords$Y)
+  b <- c(x = pt_grid_north_coords$X - pt_crs_coords$X, y = pt_grid_north_coords$Y -
+           pt_crs_coords$Y)
+  theta <- acos(sum(a * b)/(sqrt(sum(a * a)) * sqrt(sum(b *
+                                                          b))))
+  cross_product <- a[1] * b[2] - a[2] * b[1]
+  rot_degrees <- theta * 180/pi * sign(cross_product)[1]
+  rot_degrees
+}
+
 
 
 

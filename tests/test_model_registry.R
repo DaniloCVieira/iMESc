@@ -58,6 +58,27 @@ shiny::testServer(tool2_tab6$server,args=list(vals=vals),{
   check("rename tool refuses duplicated names (nothing renamed)","SOM2"%in%names(attr(vals$saved_data$old,"som")))
 })
 
+# Datalists renamed: the models that point to a Datalist by name follow the new name
+ms<-structure(list(data=list(envi=matrix(1:3),nema=matrix(3:1)),codes=list(matrix(1),matrix(1))),class="kohonen")
+attr(ms,"Datalist")<-c("envi","nema")
+sl<-list(m=structure(list(method="rf"),class="train")); attr(sl$m,"Datalist")<-"envi"
+legacy<-list(structure(list(method="svmRadial"),class="train")); attr(legacy[[1]],"Datalist")<-"envi"
+envi<-data.frame(a=1:3); attr(envi,"som")<-list(S=ms); attr(envi,"rf")<-list(R=sl); attr(envi,"svm")<-list(V=legacy)
+nema<-data.frame(b=1:3)
+sd<-imesc_models_follow_rename(list(envi=envi,nema=nema),c("envi","nema"),c("envi2","nema"))
+check("Datalist renamed: SOM layers follow the new name",
+      identical(attr(attr(sd$envi,"som")$S,"Datalist"),c("envi2","nema"))&&identical(names(attr(sd$envi,"som")$S$data),c("envi2","nema")))
+check("Datalist renamed: supervised models (wrapped and legacy) follow the new name",
+      identical(attr(attr(sd$envi,"rf")$R$m,"Datalist"),"envi2")&&identical(attr(attr(sd$envi,"svm")$V[[1]],"Datalist"),"envi2"))
+check("Datalist renamed: nothing changes when no name changed",identical(imesc_models_follow_rename(list(envi=envi),"envi","envi"),list(envi=envi)))
+vals<-shiny::reactiveValues(saved_data=list(envi=envi,nema=nema))
+shiny::testServer(tool2_tab1$server,args=list(vals=vals),{
+  session$setInputs(newname_datalist_1="envi_ren",newname_datalist_2="nema")
+  session$setInputs(run_rename=1)
+  check("rename Datalists tool: the SOM of the renamed Datalist points to the new name",
+        identical(names(vals$saved_data),c("envi_ren","nema"))&&identical(attr(attr(vals$saved_data$envi_ren,"som")$S,"Datalist"),c("envi_ren","nema")))
+})
+
 # Datalist overview of the old Datalist: unsaved placeholders are not counted
 ov<-paste(as.character(datalist_overview(dl,available_models=SL_models$models)),collapse=" ")
 check("overview counts the saved SOMs only",grepl("som \\(models:2\\)",ov))
@@ -82,6 +103,24 @@ shiny::testServer(k_means_module$server,args=list(vals=vals),{
   session$setInputs(kmeans_models="KM3",trash_kmeans=1)
   session$setInputs(`model_store-delete_pick`="KM3",`model_store-confirm_delete`=1)
   check("K-means: deleted (type removed when empty)",is.null(attr(vals$saved_data$envi,"kmeans")))
+})
+
+# K-means on a SOM codebook: each observation gets the cluster of its BMU (unit)
+d<-araca_data()
+set.seed(1)
+msom<-kohonen::som(scale(as.matrix(d$envi)),grid=kohonen::somgrid(5,5,"hexagonal"))
+names(msom$unit.classif)<-rownames(d$envi)
+envi<-d$envi
+attr(envi,"som")<-list(S=msom)
+vals<-shiny::reactiveValues(saved_data=list(envi=envi),cur_data="envi",newcolhabs=list(turbo=viridis::turbo))
+shiny::testServer(k_means_module$server,args=list(vals=vals),{
+  session$setInputs(data_kmeans="envi",model_or_data="som codebook",som_kmeans="S",km_centers=5,km_itermax=10,km_nstart=1,kmeans_seed=1,km_alg="Hartigan-Wong")
+  session$setInputs(kmeans_run=1)
+  session$setInputs(kmeans_models="new kmeans (unsaved)")
+  units<-attr(vals$saved_data$envi,"kmeans")[["new kmeans (unsaved)"]][[1]][,1]
+  obs<-getnewclass()
+  check("K-means on a SOM codebook: class of each observation = class of its BMU",
+        length(units)==25&&identical(as.character(obs),as.character(units[msom$unit.classif]))&&identical(names(obs),rownames(d$envi)))
 })
 
 # SOM module: save the unsaved SOM (create and replace) and delete models

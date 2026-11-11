@@ -573,7 +573,7 @@ desctools_timeattr$server<-function(id, vals, data){
 
     observeEvent(ignoreInit=T,input$downp_timeattr,{
       vals$hand_plot<-"generic_gg"
-      generic<-time_plot()
+      generic<-imesc_plot_or_null(time_plot())
       module_ui_figs("downfigs")
       callModule(
         module_server_figs,
@@ -1370,8 +1370,21 @@ desctools_tab2$server<-function(id,vals){
       shinyjs::reset("side_boxplot")
     })
     observeEvent(input$run_boxplot,{
+      # empty boxes of the plot options (alpha, base size, label angles...)
+      num<-list(Lighten=input$box_alpha,"Base size"=input$box_base_size,"x text angle"=input$box_xlab_rotate,"y text angle"=input$box_ylab_rotate)
+      empty<-names(num)[vapply(num,function(x) length(x)>0&&!isTRUE(is.finite(as.numeric(x[1]))),logical(1))]
+      if(length(empty)){
+        showNotification(paste("Fill in:",paste(empty,collapse=", ")),type="warning")
+        return()
+      }
       args<-args_boxplot()
-      vals$pbox_plot<-do.call(ggbox,args)
+      p<-tryCatch(do.call(ggbox,args),error=function(e){
+        if(inherits(e,"shiny.silent.error")) stop(e)
+        showNotification(paste("The boxplot could not be created:",conditionMessage(e)),type="error",duration=8)
+        NULL
+      })
+      req(p)
+      vals$pbox_plot<-p
       runval$box<-"btn_nice"
     })
 
@@ -1773,7 +1786,7 @@ desctools_tab4$server<-function(id,vals){
 
     observeEvent(ignoreInit = T,input$fm_downplot4,{
       vals$hand_plot<-"generic_ggmatrix"
-      generic=get_ggpair()
+      generic=imesc_plot_or_null(get_ggpair())
       message<-name_c<-"Pairs-plot"
       module_ui_figs("downfigs")
       mod_downcenter<-callModule(module_server_figs, "downfigs",  vals=vals,message=message, name_c=name_c,generic=generic,datalist_name=attr(getdata_descX(),"datalist"))
@@ -2258,7 +2271,7 @@ desctools_tab5$server<-function(id,vals){
         return()
       } else if(input$corr_engenier=="ggcorrplot"){
         vals$hand_plot<-"generic_gg"
-        generic=ggplot_corrplot()
+        generic=imesc_plot_or_null(ggplot_corrplot())
         message<-"ggcorrplot"
         name_c<-'ggcorrplot'
         datalist_name=attr(getdata_descX(),"datalist")
@@ -2778,7 +2791,7 @@ desctools_tab6$server<-function(id,vals){
 
     observeEvent(ignoreInit = T,input$mds_downp,{
       vals$hand_plot<-"generic_gg"
-      generic=plot_mds()
+      generic=imesc_plot_or_null(plot_mds())
       message<-"MDS"
       name_c<-paste0("MDS-",input$mds_distance)
       datalist_name=attr(getdata_descX(),"datalist")
@@ -3114,6 +3127,7 @@ desctools_tab7$server<-function(id,vals){
       req(length(input$pca_show_intercept)>0)
       model<-pca_model()
       req(length(model)>0)
+      validate(need(identical(rownames(model$x),rownames(getdata_descX())),"Click RUN to compute the PCA of the selected Datalist."))
       args<-list(
         model=model,
         points_factor=pca_points_factor(),
@@ -3216,7 +3230,8 @@ desctools_tab7$server<-function(id,vals){
 
 
     observeEvent(getdata_descX(),{
-      req(!is.null(get_plot_pca()))
+      # only flags the RUN button: the plot of the previous model is not rebuilt here
+      req(!is.null(pca_model()))
       runval$pca<-"save_changes_nice"
     })
 
@@ -3235,7 +3250,7 @@ desctools_tab7$server<-function(id,vals){
 
     observeEvent(ignoreInit = T,input$pca_downp,{
       vals$hand_plot<-"generic_gg"
-      generic=get_plot_pca()
+      generic=imesc_plot_or_null(get_plot_pca())
       message<-name_c<-"PCA"
       datalist_name=attr(getdata_descX(),"datalist")
       module_ui_figs("downfigs")
@@ -4637,8 +4652,16 @@ desctools_tab9$server<-function(id,vals){
     get_breaks_from_factor<-reactive({
       x<-vals$saved_data[[input$segrda_X]]
       y<-vals$saved_data[[input$segrda_Y]]
+      req(input$bp_column%in%colnames(attr(x,"factors")))
+      # X and Y matched by observation ID (Y may be a subset or in another order); observations
+      # without a class are left out
+      fac<-attr(x,"factors")[rownames(x),input$bp_column]
+      ids<-rownames(x)[rownames(x)%in%rownames(y)&!is.na(fac)]
+      validate(need(length(ids)>2,"X and Y need observations in common (same IDs) with a class in the chosen factor."))
       # classes without observations would hide a break (codes jumping by 2)
-      bp<-droplevels(as.factor(attr(x,"factors")[,input$bp_column]))
+      bp<-droplevels(as.factor(attr(x,"factors")[ids,input$bp_column]))
+      x<-x[ids,,drop=F]
+      y<-y[ids,,drop=F]
       xord<-x[order(as.numeric(bp)),,drop=F]
       yord<-y[order(as.numeric(bp)),,drop=F]
       breaks<-bp[order(as.numeric(bp))]
@@ -4771,8 +4794,14 @@ desctools_tab9$server<-function(id,vals){
       y<-na.omit(as.matrix(vals$saved_data[[input$segrda_Y]][rownames(x),,drop=F]))
       colnames(y)<-colnames(vals$saved_data[[input$segrda_Y]])
       x<-na.omit(x[rownames(y),,drop=F])
+      # observations complete in both Datalists
+      ids<-intersect(rownames(x),rownames(y))
+      validate(need(length(ids)>2,"Too few observations without missing values in both Datalists."))
+      x<-x[ids,,drop=F]
+      y<-y[ids,,drop=F]
       if(isTRUE(input$segrda_ord)){
-        sim1o<-segRDA::OrdData(x=y,y=x, axis=input$axis_ord_segrda,scale=input$segrda_scale)} else{
+        sim1o<-try(segRDA::OrdData(x=y,y=x, axis=input$axis_ord_segrda,scale=input$segrda_scale),silent=TRUE)
+        validate(need(!inherits(sim1o,"try-error"),paste("The ordination failed:",sim1o[1])))} else{
           sim1o<-list()
           sim1o$xo<-y
           sim1o$yo<-x
@@ -4984,7 +5013,7 @@ desctools_tab9$server<-function(id,vals){
       req(windowpoolplot())
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=windowpoolplot()
+      generic=imesc_plot_or_null(windowpoolplot())
 
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Window size effect plot", name_c="winsize_plot",  datalist_name=attr(getdata_descX(),"datalist"))
     })
@@ -5105,11 +5134,13 @@ desctools_tab9$server<-function(id,vals){
       xo<-sim1o$xo ## ordered explanatory matrix.
       yo<-sim1o$yo ## ordered community matrix (untransformed)
       y=yo;ws=vals$window_pool; dist=input$smw_dist;rand=input$smw_rand;n.rand=input$smw_nrand
-      if (n.rand < 2) {
-        stop("number of randomizations not alowed")
+      if (!isTRUE(n.rand >= 2)) {
+        showNotification("The number of randomizations must be 2 or more.",type="error")
+        return()
       }
       if (any(ws%%2 == 1)) {
-        stop("all Window sizes must be enven")
+        showNotification("All window sizes must be even.",type="error")
+        return()
       }
       rand<-match.arg(rand, c("shift", "plot"))
       argg<-c(as.list(environment()), list())
@@ -5235,6 +5266,10 @@ desctools_tab9$server<-function(id,vals){
     observeEvent(input$run_pwRDA,{
       if(length(segrda_xy()$block)) return(NULL)
       validate(need(length(vals$saved_data)>1, "This functionality requires at least two datalist as explanatory and response data."))
+      if(!isTRUE(input$pw_nrand>=1)){
+        showNotification("n.rand must be 1 or more.",type="warning")
+        return(NULL)
+      }
       vals$bag_pw<-T
       pw_in<-get_breaks_from_factor()
       breaks=pw_in$breaks
@@ -5244,9 +5279,16 @@ desctools_tab9$server<-function(id,vals){
 
       model=suppressMessages(
         try(
-          pwRDA2(sim1o$xo,sim1o$yo , BPs=breaks,n.rand = input$pw_nrand)
+          pwRDA2(sim1o$xo,sim1o$yo , BPs=breaks,n.rand = input$pw_nrand),silent=TRUE
         )
       )
+      # a failed run is not stored as a model
+      if(inherits(model,"try-error")){
+        if(!inherits(attr(model,"condition"),"shiny.silent.error")){
+          showNotification(paste("pwRDA failed:",conditionMessage(attr(model,"condition"))),type="error",duration=10)
+        }
+        return(NULL)
+      }
       if(is.null(attr(vals$saved_data[[input$segrda_X]],"pwRDA"))){
         attr(vals$saved_data[[input$segrda_X]],"pwRDA")<-list()
       }
@@ -5329,7 +5371,7 @@ desctools_tab9$server<-function(id,vals){
       req(matrixplot())
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=matrixplot()
+      generic=imesc_plot_or_null(matrixplot())
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Matrix plot", name_c="matrixplot",  datalist_name=attr(getdata_descX(),"datalist"))
     })
     observeEvent(input$rev_segrda,{
@@ -5401,7 +5443,9 @@ desctools_tab9$server<-function(id,vals){
     observe({
       req(input$pwRDA_models)
       names(attr(vals$saved_data[[input$segrda_X]],"pwRDA"))
-      vals$segrda_model<-attr(vals$saved_data[[input$segrda_X]],"pwRDA")[[input$pwRDA_models]]
+      m<-attr(vals$saved_data[[input$segrda_X]],"pwRDA")[[input$pwRDA_models]]
+      # a failed run stored by older versions (try-error) is not a model
+      vals$segrda_model<-if(is.list(m)) m else NULL
     })
 
   })

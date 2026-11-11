@@ -783,7 +783,7 @@ databank_module$server <- function(id, vals) {
 
     observeEvent(ignoreInit = TRUE, input$download_plot, {
       vals$hand_plot <- "generic_gg"
-      generic <- plot_shape()
+      generic <- imesc_plot_or_null(plot_shape())
       message <- name_c <- "Shape"
       module_ui_figs("downfigs")
       datalist_name <- attr(getdata_bank(), "datalist")
@@ -845,9 +845,14 @@ databank_module$server <- function(id, vals) {
     observeEvent(ignoreInit = TRUE, input$DT_data_cell_edit, {
       row <- input$DT_data_cell_edit$row
       clmn <- input$DT_data_cell_edit$col
+      # column 0 holds the observation IDs (row names)
+      if (!isTRUE(clmn > 0)) {
+        showNotification("Observation IDs cannot be edited in the table.", type = "warning")
+        return()
+      }
       value <- if (input$DT_data_cell_edit$value == "") NA else as.numeric(input$DT_data_cell_edit$value)
 
-      if (ncol(vals$saved_data[[input$data_bank]]) > input$col_interval) {
+      if (isTRUE(ncol(vals$saved_data[[input$data_bank]]) > input$col_interval)) {
         vals$saved_data[[input$data_bank]][colnames(get_data_split())][row, clmn] <- value
       } else {
         vals$saved_data[[input$data_bank]][row, clmn] <- value
@@ -859,6 +864,11 @@ databank_module$server <- function(id, vals) {
       row <- input$DT_factors_cell_edit$row
       clmn <- input$DT_factors_cell_edit$col
       value <- input$DT_factors_cell_edit$value
+      # column 0 holds the observation IDs (row names)
+      if (!isTRUE(clmn > 0)) {
+        showNotification("Observation IDs cannot be edited in the table.", type = "warning")
+        return()
+      }
 
       if (!value %in% levels(factors[, clmn])) {
         levels(factors[, clmn]) <- c(levels(factors[, clmn]), value)
@@ -888,7 +898,7 @@ databank_module$server <- function(id, vals) {
     observeEvent(ignoreInit = TRUE, input$delete_coords_yes, {
       attr(vals$saved_data[[input$data_bank]], "coords") <- NULL
       removeModal()
-      updateRadioGroupButtons(session, "view_datalist", selected = "coords")
+      updateRadioGroupButtons(session, "view_datalist", selected = "tab3")
     })
 
     observeEvent(ignoreInit = TRUE, input$trash_som, {
@@ -930,24 +940,37 @@ databank_module$server <- function(id, vals) {
       removeModal()
     })
 
-    observeEvent(ignoreInit = TRUE, input$add_base, {
-      t <- try({
-        get(gsub(" ", "", capture.output(load(input$add_base_file$datapath, verbose = TRUE))[2]))
+    # a shape saved as .rda (load) or .rds (readRDS); NULL with a message when the file is neither
+    read_shape_file <- function(path) {
+      if (is.null(path)) {
+        showNotification("Choose a shape file (.rds or .rda) first.", type = "warning")
+        return(NULL)
+      }
+      t <- try(silent = TRUE, {
+        get(gsub(" ", "", capture.output(load(path, verbose = TRUE))[2]))
       })
-      if ("try-error" %in% class(t)) t <- readRDS(input$add_base_file$datapath)
+      if (inherits(t, "try-error")) t <- try(readRDS(path), silent = TRUE)
+      if (inherits(t, "try-error") || is.null(t)) {
+        showNotification("The file could not be read as a shape: use a .rds or .rda file created by the Shapefile toolbox.", type = "error", duration = 8)
+        return(NULL)
+      }
+      t
+    }
+
+    observeEvent(ignoreInit = TRUE, input$add_base, {
+      t <- read_shape_file(input$add_base_file$datapath)
+      req(t)
 
       attr(vals$saved_data[[input$data_bank]], "base_shape") <- t
-      updateRadioGroupButtons(session, "view_datalist", selected = "extra_shape")
+      updateRadioGroupButtons(session, "view_datalist", selected = "tab5")
     })
 
     observeEvent(ignoreInit = TRUE, input$add_layer, {
-      t <- try({
-        get(gsub(" ", "", capture.output(load(input$add_layer_file$datapath, verbose = TRUE))[2]))
-      })
-      if ("try-error" %in% class(t)) t <- readRDS(input$add_layer_file$datapath)
+      t <- read_shape_file(input$add_layer_file$datapath)
+      req(t)
 
       attr(vals$saved_data[[input$data_bank]], "layer_shape") <- t
-      updateRadioGroupButtons(session, "view_datalist", selected = "extra_shape")
+      updateRadioGroupButtons(session, "view_datalist", selected = "tab5")
       t
     })
 
@@ -956,9 +979,25 @@ databank_module$server <- function(id, vals) {
     })
 
     observeEvent(ignoreInit = TRUE, input$add_coords, {
-      coords <- data.frame(data.table::fread(input$add_coords_file$datapath))
+      req(input$add_coords_file$datapath)
+      coords <- try(data.frame(data.table::fread(input$add_coords_file$datapath)), silent = TRUE)
+      coords_error <- function(msg) {
+        output$error_coords <- renderUI(div(strong(msg, style = "color: red")))
+      }
+      if (inherits(coords, "try-error") || !isTRUE(ncol(coords) >= 1) || !isTRUE(nrow(coords) > 0)) {
+        coords_error("The file could not be read as a table (.csv).")
+        return()
+      }
+      if (anyDuplicated(coords[, 1]) || anyNA(coords[, 1])) {
+        coords_error("The observation IDs (first column) must be unique and filled in.")
+        return()
+      }
       rownames(coords) <- coords[, 1]
       coords[, 1] <- NULL
+      if (ncol(coords) != 2) {
+        coords_error("Invalid Entries. The first column must contain the name of the observations. The second and third columns must contain the logitude and latitude respectively")
+        return()
+      }
 
       if (ncol(coords) != 2) {
         output$error_coords <- renderUI({
@@ -981,7 +1020,7 @@ databank_module$server <- function(id, vals) {
       req(any(rownames(coords) %in% rownames(getdata_bank())))
 
       attr(vals$saved_data[[input$data_bank]], "coords") <- na.omit(coords[rownames(getdata_bank()), ])
-      updateRadioGroupButtons(session, "view_datalist", selected = "coords")
+      updateRadioGroupButtons(session, "view_datalist", selected = "tab3")
     })
 
     observeEvent(ignoreInit = TRUE, input$delete_elayer_shape, {
@@ -996,7 +1035,7 @@ databank_module$server <- function(id, vals) {
       }
 
       removeModal()
-      updateRadioGroupButtons(session, "view_datalist", selected = "extra_shape")
+      updateRadioGroupButtons(session, "view_datalist", selected = "tab5")
     })
 
     observeEvent(ignoreInit = TRUE, input$ddcogs1_pick, {

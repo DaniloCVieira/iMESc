@@ -26,6 +26,26 @@ module_ui_figs<- function(id){
   ns<-NS(id)
   uiOutput(ns("go"))
 }
+# builds the figure to download: a figure that fails shows a notification and gives NULL instead
+# of closing the session (a req() inside the figure stays silent)
+#' @export
+imesc_plot_or_null<-function(x){
+  tryCatch(x,error=function(e){
+    if(inherits(e,"shiny.silent.error")) stop(e)
+    showNotification(paste("The figure could not be created:",conditionMessage(e)),type="error")
+    NULL
+  })
+}
+
+# the same for a computation started by a button (inside an observer): an error becomes a
+# notification and NULL instead of closing the session (req()/validate() stay silent)
+imesc_run_or_null<-function(x,what="The analysis"){
+  tryCatch(x,error=function(e){
+    if(inherits(e,"shiny.silent.error")) stop(e)
+    showNotification(paste(what,"failed:",conditionMessage(e)),type="error",duration=10)
+    NULL
+  })
+}
 
 
 
@@ -39,6 +59,8 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     name_c<-vals$hand_plot
   }
   if(vals$hand_plot%in%c("generic_gg","generic_replay")){
+    # the figure may be built only here (lazy argument)
+    generic<-imesc_plot_or_null(generic)
     req(generic)
   }
 

@@ -1785,6 +1785,12 @@ tool1$server <- function(id, vals) {
 
         validate(
           need(
+            !anyNA(data[, 1]) && all(nzchar(trimws(as.character(data[, 1])))),
+            "Empty values not allowed in the first column (observation IDs)."
+          )
+        )
+        validate(
+          need(
             !any(duplicated(data[, 1])),
             "Duplicate values not allowed in the first column (as they will be used as observation IDs)."
           )
@@ -2300,7 +2306,15 @@ tool1$server <- function(id, vals) {
           req(input$data_name != "")
         }
 
-        d1 <- create_current_datalist()
+        # problems found in the files (empty IDs, no data...) are shown to the user
+        d1 <- tryCatch(create_current_datalist(), error = function(e) {
+          msg <- conditionMessage(e)
+          if (!inherits(e, "shiny.silent.error") || nzchar(msg)) {
+            showNotification(if (nzchar(msg)) msg else "The files could not be read.", type = "error", duration = 10)
+          }
+          NULL
+        })
+        req(d1)
 
         getdatalist(d1)
 
@@ -2787,6 +2801,8 @@ tool2_tab1$server <- function(id, vals) {
         ord <- seq_along(saved_data)
       }
 
+      # models that refer to a Datalist by name follow the new names
+      saved_data <- imesc_models_follow_rename(saved_data, old_names, new_names)
       names(saved_data) <- new_names
       vals$saved_data <- saved_data[ord]
 
@@ -5132,7 +5148,12 @@ tool2_tab4$server <- function(id, vals) {
         req(input$sheet)
       }
 
-      data <- read_replace_file()
+      data <- tryCatch(read_replace_file(), error = function(e) {
+        msg <- conditionMessage(e)
+        if (nzchar(msg)) showNotification(msg, type = "error", duration = 10)
+        NULL
+      })
+      req(data)
 
       if (input$replace_attr == "Coords") {
 
@@ -5927,6 +5948,18 @@ tool2_tab5$server<-function(id,vals){
     observeEvent(ignoreInit = T,input$editdat_go,{
 
       newdf<-attr(delcol_values$tab,'data')
+      req(is.data.frame(newdf))
+      req(isTRUE(input$editdata%in%names(vals$saved_data)))
+      # column names must be filled in and unique (they are used to pick the variables)
+      nm<-colnames(newdf)
+      if(anyNA(nm)||any(!nzchar(trimws(nm)))){
+        showNotification("Column names cannot be empty.",type="error")
+        return()
+      }
+      if(anyDuplicated(nm)){
+        showNotification(paste0("Duplicated column names: ",paste(unique(nm[duplicated(nm)]),collapse=", "),"."),type="error")
+        return()
+      }
       if(input$editattr=="Factors"){
         attr(vals$saved_data[[input$editdata]],"factors")<-newdf
       } else{
@@ -8247,6 +8280,8 @@ tool2_tab10$server<-function(id,vals){
     })
 
     data_x<-reactive({
+      # the picker may be empty (toolbar reset, Datalist deleted)
+      req(isTRUE(input$data_x%in%names(vals$saved_data)))
       vals$saved_data[[input$data_x]]
     })
 
@@ -9215,7 +9250,11 @@ tool2_tab11$server<-function(id,vals){
       vals$exit_tool11<-input$exit_tool11
     })
 
-    data_x<-reactive(vals$saved_data[[input$data_x]])
+    # the picker may be empty (toolbar reset, Datalist deleted)
+    data_x<-reactive({
+      req(isTRUE(input$data_x%in%names(vals$saved_data)))
+      vals$saved_data[[input$data_x]]
+    })
 
     observeEvent(vals$saved_data,{
       updatePickerInput(session,'data_x',choices=names(vals$saved_data),selected=vals$cur_data)
@@ -10697,13 +10736,16 @@ tool2_tab14$server <- function(id, vals) {
 
       req(input$tree_gen)
 
-      selall <- sapply(input$tree_gen, function(x) {
+      # lapply (not sapply): with one Datalist, or the same number of attributes in all of them,
+      # sapply returns a vector/matrix and do.call(rbind, ...) fails
+      selall <- lapply(input$tree_gen, function(x) {
         unlist(
-          sapply(x, function(xx) {
+          lapply(x, function(xx) {
             attr(xx, "stselected")
           })
         )
       })
+      selall <- selall[vapply(selall, length, 1L) > 0]
 
       if (!length(selall) > 0) {
         return(NULL)
@@ -12756,12 +12798,14 @@ tool5$server<-function(id,vals){
         return(data())
       }
 
-      if(!is.null(r_transf_end())){
-        newdata<-r_transf_end()
-        data<-data_migrate(data(),newdata)
-        attr(data,"bag")<-bag_name()
+      newdata<-r_transf_end()
+      # a failed transformation returns a try-error: nothing is kept as a result
+      if(inherits(newdata,"try-error")&&!inherits(attr(newdata,"condition"),"shiny.silent.error")){
+        showNotification(paste("Transformation failed:",conditionMessage(attr(newdata,"condition"))),type="error")
       }
-
+      req(is.data.frame(newdata))
+      data<-data_migrate(data(),newdata)
+      attr(data,"bag")<-bag_name()
       data
     })
     observeEvent(result_v5(),{
@@ -13341,10 +13385,20 @@ tool7$server<-function(id,vals=NULL){
     })
     observeEvent(input$create_partition,ignoreInit = T,{
       args0<-args<-args_part()
-      result<-lapply(args$split_y, function(x){
+      if(!isTRUE(args$split_p>0&&args$split_p<100)){
+        showNotification("The test size (%) must be between 0 and 100.",type="error")
+        return()
+      }
+      # e.g. an empty number of groups, or a constant response
+      result<-tryCatch(lapply(args$split_y, function(x){
         args0$split_y<-x
         do.call(generate_partiton,args0)
+      }),error=function(e){
+        if(inherits(e,"shiny.silent.error")) stop(e)
+        showNotification(paste("The partition could not be created:",conditionMessage(e)),type="error")
+        NULL
       })
+      req(result)
 
       part<-data.frame(result)
 
@@ -13967,6 +14021,10 @@ tool9$server<-function (id,vals){
     })
 
     observeEvent(input$add_palette,{
+      if(!length(vals$newpalette_colors)){
+        showNotification("Add at least one colour before creating the palette.",type="warning")
+        return()
+      }
       palette_name<-paste("palette",length(vals$newcolhabs))
       vals$once_cols<-NULL
       vals$newcolhabs[[palette_name]]<-colorRampPalette(vals$newpalette_colors,alpha=T)
@@ -14185,14 +14243,29 @@ tool10$server<-function (id,vals){
     })
 
     observeEvent(input$load_savepoint_yes,ignoreInit = T,{
+      validate(need(length(grep(".rds",input$load_savepoint$datapath))==length(input$load_savepoint$datapath),"Requires rds file"))
+      # every file is read and checked before the current session is replaced: a file that is not
+      # an iMESc savepoint must not close the session nor erase the current Datalists
+      res<-lapply(as.list(input$load_savepoint$datapath), function(x) try(readRDS(x),silent=TRUE))
+      is_savepoint<-function(x){
+        if(inherits(x,"try-error")||!is.list(x)||is.data.frame(x)||is.null(names(x))) return(FALSE)
+        sd<-x[["saved_data"]]
+        if(is.null(sd)) return(TRUE)
+        is.list(sd)&&!is.data.frame(sd)&&all(vapply(sd,is.data.frame,logical(1)))
+      }
+      ok<-vapply(res,is_savepoint,logical(1))
+      if(!all(ok)){
+        bad<-input$load_savepoint$name[!ok]
+        showNotification(paste0("Not an iMESc savepoint (nothing was loaded): ",paste(bad,collapse=", ")),type="error",duration=10)
+        removeModal()
+        return()
+      }
       vals$saved_data<-NULL
       vals$collectInputs<-0
       vals$cur_tab<-"menu_intro"
       #updateTextInput(session, "tabs", value = 'menu_intro')
-      validate(need(length(grep(".rds",input$load_savepoint$datapath))==length(input$load_savepoint$datapath),"Requires rds file"))
       if(length(input$load_savepoint$datapath)>1){
 
-        res<-lapply(as.list(input$load_savepoint$datapath), function(x) readRDS(x))
         saved_data<-do.call(c,lapply(res,function(x)    x[["saved_data"]]))
         saved_ensemble<-do.call(c,lapply(res,function(x)    x[["saved_ensemble"]]))
         mybooks<-res[[1]]
@@ -14204,7 +14277,7 @@ tool10$server<-function (id,vals){
         mybooks$saved_ensemble<-saved_ensemble
         mybooks$saved_data<-saved_data
       } else{
-        mybooks<-readRDS(input$load_savepoint$datapath)
+        mybooks<-res[[1]]
       }
       savepoint_on(TRUE)
       updateCheckboxInput(session,'update_under_demand',value=F)
@@ -14763,6 +14836,11 @@ pre_process$server<-function(id, vals){
     })
     observeEvent(input$tools_save_changes,ignoreInit = T,{
       ns<-session$ns
+      # nothing to save yet (e.g. Save clicked before running the tool)
+      if(!is.data.frame(vals$tosave)){
+        showNotification("There is no result to save yet: run the tool first.",type="warning")
+        return()
+      }
 
       showModal(
         modalDialog(
@@ -14871,6 +14949,9 @@ pre_process$server<-function(id, vals){
     })
     get_tosave<-reactive({
       tosave<-vals$tosave
+      # a Datalist is a data.frame: NULL (tool not run) would delete the target Datalist,
+      # and a failed tool (try-error) would be saved as a text
+      req(is.data.frame(tosave))
       attr(tosave,"datalist")<-attr(tosave,"new_datalist")
       attr(tosave,"new_datalist")<-NULL
       tosave
@@ -14882,6 +14963,11 @@ pre_process$server<-function(id, vals){
         vals$saved_data[[datalistnew()]]<-tosave
       } else if(r_action()=="factor-column"){
         datalist_root<-attr(tosave,"datalist_root")
+        if(!isTRUE(datalist_root%in%names(vals$saved_data))){
+          showNotification(paste0("The Datalist '",datalist_root,"' no longer exists: run the tool again."),type="error",duration=8)
+          removeModal()
+          return()
+        }
         factors<-attr(tosave,"factors")
         if(input$create_replace=="Create"){
           if(ncol(vals$vtools$tool7_partition)==1){

@@ -588,8 +588,19 @@ cursor: move;
 
       data_o<-vals$saved_data[[input$isp_Y]]
       data<-vals$saved_data[[input$isp_X]]
-      vars<-names(get_isp_top())
-      data<-data[,vars]
+      if(!isTRUE(input$isp_top>=1)){
+        showNotification("'Top per group' must be 1 or more.",type="warning")
+        return()
+      }
+      # evaluated first: a req() inside the argument of unique() (an S4 generic here) is a real error
+      top<-get_isp_top()
+      vars<-unique(names(top))
+      vars<-vars[vars%in%colnames(data)]
+      if(!length(vars)){
+        showNotification("No indicator species with the chosen p-value: no Datalist to create.",type="warning")
+        return()
+      }
+      data<-data[,vars,drop=FALSE]
       data<-data_migrate(data_o,data)
       bag<-paste0(input$isp_group,"_",input$isp_top,"indicators")
       attr(data,"bag")<-bag
@@ -709,7 +720,7 @@ cursor: move;
 
 
     observeEvent(input$min.order,{
-      if(input$min.order>input$max.order){
+      if(isTRUE(input$min.order>input$max.order)){
         updateNumericInput(session,'min.order',value=input$max.order)
       }
     })
@@ -838,7 +849,7 @@ cursor: move;
       req(get_indicators_plot())
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=get_indicators_plot()
+      generic=imesc_plot_or_null(get_indicators_plot())
       datalist_name=attr(vals$saved_data[[input$isp_Y]],"datalist")
 
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Indicators plot", name_c="indicators_plot",datalist_name=datalist_name)
@@ -985,12 +996,24 @@ cursor: move;
       data<-vals$saved_data[[input$simper_Y]]
       factors<-attr(data,"factors")
       req(input$simper_group%in%colnames(factors))
-      y=factors[,input$simper_group]
+      req(isTRUE(input$simper_permutations>=0))
+      # groups taken by observation ID (the Y Datalist may hold the rows in another order or more rows)
+      ids<-rownames(comm)[rownames(comm)%in%rownames(factors)]
+      ids<-ids[!is.na(factors[ids,input$simper_group])]
+      if(length(ids)<2){
+        showNotification("No observations of the community Datalist have a group in the selected factor.",type="error")
+        return()
+      }
+      comm<-comm[ids,,drop=FALSE]
+      y=factors[ids,input$simper_group]
       withProgress(min=NA,max=NA,message="Running...",{
-        som<-vegan::simper(comm,y,permutations=input$simper_permutations)
-        som
+        som<-try(vegan::simper(comm,y,permutations=input$simper_permutations),silent=TRUE)
       })
-      attr(som,"group")<-factors[input$simper_group]
+      if(inherits(som,"try-error")){
+        showNotification(paste("SIMPER failed:",conditionMessage(attr(som,"condition"))),type="error")
+        return()
+      }
+      attr(som,"group")<-factors[ids,input$simper_group,drop=FALSE]
       attr(vals$saved_data[[input$simper_X]],"simper")[["new simper"]]<-som
       som
     })
@@ -1034,11 +1057,16 @@ cursor: move;
         x<-ss[[i]]
         contrast=names(ss)[i]
         ccs<-do.call(c,strsplit(contrast,"_"))
-        df<-data.frame(contrast=names(ss)[i],var=rownames(x),average=x$average,c1=ccs[1],c2=ccs[2],p=x$p)
+        # no p-values when the SIMPER was run without permutations
+        p<-if(is.null(x$p)) rep(NA_real_,nrow(x)) else x$p
+        df<-data.frame(contrast=names(ss)[i],var=rownames(x),average=x$average,c1=ccs[1],c2=ccs[2],p=p)
         rownames(df)<-NULL
         df
       }))
-      df<-na.omit(df[df$p<=0.1,])
+      df<-na.omit(df[which(df$p<=0.1),,drop=FALSE])
+      # no variable with p <= 0.1 in any contrast (or no top size): no indicator
+      none<-stats::setNames(character(0),character(0))
+      if(!nrow(df)||!isTRUE(npic>=1)) return(none)
       dfz<-data.frame(lapply(split(data,hc),function(x)
         colMeans(x)))
       colnames(dfz)<-levels(hc)
@@ -1066,8 +1094,8 @@ cursor: move;
       })
 
       npic0<-ncol(data)
-      ppic<-floor(npic/
-                    nlevels(hc))
+      ppic<-max(1,floor(npic/
+                    nlevels(hc)))
       contrastdf<-do.call(rbind,contrast_list)
       contrastrelist<-split(contrastdf,contrastdf$vote)
       inds<-lapply(seq_along(contrastrelist),function(i){
@@ -1075,7 +1103,7 @@ cursor: move;
         data.frame(var=unique(x$var[order(x$average,decreasing=T)]),i)
       })
       ruv<-list()
-      uv<-do.call(rbind,lapply(inds,function(x)x[1:ppic,]))
+      uv<-do.call(rbind,lapply(inds,function(x) utils::head(x,ppic)))
       for(var in unique(uv$var)){
         ruv[[var]]<-paste0(paste(uv[uv==var,'i'],collapse = ", "))
       }
@@ -1095,6 +1123,8 @@ cursor: move;
       ss<-simper_summary()
       data<-vals$saved_data[[input$simper_X]]
       hc=attr(get_simper_result(),"group")
+      # community rows matched to the groups by ID (results saved by older versions: by position)
+      if(all(rownames(hc)%in%rownames(data))) data<-data[rownames(hc),,drop=FALSE]
       indicadoras<-simper_indicadoras(data,ss,input$simper_top,hc[,1])
       data.frame(var=names(indicadoras),group=as.character(indicadoras))
     })
@@ -1115,11 +1145,21 @@ cursor: move;
       factors<-attr(data_o,"factors")
       req(input$simper_group%in%colnames(factors))
       hc=attr(get_simper_result(),"group")
+      # community rows matched to the groups by ID (results saved by older versions: by position)
+      if(all(rownames(hc)%in%rownames(data))) data<-data[rownames(hc),,drop=FALSE]
+      if(!isTRUE(input$simper_top>=1)){
+        showNotification("Top must be 1 or more.",type="warning")
+        return()
+      }
       indicadoras<-simper_indicadoras(data,ss,input$simper_top,hc[,1])
 
       vars<-names(indicadoras)
+      if(!length(vars)){
+        showNotification("No variable with p <= 0.1 in the SIMPER contrasts (run it with permutations): no Datalist to create.",type="warning",duration=8)
+        return()
+      }
 
-      data<-data[,vars]
+      data<-data[,vars,drop=FALSE]
       data<-data_migrate(data_o,data)
       attr(data,"factors")<-data.frame(attr(data,"factors"),hc)
       bag<-paste0(input$simper_group,"_Simper",input$simper_top,"vars")
@@ -1502,22 +1542,38 @@ cursor: move;
       span("PC",inline( pickerInput(ns("ebnb_pc"),NULL,choices=c(1:ncol(vals$omi_result$ls)), width="50px")))
 
     })
+    # the results belong to the X/Y pair of the run: cleared when X or Y changes
     observeEvent(ignoreInit = T,input$omi_X,{
       vals$niche_result<-NULL
+      vals$omi_result<-NULL
     })
     observeEvent(ignoreInit = T,input$omi_Y,{
       vals$niche_result<-NULL
+      vals$omi_result<-NULL
     })
+    # X (species) and Y (environment) matched by observation ID
+    niche_xy<-function(){
+      y<-vals$saved_data[[input$omi_X]]
+      x<-vals$saved_data[[input$omi_Y]]
+      ids<-rownames(y)[rownames(y)%in%rownames(x)]
+      list(y=y[ids,,drop=FALSE],x=x[ids,,drop=FALSE],n=length(ids))
+    }
     observeEvent(ignoreInit = T,input$run_niche,{
       vals$omi_result<-NULL
-      try({
-        y<-vals$saved_data[[input$omi_X]]
-        x<-vals$saved_data[[input$omi_Y]]
-        dudi1<-ade4::dudi.pca(x, scale = F, scannf  = FALSE)
-        nic1<-ade4::niche(dudi1, data.frame(y), scannf = FALSE)
+      xy<-niche_xy()
+      if(xy$n<3){
+        showNotification("X and Y need observations in common (same IDs).",type="error")
+        return()
+      }
+      res<-try(silent=TRUE,{
+        dudi1<-ade4::dudi.pca(xy$x, scale = F, scannf  = FALSE)
+        nic1<-ade4::niche(dudi1, data.frame(xy$y), scannf = FALSE)
         vals$niche_params<-ade4::niche.param(nic1)
         vals$omi_result<-nic1
       })
+      if(inherits(res,"try-error")){
+        showNotification(paste("Niche analysis failed:",conditionMessage(attr(res,"condition"))),type="error",duration=8)
+      }
     })
 
     observe({
@@ -1533,9 +1589,11 @@ cursor: move;
     })
     getebnb<-reactive({
       req(input$ebnb_pc)
-      y<-vals$saved_data[[input$omi_X]]
-      x<-vals$saved_data[[input$omi_Y]]
-      EBNB(y,x,as.numeric(input$ebnb_pc))
+      xy<-niche_xy()
+      req(xy$n>2)
+      res<-try(EBNB(xy$y,xy$x,as.numeric(input$ebnb_pc)),silent=TRUE)
+      req(!inherits(res,"try-error"))
+      res
     })
 
 
@@ -1901,12 +1959,13 @@ summary_multipatt<-function(indicator_r.g, p){
   indresult
 }
 filter_multipart_result<-function(indicator_r.g,npic, p){
+  validate(need(isTRUE(npic>=1),"'Top per group' must be 1 or more."))
   sss<-imesc_summary_multipatt(indicator_r.g, p)
 
   top_result<-do.call(c,lapply(  seq_along(sss),function(i){
 
     x<-sss[[i]]
-    vec<-rownames(na.omit(x[1:npic,]))
+    vec<-rownames(na.omit(utils::head(x,npic)))
     vec1<-rep(i,length(vec))
     names(vec1)<-vec
     vec1

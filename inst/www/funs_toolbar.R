@@ -212,11 +212,12 @@ imesc_data<-function(path,sheet=NULL,attr){
     data[names(newfacs)]<-newfacs
   }
   data<-remove_na_cols(data)
+  validate(need(nrow(data)>0&&ncol(data)>0,"The file has no data: it needs a header, the IDs in the first column and at least one more column with values."))
   if(attr=="Factors"){
     newfacs<-lapply(data,function(x) factor(x))
     data[names(newfacs)]<-newfacs
   }
-  pic_log<-which(unlist(lapply(data,is.logical)))
+  pic_log<-which(vapply(data,is.logical,logical(1)))
   if(length(pic_log)>0){
     data[,  pic_log ]<- do.call(data.frame,lapply(data[, pic_log, drop=F], function(x) as.factor(x)))
   }
@@ -230,7 +231,7 @@ na_cols<-function(num){
   pic
 }
 remove_na_cols<-function(data){
-  pic<-which(sapply(data,function(x){all(is.na(x))}))
+  pic<-which(vapply(data,function(x){all(is.na(x))},logical(1)))
   if(length(pic)>0){
     data<-data[,-pic,drop=F]
   }
@@ -285,6 +286,9 @@ imesc_excel_sheets<-function(path,sheet,attr="Numeric"){
 imesc_fread<-function(path){
 
   data<-data.frame(data.table::fread(path, stringsAsFactors = T,na.strings=c("","NA"),header=T))
+  validate(need(ncol(data)>0&&nrow(data)>0,"The file has no data: it needs a header and the IDs in the first column."))
+  ids<-as.character(data[, 1])
+  validate(need(!anyNA(ids)&&all(nzchar(trimws(ids))),"Empty IDs are not allowed: fill in the first column (observation IDs) of every row."))
   validate(need(!any(duplicated(data[, 1])),"Duplicated row names not allowd"))
   rownames(data)<-data[, 1]
   data[, 1]<-NULL
@@ -296,11 +300,24 @@ imesc_fread<-function(path){
 check_data<-function(newdata,datalist="nema_araca",attr="Numeric", saved_data){
 
   data<-saved_data[[datalist]]
-  if(attr%in%c("Factor","Coords")){
-    base_check<-data
-  } else{
-    base_check<-attr(data,"factors")
+  if(attr%in%c("Factor","Factors","Coords")){
+    # Factor- and Coords-Attributes: every observation of the Datalist must be in the file
+    # (rows of other observations are left out)
+    missing<-rownames(data)[!rownames(data)%in%rownames(newdata)]
+    if(length(missing)){
+      return(div(style="height: 200px; overflow-y:scroll; color:gray",
+                 p("Error: Missing IDs: the file must contain every observation ID of the Datalist."),
+                 p("IDs of the Datalist not found in the file:"),
+                 lapply(missing,function(x)div(em(x)))))
+    }
+    newdata<-newdata[rownames(data),,drop=FALSE]
+    if(attr=="Coords"){
+      if(ncol(newdata)<2) return(div(style="color:gray",p("Error: the Coords file needs two columns (longitude and latitude) after the ID column.")))
+      newdata<-newdata[,1:2]
+    }
+    return(newdata)
   }
+  base_check<-attr(data,"factors")
   ids_in<-rownames(newdata)%in%rownames(base_check)
   if(!all(ids_in)){
     errobox<-div(style="height: 200px; overflow-y:scroll; color:gray",

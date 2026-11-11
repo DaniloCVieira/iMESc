@@ -343,6 +343,8 @@ rf_explainer$ui<-function(id){
 }
 rf_explainer$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     ns<-session$ns
 
     output$sankey_print<-renderUI({
@@ -751,7 +753,7 @@ rf_explainer$server<-function(id,vals){
       req(input$sankey_tab=="ggplot")
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=gg_sankey()
+      generic=imesc_plot_or_null(gg_sankey())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Sankey GGplot", name_c="sankey_gg",datalist_name=datalist_name)
     })
@@ -1105,6 +1107,10 @@ rf_explainer$server<-function(id,vals){
 
 
       res_multi=get_measures()
+      pv<-tryCatch(res_multi[[2]]$p_value,error=function(e) NULL)
+      if(isTRUE(rf_depth)&&length(pv)){
+        validate(need(any(pv<input$sigprf,na.rm=TRUE),"No variable is significant at this level: choose 'All' or 'User-defined'."))
+      }
 
       args<-list(
         res_multi=res_multi, sigs =rf_depth,
@@ -1213,14 +1219,14 @@ rf_explainer$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=prf.reactive()
+      generic=imesc_plot_or_null(prf.reactive())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Minimal depth distribution", name_c="min-depth-plot",datalist_name=datalist_name)
     })
     observeEvent(input$downp_mrf,ignoreInit = T,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=rf_multi()
+      generic=imesc_plot_or_null(rf_multi())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Multiway Importance", name_c="multi-way-plot",datalist_name=datalist_name)
     })
@@ -1234,6 +1240,9 @@ rf_explainer$server<-function(id,vals){
       )
 
       frame<- data.frame(get_measure_table())
+      if(isTRUE(only_sigs)&&length(frame$p_value)){
+        validate(need(any(frame$p_value<input$sigmrf,na.rm=TRUE),"No variable is significant at this level: choose 'All' or 'User-defined'."))
+      }
       x = input$multi_x_measure
       y = input$multi_y_measure
       z=input$multi_z_measure
@@ -1372,7 +1381,7 @@ rf_explainer$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=inter_plot()
+      generic=imesc_plot_or_null(inter_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Interactions Plot", name_c="interactions",datalist_name=datalist_name)
     })
@@ -1411,10 +1420,15 @@ rf_explainer$server<-function(id,vals){
 
 
     interframe_n<-reactive({
-      a<-interframe()[1:input$rfinter_k2,"variable"]
-      b<-as.character(interframe()[1:input$rfinter_k2,"root_variable"])
-      pic<-unique(c(a,b))
-      vals$saved_data[[data_x()]][, pic]
+      fr<-interframe()
+      req(fr)
+      # an empty box means all the interactions; never more than the table has
+      n<-if(isTRUE(input$rfinter_k2>0)) min(input$rfinter_k2,nrow(fr)) else nrow(fr)
+      a<-as.character(fr[seq_len(n),"variable"])
+      b<-as.character(fr[seq_len(n),"root_variable"])
+      pic<-intersect(unique(c(a,b)),colnames(vals$saved_data[[data_x()]]))
+      req(length(pic)>0)
+      vals$saved_data[[data_x()]][, pic, drop=FALSE]
     })
     sapply(c(as.character(30:43),'32_2'),function(x)  box_caret_server(x))
     box_caret_server("inter_plotoptions")
@@ -1471,6 +1485,8 @@ explainer_ggpair$ui<-function(id,title=NULL,tip=NULL){
 }
 explainer_ggpair$server<-function(id,data,fun="plot_importance_ggpairs",vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     fun0<-fun
     if(fun0=="plot_importance_ggpairs"){
@@ -1500,7 +1516,7 @@ explainer_ggpair$server<-function(id,data,fun="plot_importance_ggpairs",vals){
       graphics.off()
       vals$hand_plot<-"generic_ggmatrix"
       module_ui_figs("downfigs")
-      generic=run_box36_plot()
+      generic=imesc_plot_or_null(run_box36_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Importance Measures - GGpairs", name_c="measures-ggpairs",datalist_name=datalist_name)
     })

@@ -151,6 +151,7 @@ cordata_filter<-function(data,cor_method="pearson",cor_cutoff=0.75,cor_use='na.o
     return(cordata)
   }
 
+  validate(need(isTRUE(is.finite(cor_cutoff)),"Set the correlation cutoff."))
   if(cor_cutoff==1){
     cordata<-cor(data, use=cor_use,method =met)
     return(cordata)
@@ -171,14 +172,15 @@ cordata_filter<-function(data,cor_method="pearson",cor_cutoff=0.75,cor_use='na.o
       attr(cordata,"war")<-paste0("All correlations < =",cor_cutoff)
       return(cordata)
     }
-    data.new<-data[,-pic]
+    data.new<-data[,-pic,drop=FALSE]
   } else{
     if(!length(pic)>0){
       attr(cordata,"war")<-paste0("Note: All correlations > =",cor_cutoff)
       return(cordata)
     }
-    data.new<-data[,pic]
+    data.new<-data[,pic,drop=FALSE]
   }
+  validate(need(ncol(data.new)>=2,"Fewer than two variables remain after the correlation filter."))
 
   cordata<-cor(data.new, use=cor_use,method =met)
 

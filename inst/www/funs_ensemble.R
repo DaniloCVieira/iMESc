@@ -204,12 +204,12 @@ get_metrics_ensemble2<-function(modelist,pred,obs, fun='multiClassSummary'){
   if(modelist[[1]]$modelType=="Classification"){
     pred_tab<-data.frame(pred=factor(pred,levels(obs)),obs=obs)
     metric<- if(fun=='multiClassSummary'){
-      multiClassSummary(pred_tab, lev=levels(obs))
+      caret::multiClassSummary(pred_tab, lev=levels(obs))
     } else if(fun=='postResample'){
-      postResample(pred, obs)
+      caret::postResample(pred, obs)
     }
   } else{
-    postResample(pred, obs)
+    caret::postResample(pred, obs)
   }
 
 }
@@ -258,7 +258,7 @@ getReg_wei<-function(modelist,newdata,obc, en_method,weitype){
   if(en_method=="accu_weighted") {
     if(weitype=="training"){
       weis<-do.call(rbind,lapply(modelist,function(m){
-        postResample(m$pred$pred,m$pred$obs)
+        caret::postResample(m$pred$pred,m$pred$obs)
       }))
       weis<-if(m$modelType=="Classification"){weis[,"Accuracy"]
       } else{weis[,'Rsquared']}
@@ -270,7 +270,7 @@ getReg_wei<-function(modelist,newdata,obc, en_method,weitype){
       weis<-unlist(do.call(data.frame,lapply(modelist,function(m){
         pred<-suppressWarnings(predict(m,newdata))
         req(length(pred)==length(obc))
-        res<-postResample(pred,obc)
+        res<-caret::postResample(pred,obc)
         res<-if(m$modelType=="Classification"){res["Accuracy"]
         } else{res['Rsquared']}
         res
@@ -325,7 +325,7 @@ getClass_wei<-function(predtab,obc,modelist, en_method, weitype="test",newdata){
   if(en_method=="accu_weighted") {
     if(weitype=="training"){
       weis<-do.call(rbind,lapply(modelist,function(m){
-        postResample(m$pred$pred,m$pred$obs)
+        caret::postResample(m$pred$pred,m$pred$obs)
       }))
       weis<-if(m$modelType=="Classification"){weis[,"Accuracy"]
       } else{weis[,'Rsquared']}
@@ -336,7 +336,7 @@ getClass_wei<-function(predtab,obc,modelist, en_method, weitype="test",newdata){
     if(weitype=="test") {
       weis<-unlist(do.call(data.frame,lapply(modelist,function(m){
         pred<-suppressWarnings(predict(m,newdata=newdata))
-        res<-postResample(pred,obc)
+        res<-caret::postResample(pred,obc)
         res<-if(m$modelType=="Classification"){res["Accuracy"]
         } else{res['Rsquared']}
         res

@@ -617,9 +617,16 @@ k_means_module$server<-function (id,vals){
       if(input$model_or_data=="som codebook"){
         data=vals$saved_data[[input$data_kmeans]]
         m<-attr(data,"som")[[input$som_kmeans]]
-        newclass<-m$unit.classif
-        fac<-temp
-        for(i in 1:length(fac)) {newclass[newclass==i]<-rep(fac[i],sum(  newclass==i))}
+        req(inherits(m,"kohonen"))
+        uc<-m$unit.classif
+        req(length(temp)==nrow(m$codes[[1]]))
+        # cluster of each unit -> cluster of each observation (the class of its BMU)
+        newclass<-temp[uc]
+        ids<-names(uc)
+        if(is.null(ids)&&length(uc)==nrow(data)) ids<-rownames(data)
+        req(length(ids)==length(uc))
+        # observations not used in the training (partition) get NA
+        newclass<-newclass[match(rownames(data),ids)]
         names(newclass)<-rownames(data)
         temp<-newclass
       }
@@ -1042,6 +1049,14 @@ k_means_module$server<-function (id,vals){
       req(input$data_kmeans)
       data=vals$saved_data[[input$data_kmeans]]
       m<-attr(data,"som")[[input$som_kmeans]]
+      km<-vals$k_means_results
+      # needs the K-means of this SOM codebook with the current settings (changing a setting clears it)
+      if(!inherits(m,"kohonen")||!length(km)||!identical(NROW(km[[1]]),nrow(m$codes[[1]]))){
+        vals$hand_save<-NULL
+        removeModal()
+        showNotification("Run K-means on the codebook of the selected SOM (with the current settings) before creating the Datalist.",type="error",duration=8)
+        req(FALSE)
+      }
       codes<-data.frame(do.call(cbind,m$codes))
       factors<-data.frame(vals$k_means_results[[1]])
       rownames(factors)<-rownames(codes)<-paste0("unit_",1:nrow(codes))
@@ -1209,7 +1224,7 @@ k_means_module$server<-function (id,vals){
     })
 
     observeEvent(ignoreInit=T,input$tools_savekmeans,{
-      if(input$tools_savekmeans %% 2) {
+      if(isTRUE(as.numeric(input$tools_savekmeans)>0)) {
         vals$hand_save<-"Save K-means Clusters"
         vals$hand_save2<-p(p(em(input$data_kmeans,style="color: gray"),strong("::"),em("Factor-Attribute",style="color: gray"), strong("::")))
         vals$hand_save3<-NULL
@@ -1221,7 +1236,7 @@ k_means_module$server<-function (id,vals){
     })
 
     observeEvent(ignoreInit=T,input$psom_create_codebook,{
-      if(input$psom_create_codebook %% 2) {
+      if(isTRUE(as.numeric(input$psom_create_codebook)>0)) {
         vals$hand_save<-"create_codebook_kmeans"
         vals$hand_save2<-NULL
         vals$hand_save3<-NULL
@@ -1292,7 +1307,12 @@ k_means_module$server<-function (id,vals){
 
     observeEvent(ignoreInit=T,input$som_kmeans,{ vals$som_kmeans<-input$som_kmeans})
 
-    observeEvent(input$data_kmeans,{
+    # also refreshed when SOMs are trained, saved or deleted in the selected Datalist
+    som_names_kmeans<-reactive({
+      req(input$data_kmeans)
+      names(attr(vals$saved_data[[input$data_kmeans]],"som"))
+    })
+    observeEvent(list(input$data_kmeans,som_names_kmeans()),{
       data=vals$saved_data[[input$data_kmeans]]
       choices=names(attr(data,"som"))
       selected=vals$som_kmeans
@@ -1330,17 +1350,29 @@ k_means_module$server<-function (id,vals){
 
     savekmeans<-reactive({
       if(is.null(vals$kmeans_clusters)){
-        temp<-vals$k_means_results$cluster$cluster
+        # on a SOM codebook the clusters are of the units: the class of each observation is the class of its BMU
+        temp<-if(identical(input$model_or_data,"som codebook")) tryCatch(getnewclass(),error=function(e) NULL) else vals$k_means_results$cluster$cluster
       } else{
         temp<-vals$kmeans_clusters
       }
 
       req(temp)
+      req(isTRUE(input$data_kmeans%in%names(vals$saved_data)))
+      fac<-attr(vals$saved_data[[input$data_kmeans]],"factors")
+      temp<-unlist(temp)
+      # matched by observation ID when the classes are named; otherwise one class per observation
+      if(!is.null(names(temp))&&any(names(temp)%in%rownames(fac))){
+        temp<-temp[match(rownames(fac),names(temp))]
+      }
+      if(length(temp)!=nrow(fac)){
+        showNotification("The clusters do not match the observations of the Datalist: run K-means again.",type="error",duration=8)
+        req(FALSE)
+      }
 
       if(input$hand_save=="create"){
-        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$newdatalist]<-as.factor(unlist(temp))
+        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$newdatalist]<-as.factor(temp)
       } else{
-        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$over_datalist]<-as.factor(unlist(temp))
+        attr(vals$saved_data[[input$data_kmeans]],"factors")[input$over_datalist]<-as.factor(temp)
       }
       shinyjs::removeClass('save_kmeansbtn','save_changes')
       #shinyjs::hide('save_kmeans')

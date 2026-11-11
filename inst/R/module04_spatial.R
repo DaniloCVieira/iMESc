@@ -938,7 +938,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
     })
     observeEvent(ignoreInit = T,input$down_ggplot,{
 
-      generic<-map_result2()
+      generic<-imesc_plot_or_null(map_result2())
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       name_c=paste0(colnames(vals$data_map))
@@ -1205,6 +1205,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
       })
       get_layout_grid<-reactive({
         levs<-levels(get_factor_filter())
+        req(isTRUE(input$ncol_grid>=1))
         ncol=input$ncol_grid
         nrow=ceiling(length(levs)/ncol)
         m<-matrix(1:(nrow*ncol),nrow,ncol,byrow =T,)
@@ -1257,7 +1258,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
 
 
         filt_data<-    vals$data_map
-        req(input$nbreaks_grid)
+        req(isTRUE(input$nbreaks_grid>=2))
         req(filt_data)
         req(data)
 
@@ -1321,6 +1322,7 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
       })
       get_grid_layout<-reactive({
         levs<-levels(get_factor_filter())
+        req(isTRUE(input$ncol_grid>=1))
         ncol=input$ncol_grid
         nrow=ceiling(length(levs)/ncol)
         c(nrow,ncol)
@@ -1864,6 +1866,14 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         })
       })
       observeEvent(input$run_grid,ignoreInit = T,{
+        if(!isTRUE(input$ncol_grid>=1)){
+          showNotification("Number of columns must be 1 or more.",type="warning")
+          return()
+        }
+        if(!isTRUE(input$nbreaks_grid>=2)){
+          showNotification("Number of breaks must be 2 or more.",type="warning")
+          return()
+        }
 
         removeModal()
         vals$cur_ggheight<-250*get_grid_layout()[1]
@@ -1901,6 +1911,9 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
           down_grade_raster=input$down_grade_raster,
           down_grade=input$down_grade,
           shape_args=get_shapes(),
+          base_shape_args=get_shapes()$base_shape_args,
+          layer_shape_args=get_shapes()$layer_shape_args,
+          args_extra_shape=vals$extra_shapes,
           raster=raster,
           circles=circles,
           pie=pie,
@@ -1923,16 +1936,19 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         args$args[names(gg_north_args())]<-gg_north_args()
 
         withProgress(min=NA,max=NA,message="Creating Grid Layout....",{
-          args2<-args
-          args2$session<-NULL
-          ps<-do.call(gg_plotList,args)
-          levs<-levels(get_factor_filter())
-          breaks<-lapply(get_breaks_filter(),function(x) paste(x,collapse=", "))
-          titles<-grid_titles()
-          m<-get_layout_grid()$m
-          heights<-get_layout_grid()$heights
-          p<-gg_grid2(ps,m,heights,main=input$main_grid,grid_main_hadj=input$grid_main_hadj,grid_main_size=input$grid_main_size/(ncol(m)))
+          # a level that cannot be mapped (no data, a failed interpolation...) must not close the session
+          p<-tryCatch({
+            ps<-do.call(gg_plotList,args)
+            m<-get_layout_grid()$m
+            heights<-get_layout_grid()$heights
+            gg_grid2(ps,m,heights,main=input$main_grid,grid_main_hadj=input$grid_main_hadj,grid_main_size=input$grid_main_size/(ncol(m)))
+          },error=function(e){
+            if(inherits(e,"shiny.silent.error")) stop(e)
+            showNotification(paste("The grid of maps could not be created:",conditionMessage(e)),type="error")
+            NULL
+          })
         })
+        req(p)
         map_result2(p)
         map_result2_final(map_result2())
 
@@ -1982,7 +1998,11 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         args$layer_shape_args<-NULL
         args$args_extra_shape<-NULL
         args$addCircles<-isTRUE(circles)
-        p<-do.call(map_discrete, args)
+        # e.g. repeated break values
+        p<-try(do.call(map_discrete, args),silent=TRUE)
+        if(inherits(p,"try-error")&&!inherits(attr(p,"condition"),"shiny.silent.error")){
+          showNotification(paste("The map could not be created:",conditionMessage(attr(p,"condition"))),type="error")
+        }
         req(!inherits(p,"try-error"))
         map_result1(p)
         map_result1_final(map_result1())
@@ -2483,14 +2503,20 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
           points$col_factor<-col_fac
           points$col_zvalue<-col_zvalue
           points$size_value<-z
+          req(is.numeric(input$s3d_points_size)&&isTRUE(is.finite(input$s3d_points_size)))
           points$size<-input$s3d_points_size
           points$size_var<-colnames(vals$data_map)
           if(isTRUE(input$s3d_points_scale)){
             req(input$s3d_points_z_scale_datalist)
+            req(is.numeric(input$s3d_points_minsize)&&isTRUE(is.finite(input$s3d_points_minsize)))
             data_size<-vals$saved_data[[input$s3d_points_z_scale_datalist]]
 
+            req(length(input$s3d_points_z_scale_vars)==1)
             req(input$s3d_points_z_scale_vars%in%colnames(data_size))
-            tosize<-data_size[,input$s3d_points_z_scale_vars]
+            # the size variable may come from another Datalist: match its rows by observation ID
+            req(all(rownames(data)%in%rownames(data_size)))
+            tosize<-data_size[rownames(data),input$s3d_points_z_scale_vars]
+            req(is.numeric(tosize))
             points$size_value<-tosize
             newsize<-scales::rescale(tosize,c(input$s3d_points_minsize,input$s3d_points_size))
             points$size<-newsize
@@ -4342,11 +4368,17 @@ ll_vgm$server<-function(id,vals){
       withProgress({
         var=colnames(data)
 
-        vgm_result<-do.call(variogram_parameters,args1)
-
-        #vgm_result<-do.call(variogram_parameters,args1)
+        # NA values or too few distinct locations make the autofit fail
+        vgm_result<-try(do.call(variogram_parameters,args1),silent=TRUE)
       },min=NA,max=NA,message="Running autofit...")
-      #vals$vgm_error<-attr(vgm_result,"logs")
+      if(inherits(vgm_result,"try-error")&&!inherits(attr(vgm_result,"condition"),"shiny.silent.error")){
+        vals$vgm_error<-div(
+          style="overflow: auto; max-height: 150px; background: #e68e83",
+          strong(icon("triangle-exclamation",style="color: brown"),"Variogram autofit failed:"),
+          conditionMessage(attr(vgm_result,"condition"))
+        )
+      }
+      req(!inherits(vgm_result,"try-error"))
       vgm_result
 
 

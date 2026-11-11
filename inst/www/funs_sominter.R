@@ -263,7 +263,7 @@ imesc_hclutering<-function(data, k,hc_fun,hc_method,distance_metric=NULL, target
   if(length(d)>0){
     # number of objects: a 'dist' object (Numeric-Attribute) has no nrow
     n_obj<-if(inherits(d,"dist")) attr(d,"Size") else nrow(d)
-    if(k>(n_obj-1)){
+    if(isTRUE(k>(n_obj-1))){
       hc_kerror<-paste("K must be between 1 and",n_obj-1)
     }
   }

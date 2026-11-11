@@ -536,7 +536,9 @@ sl_model_setup$server<-function(id,vals=NULL){
         filter<-input$filter
       }
       data<-data[get_partition()$train,,drop=F]
-      req(filter%in%colnames(data))
+      # columns chosen for another Datalist: only those that exist here (req() passes a partly TRUE vector)
+      filter<-intersect(filter,colnames(data))
+      req(length(filter)>0)
       data<-data[,filter,drop=F]
       data
     })
@@ -548,7 +550,9 @@ sl_model_setup$server<-function(id,vals=NULL){
         filter<-input$filter
       }
       data<-data[get_partition()$test,,drop=F]
-      req(filter%in%colnames(data))
+      # columns chosen for another Datalist: only those that exist here (req() passes a partly TRUE vector)
+      filter<-intersect(filter,colnames(data))
+      req(length(filter)>0)
       data<-data[,filter,drop=F]
       data
     })
@@ -601,6 +605,7 @@ sl_model_setup$server<-function(id,vals=NULL){
                               entry=function(name){
                                 # the unsaved entry keeps the results computed for it (e.g. permutation importance)
                                 m<-vals$cur_caret_model
+                                req(!is.null(m))
                                 attr(m,"model_name")<-name
                                 e<-imesc_model_get(vals$saved_data[[input$data_x]],vals$cmodel,"new model")
                                 if(!is.list(e)||is.null(e$m)) e<-list()
@@ -661,7 +666,13 @@ sl_model_setup$server<-function(id,vals=NULL){
 
 
     observeEvent(get_model(),{
-      vals$cur_caret_model<-get_model()
+      m<-get_model()
+      # a model saved before its Datalist was renamed (older savepoints): the Datalist that keeps
+      # the model is its X Datalist
+      if(!is.null(m)&&!isTRUE(attr(m,"Datalist")%in%names(vals$saved_data))&&isTRUE(input$data_x%in%names(vals$saved_data))){
+        attr(m,"Datalist")<-input$data_x
+      }
+      vals$cur_caret_model<-m
     })
 
 
@@ -1424,6 +1435,8 @@ msp_earth$ui<-function(id,vals,model){
 }
 msp_earth$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     box_caret_server("box_a")
     box_caret_server("box_b")
@@ -1483,7 +1496,7 @@ msp_earth$server<-function(id,model,vals){
       req(earth_plot())
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=earth_plot()
+      generic=imesc_plot_or_null(earth_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Eath plot",datalist_name=datalist_name,name_c="earth_plot")
     })
@@ -1546,6 +1559,8 @@ msp_dnn$ui<-function(id,vals){
 }
 msp_dnn$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     box_caret_server("box_a")
     box_caret_server("box_b")
 
@@ -1584,7 +1599,7 @@ msp_dnn$server<-function(id,model,vals){
       req(dnn_plot())
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=dnn_plot()
+      generic=imesc_plot_or_null(dnn_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Network plot",datalist_name=datalist_name,name_c="dnn_plot")
     })
@@ -1598,6 +1613,8 @@ msp_dnn$server<-function(id,model,vals){
   })}
 msp_dnn$server_avNNet<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     box_caret_server("box_a")
     box_caret_server("box_b")
 
@@ -1650,7 +1667,7 @@ msp_dnn$server_avNNet<-function(id,model,vals){
       req(avNNet_plot())
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=avNNet_plot()
+      generic=imesc_plot_or_null(avNNet_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Network plot",datalist_name=datalist_name,name_c="avNNet_plot")
     })
@@ -1664,6 +1681,8 @@ msp_dnn$server_avNNet<-function(id,model,vals){
   })}
 msp_dnn$server_nnet<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     box_caret_server("box_a")
     box_caret_server("box_b")
     req(model)
@@ -1742,7 +1761,7 @@ msp_dnn$server_nnet<-function(id,model,vals){
       req(avNNet_plot())
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=avNNet_plot()
+      generic=imesc_plot_or_null(avNNet_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Network plot",datalist_name=datalist_name,name_c="avNNet_plot")
     })
@@ -1806,6 +1825,8 @@ msp_monmlp$ui<-function(id,vals){
 }
 msp_monmlp$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     box_caret_server("box_a")
     box_caret_server("box_b")
 
@@ -1887,7 +1908,7 @@ msp_monmlp$server<-function(id,model,vals){
     observeEvent(ignoreInit = T,input$download_plot,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=plot_effect()
+      generic=imesc_plot_or_null(plot_effect())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Gam Style plot",datalist_name=datalist_name,name_c="gam.style")
     })
@@ -2066,6 +2087,8 @@ msp_rpart$ui<-function(id,vals){
 }
 msp_rpart$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     box_caret_server("box_a")
     box_caret_server("box_b")
 
@@ -2320,7 +2343,7 @@ msp_rpart$server<-function(id,model,vals){
     observeEvent(ignoreInit = T,input$download_plot,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=plot_tree()
+      generic=imesc_plot_or_null(plotree())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Decision Tree",datalist_name=datalist_name,name_c="dt_plot")
     })
@@ -2471,6 +2494,8 @@ msp_xyf$ui<-function(id,vals){
 }
 msp_xyf$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     ns<-session$ns
     box_caret_server("box_a")
@@ -2804,7 +2829,7 @@ msp_xyf$server<-function(id,model,vals){
     observeEvent(ignoreInit = T,input$download_plot,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=xyfplot()
+      generic=imesc_plot_or_null(xyfplot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Kohonen plot",datalist_name=datalist_name,name_c="kohonen_plot")
     })
@@ -2893,6 +2918,8 @@ msp_rf$ui<-function(id,vals){
 }
 msp_rf$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
     predall_rf<-reactiveVal()
 
 
@@ -2920,14 +2947,14 @@ msp_rf$server<-function(id,vals){
     observeEvent(ignoreInit = T,input$download_plot_cm,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=getcm()
+      generic=imesc_plot_or_null(getcm())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Confusion Matrix - Tree",datalist_name=datalist_name,name_c="cm_tree")
     })
     observeEvent(ignoreInit = T,input$download_plot,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=gettree()
+      generic=imesc_plot_or_null(gettree())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Tree from RandomForest",datalist_name=datalist_name,name_c="tree")
     })
@@ -3203,6 +3230,8 @@ msp_cforest$ui<-function(id,vals){
 }
 msp_cforest$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     box_caret_server("box_a")
     box_caret_server("box_b")
@@ -3380,7 +3409,7 @@ msp_cforest$server<-function(id,model,vals){
     observeEvent(ignoreInit = T,input$download_cm,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=get_cm()
+      generic=imesc_plot_or_null(get_cm())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="CM-Single Treee",datalist_name=datalist_name,name_c=paste0("cm_tree",input$tree))
     })
@@ -3444,7 +3473,7 @@ msp_cforest$server<-function(id,model,vals){
     observeEvent(ignoreInit = T,input$download_plot,{
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=plotree()
+      generic=imesc_plot_or_null(plotree())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Decision Tree",datalist_name=datalist_name,name_c="dt_plot")
     })
@@ -4610,6 +4639,11 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
     })
 
     observeEvent(input$run_size_eval,{
+      # empty boxes (NA) would make seq()/if() fail inside the size evaluation
+      if(!isTRUE(input$cvsp_k2>=2)||!isTRUE(input$cvsp_n_sizes>=1)||!isTRUE(input$cvsp_repeats2>=1)||(isTRUE(is.na(input$cvsp_group2)))){
+        showNotification("Fill in the number of folds (2 or more), the number of sizes, the repeats and the groups.",type="error")
+        return()
+      }
       sf_dat<-get_sfdata()
       cvsp_size_min<-if(is.na(input$cvsp_size_min)) NULL else input$cvsp_size_min
       cvsp_size_max<-if(is.na(input$cvsp_size_max)) NULL else input$cvsp_size_max
@@ -4617,9 +4651,13 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
       if(is.na(seed)) seed<-NULL
       if(is.numeric(sf_dat$y)){
         y<-sf_dat$y
+        if(anyNA(y)){
+          showNotification("The response (Y) has missing values: remove them before creating the spatial CV scheme.",type="error")
+          return()
+        }
         sf_dat$y<-cut(y,unique(quantile(y,probs=seq(0,1,length.out=input$cvsp_group2))),include.lowest=TRUE)
       }
-      res_size<-size_evaluation(
+      res_size<-tryCatch(size_evaluation(
         sf_dat=sf_dat,
         column="y",
         k=input$cvsp_k2,
@@ -4633,7 +4671,12 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
         hexagon=input$cvsp_hexagon2,
         seed=seed,
         repeats=input$cvsp_repeats2
-      )
+      ),error=function(e){
+        if(inherits(e,"shiny.silent.error")) stop(e)
+        showNotification(paste("Size evaluation failed:",conditionMessage(e)),type="error",duration=10)
+        NULL
+      })
+      req(res_size)
       result_cvsp_sizeeval(res_size)
     })
 
@@ -5432,6 +5475,10 @@ sl_validation$server<-function(id,vals){
 
       sf_dat<-get_sfdata()
       if(is.numeric(sf_dat$y)){
+        if(!isTRUE(input$cvsp_group>=2)){
+          showNotification("Groups must be 2 or more.",type="warning")
+          return(NULL)
+        }
         y<-sf_dat$y
         sf_dat$y <- cut(y, unique(quantile(y, probs = seq(0, 1, length.out = input$cvsp_group))),
                         include.lowest = TRUE)
@@ -6506,6 +6553,8 @@ permutation_importance$ui<-function(id){
 box21_help_content <- "Confusion Matrix after randomizing the selected variable"
 permutation_importance$server<-function(id,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
 
     observeEvent(input$feat_wrap,{
@@ -6579,6 +6628,11 @@ permutation_importance$server<-function(id,vals){
 
 
     observeEvent(input$run_feat_shuf,ignoreInit = T,{
+      if(!isTRUE(input$feat_rep>=1)){
+        showNotification("Repetitions must be 1 or more.",type="warning")
+        return()
+      }
+      req(isTRUE(data_x()%in%names(vals$saved_data)))
       attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$feature_rands<-NULL
       attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$permimp_metrics<-NULL
       attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$permimp_metrics_class<-NULL
@@ -6587,11 +6641,12 @@ permutation_importance$server<-function(id,vals){
       rep=input$feat_rep
       seed=input$feat_seed
       attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$perm_summary<-NULL
-      predtable<-permutation_importance3(
+      predtable<-imesc_run_or_null(permutation_importance3(
         m(),rep,
         session=getDefaultReactiveDomain(),
         seed=seed
-      )
+      ),"Permutation importance")
+      req(predtable)
       attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$feature_rands<-predtable
 
     })
@@ -6649,6 +6704,7 @@ permutation_importance$server<-function(id,vals){
     })
 
     get_sig_feature<-reactive({
+      req(input$feat_wrap)
       if(input$feat_wrap=="All"){
         permimp<-attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$permimp_metrics
         req(permimp)
@@ -6658,6 +6714,8 @@ permutation_importance$server<-function(id,vals){
       } else{
 
         pmc<-attr(vals$saved_data[[data_x()]],vals$cmodel)[[model_name()]]$permimp_metrics_class
+        # the analysis has not been run yet
+        req(is.data.frame(pmc))
         pmc_obs<-split(pmc,pmc$obs)
         perm_summary_obs<-lapply(pmc_obs,function(x){
           perm_summary_obs<-sig_feature(x,m())
@@ -6984,6 +7042,8 @@ caret_pairs$ui<-function(id){
 }
 caret_pairs$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     m<-model
     req(m)
@@ -7009,7 +7069,8 @@ caret_pairs$server<-function(id,model,vals){
     observeEvent(input$gg_run,ignoreInit = T,{
       validate(need(length(input$ggpair.variables)>1,"Requires at least two variables"))
       args<-get_ggpair_args()
-      p<-do.call(gg_pairplot,args)
+      p<-imesc_plot_or_null(do.call(gg_pairplot,args))
+      req(p)
       get_ggpair(p)
 
     })
@@ -7078,7 +7139,7 @@ caret_pairs$server<-function(id,model,vals){
 
       vals$hand_plot<-"generic_ggmatrix"
       module_ui_figs("downfigs")
-      generic=get_ggpair()
+      generic=imesc_plot_or_null(get_ggpair())
       name_c<-"ggpair"
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="GGpair",datalist_name=datalist_name,name_c=name_c)
@@ -7183,6 +7244,8 @@ pd$ui<-function(id){
 }
 pd$server<-function(id,model,vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     ns<-session$ns
     m<-model
@@ -7229,9 +7292,11 @@ pd$server<-function(id,model,vals){
 
 
     observeEvent(input$create_pd,ignoreInit = T,{
+      # nothing to save before RUN (or after an option changed)
+      req(is.data.frame(get_pd()))
       pd0<-data<-get_pd()
       data_x<-attr(model,"Datalist")
-      req(data_x)
+      req(length(data_x)==1,data_x%in%names(vals$saved_data))
       data<-data_migrate(vals$saved_data[[data_x]],data)
       attr(data,"coords")<-NULL
       attr(data,"factors")<-data.frame(id=factor(rownames(pd0)))
@@ -7324,15 +7389,21 @@ pd$server<-function(id,model,vals){
     get_pd<-reactiveVal()
     observeEvent(input$run_pd,ignoreInit = T,{
       req(model)
+      if(!isTRUE(input$rfbi_grid>=2)){
+        showNotification("Grid resolution must be 2 or more.",type="warning")
+        return()
+      }
 
       if(model$modelType=="Classification"){
         if(length(input$rf_biplotclass)>1){
-          res<-lapply(input$rf_biplotclass,function(x) fun_pd(picvars_pd(), model,input$rfbi_grid,x))
+          res<-imesc_run_or_null(lapply(input$rf_biplotclass,function(x) fun_pd(picvars_pd(), model,input$rfbi_grid,x)),"Partial dependence")
+          req(res)
           get_pd(res)
           return()
         }
       }
-      res<-fun_pd(picvars_pd(), model,input$rfbi_grid,input$rf_biplotclass)
+      res<-imesc_run_or_null(fun_pd(picvars_pd(), model,input$rfbi_grid,input$rf_biplotclass),"Partial dependence")
+      req(res)
       get_pd(res)
       shinyjs::removeClass("run_pd_btn","save_changes")
 
@@ -7442,7 +7513,7 @@ pd$server<-function(id,model,vals){
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       name_c="partial_dependence"
-      generic=pd_biplot()
+      generic=imesc_plot_or_null(pd_biplot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Partial Dependendence Plot",  name_c=name_c)
     })
@@ -7515,6 +7586,8 @@ msp_nb$ui<-function(id,model){
 }
 msp_nb$server<-function(id,model,  vals){
   moduleServer(id,function(input,output,session){
+    # started again when the model changes: the observers of the earlier start are destroyed
+    .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
 
     box_caret_server('msp_nb_a')
     box_caret_server('msp_nb_b')
@@ -7579,7 +7652,7 @@ msp_nb$server<-function(id,model,  vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=msp_nb()
+      generic=imesc_plot_or_null(msp_nb())
       name_c<-"Densities"
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="NB-Densities",datalist_name=datalist_name,name_c=name_c)
@@ -7676,9 +7749,16 @@ confusion_module$server<-function(id, vals){
       validate(need(model()$modelType=="Classification","Confusion matrices are only valid for classification models."))
       req(input$caret_cm_type)
       if(input$caret_cm_type=="Resampling"){
+        validate(need(!isTRUE(model()$control$method%in%c("oob","LOOCV","none")),
+                      "The resampled confusion matrix is not available for leave-one-out, out-of-bag or no resampling. Use 'finalModel'."))
         model()
       } else{
-        table(predict(model()$finalModel),model()$trainingData[,'.outcome'])
+        # random forest: out-of-bag predictions; other models: predict() of the caret model
+        # (predict() of a bare finalModel fails for knn, gbm, nnet, rpart...)
+        pred<-if(inherits(model()$finalModel,"randomForest")) predict(model()$finalModel) else predict(model())
+        cm<-table(pred,model()$trainingData[,'.outcome'])
+        names(dimnames(cm))<-NULL
+        cm
       }
     })
 
@@ -7764,7 +7844,7 @@ confusion_module$server_obspred<-function(id, vals,pred,obs){
     observeEvent(ignoreInit = T,input$downplot_cm_train,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=cm_plot()
+      generic=imesc_plot_or_null(cm_plot())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Confusion Matrix",datalist_name=datalist_name,name_c="cm")
 
@@ -8179,7 +8259,7 @@ model_results$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=plot_train()
+      generic=imesc_plot_or_null(plot_train())
       name_c<-"train"
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Training plot",datalist_name=datalist_name,name_c=name_c)
@@ -8190,7 +8270,7 @@ model_results$server<-function(id,vals){
     observeEvent(ignoreInit = T,input$down_plot_feat,{
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=importance_plot()
+      generic=imesc_plot_or_null(importance_plot())
       name_c<-"varImp"
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Variable Importance",datalist_name=datalist_name,name_c=name_c)
@@ -10133,7 +10213,10 @@ model_results$server<-function(id,vals){
 
       req(model())
 
-      imp<-caret::varImp(model(),useModel=as.logical(input$useModel))
+      imp<-try(caret::varImp(model(),useModel=as.logical(input$useModel)),silent=TRUE)
+      # e.g. models of feature selection (rfGA: gafs) without a variable importance
+      validate(need(!inherits(imp,"try-error"),paste("Variable importance is not available for this model:",
+                                                      if(inherits(imp,"try-error")) conditionMessage(attr(imp,"condition")) else "")))
       m<-model()
       req(m$method)
 
@@ -10834,13 +10917,16 @@ model_predic$server<-function(id,vals){
              list(plot=temporal_ts_plot(),table=temporal_df(),message="Observed and predicted through time",name="pred_time_series"))
     }
     observeEvent(input$down_temporal_plot,ignoreInit=TRUE,{
-      cur<-temporal_current()
+      # the plot is built here: an empty option box must not close the session
+      cur<-imesc_plot_or_null(temporal_current())
+      req(cur)
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
       callModule(module_server_figs,"downfigs",vals=vals,generic=cur$plot,message=cur$message,name_c=cur$name,datalist_name=attr(model(),"Datalist"))
     })
     observeEvent(input$down_temporal_table,ignoreInit=TRUE,{
-      cur<-temporal_current()
+      cur<-imesc_run_or_null(temporal_current(),"The table")
+      req(cur)
       vals$hand_down<-"generic"
       module_ui_downcenter("downcenter")
       callModule(module_server_downcenter,"downcenter",vals=vals,message=paste("Download",tolower(cur$message)),data=cur$table,name=cur$name)
@@ -11729,7 +11815,7 @@ fs$server<-function(id,vals){
 
       vals$hand_plot<-"generic_gg"
       module_ui_figs("downfigs")
-      generic=plot(run_ga()) + theme_bw()
+      generic=imesc_plot_or_null(plot(run_ga()) + theme_bw())
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Fit plot - rfGA",datalist_name=datalist_name,name_c="fitplot_rfGA")
     })
@@ -11737,7 +11823,7 @@ fs$server<-function(id,vals){
 
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=plot2()
+      generic=imesc_plot_or_null(plot2())
 
       datalist_name<-attr(vals$cur_caret_model,"model_name")
       mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="perfplot-rfGA",datalist_name=datalist_name,name_c="rfGA_plot1")
@@ -12237,7 +12323,11 @@ sl_module$server<-function(id,vals){
         lapply(missing_pkgs, function(x){
           install_packages(x)
           incProgress(1)
-          library(x,character.only=T)
+          # the installation only warns when it fails (offline, no compiler...)
+          ok<-try(library(x,character.only=T),silent=TRUE)
+          if(inherits(ok,"try-error")){
+            showNotification(paste0("The package '",x,"' could not be installed. Check the internet connection, or install it in R with install.packages('",x,"')."),type="error",duration=15)
+          }
         }
         )
       })

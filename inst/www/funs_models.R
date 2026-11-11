@@ -9,6 +9,33 @@
 # others are stored as they are. Each module may keep a temporary unsaved model under a
 # placeholder name ('unsaved'), which is not listed as a saved model.
 
+# Module servers started again each time the model changes (from a renderUI, with the model passed
+# as a value) would keep the observers of every earlier start, each one bound to its old model: a
+# button then runs once per earlier model and fails on the old ones. At the top of such a module:
+#   .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
+# destroys the observers of the earlier start and registers the new ones.
+#' @export
+imesc_module_observers<-function(session){
+  key<-paste0("imesc_module_observers:",session$ns(""))
+  for(o in session$userData[[key]]) try(o$destroy(),silent=TRUE)
+  session$userData[[key]]<-list()
+  reg<-function(o){
+    session$userData[[key]]<-c(session$userData[[key]],list(o))
+    invisible(o)
+  }
+  list(
+    observeEvent=function(eventExpr,handlerExpr,...){
+      env<-parent.frame()
+      reg(shiny::observeEvent(substitute(eventExpr),substitute(handlerExpr),event.env=env,event.quoted=TRUE,
+                              handler.env=env,handler.quoted=TRUE,...))
+    },
+    observe=function(x,...){
+      env<-parent.frame()
+      reg(shiny::observe(substitute(x),env=env,quoted=TRUE,...))
+    }
+  )
+}
+
 # registry of the model types: type (attribute name), label, short label, tip, wrapped,
 # unsaved placeholder and group
 #' @export
@@ -158,6 +185,16 @@ imesc_model_rename<-function(data,type,new){
   if(anyDuplicated(new)) stop(paste0("Duplicated model names: ",paste(unique(new[duplicated(new)]),collapse=", "),"."))
   old<-names(ms)
   names(ms)<-new
+  # models that keep their own name (attr "model_name", e.g. the caret model of SL entries)
+  # follow the new name when it matched the old one
+  for(i in seq_along(ms)){
+    e<-ms[[i]]
+    if(is.list(e)&&!is.null(e[["m"]])&&identical(attr(e[["m"]],"model_name"),old[i])){
+      attr(ms[[i]][["m"]],"model_name")<-new[i]
+    } else if(identical(attr(e,"model_name"),old[i])){
+      attr(ms[[i]],"model_name")<-new[i]
+    }
+  }
   data<-imesc_models_put(data,type,ms)
   if(identical(type,"som")){
     map<-stats::setNames(new,old)
@@ -171,6 +208,49 @@ imesc_model_rename<-function(data,type,new){
     }
   }
   data
+}
+
+# Datalists renamed (old[i] -> new[i]): the models that point to a Datalist by name (attr "Datalist",
+# the layer names of SOM models) follow the new name, in every Datalist
+#' @export
+imesc_models_follow_rename<-function(saved_data,old,new){
+  changed<-old!=new
+  map<-stats::setNames(as.character(new[changed]),as.character(old[changed]))
+  if(!length(map)) return(saved_data)
+  fix<-function(x){
+    if(is.null(x)) return(x)
+    d<-attr(x,"Datalist")
+    if(is.character(d)&&any(d%in%names(map))){
+      hit<-d%in%names(map)
+      d[hit]<-unname(map[d[hit]])
+      attr(x,"Datalist")<-d
+    }
+    if(inherits(x,"kohonen")&&is.list(x$data)&&any(names(x$data)%in%names(map))){
+      nm<-names(x$data)
+      hit<-nm%in%names(map)
+      nm[hit]<-unname(map[nm[hit]])
+      names(x$data)<-nm
+    }
+    x
+  }
+  for(i in seq_along(saved_data)){
+    for(tp in imesc_models){
+      ms<-attr(saved_data[[i]],tp)
+      if(!is.list(ms)||!length(ms)) next
+      for(j in seq_along(ms)){
+        e<-ms[[j]]
+        if(is.null(e)) next
+        e<-fix(e)
+        # wrapped entries (supervised): list(m = model, ...) or, in older savepoints, list(model)
+        if(identical(class(e),"list")&&length(e)){
+          if(!is.null(e[["m"]])) e[["m"]]<-fix(e[["m"]]) else e[[1]]<-fix(e[[1]])
+        }
+        ms[[j]]<-e
+      }
+      attr(saved_data[[i]],tp)<-ms
+    }
+  }
+  saved_data
 }
 
 # all the models of a Datalist: type, label, name, class and size

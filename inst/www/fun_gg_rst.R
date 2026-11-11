@@ -1,3 +1,10 @@
+# Used by the north arrow stored in inst/www/GeomNorthArrow.rds (do not remove)
+#' @export
+is_grob_like<-function (x)
+{
+  grid::is.grob(x) || inherits(x, "gList") || inherits(x, "gTree")
+}
+
 
 
 #' @export
@@ -60,7 +67,7 @@ col_factor_map<-function(newcolhabs,pal,data,reverse_palette){
   } else {
     colors0<-newcolhabs[[pal]](256)
     if(isTRUE(reverse_palette)){
-      colors0<-colors<-rev(colors)
+      colors0<-rev(colors0)
     }
   }
   colors0
@@ -1391,6 +1398,8 @@ extra_coords<-function(args_extra_shape,extra_shape){
 get_all_coords<-function(data,base_shape_args,layer_shape_args,args_extra_shape){
   coords0<-coords<-attr(data,"coords")
   req(coords)
+  # coordinates with NA: the map panel already shows "NAs not allowed"
+  req(!anyNA(coords))
   coords<-st_as_sf(coords,coords=colnames(coords))
   base_shape<-attr(data,"base_shape")
   layer_shape<-attr(data,"layer_shape")
@@ -1479,7 +1488,7 @@ raster_gg<-function(data,raster_resolution=0.1,down_grade_raster=NULL,down_grade
 
 
 
-  args<-list(data=data, cut_shape = cut_shape, resolution=raster_resolution,base_shape_args=base_shape_args,
+  args<-list(data=data, resolution=raster_resolution,base_shape_args=base_shape_args,
              layer_shape_args=layer_shape_args,
              args_extra_shape=args_extra_shape)
   rst<-do.call(map_rst,args)
@@ -1524,9 +1533,10 @@ get_idw_leaf<-function(data, base_shape_args,
                       args_extra_shape)
 
   limits<-lims_to_extend(limits,F)
-  colnames(limits)<-colnames(coords)
   coords<-coords[rownames(data),]
   colnames(coords)<-c("x","y")
+  # get_grid rbinds coords and limits: same column names
+  colnames(limits)<-colnames(coords)
   newgrid<-get_grid(coords,limits,crs.info,resolution)
   data_spat<-to_spatial(data.frame(cbind(coords,z=data[,1])))
   interp_model=df_idw = gstat::idw(z~1, data_spat, newgrid)
@@ -1692,12 +1702,12 @@ interp_gg<-function(data,interp_args,base_shape_args,
   args$args_extra_shape<-args_extra_shape
 
   rst<- do.call(capture_log2(interp_leaflet2),args)
+  req(!inherits(rst,"error"))
   if(is.numeric(data[,1])){
     custom_breaks=custom_breaks
     rst@data@values<- scales::rescale( rst@data@values,c(min(custom_breaks),max(custom_breaks)))
   }
 
-  req(!inherits(rst,"error"))
   attr(rst,"method")<-args$interp_type
 
   rst
@@ -1710,6 +1720,8 @@ get_limits2<-function(data,base_shape_args,
 
   coords<-attr(data,"coords")
   req(coords)
+  # coordinates with NA: the map panel already shows "NAs not allowed"
+  req(!anyNA(coords))
   coords<-st_as_sf(coords,coords=colnames(coords))
   base_shape<-attr(data,"base_shape")
   layer_shape<-attr(data,"layer_shape")
@@ -2124,7 +2136,7 @@ gg_plotList<-function(cur_data,
           args_temp$args
           p<-do.call(gg_rst,args_temp)
         } else{
-          rst<-interp_gg(data=ddd,interp_args,shape_args,interp_gstat,custom_breaks=breaks,base_shape_args=base_shape_args,
+          rst<-interp_gg(data=ddd,interp_args=interp_args,interp_gstat=interp_gstat,custom_breaks=breaks,base_shape_args=base_shape_args,
                          layer_shape_args=layer_shape_args,
                          args_extra_shape=args_extra_shape)
           rst<-migrate_rst(rst,data)

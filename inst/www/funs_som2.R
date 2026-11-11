@@ -4,7 +4,14 @@
 #' @export
 som_sqdist<-function(m,whatmap,wins=m$unit.classif){
   codewins<-m$codes[[whatmap]][wins,]
-  datawins<-m$data[[whatmap]][names(wins),]
+  data<-m$data[[whatmap]]
+  rows<-names(wins)
+  # layers without row names (superSOMs of older versions with a single-variable layer):
+  # the rows are in the training order of unit.classif
+  if(is.null(rownames(data))&&!is.null(rows)&&!is.null(names(m$unit.classif))){
+    rows<-match(rows,names(m$unit.classif))
+  }
+  datawins<-data[rows,]
   sqdist<-(codewins-datawins)^2
   if(!is.null(nrow(sqdist))){
     rowSums(sqdist)

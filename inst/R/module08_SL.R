@@ -3239,40 +3239,63 @@ msp_cforest$server<-function(id,model,vals){
     model<-vals$cur_caret_model
 
 
+    # new data and its observed Y for the trees: the Y is looked for in the Factor- and then in the
+    # Numeric-Attribute of a Datalist (regression); "Partition" needs a model trained with one
     get_newdata_obs<-reactive({
+      req(input$newdata)
+      sup<-attr(model,"supervisor")
       if(input$newdata=='Datalist'){
+        req(input$newdata_dl%in%names(vals$saved_data))
         newdata=vals$saved_data[[input$newdata_dl]]
-        obs<-attr(newdata,"factors")[,attr(model,"supervisor")]
+        fac<-attr(newdata,"factors")
+        obs<-if(!is.null(fac)&&isTRUE(sup%in%colnames(fac))&&all(rownames(newdata)%in%rownames(fac))) fac[rownames(newdata),sup]
+        else if(isTRUE(sup%in%colnames(newdata))) newdata[,sup]
+        else NULL
+        validate(need(!is.null(obs),paste0("The Datalist '",input$newdata_dl,"' has no column '",sup,"' (the observed Y) in its Factor- or Numeric-Attribute.")))
 
       } else if(input$newdata=="Partition"){
         newdata<-attr(model,"test")
+        validate(need(is.data.frame(newdata)&&!is.null(attr(model,"sup_test")),"This model was trained without a test partition: choose Training or Datalist."))
         obs<-attr(model,"sup_test")[,1]
 
-      } else if(input$newdata=="Training"){
+      } else {
         newdata=train
         obs<-getdata_model(model,"test")
       }
+      validate(need(all(colnames(train)%in%colnames(newdata)),"The new data must have the predictors used in the training."))
       return(list(obs=obs,newdata=newdata))
 
     })
+    # the same in an observer: the reason is shown as a notification
+    newdata_obs_or_null<-function(){
+      tryCatch(get_newdata_obs(),error=function(e){
+        if(nzchar(conditionMessage(e))) showNotification(conditionMessage(e),type="warning",duration=8)
+        NULL
+      })
+    }
 
     observeEvent(input$rank_tree,{
       ntrees<-length(model$finalModel@ensemble)
-      obs=get_newdata_obs()$obs
-      newdata=get_newdata_obs()$newdata
+      nd<-newdata_obs_or_null()
+      req(nd)
+      obs=nd$obs
+      newdata=nd$newdata
 
       withProgress(min=1,max=ntrees,message="Running",{
-        res<-sapply(1:ntrees,function(i){
+        res<-imesc_run_or_null(sapply(1:ntrees,function(i){
           ct<-get_cTree(model$finalModel,i)
           pred<-predict_cforest_tree(ct@tree,newdata, model)
           metric<-caret::postResample(pred,obs)[model$metric]
           incProgress(1)
 
           metric
-        })
+        }),"Ranking the trees")
+        req(res)
+        # best first: errors (RMSE, MAE) are better when smaller
+        decreasing<-!isTRUE(model$metric%in%c("RMSE","MAE"))
 
         updatePickerInput(session,"tree",
-                          choices=c(1:ntrees)[order(res,decreasing=T)],options=shinyWidgets::pickerOptions(liveSearch=T))
+                          choices=c(1:ntrees)[order(res,decreasing=decreasing)],options=shinyWidgets::pickerOptions(liveSearch=T))
 
 
 
@@ -3362,18 +3385,11 @@ msp_cforest$server<-function(id,model,vals){
 
 
     get_cm00<-eventReactive(input$run,ignoreInit = T,{
-      if(input$newdata=='Datalist'){
-        newdata=vals$saved_data[[input$newdata_dl]]
-        obs<-attr(newdata,"factors")[,attr(model,"supervisor")]
-
-      } else if(input$newdata=="Partition"){
-        newdata<-attr(model,"test")
-        obs<-attr(model,"sup_test")[,1]
-
-      } else if(input$newdata=="Training"){
-        newdata=train
-        obs<-getdata_model(model,"test")
-      }
+      # confusion matrices are for classification only (the tree plot of a regression is still drawn)
+      req(identical(model$modelType,"Classification"))
+      nd<-get_newdata_obs()
+      newdata<-nd$newdata
+      obs<-nd$obs
 
       ct<-get_cTree(model$finalModel,as.numeric(input$tree))
 
@@ -4644,7 +4660,11 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
         showNotification("Fill in the number of folds (2 or more), the number of sizes, the repeats and the groups.",type="error")
         return()
       }
-      sf_dat<-get_sfdata()
+      sf_dat<-tryCatch(get_sfdata(),error=function(e){
+        if(nzchar(conditionMessage(e))) showNotification(conditionMessage(e),type="error",duration=8)
+        NULL
+      })
+      req(sf_dat)
       cvsp_size_min<-if(is.na(input$cvsp_size_min)) NULL else input$cvsp_size_min
       cvsp_size_max<-if(is.na(input$cvsp_size_max)) NULL else input$cvsp_size_max
       seed<-input$cvsp_seed2
@@ -5473,13 +5493,18 @@ sl_validation$server<-function(id,vals){
         return(NULL)
       }
 
-      sf_dat<-get_sfdata()
+      sf_dat<-sfdata_or_null()
+      req(sf_dat)
       if(is.numeric(sf_dat$y)){
         if(!isTRUE(input$cvsp_group>=2)){
           showNotification("Groups must be 2 or more.",type="warning")
           return(NULL)
         }
         y<-sf_dat$y
+        if(anyNA(y)){
+          showNotification("The response (Y) has missing values: remove them before creating the spatial CV scheme.",type="error")
+          return(NULL)
+        }
         sf_dat$y <- cut(y, unique(quantile(y, probs = seq(0, 1, length.out = input$cvsp_group))),
                         include.lowest = TRUE)
       }
@@ -5754,17 +5779,33 @@ sl_validation$server<-function(id,vals){
       args<-vals$trainSL_args
       x<-args$x_train
       y<-args$y_train[,1]
+      req(NROW(x)>0)
+      req(isTRUE(args$data_x%in%names(vals$saved_data)))
 
       data_x=vals$saved_data[[args$data_x]]
-      coords<-attr(data_x,"coords")[rownames(x),]
+      coords<-attr(data_x,"coords")
+      # every observation of X needs its coordinates (IDs of X missing in the Coords-Attribute
+      # would become NA)
+      validate(need(NROW(coords)>0&&all(rownames(x)%in%rownames(coords)),
+                    "Spatial CV needs the coordinates (Coords-Attribute of the X Datalist) of every observation of X."))
+      coords<-coords[rownames(x),,drop=FALSE]
+      validate(need(!anyNA(coords),"Spatial CV: some observations of X have missing coordinates (NA)."))
 
       grid_coord<-data.frame(coords,y)
       sf_dat <- sf::st_as_sf(grid_coord, coords = colnames(coords), crs = 4326)
       sf_dat <- sf::st_transform(sf_dat, 3857)
       sf_dat
     })
+    # the same in an observer: the reason is shown as a notification
+    sfdata_or_null<-function(){
+      tryCatch(get_sfdata(),error=function(e){
+        if(nzchar(conditionMessage(e))) showNotification(conditionMessage(e),type="error",duration=8)
+        NULL
+      })
+    }
     observeEvent(input$run_size_eval,{
-      sf_dat<-get_sfdata()
+      sf_dat<-sfdata_or_null()
+      req(sf_dat)
       if(is.na(input$cvsp_size_min)){
         cvsp_size_min<-NULL
       } else{

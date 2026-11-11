@@ -820,34 +820,29 @@ ggplot_avNNet<-function(m=NULL,mod1,df_segments,dfneu,
 
 
 
+# prediction of one tree of a cforest: the class (classification) or the value (regression) of the
+# terminal node of each observation; NA when a split variable is missing for the observation
 predict_cforest_tree<-function(tree,newdata, model){
-  res<-c()
-  for(i in 1:nrow(newdata)){
+  regression<-identical(model$modelType,"Regression")
+  res<-rep(NA,nrow(newdata))
+  for(i in seq_len(nrow(newdata))){
     node<-tree
-    newrow<-newdata[i,]
+    newrow<-newdata[i,,drop=FALSE]
     repeat({
-      if(!is.null(node$psplit$variableName)){
-        go_left<-newrow[[node$psplit$variableName]]<=node$psplit$splitpoint
-      } else{
-        go_left<-F
-      }
-      if(!is.null(node$psplit$variableName)){
-        go_right<-newrow[[node$psplit$variableName]]>node$psplit$splitpoint
-      } else{
-        go_right<-F
-      }
-      if(go_left){
-        node<-node$left
-      } else if(go_right) {
-        node<-node$right
-      }
-      if(node$terminal){
-        res[length(res)+1]<- which.max(node$prediction)
+      if(isTRUE(node$terminal)){
+        res[i]<-if(regression) node$prediction[1] else which.max(node$prediction)
         break()
       }
-
+      v<-node$psplit$variableName
+      x<-if(!is.null(v)) newrow[[v]] else NULL
+      # no split variable, or its value is missing for this observation: no prediction
+      if(is.null(x)||length(x)!=1||is.na(x)) break()
+      go_left<-suppressWarnings(x<=node$psplit$splitpoint)
+      if(length(go_left)!=1||is.na(go_left)) break()
+      node<-if(go_left) node$left else node$right
     })
   }
+  if(regression) return(as.numeric(res))
   factor(model$levels[res],levels=model$levels)
 }
 

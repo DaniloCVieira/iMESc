@@ -1316,7 +1316,9 @@ imesc_supersom$server<-function (id,vals ){
           min = 1,
           max = 1,
           {
-            if(is.na(input$seed)==F){set.seed(input$seed)}
+            # the seed is set again (also when it was drawn at random) so that recreate_som can
+            # replay this training exactly
+            set.seed(seed)
             args<-list(
               data=training_list,
               #whatmap = 1,
@@ -1915,10 +1917,10 @@ table_results_tab4$ui<-function(id){
       6,class="mp0",
       box_caret(ns("box_setup5"),
                 color="#c3cc74ff",
-                title="Snap-Based Model Retraining",
-                tip=tipright("The panel enables users to recreate the model at pre-determined snaps. The snap parameter determines the iterations at which the model will be recreated. For example, if a model with 500 iterations is saved, setting snap to 250 will recreate the model at the 250th and 500th iterations."),
+                title="Training animation",
+                tip=tipright("Replays the training of the model: the first frame is the starting codebook (observations drawn when the model was trained) and the next ones are the real states of the training at evenly spaced iterations, the last one being the trained model. For example, with 500 iterations and snap = 5 the frames show the start and iterations 100, 200, 300, 400 and 500."),
                 div(class="inline_pickers",
-                    numericInput(ns("rlen_snap2"), span(tipright("Number of snapshots or intermediate models to generate"), "snap"), 3),
+                    numericInput(ns("rlen_snap2"), span(tipright("Number of training states to show after the starting codebook, evenly spaced up to the last iteration"), "snap"), 10, min=1, step=1),
                     div(actionButton(ns("run_play2"), "Run >>",style="height: 30px;padding: 5px")),
 
                     hidden(div(style="padding-top: 10px",
@@ -1933,7 +1935,7 @@ table_results_tab4$ui<-function(id){
                 title="Plot options",
                 color="#c3cc74ff",
                 div(checkboxInput(ns("gwnp_show_labels"),"Show Neuron Labels",T),
-                    checkboxInput(ns("gwnp_show_points"),"Show Observations",F)),
+                    checkboxInput(ns("gwnp_show_points"),"Show Observations",T)),
 
       )
 
@@ -1943,7 +1945,8 @@ table_results_tab4$ui<-function(id){
                        inline=F,
                        button_title = actionLink(ns("download_gwnp"),
                                                  "Download",icon("download")),
-                       title="Grid-Weighted Neuron Plot",
+                       title="Network in the data space",
+                       tip=tipright("Observations (grey) at their position in a PCA of the training data, and the codebook vector of each unit projected onto the same axes, linked to its neighbours on the map grid. Filled units have observations, open units are empty; the faint lines link each observation to its best-matching unit. The axes do not change between frames."),
                        div(uiOutput(ns("play_out2")),
                            uiOutput(ns("plot_animation2")))
     ))
@@ -2960,7 +2963,7 @@ table_results_tab4$server<-function(id,vals){
 
 
       div(
-        div(sliderInput(session$ns("animation2"), "Animation:",
+        div(sliderInput(session$ns("animation2"), "Frame:",
                         min = 1, max = length(modelplay2()),
                         value = 1, step = 1,
                         animate =
@@ -2973,7 +2976,12 @@ table_results_tab4$server<-function(id,vals){
     })
 
     output$plot_animation2<-renderUI({
-      renderPlot({get_plot_animation2()})
+      # the reactive keeps the recorded plot; replaying it also redraws on resize
+      renderPlot({
+        p<-get_plot_animation2()
+        req(p)
+        replayPlot(p)
+      })
 
     })
 
@@ -2982,19 +2990,25 @@ table_results_tab4$server<-function(id,vals){
 
     observeEvent(input$run_play2,ignoreInit = T,{
       m<-current_som_model()
-
-      ms<-recreate_som(m,length.out=input$rlen_snap2,session = getDefaultReactiveDomain())
+      ms<-imesc_run_or_null(recreate_som(m,length.out=input$rlen_snap2,session=session),"Rebuilding the training")
+      req(ms)
+      if(!isTRUE(attr(ms,"exact"))){
+        showNotification("The replayed training does not end exactly at the saved model: models trained by older versions of iMESc without a fixed seed cannot be replayed exactly. The frames show a training with the same settings and starting codebook.",type="warning",duration=12)
+      }
       modelplay2(ms)
     })
     modelplay2<-reactiveVal(NULL)
+    # frames belong to one model: another model shows its trained map until Run is clicked again
+    observeEvent(current_som_model(),{
+      modelplay2(NULL)
+    })
     get_plot_animation2<-reactive({
       if(is.null(modelplay2())){
-        plotnetwork_list2(current_som_model(), label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
+        imesc_plot_or_null(plotnetwork_list2(current_som_model(), label=input$gwnp_show_labels,show_points=input$gwnp_show_points))
       } else {
-
-        plotnetwork_list2(modelplay2()[[input$animation2]], label=input$gwnp_show_labels,show_points=input$gwnp_show_points)
-
-
+        i<-input$animation2
+        req(isTRUE(i>=1&&i<=length(modelplay2())))
+        imesc_plot_or_null(plotnetwork_list2(modelplay2()[[i]], label=input$gwnp_show_labels,show_points=input$gwnp_show_points))
       }
 
     })
@@ -3006,9 +3020,9 @@ table_results_tab4$server<-function(id,vals){
       req(get_plot_animation2())
       vals$hand_plot<-"generic_replay"
       module_ui_figs("downfigs")
-      generic=imesc_plot_or_null(get_plot_animation2())
+      generic=get_plot_animation2()
       datalist_name=attr(current_som_model(),'model_name')
-      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Grid-Weighted Neuron Plot", name_c="grid_weig_neuronplot",datalist_name=datalist_name)
+      mod_downcenter<-callModule(module_server_figs,"downfigs", vals=vals,generic=generic,message="Network in the data space", name_c="som_network_plot",datalist_name=datalist_name)
     })
     return(NULL)
 

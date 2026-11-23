@@ -1352,43 +1352,197 @@ virtualPicker<-function(id,SelectedText="IDs selected", label=NULL,choices=NULL,
 
 
 
-recreate_som<-function(m,length.out,session=MockShinySession$new()){
+# Rebuilds the training of a SOM as a list of frames. Frame 1 is the starting codebook (m$init,
+# the observations drawn when the model was trained); the next 'length.out' frames are the states
+# of the training at evenly spaced iterations, the last one being the end of the training.
+# The run is cut into pieces that continue from the codes of the previous piece, with alpha and
+# radius following the linear schedule of the full run (kohonen decreases both linearly from
+# their first to their second value over rlen) and without restarting the random numbers, so a
+# frame is the real state of the trained model at that iteration (two pieces give back exactly
+# the full run, online and batch). attr(frames,"exact") tells whether the last frame is the saved
+# model (models trained with a random seed by older versions cannot be replayed exactly).
+# Each frame is the kohonen object with the codes of that moment, the observations mapped with
+# the weights of the model, and iter, rlen_total, alpha_now and radius_now.
+recreate_som<-function(m,length.out,session=getDefaultReactiveDomain()){
+  if(is.null(m$init)||is.null(m$seed))
+    stop("this model does not keep its starting codebook (it was trained with an older version of iMESc). Train it again to animate its training.")
+  R<-nrow(m$changes)
+  n<-suppressWarnings(as.integer(length.out))
+  if(length(n)!=1||is.na(n)||n<1) stop("'snap' must be a whole number of at least 1")
+  cuts<-unique(round(seq(0,R,length.out=min(n,R)+1)[-1]))
+  a<-m$alpha
+  r<-m$radius
+  if(length(r)==1) r<-c(r,0)
+  alpha_at<-function(k) a[1]-(a[1]-a[2])*k/R
+  radius_at<-function(k) r[1]-(r[1]-r[2])*k/R
+  wm<-m$whatmap
+  if(is.null(wm)) wm<-seq_along(m$data)
+  mode<-if(is.null(m$mode)) "online" else m$mode
+  norm<-if(is.null(m$normalizeDataLayers)) TRUE else isTRUE(as.logical(m$normalizeDataLayers))
 
-  seed<-m$seed
-  ms<-list()
-  rlen=nrow(m$changes)
-
-  seq<-    round(seq(1,rlen,length.out=length.out))
-
-
-
-
-
-  withProgress(min=1,max=length(seq),message="Running...",session=session,{
-    for( i in seq) {
-
-      set.seed(seed)
-      m2<-supersom(m$data,m$grid,
-                   radius = m$radius,
-                   alpha =m$alpha,
-                   whatmap = m$whatmap,
-                   user.weights = m$user.weights,
-                   maxNA.fraction = m$maxNA.fraction,
-                   dist.fcts = m$dist.fcts,
-                   mode = m$mode,
-                   rlen=i,
-                   init=m$init,
-                   normalizeDataLayers = m$normalizeDataLayers)
-
-
-      ms[[length(ms)+1]]<-m2
-      incProgress(1,session=session)
+  # a frame: the codes of that moment, the observations mapped with the weights of the model
+  as_frame<-function(codes,k){
+    mk<-m
+    mk$codes[wm]<-codes
+    mp<-kohonen::map(mk)
+    mk$unit.classif<-mp$unit.classif
+    mk$distances<-mp$distances
+    names(mk$unit.classif)<-rownames(m$data[[wm[1]]])
+    mk$iter<-k
+    mk$rlen_total<-R
+    mk$alpha_now<-alpha_at(k)
+    mk$radius_now<-radius_at(k)
+    mk
+  }
+  # missing values of the starting codes (possible with maxNA.fraction) are drawn at the layer
+  # mean; the training itself imputes them as kohonen does
+  init_shown<-lapply(seq_along(wm),function(i){
+    x<-as.matrix(m$init[[i]])
+    if(anyNA(x)){
+      mu<-colMeans(as.matrix(m$data[[wm[i]]]),na.rm=TRUE)
+      for(j in which(colSums(is.na(x))>0)) x[is.na(x[,j]),j]<-mu[j]
     }
+    x
   })
+  frames<-list(as_frame(init_shown,0))
 
+  run_pieces<-function(){
+    codes<-m$init
+    uw<-m$user.weights
+    nm<-norm
+    prev<-0
+    set.seed(m$seed)
+    for(k in cuts){
+      mk<-kohonen::supersom(m$data,m$grid,rlen=k-prev,
+                            alpha=c(alpha_at(prev),alpha_at(k)),
+                            radius=c(radius_at(prev),radius_at(k)),
+                            whatmap=wm,user.weights=uw,maxNA.fraction=m$maxNA.fraction,
+                            dist.fcts=m$dist.fcts,mode=mode,init=codes,normalizeDataLayers=nm)
+      # with several layers the layer weights come from the starting codebook: the next pieces,
+      # which start from trained codes, keep the weights of the first piece (as the full run)
+      if(prev==0&&length(wm)>1&&isTRUE(nm)){
+        uw<-mk$user.weights*mk$distance.weights
+        nm<-FALSE
+      }
+      codes<-mk$codes[wm]
+      frames[[length(frames)+1]]<<-as_frame(codes,k)
+      prev<-k
+      if(!is.null(session)) incProgress(1,session=session)
+    }
+  }
+  if(is.null(session)){
+    run_pieces()
+  } else {
+    withProgress(min=0,max=length(cuts),message="Rebuilding the training...",session=session,run_pieces())
+  }
+  last<-frames[[length(frames)]]
+  attr(frames,"exact")<-isTRUE(all.equal(unname(last$codes[wm]),unname(m$codes[wm]),check.attributes=FALSE,tolerance=1e-6))
+  frames
+}
 
-  return(ms)
+# Observations and codebook vectors of a SOM in the space of its training data: a PCA of the
+# training data (the layers used in training, each with the same total variance times its user
+# weight) gives the axes; the codebook vectors are projected onto the same axes. The axes depend
+# only on the data, so every frame of an animation is drawn on the same axes.
+som_pca_space<-function(m){
+  wm<-m$whatmap
+  if(is.null(wm)) wm<-seq_along(m$data)
+  uw<-m$user.weights
+  if(length(uw)==length(m$data)) uw<-uw[wm]
+  if(length(uw)!=length(wm)||any(!is.finite(uw))||sum(uw)<=0) uw<-rep(1,length(wm))
+  uw<-uw/sum(uw)
+  blocks<-lapply(seq_along(wm),function(i){
+    x<-as.matrix(m$data[[wm[i]]])
+    storage.mode(x)<-"double"
+    mu<-colMeans(x,na.rm=TRUE)
+    mu[!is.finite(mu)]<-0
+    for(j in which(colSums(is.na(x))>0)) x[is.na(x[,j]),j]<-mu[j]
+    tv<-sum(apply(x,2,stats::var))
+    if(!is.finite(tv)||tv<=0) tv<-1
+    f<-sqrt(uw[i]/tv)
+    cd<-as.matrix(m$codes[[wm[i]]])
+    storage.mode(cd)<-"double"
+    list(x=sweep(x,2,mu)*f,codes=sweep(cd,2,mu)*f)
+  })
+  X<-do.call(cbind,lapply(blocks,function(b) b$x))
+  C<-do.call(cbind,lapply(blocks,function(b) b$codes))
+  pc<-stats::prcomp(X,center=FALSE,scale.=FALSE)
+  k<-min(2,ncol(pc$rotation))
+  sx<-X%*%pc$rotation[,1:k,drop=FALSE]
+  sc<-C%*%pc$rotation[,1:k,drop=FALSE]
+  if(k<2){
+    sx<-cbind(sx,0)
+    sc<-cbind(sc,0)
+  }
+  expl<-pc$sdev^2/sum(pc$sdev^2)
+  expl<-c(expl,0,0)[1:2]
+  list(data=sx,codes=sc,explained=expl)
+}
 
+# Kohonen network drawn in the space of the training data (see som_pca_space): observations in
+# grey at their PCA position, each unit's codebook vector linked to its neighbours on the map
+# (filled when the unit has observations, open when it is empty), and a faint line from each
+# observation to its best-matching unit. The title gives the iteration of a training frame
+# (see recreate_som) and the subtitle alpha, radius and the mean distance to the best-matching
+# unit at that moment. Returns the recorded plot.
+plotnetwork_list2<-function(m,label=TRUE,main=NULL,show_points=TRUE){
+  sp<-som_pca_space(m)
+  xy<-sp$data
+  cxy<-sp$codes
+  nunits<-nrow(m$grid$pts)
+  # axes from the observations only, so they stay fixed during an animation
+  xl<-range(xy[,1])
+  yl<-range(xy[,2])
+  xl<-range(c(xl,cxy[,1]))+c(-1,1)*diff(range(xl))*0.04
+  yl<-range(c(yl,cxy[,2]))+c(-1,1)*diff(range(yl))*0.04
+  if(diff(yl)==0) yl<-yl+c(-1,1)
+
+  if(dev.cur()>1) dev.control(displaylist="enable")
+  opar<-par(mar=c(4,4,4.5,1))
+  on.exit(par(opar),add=TRUE)
+  plot(NA,xlim=xl,ylim=yl,asp=1,
+       xlab=paste0("PC1 (",round(100*sp$explained[1],1),"%)"),
+       ylab=paste0("PC2 (",round(100*sp$explained[2],1),"%)"))
+
+  uc<-m$unit.classif
+  if(isTRUE(show_points)){
+    segments(xy[,1],xy[,2],cxy[uc,1],cxy[uc,2],col=grDevices::adjustcolor("gray50",0.3))
+    points(xy,pch=16,cex=0.7,col="gray55")
+  }
+
+  # neighbours on the map: units one grid step apart (wrap-around links of toroidal maps are not drawn)
+  gd<-as.matrix(stats::dist(m$grid$pts))
+  nb<-which(abs(gd-1)<1e-6&upper.tri(gd),arr.ind=TRUE)
+  segments(cxy[nb[,1],1],cxy[nb[,1],2],cxy[nb[,2],1],cxy[nb[,2],2],col="#05668D",lwd=1.5)
+  hits<-tabulate(uc,nbins=nunits)
+  points(cxy,pch=21,cex=1.4,col="#05668D",bg=ifelse(hits>0,"#05668D","white"))
+  if(isTRUE(label)){
+    text(cxy[,1],cxy[,2],labels=seq_len(nunits),pos=3,cex=0.7,col="gray20")
+  }
+
+  if(is.null(main)){
+    if(is.null(m$iter)){
+      main<-paste0("Trained map (",nrow(m$changes)," iterations)")
+    } else if(m$iter==0){
+      main<-"Start: codebook drawn from the observations"
+    } else {
+      main<-paste0("Iteration ",m$iter," of ",m$rlen_total)
+    }
+  }
+  r<-m$radius
+  if(length(r)==1) r<-c(r,0)
+  alpha_now<-if(is.null(m$alpha_now)) m$alpha[2] else m$alpha_now
+  radius_now<-if(is.null(m$radius_now)) r[2] else m$radius_now
+  title(main=main,line=2.3)
+  mtext(paste0("alpha = ",signif(alpha_now,3),"   radius = ",signif(radius_now,3),
+               "   mean distance to the best-matching unit = ",signif(mean(m$distances,na.rm=TRUE),3)),
+        side=3,line=0.8,cex=0.8)
+  legend("topright",bty="n",cex=0.75,
+         pch=c(if(isTRUE(show_points)) 16,21,21),
+         col=c(if(isTRUE(show_points)) "gray55","#05668D","#05668D"),
+         pt.bg=c(if(isTRUE(show_points)) NA,"#05668D","white"),
+         legend=c(if(isTRUE(show_points)) "observations","unit with observations","empty unit"))
+  recordPlot()
 }
 
 
@@ -1410,94 +1564,6 @@ draw_hexagon<-function(x, y, radius,fill) {
   y_hex<-y + radius * sin(angles)
 
   polygon(x_hex, y_hex,col=fill, border=fill)
-}
-plotnetwork_list2<-function(m,label=T, main="", show_points=T){
-  col<-"Gray"
-  mds<-lapply(m$codes,function(x){
-    x<-sqrt(x^2)
-    res<-m$grid$pts*apply(x,1,mean)
-    # res<-m$grid$pts*apply(x,1,sum)
-    res[,1]<-scales::rescale(res[,1],range(m$grid$pts[,1]))
-    res[,2]<-scales::rescale(res[,2],range(m$grid$pts[,2]))
-    res
-  })
-  matdis2<-matdis<-unit.distances(m$grid)
-  dec<-decimalplaces(max(matdis2))
-  matdis2<-round(matdis2,dec)
-  neighs<-lapply(1:nrow(matdis2),function(i){
-    which(matdis2[i,]==1)
-  })
-
-
-  dist<-data.frame(as.matrix(object.distances(m)))
-  dist$unit<-m$unit.classif
-  splited<-split(dist,dist$unit)
-
-  mean_diss<-sapply(as.character(1:nrow(m$grid$pts)),function(i){
-    x<-  splited[[i]]
-    suppressWarnings(mean(unlist(x)))
-  })
-
-
-
-  cut<-cut(mean_diss,breaks=nrow(m$grid$pts))
-  cols<-viridis::viridis(nlevels(cut))[cut]
-
-  cols[   which(is.na(mean_diss))]<-"darkgray"
-
-  res<-data.frame(do.call(rbind,mds))
-  som_qualist<-errors_som(m)
-
-  plot(res,type="n", ann=F,axes=F        )
-  title(main= paste0("Interaction: ",nrow(m$changes)),"\n",
-        paste("err.quant:",round(as.numeric(unlist(som_qualist$som_quality[1,1])),3)))
-
-  for(j in 1:length(mds)){
-    for(i in 1:length(neighs)) {
-      nei<-neighs[[i]]
-      p0<-mds[[j]][i,]
-      p1<-mds[[j]][nei,]
-      # points(p0[1],p0[2], pch=16, col=col[j],cex=2)
-      segments(  p0[1], p0[2], p1[,1], p1[,2],col=col[j])
-
-
-    }
-
-
-  }
-
-
-  res$unit<-NA
-  res$unit[m$unit.classif]<-m$unit.classif
-  req(length(res)>0)
-  req(nrow(res)>0)
-
-  points<-do.call(rbind,lapply(1:nrow(res),function(i){
-    x<-res[i,]
-    n<-sum(m$unit.classif%in%i)
-    data.frame(x=x$x+ rnorm(n,0,0.06),
-               y=x$y+ rnorm(n,0,0.06))
-
-
-  }))
-
-
-  if(m$grid$topo=="rectangular"){
-    points(res, xlab="Distance", ylab="Distance",
-           pch=15,main=main,col=cols,cex=3)
-  } else{
-    scatter_hexagon(res$x, res$y, radius = 0.2, fill=cols)
-
-  }
-
-
-  if(isTRUE(show_points)){
-    points(points[1:2],pch=16,cex=.8)
-  }
-  if(isTRUE(label)){
-    req(nrow(res)>0)
-    text(res$x,res$y, labels=1:nrow(res), col="white")
-  }
 }
 
 

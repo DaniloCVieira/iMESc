@@ -1191,6 +1191,8 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         input$add_letter_grid
         as.numeric(gsub("\\\n.*","",input$rank_grid))
       })
+      # subtitles typed in the grid window, kept for the next time it is opened
+      grid_labels_store<-reactiveVal(NULL)
       grid_titles<-reactive({
         levs<-levels(get_factor_filter())
         leton<-NULL
@@ -1200,7 +1202,9 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         }
 
         lapply(seq_along(levs),function(i){
-          paste(leton[i],input[[paste0("grid_label_",i)]])
+          lab<-input[[paste0("grid_label_",i)]]
+          if(is.null(lab)) lab<-levs[i]
+          paste(leton[i],lab)
         })
       })
       get_layout_grid<-reactive({
@@ -1488,13 +1492,17 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
       })
       output$titles_grid<-renderUI({
         levs<-levels(get_factor_filter())
-
+        # the subtitles start with the level names (the labels typed when the grid was last
+        # created are kept while the levels are the same); they were created empty and filled
+        # by an update sent before the window was drawn, so reopening the window lost them
+        input$create_grid   # drawn again each time the window opens (with the labels kept)
+        prev<-isolate(grid_labels_store())
+        labs<-if(!is.null(prev)&&identical(prev$levs,levs)) prev$labels else levs
         outputs<-lapply(seq_along(levs),function(i){
           div(style="display: flex",div(
             i,style="font-size:0px",
-          ),textInput(ns(paste0("grid_label_",i)),NULL,value=NULL))
+          ),textInput(ns(paste0("grid_label_",i)),NULL,value=labs[i]))
         })
-        names(values)<-outputs
         div(span(tags$label("Edit/Drag and drop to order")),
             div(style="display: flex",
 
@@ -1886,6 +1894,11 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         data<-unfiltered_data()
 
         factor_filter=get_factor_filter()
+        levs<-levels(factor_filter)
+        grid_labels_store(list(levs=levs,labels=vapply(seq_along(levs),function(i){
+          lab<-input[[paste0("grid_label_",i)]]
+          if(is.null(lab)) levs[i] else as.character(lab)
+        },character(1))))
 
         args_map<-args_for_map3()
 
@@ -1934,6 +1947,9 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         args$args[names(args_title_axes)]<-args_title_axes
         args$args_barscale<-args_scale_bar()
         args$args[names(gg_north_args())]<-gg_north_args()
+        # Legend box (position, title, text size): without it every map of the grid used the
+        # default of the map function, legend.position="none"
+        args$args[names(args_gg_legend())]<-args_gg_legend()
 
         withProgress(min=NA,max=NA,message="Creating Grid Layout....",{
           # a level that cannot be mapped (no data, a failed interpolation...) must not close the session
@@ -1951,19 +1967,6 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         req(p)
         map_result2(p)
         map_result2_final(map_result2())
-
-      })
-      observeEvent(list(input$rank_grid,input$create_grid),{
-        req(input$rank_grid)
-        req(input$create_grid)
-
-        levs0<-levs<-levels(get_factor_filter())
-
-        leton<-grid_letteres()
-        lapply(seq_along(levs0),function(i){
-          updateTextInput(session,paste0("grid_label_",i),NULL,value=levs0[i])
-
-        })
 
       })
       observe({

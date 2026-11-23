@@ -79,10 +79,17 @@ breaks_label<-function(breaks,z){
   breaks<-as.numeric(breaks)
   res<-c()
 
-  mi<-round(min(z),decimal_places(as.numeric(breaks)))
+  mi<-round(min(z,na.rm=TRUE),decimal_places(as.numeric(breaks)))
+  # the first key covers the values from the minimum of the data up to the first break; when no
+  # value is below the first break (as when the breaks start at the minimum of all the data, e.g.
+  # the unified breaks of a grid) it is the first break alone, not an inverted "[min, break]"
+  first<-if(isTRUE(mi<breaks[1])) paste0("[",mi,", ",breaks[1],"]") else as.character(breaks[1])
   bb<-c(mi,breaks)
-  for(i in 1:c(length(breaks))){
-    res[i]<-paste0("[",bb[[i]],", ",bb[[i+1]],"]")
+  res[1]<-first
+  if(length(breaks)>1){
+    for(i in 2:length(breaks)){
+      res[i]<-paste0("[",bb[[i]],", ",bb[[i+1]],"]")
+    }
   }
   res
 }
@@ -115,24 +122,30 @@ gg_circles<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palet
 
 
 
-    #plot(1,col=colors[length(colors)/2],pch=16,cex=15)
-    col_leg<-leaflet::colorBin(colors,domain=rasterpoints$z)(breaks)
+    # each legend key gets the colour that a point of that value gets (the same palette and
+    # limits as scale_colour_gradientn below). It was binned over the range of the data of the
+    # map, so in a grid with unified breaks a break had a different colour in each map, and the
+    # breaks outside that map's data were grey (NA)
+    lims<-range(c(breaks,rst[,1]),na.rm=TRUE)
+    col_leg<-if(diff(lims)>0){
+      scales::gradient_n_pal(colors)(scales::rescale(breaks,from=lims))
+    } else{
+      rep(colors[ceiling(length(colors)/2)],length(breaks))
+    }
 
     if(length(breaks)==1){
       colors<-col_leg
-      colors<-adjustcolor(colorspace::lighten(colors,light),fillOpacity)
     }
-    col_leg<-adjustcolor(colorspace::lighten(col_leg,light),fillOpacity)
     p<-p+
       geom_point(aes(x,y,size=z, color=z),data=rasterpoints)+
       scale_colour_gradientn(
         name=leg_title,
-        guide="none",colours=colors,breaks =breaks, limits = range(c(breaks,rst[,1])))+
+        guide="none",colours=colors,breaks =breaks, limits = lims)+
       scale_radius(range=range,
                    breaks,
                    name=colnames(rst[,1]),
                    labels=breaks_label(breaks,rasterpoints$z),
-                   limits = range(c(breaks,rst[,1])),
+                   limits = lims,
                    )      +
       guides(size = guide_legend(
         override.aes = list(
@@ -280,7 +293,9 @@ rst_tile<-function(p,rasterpoints,rst,newcolhabs,pal,fillOpacity,reverse_palette
   } else{
     round<-decimal_places(custom_breaks)
 
-    p=p+geom_tile(data = rasterpoints , aes(x = x, y = y, fill = z))+scale_fill_gradientn(colours =scale_color_2(pal,newcolhabs, fillOpacity,reverse_palette),name=name,breaks=breaks, limits=range(rasterpoints$z), labels=round(as.numeric(custom_breaks),round))
+    # limits include the breaks: with the unified breaks of a grid every map uses the same colour
+    # scale (with the range of each map's own values, a colour meant a different value in each map)
+    p=p+geom_tile(data = rasterpoints , aes(x = x, y = y, fill = z))+scale_fill_gradientn(colours =scale_color_2(pal,newcolhabs, fillOpacity,reverse_palette),name=name,breaks=breaks, limits=range(c(as.numeric(breaks),rasterpoints$z),na.rm=TRUE), labels=round(as.numeric(custom_breaks),round))
 
   }
   return(p)

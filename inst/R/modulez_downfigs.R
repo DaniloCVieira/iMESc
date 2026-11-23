@@ -71,6 +71,34 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
 
 
 
+  # Pointsize acts on every kind of plot as a scale (like the 'scale' of ggsave): the figure is
+  # drawn on a page pointsize/12 times smaller at pointsize/12 times the resolution, so a PNG,
+  # TIFF or JPEG keeps its size in cm and in pixels while text, points and lines grow or shrink
+  # together (12 = the size seen in the app). The device pointsize stays 12: on its own it changed
+  # only base graphics drawn directly (ggplot sets its fonts in the theme and ignored it; replayed
+  # plots got larger margins and symbols but not larger text, and could fail with "invalid
+  # graphics state"). PDF and SVG have no resolution: their page is the size divided by the scale.
+  fig_scale<-function(){
+    ps<-suppressWarnings(as.numeric(input$pointsize))
+    if(length(ps)!=1||!is.finite(ps)||ps<=0) 1 else ps/12
+  }
+  fig_device<-function(file,format){
+    s<-fig_scale()
+    fheight<-input$fheight/s
+    fwidth<-input$fwidth/s
+    fres<-as.numeric(input$fres)*s
+    if(format%in%c("pdf","svg")){
+      fheight<-fheight*0.3937
+      fwidth<-fwidth*0.3937
+    }
+    switch(format,
+           "png"=png(file, height=fheight, width=fwidth, res=fres, units="cm", pointsize=12),
+           "tiff"=tiff(file, height=fheight, width=fwidth, res=fres, units="cm", compression="lzw", pointsize=12),
+           "jpeg"=jpeg(file, height=fheight, width=fwidth, res=fres, units="cm", quality=100, pointsize=12),
+           "pdf"=pdf(file, height=fheight, width=fwidth, pointsize=12),
+           "svg"=svg(file, height=fheight, width=fwidth, pointsize=12))
+  }
+
   fn_download<-function()
   {
     vals$fres<-input$fres
@@ -86,18 +114,7 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     #fn_downloadf<-readRDS("fn_downloadf.rds")
     #input<-readRDS("input.rds")
     #vals<-readRDS("vals.rds")
-    fheight<-input$fheight
-    fwidth<-input$fwidth
-    fres<-as.numeric(input$fres)
-
-    if(input$fformat=="pdf"|input$fformat=="svg") fheight<-round(fheight*0.3937,2)
-    if(input$fformat=="pdf"|input$fformat=="svg") fwidth<-round(fwidth*0.3937,2)
-
-    if(input$fformat=="png") png(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm", pointsize = input$pointsize)
-    if(input$fformat=="tiff") tiff(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm",compression="lzw", pointsize = input$pointsize)
-    if(input$fformat=="jpeg") jpeg(fn_downloadf(), height=fheight, width=fwidth, res=fres, units="cm",quality=100, pointsize = input$pointsize)
-    if(input$fformat=="pdf") pdf(fn_downloadf(), height=fheight, width=fwidth, pointsize = input$pointsize)
-    if(input$fformat=="svg") svg(fn_downloadf(), height=fheight, width=fwidth, pointsize = input$pointsize)
+    fig_device(fn_downloadf(),input$fformat)
 
 
 
@@ -193,10 +210,9 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
                   {
 
 
-                    fheight<-get_args_dims()[2]
-                    fwidth<-get_args_dims()[1]
-                    fres<-as.numeric(input$fres)
-                    png(paste0(name_c,".png",sep=""), height=fheight, width=fwidth, res=fres, units="cm", pointsize = input$pointsize)
+                    get_args_dims()
+                    # the preview uses the same scale as the download
+                    fig_device(paste0(name_c,".png",sep=""),"png")
                     if(inherits(generic,'gtable')){
                       grid::grid.draw(generic)
                     } else{
@@ -284,7 +300,7 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
                  numericInput(ns("fheight"), strong("Height (cm)"), min=2,  step=1, value = vals$fheight),
                  numericInput(ns("fwidth"), strong("Width (cm)"), min=2,  step=1, value = vals$fwidth),
                  numericInput(ns("fres"), strong("Resolution",tipright("The nominal resolution in ppi which will be recorded in the bitmap file")), value=vals$fres,step=50),
-                 numericInput(ns("pointsize"), strong("Pointsize",tipright("The units in which height and width are given")),value=vals$pointsize,step=1),
+                 numericInput(ns("pointsize"), strong("Pointsize",tipright("Size of text, points and lines relative to the figure. 12 keeps the size seen in the app; 18 makes them 50% larger and 6 half as large, while the figure keeps its height, width and resolution. In PDF and SVG the page becomes 12/Pointsize times the height and width (vector files can be enlarged without loss).")),value=vals$pointsize,min=1,step=1),
                  pickerInput(ns("fformat"), strong("File type"), choices=formats,selected=vals$fformat),
             ),
             div(style="display: flex; align-items: center; gap:3px;",

@@ -740,7 +740,7 @@ rf_explainer$server<-function(id,vals){
       req(get_ploly_sankey())
       showModal(
         modalDialog(
-          title='Download as png file',
+          title='Download as image',
           ll_down_modal$ui(ns("sankey")),
           easyClose = T
         )

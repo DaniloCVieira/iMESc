@@ -124,8 +124,11 @@ scale_color_2<-function (palette="viridis",newcolhabs,fillOpacity=1, reverse_pal
   adjustcolor(cols,fillOpacity)
 }
 
-# Screenshot of an htmlwidget (leaflet, plotly) as PNG without extra packages:
-# PhantomJS through webshot when it is installed, otherwise a headless Chrome/Edge.
+# Screenshot of an htmlwidget (leaflet, plotly) as PNG or JPEG without extra packages: a headless
+# Chrome/Edge when one is installed, otherwise PhantomJS through webshot.
+# Chrome/Edge come first: their virtual time waits for the map tiles, while PhantomJS (kept by
+# users of older iMESc versions) captured after 'delay' (0.2 s by default), before the tiles
+# arrived, giving maps with points on a grey background (seen on macOS).
 #' @export
 ll_find_browser<-function(){
   opt<-getOption("imesc.browser")
@@ -140,9 +143,11 @@ ll_find_browser<-function(){
       file.path(pf,"Microsoft/Edge/Application/msedge.exe"),
       file.path(pf,"Chromium/Application/chrome.exe"))
   } else if(Sys.info()[["sysname"]]=="Darwin"){
-    c("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-      "/Applications/Chromium.app/Contents/MacOS/Chromium")
+    apps<-c("/Applications",file.path(Sys.getenv("HOME"),"Applications"))
+    c(file.path(apps,"Google Chrome.app/Contents/MacOS/Google Chrome"),
+      file.path(apps,"Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+      file.path(apps,"Chromium.app/Contents/MacOS/Chromium"),
+      file.path(apps,"Brave Browser.app/Contents/MacOS/Brave Browser"))
   } else{
     unname(Sys.which(c("google-chrome","google-chrome-stable","chromium","chromium-browser","microsoft-edge")))
   }
@@ -151,20 +156,28 @@ ll_find_browser<-function(){
 }
 
 #' @export
-ll_widget_png<-function(widget,file,vwidth=800,vheight=600,zoom=1,delay=0.2){
+# format: "png" (default) or "jpeg"; both engines choose the format by the file extension
+ll_widget_png<-function(widget,file,vwidth=800,vheight=600,zoom=1,delay=0.2,format=c("png","jpeg")){
+  format<-match.arg(format)
   dir<-tempfile("widget_")
   dir.create(dir)
   on.exit(unlink(dir,recursive=TRUE),add=TRUE)
   html<-file.path(dir,"map.html")
   htmlwidgets::saveWidget(widget,html,selfcontained=FALSE)
-  if(isTRUE(tryCatch(webshot::is_phantomjs_installed(),error=function(e) FALSE))){
-    webshot::webshot(html,file=file,delay=delay,zoom=zoom,vwidth=vwidth,vheight=vheight)
-    return(invisible(file))
-  }
   browser<-ll_find_browser()
-  if(is.null(browser)) stop("No screenshot engine found. Install Google Chrome or Microsoft Edge, or PhantomJS with webshot::install_phantomjs().")
-  out<-file.path(dir,"shot.png")
-  url<-paste0("file:///",gsub("\\\\","/",normalizePath(html,winslash="/")))
+  if(is.null(browser)){
+    if(isTRUE(tryCatch(webshot::is_phantomjs_installed(),error=function(e) FALSE))){
+      # at least 3 s, so that the map tiles are downloaded before the capture
+      shot<-file.path(dir,paste0("shot.",if(format=="jpeg") "jpg" else "png"))
+      webshot::webshot(html,file=shot,delay=max(3,delay),zoom=zoom,vwidth=vwidth,vheight=vheight)
+      file.copy(shot,file,overwrite=TRUE)
+      return(invisible(file))
+    }
+    stop("No screenshot engine found. Install Google Chrome or Microsoft Edge, or PhantomJS with webshot::install_phantomjs().")
+  }
+  out<-file.path(dir,paste0("shot.",format))
+  # file:///C:/... on Windows, file:///var/... on macOS/Linux (the path already starts with /)
+  url<-paste0("file:///",sub("^/+","",normalizePath(html,winslash="/")))
   args<-c("--headless=new","--disable-gpu","--hide-scrollbars","--no-first-run","--no-default-browser-check",
           paste0("--user-data-dir=",shQuote(file.path(dir,"profile"))),
           paste0("--window-size=",round(vwidth),",",round(vheight)),

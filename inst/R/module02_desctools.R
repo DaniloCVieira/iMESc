@@ -2963,6 +2963,7 @@ desctools_tab7$ui<-function(id){
                div(
 
                  actionButton(ns("run_pca"),"RUN", icon=icon("fas fa-sync")),
+                 uiOutput(ns("pca_warning")),
                  tabsetPanel(
                    id=ns('pca_options'),
                    type="hidden",
@@ -3168,8 +3169,9 @@ desctools_tab7$server<-function(id,vals){
       do.call(ggpca,args)
     })
 
+    pca_na_msg<-"PCA does not support missing values: the selected Datalist has NA. Impute or remove them first (Pre-processing > Data imputation) and click RUN again."
     output$plot_pca<-renderUI({
-
+      validate(need(!anyNA(getdata_descX()),pca_na_msg))
       div(
         renderPlot({
           get_plot_pca()
@@ -3184,11 +3186,14 @@ desctools_tab7$server<-function(id,vals){
 
     }
 
+    # PCA runs on the data as they are (center=FALSE): the user centers them in Pre-processing.
+    # Shown under RUN when the column means are not zero; with NA the NA message is shown instead.
     output$pca_warning<-renderUI({
-      centered<-is_centered(getdata_descX())
-
-      if(isTRUE(centered)){NULL} else{p("Warning: The data appears not to be centered. PCA typically requires centered data for accurate results. Adjustments can be made in the Transformations section of the Pre-processing tools.",style="color: grey; padding-left: 10px; font-size: 12px")}
-
+      data<-getdata_descX()
+      req(!anyNA(data))
+      if(isTRUE(is_centered(data))) return(NULL)
+      p(icon("fas fa-exclamation-triangle"),"The data are not centered (column means are not zero). This PCA does not center the data, so PC1 mostly reflects the variable means instead of the variation among observations. Center them in Pre-processing > Transformations (Scale, with Center) and select the new Datalist.",
+        style="color: #8a6d3b; padding: 5px 10px 0 10px; font-size: 12px")
     })
     output$pca_btn<-renderUI({
       validate(need(!anyNA(getdata_descX()), "This functionality does not support missing values; Please use the transformation tool to the handle missing values."))
@@ -3211,8 +3216,7 @@ desctools_tab7$server<-function(id,vals){
     })
 
     output$summary_pca<-renderUI({
-
-
+      validate(need(!anyNA(getdata_descX()),pca_na_msg))
       req(!is.null(pca_model()))
       res<- summary(pca_model())
       center<-res$center
@@ -3259,9 +3263,17 @@ desctools_tab7$server<-function(id,vals){
 
 
     observeEvent(input$run_pca,ignoreInit = T,{
-      pca<-try(prcomp(getdata_descX(), center=F, scale=F))
-      if(!inherits(pca,"try-error"))
-        pca_model(pca)
+      data<-getdata_descX()
+      if(anyNA(data)){
+        showNotification(pca_na_msg,type="warning",duration=10)
+        return()
+      }
+      pca<-try(prcomp(data, center=F, scale=F),silent=TRUE)
+      if(inherits(pca,"try-error")){
+        showNotification(paste("PCA failed:",conditionMessage(attr(pca,"condition"))),type="error",duration=10)
+        return()
+      }
+      pca_model(pca)
       runval$pca<-"btn_nice"
     })
 

@@ -3901,8 +3901,9 @@ ll_down_modal$ui<-function(id){
     inline(numericInput(ns("vwidth"),span('width', tiphelp("Viewport width. This is the width of the browser window")), 800, width="100px")),
     inline(numericInput(ns("vheight"),span('height',tiphelp("Viewport height This is the height of the browser window")), 600, width="100px")),
     inline(numericInput(ns("delay"),span('delay', tiphelp("Time to wait before taking screenshot, in seconds. Sometimes a longer delay is needed for all assets to display properly.")), 0.2, width="100px")),
+    inline(div(style="width: 140px",radioButtons(ns("format"),span('format',tiphelp("PNG keeps every pixel (lossless); JPEG gives smaller files, with a slight loss of quality.")),c("PNG"="png","JPEG"="jpeg"),selected="png",inline=TRUE))),
     inline(actionButton(ns("create_png"),"Download",icon("download"))),
-    # the PNG is created first; the download starts only when it succeeded
+    # the image is created first; the download starts only when it succeeded
     div(style="position: absolute; left: -9999px; top: 0px",downloadButton(ns("download"),"download"))
   )
 
@@ -3917,26 +3918,27 @@ ll_down_modal$server<-function(id, map,file_name='leaflet_'){
         showNotification("Create the map before downloading it.",type="warning")
         return()
       }
-      out<-tempfile(fileext=".png")
+      format<-if(identical(input$format,"jpeg")) "jpeg" else "png"
+      out<-tempfile(fileext=paste0(".",format))
       res<-withProgress(message="Preparing...",min=NA,max=NA,{
         tryCatch(ll_widget_png(widget,out,vwidth=input$vwidth%||%800,vheight=input$vheight%||%600,
-                               zoom=input$zoom%||%1,delay=input$delay%||%0.2),
+                               zoom=input$zoom%||%1,delay=input$delay%||%0.2,format=format),
                  error=function(e) conditionMessage(e))
       })
       if(is.character(res)&&!file.exists(out)){
-        showNotification(paste("The PNG could not be created.",res),type="error",duration=10)
+        showNotification(paste("The",toupper(format),"could not be created.",res),type="error",duration=10)
         return()
       }
       png_file(out)
       shinyjs::click("download")
     })
+    # the extension of the file created (png or jpeg) names the download
     output$download<-downloadHandler(
-      filename=function() paste0(file_name,Sys.Date(),".png"),
+      filename=function() paste0(file_name,Sys.Date(),".",tools::file_ext(png_file()%||%"x.png")),
       content=function(file){
         req(png_file())
         file.copy(png_file(),file,overwrite=TRUE)
-      },
-      contentType="image/png"
+      }
     )
     # the button is kept off screen: without this its link is never set and the click does nothing
     outputOptions(output,"download",suspendWhenHidden=FALSE)
@@ -3957,7 +3959,7 @@ ll_down_plot$server<-function(id, map){
     observeEvent(input$download_ll,ignoreInit = T,{
       showModal(
         modalDialog(
-          title='Download as png file',
+          title='Download map as image',
           ll_down_modal$ui(ns("download")),
           easyClose = T
         )

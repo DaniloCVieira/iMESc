@@ -4502,6 +4502,54 @@ temporal_validation$server<-function(id,vals){
     return(NULL)
   })
 }
+# The checkerboard selection always gives two folds (blocks in two alternating colours, see
+# cv_spatial2): while it is selected the folds input is fixed at 2 and disabled, with a note
+cv_folds_input<-function(ns,id,value,selection){
+  checker<-isTRUE(selection=="checkerboard")
+  inp<-numericInput(ns(id),"Nº Folds",value=if(checker) 2 else value)
+  div(
+    if(checker) shinyjs::disabled(inp) else inp,
+    div(id=ns(paste0(id,"_checker")),style=paste0("margin: -10px 0 10px 0; font-size: 12px; color: #555;",if(!checker) " display: none;"),
+        em("The checkerboard always gives 2 folds (blocks in two alternating colours). Use the systematic or random selection for more folds."))
+  )
+}
+# lines describing a spatial CV scheme (blocks created in iMESc, or folds read from the Factor-Attribute)
+cvsp_info_lines<-function(k,size,hexagon,selection,repeats,source=NULL){
+  tagList(
+    div(strong("Nº Folds:"),k),
+    if(length(source)){
+      div(strong("Folds from:"),paste0("Factor-Attribute (",paste(source,collapse=", "),")"))
+    } else {
+      tagList(
+        div(strong("Block size:"),size,"meters"),
+        div(strong("Hexagon:"),hexagon),
+        div(strong("Selection:"),selection)
+      )
+    },
+    div(strong("Repeats:"),repeats)
+  )
+}
+cvsp_scheme_info<-function(scheme){
+  cvsp_info_lines(scheme[[1]]$k,scheme[[1]]$size,attr(scheme,"hexagon"),attr(scheme,"selection"),length(scheme),attr(scheme,"source"))
+}
+cv_folds_checker_observer<-function(input,session,sel_id,k_id){
+  k_before<-reactiveVal(NULL)
+  observeEvent(input[[sel_id]],{
+    checker<-isTRUE(input[[sel_id]]=="checkerboard")
+    if(checker){
+      if(isTRUE(input[[k_id]]!=2)) k_before(input[[k_id]])
+      updateNumericInput(session,k_id,value=2)
+      shinyjs::disable(k_id)
+    } else {
+      shinyjs::enable(k_id)
+      if(!is.null(k_before())){
+        updateNumericInput(session,k_id,value=k_before())
+        k_before(NULL)
+      }
+    }
+    shinyjs::toggle(paste0(k_id,"_checker"),condition=checker)
+  })
+}
 spatial_size_evaluation<-list()
 spatial_size_evaluation$ui<-function(id,cvsp_params){
   ns<-NS(id)
@@ -4510,7 +4558,7 @@ spatial_size_evaluation$ui<-function(id,cvsp_params){
            box_caret(ns("cvsp_sizeeval_out"),
                      title="Parameters",
                      div(
-                       numericInput(ns("cvsp_k2"), "Nº Folds",value=cvsp_params$k2 ),
+                       cv_folds_input(ns,"cvsp_k2",cvsp_params$k2,cvsp_params$selection2),
                        numericInput(ns("cvsp_repeats2"), "Repeats",value=cvsp_params$repeats2 ),
                        numericInput(ns("cvsp_n_sizes"),span("Number of sizes:",tipright("Number of candidate block sizes to test between the minimum and maximum values. For example, 5 will test five different block sizes.")),value=cvsp_params$n_sizes,min=2,step=1),
                        numericInput(ns("cvsp_size_min"),span("Minimum size:",tipright("Minimum block size to be tested, in metres. Leave empty to let the tool define this value automatically based on the estimated spatial autocorrelation range and study area extent.")),value=cvsp_params$size_min),
@@ -4518,7 +4566,7 @@ spatial_size_evaluation$ui<-function(id,cvsp_params){
                        numericInput(ns("cvsp_range_mult_min"),span("Range multiplier min:",tipright("Lower multiplier applied to the estimated spatial autocorrelation range to define the minimum candidate block size. For example, 0.25 tests block sizes starting at 25% of the estimated range.")),value=cvsp_params$range_mult_min,min=0,step=0.05),
                        numericInput(ns("cvsp_range_mult_max"),span("Range multiplier max:",tipright("Upper multiplier applied to the estimated spatial autocorrelation range to define the maximum candidate block size. For example, 1.25 allows testing block sizes up to 125% of the estimated range, when feasible.")),value=cvsp_params$range_mult_max,min=0,step=0.05),
                        numericInput(ns("cvsp_min_blocks_per_fold"),span("Minimum blocks per fold:",tipright("Minimum approximate number of spatial blocks expected per fold. Higher values make the folds more stable, but may force the tool to use smaller block sizes.")),value=cvsp_params$min_blocks_per_fold,min=1,step=1),
-                       pickerInput_fromtop(ns("cvsp_selection2"),span("Selection",tipright("Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard does not work with hexagonal spatial blocks.")),c("random","systematic","checkerboard"),selected=cvsp_params$selection2),
+                       pickerInput_fromtop(ns("cvsp_selection2"),span("Selection",tipright("Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard always gives 2 folds and does not work with hexagonal spatial blocks.")),c("random","systematic","checkerboard"),selected=cvsp_params$selection2),
                        checkboxInput(ns("cvsp_hexagon2"),span("Hexagonal spatial blocks"),value=cvsp_params$hexagon2),
                        numericInput(ns("cvsp_group2"),span("Groups:",tiphelp("For regression, this defines the number of quantile-based groups used during resampling. The sample is split into groups based on percentiles, and sampling is performed within these groups. This helps preserve the distribution of the response variable across folds.")),value=cvsp_params$group2,min=2,step=1),
                        numericInput(ns("cvsp_iteration2"),span("Iterations:",tipright("Number of random allocation attempts used to find a suitable fold distribution. Larger values may improve fold balance, but increase computation time.")),value=cvsp_params$iteration2,min=1,step=1),
@@ -4559,6 +4607,7 @@ spatial_size_evaluation$server<-function(id,vals,cvsp_params,result_cvsp_sizeeva
       if(!is.null(input$cvsp_iteration2)) cvsp_params$iteration2<-input$cvsp_iteration2
       if(!is.null(input$cvsp_seed2)) cvsp_params$seed2<-input$cvsp_seed2
     })
+    cv_folds_checker_observer(input,session,"cvsp_selection2","cvsp_k2")
 
     observe({
       shinyjs::toggle("cvsp_group2",condition=isTRUE(y_is_numeric()))
@@ -5362,10 +5411,10 @@ sl_validation$server<-function(id,vals){
                   color="#c3cc74ff",
                   title="Parameters",
                   div(
-                    numericInput(ns("cvsp_k"), "Nº Folds",value=cvsp_params$k),
+                    cv_folds_input(ns,"cvsp_k",cvsp_params$k,cvsp_params$selection),
                     numericInput(ns("cvsp_repeats"), "Repeats",value=cvsp_params$repeats),
                     checkboxInput(ns("cvsp_hexagon"),span("Hexagonal spatial blocks"),value=cvsp_params$hexagon),
-                    pickerInput_fromtop(ns("cvsp_selection"),span("Selection",tipright('Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard does not work with hexagonal spatial blocks.')),c("random",'systematic','checkerboard'), selected = cvsp_params$selection),
+                    pickerInput_fromtop(ns("cvsp_selection"),span("Selection",tipright('Type of assignment of blocks into folds. Can be random, systematic, or checkerboard. The checkerboard always gives 2 folds and does not work with hexagonal spatial blocks.')),c("random",'systematic','checkerboard'), selected = cvsp_params$selection),
                     div(style="",
                         uiOutput(ns("cvsp_sizeout")),
                         uiOutput(ns("cvsp_size_warning"))
@@ -5424,10 +5473,126 @@ sl_validation$server<-function(id,vals){
     })
     output$spatial_cv<-renderUI({
       tabsetPanel(
+        id=ns("spatial_cv_tabs"),
         #selected ="Size Evaluation Tool",
-        tabPanel("Create Spatial Folds",uiOutput(ns('spatial_cv_tab1'))),
-        tabPanel("Size Evaluation Tool",      uiOutput(ns('spatial_cv_tab2')))
+        tabPanel("Create Spatial Folds",value="create",uiOutput(ns('spatial_cv_tab1'))),
+        tabPanel("Size Evaluation Tool",value="size",uiOutput(ns('spatial_cv_tab2'))),
+        tabPanel("Folds from Factor-Attribute",value="factor",uiOutput(ns('spatial_cv_tab3')))
       )
+    })
+    # Folds saved in (or read from) the Factor-Attribute of the X Datalist: the same spatial CV
+    # scheme can be used by other algorithms, another Y of the same observations or another session
+    cvsp_saved_cols<-reactiveVal(NULL)
+    output$spatial_cv_tab3<-renderUI({
+      args<-vals$trainSL_args
+      dx<-args$data_x
+      validate(need(isTRUE(dx%in%names(vals$saved_data)),"Set up the training data first."))
+      fac<-attr(vals$saved_data[[dx]],"factors")
+      choices<-colnames(fac)
+      validate(need(length(choices)>0,paste0("The X Datalist ('",dx,"') has no Factor-Attribute columns.")))
+      selected<-isolate(cvsp_saved_cols())
+      if(!length(selected)||!all(selected%in%choices)){
+        selected<-utils::head(grep("^spcv_",choices,value=TRUE),1)
+      }
+      div(
+        column(5,class="mp0",
+               box_caret(ns("cvsp_factor_params"),
+                         color="#c3cc74ff",
+                         title="Folds",
+                         div(
+                           pickerInput(ns("cvsp_fac_cols"),span("Fold columns",tipright("Factor-Attribute columns of the X Datalist with the fold of each observation. Each column is one repeat. Columns saved with 'Save folds to Factor-Attribute' start with the chosen prefix (spcv_ by default).")),
+                                       choices=choices,selected=selected,multiple=TRUE,
+                                       options=shinyWidgets::pickerOptions(liveSearch=TRUE,actionsBox=TRUE)),
+                           div(style="font-size: 12px; color: #555; margin-bottom: 10px",
+                               em("Every training observation needs a fold. The folds fix which observations are used for training and testing; to compare algorithms, also use the same seed in the validation options, as it still affects the models themselves (e.g. the random forest bootstrap).")),
+                           div(align="center",actionButton(ns("cvsp_use_factors"),"Use these folds",class="btn-primary"))
+                         )
+               )),
+        column(7,class="mp0",
+               box_caret(ns("cvsp_factor_info"),
+                         title="Fold sizes",
+                         div(uiOutput(ns("cvsp_factor_table")))
+               ))
+      )
+    })
+    output$cvsp_factor_table<-renderUI({
+      cols<-input$cvsp_fac_cols
+      req(length(cols)>0)
+      args<-vals$trainSL_args
+      fac<-attr(vals$saved_data[[args$data_x]],"factors")
+      req(all(cols%in%colnames(fac)))
+      ids<-rownames(args$x_train)
+      tabs<-lapply(cols,function(col){
+        v<-fac[match(ids,rownames(fac)),col]
+        tb<-table(as.character(v),useNA="ifany")
+        names(tb)[is.na(names(tb))]<-"no fold"
+        tb
+      })
+      div(style="font-size: 12px",
+          p(em(paste0("Training observations per fold (",length(ids)," observations):"))),
+          lapply(seq_along(cols),function(i) div(strong(cols[i]),": ",paste0(names(tabs[[i]])," = ",tabs[[i]],collapse="; ")))
+      )
+    })
+    observeEvent(input$cvsp_save_folds,{
+      scheme<-cvsp_scheme()
+      req(!is.null(scheme))
+      args<-vals$trainSL_args
+      dx<-args$data_x
+      req(isTRUE(dx%in%names(vals$saved_data)))
+      data<-vals$saved_data[[dx]]
+      fac<-attr(data,"factors")
+      prefix<-gsub("[^A-Za-z0-9_.]","_",trimws(as.character(input$cvsp_fold_prefix)))
+      if(!length(prefix)||!nzchar(prefix)) prefix<-"spcv"
+      res<-tryCatch({
+        folds<-cvsp_folds_to_factors(scheme,rownames(args$x_train),prefix,existing=colnames(fac))
+        list(folds=folds,factors=cvsp_add_fold_columns(fac,folds,rownames(data)))
+      },error=function(e) e)
+      if(inherits(res,"error")){
+        showNotification(paste("The folds could not be saved:",conditionMessage(res)),type="error",duration=8)
+        return(NULL)
+      }
+      cvsp_saved_cols(colnames(res$folds))
+      attr(vals$saved_data[[dx]],"factors")<-res$factors
+      showNotification(paste0("Folds saved in the Factor-Attribute of '",dx,"': ",paste(colnames(res$folds),collapse=", "),
+                              ". Other models can use them in the 'Folds from Factor-Attribute' tab."),type="message",duration=8)
+    })
+    observeEvent(input$cvsp_use_factors,{
+      args<-vals$trainSL_args
+      dx<-args$data_x
+      req(isTRUE(dx%in%names(vals$saved_data)))
+      cols<-input$cvsp_fac_cols
+      if(!length(cols)){
+        showNotification("Select at least one column with the folds.",type="warning")
+        return(NULL)
+      }
+      if(is.null(tryCatch(get_sfdata(),error=function(e) NULL))){
+        showNotification("Spatial CV needs the coordinates (Coords-Attribute of the X Datalist) of every observation of X.",type="error",duration=8)
+        return(NULL)
+      }
+      group<-if(isTRUE(cvsp_params$group>=2)) cvsp_params$group else 5
+      res<-tryCatch(
+        cvsp_scheme_from_factors(attr(vals$saved_data[[dx]],"factors"),cols,rownames(args$x_train),
+                                 y=if(!is.null(args$y_train)) args$y_train[,1] else NULL,groups=group),
+        error=function(e) e)
+      if(inherits(res,"error")){
+        showNotification(paste("The folds could not be used:",conditionMessage(res)),type="error",duration=10)
+        return(NULL)
+      }
+      empty<-names(res)[vapply(res,function(cv){
+        te<-cv$records[grep("^test_",colnames(cv$records))]
+        length(te)>0&&any(as.matrix(te)<1)
+      },logical(1))]
+      attr(res,"hexagon")<-NA
+      attr(res,"selection")<-"Factor-Attribute"
+      cvsp_scheme_cache(list(key=NULL,result=NULL))
+      cvsp_plot_cache(new.env(parent=emptyenv()))
+      cvsp_scheme(res)
+      cvsp_saved_cols(cols)
+      updateTabsetPanel(session,"spatial_cv_tabs",selected="create")
+      showNotification(paste0("Spatial CV scheme set from the Factor-Attribute: ",paste(cols,collapse=", "),"."),type="message",duration=6)
+      if(!is.null(args$y_train)&&!is.numeric(args$y_train[,1])&&length(empty)){
+        showNotification(paste0("Some test folds have no observations of a class (",paste(empty,collapse=", "),"). See the record table."),type="warning",duration=10)
+      }
     })
 
 
@@ -5563,13 +5728,15 @@ sl_validation$server<-function(id,vals){
       req(!is.null(cvsp_scheme()))
       div(
         div(style="background: #dbf4ffff; padding: 10px; font-size: 12px",
-            div(strong('Nº Folds:'),cvsp_scheme()$k),
-            div(strong("Block size:"),cvsp_scheme()$size, "meters"),
-            div(strong("Hexagon:"),attr(cvsp_scheme(),"hexagon")),
-            div(strong("Selection:"),attr(cvsp_scheme(),"selection")),
-            div(strong("Repeats:"),length(cvsp_scheme())),
+            cvsp_scheme_info(cvsp_scheme()),
             div(pickerInput(ns("cvsp_showrepeat"),"Show Repeat:",names(cvsp_scheme())))
         ),
+        if(is.null(attr(cvsp_scheme(),"source"))){
+          div(style="display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; font-size: 12px",
+              textInput(ns("cvsp_fold_prefix"),span("Column prefix",tipright("The folds are saved in the Factor-Attribute of the X Datalist, one column per repeat (prefix_Rep1, prefix_Rep2...). Other models (other algorithms, or another Y of the same observations) can then use exactly the same folds in the 'Folds from Factor-Attribute' tab.")),value="spcv",width="140px"),
+              div(style="margin-bottom: 15px",actionButton(ns("cvsp_save_folds"),span(icon("fas fa-save"),"Save folds to Factor-Attribute"),style="font-size: 12px"))
+          )
+        },
         uiOutput(ns('cv_spatial_out1'))
       )
 
@@ -5855,6 +6022,7 @@ sl_validation$server<-function(id,vals){
     observeEvent(input$cvsp_selection,{
       vals$cur_cvsp_selection<-input$cvsp_selection
     })
+    cv_folds_checker_observer(input,session,"cvsp_selection","cvsp_k")
     observeEvent(input$cvsp_selection,{
       if(input$cvsp_selection%in%c('checkerboard','predefined' ))
         updateCheckboxInput(session,"cvsp_hexagon",value=F)
@@ -5968,11 +6136,7 @@ sl_validation$server<-function(id,vals){
         div(style="background-color:#dbf4ffff; padding: 10px; font-size: 12px; display: flex; gap: 5px",
             div(
               div(strong("Spatial CV scheme:")),
-              div(strong('Nº Folds:'),cvsp_scheme()$k),
-              div(strong("Block Size: "),cvsp_scheme()$size,"meters"),
-              div(strong("Hexagonal: "), attr(cvsp_scheme(),"hexagon")),
-              div(strong("Selection: "), attr(cvsp_scheme(),"selection")),
-              div(strong("Repeats:"),length(cvsp_scheme()))
+              cvsp_scheme_info(cvsp_scheme())
             ),
             div(actionButton(ns("cv_details"),"See Details", style="padding: 2px; font-size: 12px"))
 
@@ -6034,11 +6198,7 @@ sl_validation$server<-function(id,vals){
                              title="Parameters",
                              div(
                                style="background: #dbf4ffff; padding: 10px; font-size: 12px",
-                               div(strong('Nº Folds:'),cvsp_scheme()$k),
-                               div(strong("Block size:"),cvsp_scheme()$size, "meters"),
-                               div(strong("Hexagon:"),attr(cvsp_scheme(),"hexagon")),
-                               div(strong("Selection:"),attr(cvsp_scheme(),"selection")),
-                               div(strong("Repeats:"),length(cvsp_scheme())),
+                               cvsp_scheme_info(cvsp_scheme()),
                                div(pickerInput(ns("cvsp_detail_showrepeat"),"Show Repeats",names(cvsp_scheme())))
 
                              )),
@@ -6248,6 +6408,7 @@ sl_validation$server<-function(id,vals){
                                        selection=attr(cvsp_scheme(),"selection"),
                                        repeats=length(cvsp_scheme()),
                                        spcv=cvsp_scheme(),
+                                       source=attr(cvsp_scheme(),"source"),
                                        sf_dat=get_sfdata())
       attr(caret_folds,"setup")<-sl_setup_signature(vals$trainSL_args)
       vals$cvsp<-caret_folds
@@ -9967,11 +10128,7 @@ model_results$server<-function(id,vals){
                              title="Parameters",
                              div(
                                style="background: #dbf4ffff; padding: 10px; font-size: 12px",
-                               div(strong('Nº Folds:'),cv_params$k),
-                               div(strong("Block size:"),cv_params$size, "meters"),
-                               div(strong("Hexagon:"),cv_params$hexagon),
-                               div(strong("Selection:"),cv_params$selection),
-                               div(strong("Repeats:"),cv_params$repeats),
+                               cvsp_info_lines(cv_params$k,cv_params$size,cv_params$hexagon,cv_params$selection,cv_params$repeats,cv_params$source),
                                div(pickerInput(ns("cvsp_detail_showrepeat"),"Show Repeats",names(attr(m,"cvsp")$spcv)))
 
                              )),

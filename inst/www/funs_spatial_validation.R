@@ -1540,3 +1540,83 @@ confusionMatrix_train_imesc <- function(data,
 
   out
 }
+
+# Spatial CV folds kept as Factor-Attribute columns of the X Datalist: one column per repeat with the
+# fold of each training observation. The same folds can then be used by other algorithms, other
+# responses (Y) of the same observations, or in another session.
+# scheme: list of repeats (cv_spatial objects, rows in the order of ids); ids: IDs of the training rows
+cvsp_folds_to_factors<-function(scheme,ids,prefix="spcv",existing=character(0)){
+  if(!length(scheme)) stop("There is no spatial CV scheme.")
+  cols<-lapply(scheme,function(cv){
+    f<-cv$folds_ids
+    if(length(f)!=length(ids)) stop("The spatial CV scheme does not match the training observations.")
+    lev<-paste0("Fold",sort(unique(f[!is.na(f)])))
+    factor(ifelse(is.na(f),NA,paste0("Fold",f)),levels=lev)
+  })
+  new<-paste0(prefix,"_",names(scheme))
+  new<-make.unique(c(existing,new),sep="_")[length(existing)+seq_along(new)]
+  df<-data.frame(cols,row.names=ids,check.names=FALSE)
+  colnames(df)<-new
+  df
+}
+# adds the fold columns to the Factor-Attribute (all observations of X; NA for those not in training)
+cvsp_add_fold_columns<-function(factors,folds,all_ids){
+  if(is.null(factors)||!NROW(factors)) factors<-data.frame(row.names=all_ids)
+  m<-match(rownames(folds),rownames(factors))
+  if(anyNA(m)) stop("Some training observations are not in the Factor-Attribute of X.")
+  for(col in colnames(folds)){
+    v<-factor(rep(NA,nrow(factors)),levels=levels(folds[[col]]))
+    v[m]<-folds[[col]]
+    factors[[col]]<-v
+  }
+  factors
+}
+# builds the scheme (one repeat per column) from Factor-Attribute columns, in the cv_spatial layout
+# (folds_list, folds_ids, k, records) used for training (caret index) and for the plots.
+# ids: IDs of the training rows; y: response (records per class, or per quantile group if numeric)
+cvsp_scheme_from_factors<-function(factors,cols,ids,y=NULL,groups=5){
+  if(!length(cols)) stop("Select at least one column with the folds.")
+  if(is.null(factors)) stop("The X Datalist has no Factor-Attribute.")
+  miss<-setdiff(cols,colnames(factors))
+  if(length(miss)) stop("Column(s) not found in the Factor-Attribute: ",paste(miss,collapse=", "))
+  out<-setdiff(ids,rownames(factors))
+  if(length(out)) stop(length(out)," training observation(s) are not in the Factor-Attribute (e.g. ",paste(utils::head(out,3),collapse=", "),").")
+  cl_y<-NULL
+  if(!is.null(y)){
+    if(is.numeric(y)){
+      br<-unique(stats::quantile(y,probs=seq(0,1,length.out=max(2,groups)),na.rm=TRUE))
+      cl_y<-if(length(br)>1) cut(y,br,include.lowest=TRUE) else factor(rep("all",length(y)))
+    } else cl_y<-factor(y)
+  }
+  res<-lapply(cols,function(col){
+    f<-factor(as.character(factors[ids,col]))
+    if(anyNA(f)){
+      stop(sprintf("'%s' has no fold for %d training observation(s) (e.g. %s).",col,sum(is.na(f)),
+                   paste(utils::head(ids[is.na(f)],3),collapse=", ")))
+    }
+    lev<-levels(f)
+    num<-suppressWarnings(as.numeric(gsub("[^0-9.]","",lev)))
+    if(!anyNA(num)) lev<-lev[order(num)]
+    f<-factor(f,levels=lev)
+    k<-nlevels(f)
+    if(k<2) stop(sprintf("'%s' needs at least 2 folds.",col))
+    fid<-as.integer(f)
+    folds_list<-lapply(seq_len(k),function(p) list(which(fid!=p),which(fid==p)))
+    records<-if(is.null(cl_y)){
+      data.frame(train=sapply(folds_list,function(z) length(z[[1]])),test=sapply(folds_list,function(z) length(z[[2]])))
+    } else {
+      tr<-t(sapply(folds_list,function(z) table(cl_y[z[[1]]])))
+      te<-t(sapply(folds_list,function(z) table(cl_y[z[[2]]])))
+      if(nlevels(cl_y)==1){ tr<-t(tr); te<-t(te) }
+      r<-as.data.frame(cbind(tr,te))
+      colnames(r)<-c(paste0("train_",levels(cl_y)),paste0("test_",levels(cl_y)))
+      r
+    }
+    structure(list(folds_list=folds_list,folds_ids=fid,k=k,size=NA,column="y",blocks=NULL,
+                   records=records,fold_names=lev),class="cv_factor")
+  })
+  names(res)<-paste0("Rep",seq_along(cols))
+  attr(res,"source")<-cols
+  res
+}
+

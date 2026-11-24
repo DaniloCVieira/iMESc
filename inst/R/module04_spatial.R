@@ -310,6 +310,15 @@ sptools_panels$ui<-function(id){
                            )
                          ),
                          tabPanel(
+                           "Autocorrelation",value="autocorr",
+                           div(
+                             uiOutput(ns('map_autocorr_validate')),
+                             div(id=ns("autocorr_page"),
+                                 uiOutput(ns("map_autocorr"))
+                             )
+                           )
+                         ),
+                         tabPanel(
                            "Surface (3D)",value="surface",
                            div(
 
@@ -361,6 +370,7 @@ sptools_panels$server<-function(id,vals){
       shinyjs::toggle('scatter3D_page',condition=valid_map)
       shinyjs::toggle('raster_page',condition=valid_map)
       shinyjs::toggle('interp_page',condition=valid_map)
+      shinyjs::toggle('autocorr_page',condition=valid_map)
     })
 
 
@@ -435,6 +445,21 @@ sptools_panels$server<-function(id,vals){
 
     output$map_interp_validate<-renderUI({
       validate_coords()
+    })
+
+    output$map_autocorr_validate<-renderUI({
+      validate_coords()
+    })
+    # Autocorrelation tab: created the first time it is opened
+    output$map_autocorr<-renderUI({
+      div(
+        sptools_autocorr$ui(ns("autocorr")),
+        uiOutput(ns("map_autocorr_server"))
+      )
+    })
+    output$map_autocorr_server<-renderUI({
+      sptools_autocorr$server("autocorr",vals=vals)
+      NULL
     })
 
 

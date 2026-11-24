@@ -52,6 +52,9 @@ imesc_run_or_null<-function(x,what="The analysis"){
 #' @export
 module_server_figs<-function (input, output, session,vals,file="",datalist_name=T, message=NULL, name_c=NULL, generic=NULL,fun=NULL,args_plot=NULL,gif=FALSE,formats=c("png","tiff","jpeg","pdf","svg")){
   ns<-session$ns
+  # the window is created again at each download click: the observers of the previous window
+  # are removed, so that they do not act on the buttons of this one
+  .obs<-imesc_module_observers(session); observeEvent<-.obs$observeEvent; observe<-.obs$observe
   if(is.null(message)){
     message<-vals$hand_plot
   }
@@ -78,15 +81,48 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
   # only base graphics drawn directly (ggplot sets its fonts in the theme and ignored it; replayed
   # plots got larger margins and symbols but not larger text, and could fail with "invalid
   # graphics state"). PDF and SVG have no resolution: their page is the size divided by the scale.
-  fig_scale<-function(){
-    ps<-suppressWarnings(as.numeric(input$pointsize))
-    if(length(ps)!=1||!is.finite(ps)||ps<=0) 1 else ps/12
+  # size, resolution and pointsize typed in the window (NULL while one of them is empty or invalid)
+  fig_args_now<-function(){
+    a<-list(fheight=input$fheight,fwidth=input$fwidth,fres=input$fres,pointsize=input$pointsize)
+    ok<-all(vapply(a,function(x) length(x)==1&&is.numeric(x)&&is.finite(x)&&x>0,logical(1)))
+    if(ok) a else NULL
   }
-  fig_device<-function(file,format){
-    s<-fig_scale()
-    fheight<-input$fheight/s
-    fwidth<-input$fwidth/s
-    fres<-as.numeric(input$fres)*s
+  # the preview is drawn with the values confirmed by "Update preview" (the values of the window
+  # when it opened, at first), not at each key typed in the boxes
+  preview_args<-reactiveVal(NULL)
+  observe({
+    a<-fig_args_now()
+    if(is.null(isolate(preview_args()))&&!is.null(a)) preview_args(a)
+  })
+  preview_outdated<-reactive({
+    !identical(fig_args_now(),preview_args())
+  })
+  observe({
+    outdated<-isTRUE(preview_outdated())&&!isFALSE(vals$fig_preview)
+    shinyjs::toggle("update_preview_btn",condition=outdated)
+    shinyjs::toggle("download_btn",condition=!outdated)
+  })
+  observeEvent(input$update_preview,ignoreInit=TRUE,{
+    a<-fig_args_now()
+    if(is.null(a)){
+      showNotification("Height, width, resolution and pointsize must be numbers greater than 0.",type="warning")
+      return()
+    }
+    preview_args(a)
+    # the confirmed values are kept for the next figures (also written when downloading)
+    vals$fheight<-a$fheight
+    vals$fwidth<-a$fwidth
+    vals$fres<-a$fres
+    vals$pointsize<-a$pointsize
+  })
+
+  fig_device<-function(file,format,args=NULL){
+    if(is.null(args)) args<-list(fheight=input$fheight,fwidth=input$fwidth,fres=input$fres,pointsize=input$pointsize)
+    ps<-suppressWarnings(as.numeric(args$pointsize))
+    s<-if(length(ps)!=1||!is.finite(ps)||ps<=0) 1 else ps/12
+    fheight<-args$fheight/s
+    fwidth<-args$fwidth/s
+    fres<-as.numeric(args$fres)*s
     if(format%in%c("pdf","svg")){
       fheight<-fheight*0.3937
       fwidth<-fwidth*0.3937
@@ -163,9 +199,12 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
       fn_download()
       dev.off()
 
+      # a grid map set its own size: after its download the size used before it comes back
+      # (it was set to 20 x 15, height and width swapped in relation to the default 15 x 20)
       if(isTRUE(vals$hw_changed)){
-        vals$fheight<-20
-        vals$fwidth<-15
+        before<-vals$hw_before_grid
+        vals$fheight<-if(is.null(before$fheight)) 15 else before$fheight
+        vals$fwidth<-if(is.null(before$fwidth)) 20 else before$fwidth
         vals$hw_changed<-F
       }
       file.copy(fn_downloadf(), file, overwrite=T)
@@ -201,18 +240,14 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     req(length(input$fig_preview)>0)
     req(isTRUE(input$fig_preview))
     req(length(vals$hand_plot)>0)
-    req(input$fheight)
-    req(input$fwidth)
-    req(input$fres)
-    req(input$pointsize)
+    args<-preview_args()
+    req(args)
 
     withProgress( message = "Rendering preview",
                   {
 
-
-                    get_args_dims()
                     # the preview uses the same scale as the download
-                    fig_device(paste0(name_c,".png",sep=""),"png")
+                    fig_device(paste0(name_c,".png",sep=""),"png",args)
                     if(inherits(generic,'gtable')){
                       grid::grid.draw(generic)
                     } else{
@@ -319,7 +354,12 @@ module_server_figs<-function (input, output, session,vals,file="",datalist_name=
     box_caret("box_fig",
               title=NULL,
               show_tittle = T,
-              button_title = div(style="display: inline-block",class="fig-btn-down save_changes",downloadButton(ns("bn_download"),"Download")),
+              # after a change of size, resolution or pointsize the preview must be updated before
+              # downloading: "Update preview" takes the place of Download until it is clicked
+              button_title = div(style="display: inline-block",
+                                 div(id=ns("download_btn"),style="display: inline-block",class="fig-btn-down save_changes",downloadButton(ns("bn_download"),"Download")),
+                                 shinyjs::hidden(div(id=ns("update_preview_btn"),style="display: inline-block",class="fig-btn-down save_changes",
+                                                     actionButton(ns("update_preview"),"Update preview",icon("fas fa-sync"),style="width: auto; padding: 3px 8px")))),
               ab = inline(div(
                 style="display: flex; align-items: center; gap:3px;",
                 class="fig_tools",

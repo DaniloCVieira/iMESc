@@ -1886,6 +1886,8 @@ sptools_tab$server<-function(id, raster=F, interp=F, pie=F,circles=F,vals,surfac
         removeModal()
         vals$cur_ggheight<-250*get_grid_layout()[1]
         vals$cur_ggwidth<-400*get_grid_layout()[2]
+        # the size used before the grid is restored after the grid is downloaded
+        if(!isTRUE(vals$hw_changed)) vals$hw_before_grid<-list(fheight=vals$fheight,fwidth=vals$fwidth)
         vals$hw_changed<-T
         vals$fheight<-round(Pixel_to_cm(vals$cur_ggheight))
         vals$fwidth<-round(Pixel_to_cm(vals$cur_ggwidth))

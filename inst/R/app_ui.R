@@ -483,16 +483,16 @@ Shiny.onInputChange('shiny_height',myHeight)
           )
         ) ),
       footer=shinydashboardPlus::dashboardFooter(
-        left=div(style="display: flex",
+        left=div(style="display: flex; position: relative",
                  div(style="width: 17%; display: inline-block; text-align: center",
                      #HTML("<a href='https://danilocvieira.github.io/iMESc_help' target='_blank'>iMESc<sup>help!</sup></a>"),
                      actionLink('imesc_help_link_side',HTML("iMESc<sup>help!</sup>"))
                  ),
 
-                 div(style="width: 52%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)),
-                 # contact for bug reports, as plain text (no mail program is opened)
-                 div(style="width: 27%; display: inline-block; text-align: right; padding-right: 10px",
-                     span(icon("bug"),em("Report a bug:"),imesc_contact_email)),
+                 div(style="width: 80%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)),
+                 # contact as plain text, placed over the right end so the version stays where it was
+                 div(style="position: absolute; right: 5%; top: 0; white-space: nowrap",
+                     span(em("Contact:"),imesc_contact_email)),
                  div(style="width: 4%; display: inline-block; text-align: right",
                      uiOutput('footer_qsave'))
         )

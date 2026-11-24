@@ -604,6 +604,9 @@ tool1$ui <- function(id) {
     )
   }
 
+  # Base/Layer shape: an R object (.rds/.rda) or the files of a shapefile
+  shape_upload_accept <- c(".rds", ".rda", ".rdata", ".shp", ".shx", ".dbf", ".prj", ".cpg", ".sbn", ".sbx", ".qix")
+
   labels_create <- list(
     span(
       strong("Numeric-Attribute:", style = "color:  SeaGreen"),
@@ -646,8 +649,13 @@ tool1$ui <- function(id) {
           "<div class='tip_large'>
      <p><strong>Base shape</strong> is the main spatial polygon used as the geographic reference for map generation.</p>
      <p>It can be used to define the map extent, delimit the study area, filter points, and clip interpolated surfaces or other spatial outputs.</p>
-     <p>The file must be an <code>.rds</code> object previously created in R, usually from a shapefile read with packages such as <code>sf</code>. The uploaded object should contain a polygon layer.</p>
-     <p>Alternatively, users can import shapefiles and add them as base shape later using the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>
+     <p>Upload either:</p>
+     <ul>
+       <li>an <code>.rds</code> object previously created in R, usually from a shapefile read with packages such as <code>sf</code>; or</li>
+       <li>a <strong>shapefile</strong>: select its files together (at least <code>.shp</code>, <code>.shx</code> and <code>.dbf</code>, plus the <code>.prj</code> with the coordinate system). It is converted to longitude/latitude (WGS84).</li>
+     </ul>
+     <p>The shape should contain a polygon layer.</p>
+     <p>Shapes can also be added, cropped or simplified later in the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>
    </div>",
           "right"
         )
@@ -662,8 +670,12 @@ tool1$ui <- function(id) {
         tiphelp(
           "<p><strong>Layer shape</strong> is an additional spatial layer displayed on top of maps, such as land polygons, coastlines, islands, administrative boundaries, or other reference features.</p>
    <p>Unlike the <strong>Base shape</strong>, it is not used as the main geographic reference, study-area boundary, or clipping mask.</p>
-   <p>Upload an <code>.rds</code> file containing a spatial vector object previously created in R, for example from a shapefile read with <code>sf</code>.</p>
-   <p>Alternatively, users can import shapefiles and add them as layer shapes later using the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>",
+   <p>Upload either:</p>
+   <ul>
+     <li>an <code>.rds</code> file containing a spatial vector object previously created in R, for example from a shapefile read with <code>sf</code>; or</li>
+     <li>a <strong>shapefile</strong>: select its files together (at least <code>.shp</code>, <code>.shx</code> and <code>.dbf</code>, plus the <code>.prj</code> with the coordinate system). It is converted to longitude/latitude (WGS84).</li>
+   </ul>
+   <p>Shapes can also be added, cropped or simplified later in the <strong>SHP toolbox</strong>, available in the preprocessing tools.</p>",
           "right"
         )
       )
@@ -928,9 +940,12 @@ tool1$ui <- function(id) {
 
                       div(class = "mlb mblue"),
 
+                      # one .rds/.rda, or the files of one shapefile selected together
                       fileInput(
                         ns("base_shape"),
-                        labels_create[5]
+                        labels_create[5],
+                        multiple = TRUE,
+                        accept = shape_upload_accept
                       ),
 
                       actionLink(
@@ -949,7 +964,9 @@ tool1$ui <- function(id) {
 
                       fileInput(
                         ns("layer_shape"),
-                        labels_create[6]
+                        labels_create[6],
+                        multiple = TRUE,
+                        accept = shape_upload_accept
                       ),
 
                       actionLink(
@@ -1617,12 +1634,13 @@ tool1$server <- function(id, vals) {
       file_factors(input$labels$datapath)
     })
 
+    # the whole upload (names and paths): a shapefile comes as several files
     observeEvent(input$base_shape$datapath, {
-      file_base(input$base_shape$datapath)
+      file_base(input$base_shape)
     })
 
     observeEvent(input$layer_shape$datapath, {
-      file_layer(input$layer_shape$datapath)
+      file_layer(input$layer_shape)
     })
 
     observeEvent(input$reset_insert_1, {
@@ -1889,7 +1907,7 @@ tool1$server <- function(id, vals) {
 
         if (length(file_base()) > 0) {
 
-          imesc_read_shape_rds(file_base(), "Base-Shape")
+          imesc_read_shape_upload(file_base(), "Base-Shape")
 
         } else {
 
@@ -1908,7 +1926,7 @@ tool1$server <- function(id, vals) {
 
         if (length(file_layer()) > 0) {
 
-          imesc_read_shape_rds(file_layer(), "Layer-Shape")
+          imesc_read_shape_upload(file_layer(), "Layer-Shape")
 
         } else {
 

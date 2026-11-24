@@ -397,7 +397,8 @@ textauthors<-function(...){
 #' @export
 #' @export
 # Reads a base/layer shape saved as .rda (load) or .rds (readRDS); a file that is neither (e.g. a
-# .shp or .zip) stops with a validation message (shown by the Create Datalist window)
+# .zip) stops with a validation message (shown by the Create Datalist window). Shapefiles are read
+# by imesc_read_shape_upload, below
 #' @export
 imesc_read_shape_rds<-function(path,what="shape"){
   t<-try(silent=TRUE,{
@@ -407,8 +408,40 @@ imesc_read_shape_rds<-function(path,what="shape"){
   })
   if(inherits(t,"try-error")) t<-try(readRDS(path),silent=TRUE)
   validate(need(!inherits(t,"try-error")&&!is.null(t),
-                paste0("The ",what," file could not be read: use a .rds (or .rda) file. A shapefile (.shp) can be converted in Pre-processing > Shapefile toolbox.")))
+                paste0("The ",what," file could not be read: use a .rds (or .rda) file, or select together the files of a shapefile (.shp, .shx, .dbf and .prj).")))
   t
+}
+
+# Base/Layer shape uploaded in Create Datalist: one .rds/.rda file (as before), or the files of one
+# shapefile selected together (.shp, .shx, .dbf and .prj). 'files' is the data.frame of a fileInput
+# (name, datapath); a character path is read as .rds. Shapefiles are returned in longitude/latitude
+# (WGS84), as the Shapefile toolbox stores them.
+#' @export
+imesc_read_shape_upload<-function(files,what="shape"){
+  if(is.character(files)) return(imesc_read_shape_rds(files[1],what))
+  names_in<-files$name
+  is_shp<-grepl("\\.(shp|shx|dbf|prj|cpg|sbn|sbx|qix|fix|xml)$",names_in,ignore.case=TRUE)
+  if(!any(is_shp)){
+    validate(need(nrow(files)==1,
+                  paste0(what,": select one .rds file, or the files of one shapefile (.shp, .shx, .dbf and .prj).")))
+    return(imesc_read_shape_rds(files$datapath[1],what))
+  }
+  validate(need(all(is_shp),
+                paste0(what,": do not mix .rds files with shapefile files.")))
+  # copied with their original names to a folder of their own, so the uploaded files stay
+  # untouched and the shapefile can be read again (Read_Shapefile renames the files it reads)
+  dir<-tempfile("shape_")
+  dir.create(dir)
+  dest<-file.path(dir,names_in)
+  file.copy(files$datapath,dest,overwrite=TRUE)
+  x<-Read_Shapefile(data.frame(name=names_in,datapath=dest,stringsAsFactors=FALSE))
+  validate(need(!is.null(x),paste0("The ",what," shapefile could not be read.")))
+  x<-tryCatch(sf::st_transform(x,"+proj=longlat +datum=WGS84 +no_defs"),error=function(e){
+    showNotification(paste0("The ",what," shapefile could not be converted to longitude/latitude: ",conditionMessage(e)),type="error",duration=10)
+    NULL
+  })
+  validate(need(!is.null(x),paste0("The ",what," shapefile could not be converted to longitude/latitude.")))
+  x
 }
 
 # Reads a shapefile uploaded as its separate files (.shp, .dbf, .shx and optionally .prj...).

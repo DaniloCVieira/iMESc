@@ -356,6 +356,14 @@ textintro <- function(...) {
 
 
 
+# contact for bug reports (Authors tab and page footer)
+imesc_contact_email<-"imescapp@gmail.com"
+# mailto link with the iMESc version in the subject
+imesc_bug_mailto<-function(){
+  v<-if(exists("version",envir=globalenv(),inherits=FALSE)&&is.character(get("version",envir=globalenv()))) get("version",envir=globalenv()) else ""
+  paste0("mailto:",imesc_contact_email,"?subject=",utils::URLencode(paste("iMESc bug report",v),reserved=TRUE))
+}
+
 #' @export
 textauthors<-function(...){
   column(
@@ -389,6 +397,17 @@ textauthors<-function(...){
     column(
       12,
       p("Special thanks to Daiane Faller, Juliane Castro Carneiro, and Julio Cezar F. Moreira for sparking the initial conversations about machine learning. Their insights were instrumental in shaping the direction and development of this app.")
+    ),
+
+    h5(
+      strong("Contact")
+    ),
+
+    column(
+      12,
+      p("Bug reports, questions and suggestions:",
+        tags$a(href=imesc_bug_mailto(),imesc_contact_email)),
+      p(em("When reporting a bug, please include the iMESc version (shown at the bottom of the page), the steps that led to the problem and, if the app closed, the line starting with 'Warning: Error in' printed in the R console."))
     )
   )
 

@@ -516,16 +516,19 @@ app_server<-server<-function(input, output, session) {
     div(class="footer_buttons",
         #p(em("by: Danilo C Vieira")),
         style="background: transparent; color: white",
-        inline(uiOutput("imesc_footer")),
-        inline(tipify_ui(uiOutput("qnote"),"Creates a note for the Datalist", placement = 'top'))
+        # contact (plain text) just left of the buttons, or at the right end when there are none
+        inline(span(style="margin-right: 10px; white-space: nowrap",em("Contact:"),imesc_contact_email)),
+        inline(uiOutput("imesc_footer"))
     )
   })
   output$imesc_footer<-renderUI({
 
     div(id="qsave_btns",
-        inline(uiOutput("qsave_btn")),
+        inline(uiOutput("qsave_btn"))
         #inline(uiOutput("qload_btn")),
-        inline(uiOutput("qcomment_btn"))
+        # comment button removed from the footer (it sat next to the contact): comments are
+        # written in the Data bank
+        #inline(uiOutput("qcomment_btn"))
     )
   })
 

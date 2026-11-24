@@ -412,7 +412,10 @@ imesc_read_shape_rds<-function(path,what="shape"){
   t
 }
 
-# Base/Layer shape uploaded in Create Datalist: one .rds/.rda file (as before), or the files of one
+# file types offered by the Base/Layer shape uploads (Create Datalist and Data bank)
+imesc_shape_accept<-c(".rds",".rda",".rdata",".shp",".shx",".dbf",".prj",".cpg",".sbn",".sbx",".qix")
+
+# Base/Layer shape uploaded in Create Datalist or Data bank: one .rds/.rda file (as before), or the files of one
 # shapefile selected together (.shp, .shx, .dbf and .prj). 'files' is the data.frame of a fileInput
 # (name, datapath); a character path is read as .rds. Shapefiles are returned in longitude/latitude
 # (WGS84), as the Shapefile toolbox stores them.

@@ -605,7 +605,7 @@ tool1$ui <- function(id) {
   }
 
   # Base/Layer shape: an R object (.rds/.rda) or the files of a shapefile
-  shape_upload_accept <- c(".rds", ".rda", ".rdata", ".shp", ".shx", ".dbf", ".prj", ".cpg", ".sbn", ".sbx", ".qix")
+  shape_upload_accept <- imesc_shape_accept
 
   labels_create <- list(
     span(

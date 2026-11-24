@@ -511,7 +511,7 @@ databank_module$server <- function(id, vals) {
               style = "margin-top: 20px",
               splitLayout(
                 cellWidths = c("30%", "20%"),
-                column(12, fileInput(inputId = ns("add_base_file"), label = NULL)),
+                column(12, fileInput(inputId = ns("add_base_file"), label = NULL, multiple = TRUE, accept = imesc_shape_accept)),
                 column(12, uiOutput(ns("add_base_button")))
               )
             )
@@ -534,7 +534,7 @@ databank_module$server <- function(id, vals) {
               style = "margin-top: 20px",
               splitLayout(
                 cellWidths = c("30%", "20%"),
-                column(12, fileInput(inputId = ns("add_layer_file"), label = NULL)),
+                column(12, fileInput(inputId = ns("add_layer_file"), label = NULL, multiple = TRUE, accept = imesc_shape_accept)),
                 column(12, uiOutput(ns("add_layer_button")))
               )
             )
@@ -586,6 +586,11 @@ databank_module$server <- function(id, vals) {
       )
     })
 
+    shape_upload_hint <- div(
+      style = "margin-top: 5px; color: gray",
+      em("a .rds file, or the files of a shapefile selected together (.shp, .shx, .dbf and .prj; it is converted to longitude/latitude).")
+    )
+
     output$add_base_button <- renderUI({
       req(length(input$add_base_file$datapath) > 0)
       actionButton(
@@ -598,7 +603,7 @@ databank_module$server <- function(id, vals) {
     output$add_base_intru <- renderUI({
       column(
         12,
-        column(12, style = "margin-top: 20px", strong("1. Use the button below to upload one.")),
+        column(12, style = "margin-top: 20px", strong("1. Use the button below to upload one:"), shape_upload_hint),
         if (length(input$add_base_file$datapath) > 0) {
           column(
             12,
@@ -621,7 +626,7 @@ databank_module$server <- function(id, vals) {
     output$add_layer_intru <- renderUI({
       column(
         12,
-        column(12, style = "margin-top: 20px", strong("1. Use the button below to upload one.")),
+        column(12, style = "margin-top: 20px", strong("1. Use the button below to upload one:"), shape_upload_hint),
         if (length(input$add_layer_file$datapath) > 0) {
           column(
             12,
@@ -940,25 +945,21 @@ databank_module$server <- function(id, vals) {
       removeModal()
     })
 
-    # a shape saved as .rda (load) or .rds (readRDS); NULL with a message when the file is neither
-    read_shape_file <- function(path) {
-      if (is.null(path)) {
-        showNotification("Choose a shape file (.rds or .rda) first.", type = "warning")
+    # one .rds/.rda (as before) or the files of one shapefile selected together (converted to
+    # longitude/latitude); NULL with a message when they cannot be read
+    read_shape_file <- function(files, what) {
+      if (is.null(files) || !NROW(files)) {
+        showNotification("Choose a shape file (.rds) or the files of a shapefile first.", type = "warning")
         return(NULL)
       }
-      t <- try(silent = TRUE, {
-        get(gsub(" ", "", capture.output(load(path, verbose = TRUE))[2]))
+      tryCatch(imesc_read_shape_upload(files, what), error = function(e) {
+        showNotification(conditionMessage(e), type = "error", duration = 8)
+        NULL
       })
-      if (inherits(t, "try-error")) t <- try(readRDS(path), silent = TRUE)
-      if (inherits(t, "try-error") || is.null(t)) {
-        showNotification("The file could not be read as a shape: use a .rds or .rda file created by the Shapefile toolbox.", type = "error", duration = 8)
-        return(NULL)
-      }
-      t
     }
 
     observeEvent(ignoreInit = TRUE, input$add_base, {
-      t <- read_shape_file(input$add_base_file$datapath)
+      t <- read_shape_file(input$add_base_file, "Base-Shape")
       req(t)
 
       attr(vals$saved_data[[input$data_bank]], "base_shape") <- t
@@ -966,7 +967,7 @@ databank_module$server <- function(id, vals) {
     })
 
     observeEvent(ignoreInit = TRUE, input$add_layer, {
-      t <- read_shape_file(input$add_layer_file$datapath)
+      t <- read_shape_file(input$add_layer_file, "Layer-Shape")
       req(t)
 
       attr(vals$saved_data[[input$data_bank]], "layer_shape") <- t

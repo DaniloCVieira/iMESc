@@ -233,6 +233,7 @@ install_imesc <- function(
     RSNNS = "0.4.17",
     evtree = "1.0.8",
     RANN = "2.6.2",
+    pROC = "1.18.5",
     colorspace = "2.1-3"
   )
 

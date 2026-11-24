@@ -489,8 +489,10 @@ Shiny.onInputChange('shiny_height',myHeight)
                      actionLink('imesc_help_link_side',HTML("iMESc<sup>help!</sup>"))
                  ),
 
-                 div(style="width: 80%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),paste0(last_update,';'),
-                      tags$a(href=imesc_bug_mailto(),title="Bug reports, questions and suggestions",icon("bug"),paste("Report a bug:",imesc_contact_email)))),
+                 div(style="width: 52%; display: inline-block; text-align: center",span(em("Version:"),paste0(version,';'),em("Last update:"),last_update)),
+                 # contact for bug reports, as plain text (no mail program is opened)
+                 div(style="width: 27%; display: inline-block; text-align: right; padding-right: 10px",
+                     span(icon("bug"),em("Report a bug:"),imesc_contact_email)),
                  div(style="width: 4%; display: inline-block; text-align: right",
                      uiOutput('footer_qsave'))
         )

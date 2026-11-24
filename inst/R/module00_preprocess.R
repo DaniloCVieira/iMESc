@@ -11546,28 +11546,48 @@ tool3$server <- function(id, vals = NULL){
     # Sync IDs
     # -------------------------------------------------------------------------
 
+    # The tab starts with no Datalist chosen: opening it does not remove rows. Before, the
+    # first Datalist was selected on opening, and rows absent from it were removed (all of
+    # them when the IDs differ), even after leaving the tab or switching Datalists.
+    sync_none <- "__imesc_no_match__"
+
     output$sync_ids <- renderUI({
+
+      dls <- names(vals$saved_data)
+      sel <- isolate(input$sync_ids)
+      if (!isTRUE(sel %in% dls)) sel <- sync_none
 
       selectInput(
         session$ns("sync_ids"),
         "Choose a Datalist for ID matching",
-        names(vals$saved_data)
+        c(list("None (keep all rows)" = sync_none), as.list(stats::setNames(dls, dls))),
+        selected = sel
       )
     })
 
-    observeEvent(input$sync_ids, {
+    # recomputed when the chosen Datalist, the current data or the saved Datalists change
+    observe({
 
-      req(input$sync_ids)
+      sel <- input$sync_ids
+      d <- data()
 
-      match <- rownames(data()) %in%
-        rownames(vals$saved_data[[input$sync_ids]])
+      if (is.null(sel) || !isTRUE(sel %in% names(vals$saved_data))) {
+        row_match(NULL)
+        vtool3$rm_match <- NULL
+        return()
+      }
+
+      match <- rownames(d) %in%
+        rownames(vals$saved_data[[sel]])
 
       row_match(match)
+      vtool3$rm_match <- rownames(d)[!match]
     })
 
-    observeEvent(row_match(), {
+    observe({
 
-      if (any(!row_match())) {
+      # row_match() is NULL when no Datalist is chosen (!NULL is an error)
+      if (length(row_match()) > 0 && any(!row_match())) {
 
         shinyjs::show("unsync_ids")
 
@@ -11587,13 +11607,10 @@ tool3$server <- function(id, vals = NULL){
       )
     })
 
-    observeEvent(row_match(), {
-
-      vtool3$rm_match <- rownames(data())[!row_match()]
-    })
 
     print_unsync <- reactive({
 
+      req(length(row_match()) > 0)
       req(any(!row_match()))
 
       primary_datalist <- attr(data(), "datalist_root")
@@ -12672,26 +12689,26 @@ tool5$server<-function(id,vals){
     })
 
 
-    run_transf<-eventReactive(list(input$transf,input$scale,input$center,input$transf_ord,input$cols),{
-      res<-list()
-      req(input$cols)%in%colnames(data())
+    # The steps come from the inputs themselves. Before, they came from cur_transfs() inside an
+    # eventReactive: when it ran before cur_transfs() was updated (the order of the two depends on
+    # Shiny internals), ticking Scale stopped silently and the result stayed unscaled.
+    run_transf<-reactive({
+      req(input$cols)
+      req(all(input$cols%in%colnames(data())))
       args_list<-list(
         Transf=list(transf=input$transf,cols=input$cols,fun_name='transf_data'),
         Scale=list(scale=input$scale,center=input$center,fun_name='get_scale')
 
       )
-      if(length(cur_transfs())==1){
-
-        return(args_list)
-      } else{
-        req(input$transf_ord)
-        args_list<-args_list[input$transf_ord]
-
-        return(args_list)
+      active<-c(if(isTRUE(input$transf!="None")) "Transf",if(isTRUE(input$scale)) "Scale")
+      if(length(active)==2){
+        # order chosen in the First/Second list; else the order the options were turned on
+        ord<-input$transf_ord
+        if(!setequal(ord,active)||length(ord)!=2) ord<-cur_transfs()
+        if(!setequal(ord,active)||length(ord)!=2) ord<-active
+        active<-ord
       }
-
-
-
+      args_list[active]
     })
 
     r_transf_end<-reactive({

@@ -7652,10 +7652,10 @@ pd$server<-function(id,model,vals){
           p1<-plot_pd_groups(pd,model,NULL,newcolhabs = vals$newcolhabs, pd_palette =pd_palette )
 
         } else{
-          p1<-autoplot(pd, contour = TRUE, main = paste("Class:",rf_biplotclass),legend.title = legend_pd)
+          p1<-plot_pd_single(pd, main = paste("Class:",rf_biplotclass),legend.title = legend_pd)
         }
       } else {
-        p1<-autoplot(pd, contour = TRUE, main = "",legend.title = "Partial\ndependence")}
+        p1<-plot_pd_single(pd, main = "",legend.title = "Partial\ndependence")}
       suppressWarnings({
 
         p1<-p1 + scale_fill_gradientn(colours =scale_color_2(pd_palette,vals$newcolhabs),name=legend_pd)
@@ -7682,7 +7682,7 @@ pd$server<-function(id,model,vals){
     }
 
     observeEvent(model_name,{
-      updateTextInput(session,'title_pd',value="model_name")
+      updateTextInput(session,'title_pd',value=if(length(model_name)) as.character(model_name) else "")
     })
     pd_args<-reactive({
       list(

@@ -146,6 +146,23 @@ plot_pd_groups<-function(res_pd,m,best_pds,pd_size_plot=12,pd_palette="viridis",
 
 
 
+# Partial dependence of two predictors (a pdp 'partial' object: the two predictors and yhat) drawn
+# directly with ggplot2, as plot_pd_groups. autoplot() needs the pdp method registered in ggplot2,
+# which failed in some sessions ("Objects of class <partial> are not supported by autoplot").
+plot_pd_single<-function(pd,main="",legend.title="Partial\ndependence"){
+  pd<-as.data.frame(pd)
+  zcol<-if("yhat"%in%colnames(pd)) "yhat" else colnames(pd)[ncol(pd)]
+  vars<-setdiff(colnames(pd),zcol)
+  df<-data.frame(x=pd[[vars[1]]],y=pd[[vars[2]]],z=pd[[zcol]])
+  p<-ggplot2::ggplot(df,ggplot2::aes(x=x,y=y,z=z,fill=z))+
+    ggplot2::geom_tile()
+  if(is.numeric(df$x)&&is.numeric(df$y)){
+    p<-p+ggplot2::geom_contour(color="white",alpha=0.5)
+  }
+  p+ggplot2::labs(x=vars[1],y=vars[2],fill=legend.title,title=main)
+}
+
+
 #' @export
 container_global_caret<-function(table){
   #table=data.frame(table)

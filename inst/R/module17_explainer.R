@@ -74,7 +74,7 @@ rf_explainer$ui<-function(id){
 
                                     div(
                                       div(
-                                        actionLink(ns('run_measures'),span("Click to Measure Importance ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
+                                        uiOutput(ns('run_measures_ui'))
 
                                       ),
                                       uiOutput(ns("rf_measure_out"))
@@ -231,7 +231,7 @@ rf_explainer$ui<-function(id){
                 color="#c3cc74ff",
                 div(
                   div(
-                    actionLink(ns('go_rfinter'),span("Click to Run ",icon("fas fa-arrow-circle-right")), style = "animation: glowing3 1000ms infinite;")
+                    uiOutput(ns('go_rfinter_ui'))
                   ),
                   numericInput(ns('rfinter_k'),span(tipright("The number of variables to extract"),'k'),value=5,step=1),
                   selectInput(ns('rfinter_mean_sample'),span(tipright("The sample of trees on which conditional mean minimal depth is calculated"),'mean_sample'),choices=c("all_trees", "top_trees", "relevant_trees"),selected='top_trees'),
@@ -1034,14 +1034,31 @@ rf_explainer$server<-function(id,vals){
       try({
 
         if(model_name()=="new rf (unsaved)"){
-          attr(vals$cur_caret_model,"mindepth")<-mindeaphrf()
+          md<-mindeaphrf()
+          attr(md,"run_params")<-measure_params()
+          attr(vals$cur_caret_model,"mindepth")<-md
         } else{
-          attr(attr(vals$saved_data[[data_x()]],"rf")[[model_name()]][[1]],"mindepth")<-mindeaphrf()
+          md<-mindeaphrf()
+          attr(md,"run_params")<-measure_params()
+          attr(attr(vals$saved_data[[data_x()]],"rf")[[model_name()]][[1]],"mindepth")<-md
         }
         vals$update_tab_results<-"rfe"
         updateTabsetPanel(session,"rftab2","rftab2_3")
 
       })
+    })
+    # "Click to Measure Importance" glows until the measures of the current model are calculated with the
+    # current options (measures calculated for all saved models at once have no options stored)
+    measure_params<-reactive({
+      c(measures=paste(input$rf_measures,collapse=","),mean_sample=as.character(input$rfmeasure_mean_sample))
+    })
+    output$run_measures_ui<-renderUI({
+      md<-tryCatch(get_measures(),error=function(e) NULL)
+      if(is.null(md)&&isTRUE(tryCatch(model_name(),error=function(e) NULL)=="new rf (unsaved)")){
+        md<-attr(vals$cur_caret_model,"mindepth")
+      }
+      done<-!is.null(md)&&!inherits(md,"try-error")&&(is.null(attr(md,"run_params"))||identical(attr(md,"run_params"),measure_params()))
+      actionLink(ns('run_measures'),span("Click to Measure Importance ",icon("fas fa-arrow-circle-right")),style=if(!done) "animation: glowing3 1000ms infinite;")
     })
     get_measures<-reactive({
       res<-attr(attr(vals$saved_data[[data_x()]],"rf")[[model_name()]][[1]],"mindepth")
@@ -1201,7 +1218,12 @@ rf_explainer$server<-function(id,vals){
       })
     })
     module_save_changes$server("explainer-create",vals)
+    # the measures are reset only when the choices change (classification/regression), not every time the
+    # model is updated (e.g. after the measures are calculated), so the user's selection is kept
+    measure_choices<-reactiveVal(NULL)
     observeEvent(rf_inputsmeasure(),{
+      if(identical(measure_choices(),rf_inputsmeasure())) return(NULL)
+      measure_choices(rf_inputsmeasure())
       updateCheckboxGroupInput(session,"rf_measures",choices=rf_inputsmeasure(),selected=rf_inputsmeasure())
     })
     observe({
@@ -1313,6 +1335,7 @@ rf_explainer$server<-function(id,vals){
                      interactions_frame<-suppressWarnings(randomForestExplainer::min_depth_interactions(forest, vars, mean_sample=input$rfinter_mean_sample, uncond_mean_sample=input$uncond_mean_sample))
                      vals$rf_interactions_frame
                      res<-interactions_frame[ order(interactions_frame$occurrences,decreasing=T),]
+                     attr(res,"run_params")<-rfinter_params()
 
                      attr(attr(vals$saved_data[[data_x()]],"rf")[[model_name()]][[1]],"interframe")<-res
 
@@ -1321,6 +1344,16 @@ rf_explainer$server<-function(id,vals){
 
 
 
+    })
+    # parameters of the interaction analysis; the "Click to Run" link glows until the analysis is run
+    # with the current parameters (no result yet, or the parameters changed since the last run)
+    rfinter_params<-reactive({
+      c(k=as.character(input$rfinter_k),mean_sample=as.character(input$rfinter_mean_sample),uncond_mean_sample=as.character(input$uncond_mean_sample))
+    })
+    output$go_rfinter_ui<-renderUI({
+      fr<-tryCatch(interframe(),error=function(e) NULL)
+      done<-!is.null(fr)&&identical(attr(fr,"run_params"),rfinter_params())
+      actionLink(ns('go_rfinter'),span("Click to Run ",icon("fas fa-arrow-circle-right")),style=if(!done) "animation: glowing3 1000ms infinite;")
     })
     interframe<-reactive({
 

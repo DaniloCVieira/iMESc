@@ -8246,10 +8246,16 @@ tool2_tab10$ui<-function(id){
                            tiphelp5("New name","Name used when saving the result as a new datalist."),
                            value="derived_features"
                          ),
-                         div(
-                           class="feature-actions save_changes",
-                           actionButton(ns("preview_features"),span("Preview",icon("eye"))),
-                           actionButton(ns("run_features"),span("Create",icon("angles-right")))
+                         div(style="display: flex; align-items: center; gap: 5px",
+                             div(
+                               class="feature-actions save_changes",
+                               actionButton(ns("preview_features"),span("Preview",icon("eye"))),
+                               actionButton(ns("run_features"),span("Create",icon("angles-right")))
+                             ),
+                             tipify_ui(
+                               actionButton(ns("restart_features"),span("Restart",icon("rotate-left"))),
+                               "Start building the variables again: empties the recipe and puts every option back to its default (the selected Datalist is kept)."
+                             )
                          )
                        ),
                        div(
@@ -8979,6 +8985,40 @@ tool2_tab10$server<-function(id,vals){
 
     observeEvent(input$clear_recipe,{
       feature_recipe(list())
+    })
+
+    # Restart: empties the recipe and puts the options back to their defaults (the Datalist is kept)
+    observeEvent(input$restart_features,{
+      feature_recipe(list())
+      dat<-tryCatch(data_x(),error=function(e) NULL)
+      if(!is.null(dat)){
+        num_cols<-colnames(dat)[vapply(dat,is.numeric,logical(1))]
+        updatePickerInput(session,"vars",choices=num_cols,selected=num_cols[1])
+        time_attr<-attr(dat,"time")
+        if(!is.null(time_attr)&&ncol(as.data.frame(time_attr))){
+          updatePickerInput(session,"time_col",selected=colnames(time_attr)[1])
+        }
+      }
+      updateTextInput(session,"prefix",value="")
+      updateCheckboxInput(session,"group_by_coords",value=TRUE)
+      updateCheckboxInput(session,"past_only",value=TRUE)
+      updateTextInput(session,"lags",value="1, 3")
+      updateNumericInput(session,"led_alpha",value=.3)
+      updateNumericInput(session,"led_init",value=NA)
+      updateCheckboxInput(session,"led_center",value=FALSE)
+      updateTextInput(session,"leads",value="1")
+      updateTextInput(session,"trend_windows",value="3, 7")
+      updateCheckboxGroupInput(session,"trend_stats",selected=c("mean","sd","slope"))
+      updateTextInput(session,"change_lags",value="1, 3")
+      updateCheckboxGroupInput(session,"change_types",selected="diff")
+      updateTextInput(session,"anomaly_windows",value="3, 7")
+      updateCheckboxGroupInput(session,"anomaly_types",selected="mean_dev")
+      updateCheckboxGroupInput(session,"cumulative_types",selected=c("sum","mean"))
+      updateCheckboxGroupInput(session,"seasonal_terms",selected=c("month_cyclic","doy_cyclic"))
+      updateTextInput(session,"seasonal_periods",value="")
+      updateRadioButtons(session,"output_mode",selected="append")
+      updateTextInput(session,"new_name",value="derived_features")
+      showNotification("Temporal Features restarted: the recipe is empty and the options are back to their defaults.",type="message",duration=5)
     })
 
     observeEvent(input$preview_features,{
